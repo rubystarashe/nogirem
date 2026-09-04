@@ -30,5 +30,6 @@ contextBridge.exposeInMainWorld("nogirem", {
   requestClose: () => ipcRenderer.invoke("application:request-close"),
   openCharacterGuide: () => ipcRenderer.invoke("application:open-character-guide"),
   openDxvkManager: () => ipcRenderer.invoke("application:open-dxvk-manager"),
+  openDxvkGuide: () => ipcRenderer.invoke("application:open-dxvk-guide"),
   confirmClose: action => ipcRenderer.invoke("application:confirm-close", action),
 })

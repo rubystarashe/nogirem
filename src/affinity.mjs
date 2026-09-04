@@ -156,6 +156,7 @@ export async function createAffinityManager({
   const changed = new Map()
   const handled = new Set()
   let gameActive = false
+  let latestGameStartTime = null
   let runningProcessNames = new Set()
 
   const isGame = processInfo => {
@@ -337,6 +338,7 @@ export async function createAffinityManager({
     runningProcessNames = new Set(processes.map(processInfo => processInfo.name.toLowerCase()))
     const games = processes.filter(isGame)
     if (!games.length) {
+      latestGameStartTime = null
       if (gameActive) {
         if (restoreOnGameExit) await restoreAll()
         else handled.clear()
@@ -353,6 +355,11 @@ export async function createAffinityManager({
       return null
     }
 
+    latestGameStartTime = games
+      .map(game => game.startTime)
+      .filter(Boolean)
+      .sort()
+      .at(-1) ?? null
     if (!gameActive) {
       console.log(
         quiet
@@ -394,6 +401,7 @@ export async function createAffinityManager({
     })),
     hasAppliedChanges: () => changed.size > 0,
     isGameActive: () => gameActive,
+    getLatestGameStartTime: () => latestGameStartTime,
     printStartupSummary,
     recover,
     resetAllAffinities,

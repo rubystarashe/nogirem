@@ -489,6 +489,14 @@ footer {
   color: #222;
 }
 
+.dxvk-update-link.warning {
+  color: #e08a24;
+}
+
+.dxvk-update-link.warning:hover {
+  color: #b96b11;
+}
+
 .boost-home.paused .character-guide-link,
 .boost-home.paused .dxvk-update-link {
   color: #aaa;
@@ -497,6 +505,14 @@ footer {
 .boost-home.paused .character-guide-link:hover,
 .boost-home.paused .dxvk-update-link:hover {
   color: #fff;
+}
+
+.boost-home.paused .dxvk-update-link.warning {
+  color: #f0a44b;
+}
+
+.boost-home.paused .dxvk-update-link.warning:hover {
+  color: #ffc06f;
 }
 
 .creator-credit {

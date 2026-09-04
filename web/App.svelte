@@ -91,6 +91,14 @@
     void window.nogirem.beginStartupReveal()
   }
 
+  function openDxvkWindow() {
+    if (services.affinity.data?.renderer?.mode === "direct3d9") {
+      void window.nogirem.openDxvkGuide()
+      return
+    }
+    void window.nogirem.openDxvkManager()
+  }
+
   function syncPageVisibility() {
     pageVisible = document.visibilityState === "visible"
     gameWave?.setPageVisible(pageVisible)
@@ -457,6 +465,7 @@
           gameActive: runtime.gameActive,
           includeNic: runtime.includeNic,
           nicManaged: runtime.nicManaged,
+          renderer: runtime.renderer,
           conflictingPrograms: runtime.conflictingPrograms,
         },
       })
@@ -683,13 +692,22 @@
           </button>
           <button
             class="dxvk-update-link"
+            class:warning={services.affinity.data?.renderer?.mode === "direct3d9"}
             class:entered={leftTopContentEntered}
-            onclick={() => window.nogirem.openDxvkManager()}
+            onclick={openDxvkWindow}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 4V1L8 5l4 4V6a6 6 0 0 1 5.65 8H19.7A8 8 0 0 0 12 4Zm-5.65 6H4.3A8 8 0 0 0 12 20v3l4-4-4-4v3a6 6 0 0 1-5.65-8Z" />
+              {#if services.affinity.data?.renderer?.mode === "direct3d9"}
+                <path d="M1 21h22L12 2 1 21Zm12-3h-2v2h2v-2Zm0-2h-2v-4h2v4Z" />
+              {:else}
+                <path d="M12 4V1L8 5l4 4V6a6 6 0 0 1 5.65 8H19.7A8 8 0 0 0 12 4Zm-5.65 6H4.3A8 8 0 0 0 12 20v3l4-4-4-4v3a6 6 0 0 1-5.65-8Z" />
+              {/if}
             </svg>
-            <span>DXVK 업데이트</span>
+            <span>
+              {services.affinity.data?.renderer?.mode === "direct3d9"
+                ? "DXVK를 사용중이지 않음"
+                : "DXVK 업데이트"}
+            </span>
           </button>
           <span class="creator-credit" class:entered={leftTopContentEntered}>
             [류트@렘] 제작

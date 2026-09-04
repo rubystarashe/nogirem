@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>DXVK Vulkan 설정 안내</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        color: #f3f5f7;
+        background: #101214;
+        font-family: "Pretendard Variable", Pretendard, "Segoe UI", sans-serif;
+      }
+
+      .titlebar {
+        position: fixed;
+        z-index: 10;
+        top: 0;
+        left: 0;
+        right: 52px;
+        height: 46px;
+        -webkit-app-region: drag;
+      }
+
+      .window-close {
+        position: fixed;
+        z-index: 11;
+        top: 10px;
+        right: 13px;
+        width: 28px;
+        height: 28px;
+        padding: 4px;
+        border: 0;
+        color: #969da2;
+        background: transparent;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+      }
+
+      .window-close:hover {
+        color: #fff;
+      }
+
+      .window-close svg {
+        width: 100%;
+        height: 100%;
+        fill: currentColor;
+      }
+
+      main {
+        display: flex;
+        height: 100%;
+        padding: 42px 28px 24px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+      }
+
+      .guide-image {
+        display: block;
+        width: 100%;
+        max-width: 818px;
+        max-height: 662px;
+        border: 1px solid #343a3e;
+        border-radius: 8px;
+        object-fit: contain;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      .guide-copy {
+        margin: 0;
+        color: #f3f5f7;
+        font-size: 15px;
+        font-weight: 600;
+        line-height: 1.6;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="titlebar"></div>
+    <button class="window-close" aria-label="창 닫기">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5.3 4 12 10.7 18.7 4 20 5.3 13.3 12l6.7 6.7-1.3 1.3-6.7-6.7L5.3 20 4 18.7l6.7-6.7L4 5.3 5.3 4Z" />
+      </svg>
+    </button>
+    <main>
+      <img
+        class="guide-image"
+        src="./doc_dxvk/option.png"
+        onerror="this.onerror=null;this.src='./public/doc_dxvk/option.png'"
+        alt="마비노기 환경설정의 Vulkan 렌더링 엔진 선택 화면"
+        draggable="false"
+      />
+      <p class="guide-copy">
+        환경설정 / 실험실 / 그래픽 / 렌더링 엔진 옵션에서 Vulkan 을 선택하고 게임을 다시 실행해 주세요
+      </p>
+    </main>
+    <script>
+      const closeButton = document.querySelector(".window-close")
+      closeButton.addEventListener("click", () => {
+        closeButton.disabled = true
+        void window.dxvkGuide.requestClose()
+      })
+    </script>
+  </body>
+</html>

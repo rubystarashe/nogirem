@@ -43,6 +43,17 @@ function validateDll(buffer) {
   }
 }
 
+export function detectDxvkRendererFromLog(content) {
+  const text = String(content)
+  const version = /\bDXVK:\s*(v[^\s]+)/i.exec(text)?.[1] ?? null
+  const initialized = Boolean(
+    version
+    && /\bCreating device:/i.test(text)
+    && /\bPresenter:\s*Actual swapchain properties:/i.test(text)
+  )
+  return { initialized, version }
+}
+
 async function readJson(path) {
   try {
     return JSON.parse(await readFile(path, "utf8"))

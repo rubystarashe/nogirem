@@ -1,6 +1,6 @@
 import { execFile, spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import { copyFile, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises"
+import { copyFile, mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises"
 import { cpus, tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
@@ -22,6 +22,7 @@ import {
 import { createMemoryManager } from "../src/memory.mjs"
 import {
   applyInstalledDxvk,
+  detectDxvkRendererFromLog,
   getDxvkDeploymentStatus,
   getDxvkReleases,
   getInstalledDxvk,
@@ -33,6 +34,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const preloadPath = join(root, "electron", "preload.cjs")
 const characterGuidePreloadPath = join(root, "electron", "character-guide-preload.cjs")
 const dxvkManagerPreloadPath = join(root, "electron", "dxvk-manager-preload.cjs")
+const dxvkGuidePreloadPath = join(root, "electron", "dxvk-guide-preload.cjs")
 const iconPath = join(root, "icon.ico")
 const characterSimplificationFileName = "주변캐릭터간소화프레임제한해제.muo"
 const conflictingProgramDefinitions = [
@@ -46,6 +48,7 @@ const config = JSON.parse(await readFile(join(root, "config.json"), "utf8"))
 let primaryWindow = null
 let characterGuideWindow = null
 let dxvkManagerWindow = null
+let dxvkGuideWindow = null
 let closeRequestPending = false
 let applicationExitInProgress = false
 let primaryWindowFocusPending = false
@@ -80,6 +83,32 @@ function findConflictingPrograms(processNames = []) {
   return conflictingProgramDefinitions
     .filter(program => program.executables.some(executable => running.has(executable)))
     .map(program => program.name)
+}
+
+async function detectMabinogiRenderer(gameActive, gameStartTime) {
+  if (!gameActive) return { mode: "not-running", version: null }
+  const startedAt = Date.parse(gameStartTime)
+  if (!Number.isFinite(startedAt)) return { mode: "detecting", version: null }
+  const logPath = join(dirname(config.gameExecutable), "Client_d3d9.log")
+  try {
+    const [content, logStat] = await Promise.all([
+      readFile(logPath, "utf8"),
+      stat(logPath),
+    ])
+    const parsed = detectDxvkRendererFromLog(content)
+    const belongsToCurrentLaunch = logStat.mtimeMs >= startedAt - 5000
+    if (belongsToCurrentLaunch && parsed.initialized) {
+      return { mode: "vulkan", version: parsed.version }
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      return { mode: "detecting", version: null }
+    }
+  }
+  return {
+    mode: Date.now() - startedAt >= 15000 ? "direct3d9" : "detecting",
+    version: null,
+  }
 }
 
 async function writeJsonAtomic(path, value) {
@@ -202,22 +231,30 @@ async function runAffinityHelper() {
     appliedMarkerRecorded = true
   }
 
-  const writeStatus = async values => writeJsonAtomic(statusPath, {
-    running: !stopping,
-    gameActive: affinity?.isGameActive() ?? false,
-    includeNic,
-    nicManaged,
-    backgroundCpuRange: `0-${half - 1}`,
-    gameCpuRange: `${half}-${logicalCpuCount - 1}`,
-    helperPid: process.pid,
-    helperAffinity,
-    nicStatus,
-    appliedMarkerRecorded,
-    conflictingPrograms: findConflictingPrograms(affinity?.getRunningProcessNames()),
-    updatedAt: Date.now(),
-    error: failure,
-    ...values,
-  })
+  const writeStatus = async values => {
+    const gameActive = affinity?.isGameActive() ?? false
+    const renderer = await detectMabinogiRenderer(
+      gameActive,
+      affinity?.getLatestGameStartTime(),
+    )
+    return writeJsonAtomic(statusPath, {
+      running: !stopping,
+      gameActive,
+      renderer,
+      includeNic,
+      nicManaged,
+      backgroundCpuRange: `0-${half - 1}`,
+      gameCpuRange: `${half}-${logicalCpuCount - 1}`,
+      helperPid: process.pid,
+      helperAffinity,
+      nicStatus,
+      appliedMarkerRecorded,
+      conflictingPrograms: findConflictingPrograms(affinity?.getRunningProcessNames()),
+      updatedAt: Date.now(),
+      error: failure,
+      ...values,
+    })
+  }
 
   const requestStop = () => {
     stopping = true
@@ -603,6 +640,9 @@ async function readAffinityRuntimeStatus() {
     gameCpuRange: status?.gameCpuRange ?? `${half}-${logicalCpuCount - 1}`,
     error: status?.error ?? null,
     nicStatus: status?.nicStatus ?? null,
+    renderer: fresh && status?.renderer
+      ? status.renderer
+      : { mode: "not-running", version: null },
     conflictingPrograms: Array.isArray(status?.conflictingPrograms)
       ? status.conflictingPrograms
       : [],
@@ -1172,6 +1212,16 @@ function registerIpc() {
   ipcMain.handle("application:open-dxvk-manager", () => {
     openDxvkManager()
   })
+  ipcMain.handle("application:open-dxvk-guide", () => {
+    openDxvkGuide()
+  })
+  ipcMain.handle("dxvk-guide:request-close", event => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window !== dxvkGuideWindow) {
+      throw new Error("허용되지 않은 DXVK 가이드 닫기 요청입니다")
+    }
+    window.close()
+  })
   ipcMain.handle("dxvk:request-close", event => {
     const window = BrowserWindow.fromWebContents(event.sender)
     if (window !== dxvkManagerWindow) {
@@ -1325,6 +1375,91 @@ function openDxvkManager() {
   void loading
     .catch(error => showWindowLoadError(window, error))
     .catch(error => console.error("DXVK 관리 화면 로드 실패", error))
+}
+
+function openDxvkGuide() {
+  if (dxvkGuideWindow && !dxvkGuideWindow.isDestroyed()) {
+    if (dxvkGuideWindow.isMinimized()) dxvkGuideWindow.restore()
+    dxvkGuideWindow.setAlwaysOnTop(true, "screen-saver", 1)
+    dxvkGuideWindow.show()
+    dxvkGuideWindow.moveTop()
+    dxvkGuideWindow.focus()
+    return
+  }
+
+  const window = new BrowserWindow({
+    width: 880,
+    height: 790,
+    show: false,
+    opacity: 0,
+    resizable: false,
+    maximizable: false,
+    parent: primaryWindow ?? undefined,
+    title: "DXVK Vulkan 설정 안내",
+    icon: iconPath,
+    autoHideMenuBar: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    frame: false,
+    roundedCorners: true,
+    backgroundColor: "#101214",
+    webPreferences: {
+      preload: dxvkGuidePreloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  disableProductionRefresh(window)
+  dxvkGuideWindow = window
+  let opacityTimer = null
+  let closing = false
+  const animateOpacity = (from, to, duration, onComplete) => {
+    clearInterval(opacityTimer)
+    const startedAt = Date.now()
+    opacityTimer = setInterval(() => {
+      if (window.isDestroyed()) {
+        clearInterval(opacityTimer)
+        opacityTimer = null
+        return
+      }
+      const progress = Math.min(1, (Date.now() - startedAt) / duration)
+      window.setOpacity(from + (to - from) * progress)
+      if (progress < 1) return
+      clearInterval(opacityTimer)
+      opacityTimer = null
+      onComplete?.()
+    }, 16)
+  }
+  window.setAlwaysOnTop(true, "screen-saver", 1)
+  window.once("ready-to-show", () => {
+    if (window.isDestroyed()) return
+    window.show()
+    window.focus()
+    animateOpacity(0, 1, 300)
+  })
+  window.on("show", () => {
+    if (!window.isDestroyed()) window.setAlwaysOnTop(true, "screen-saver", 1)
+  })
+  window.on("close", event => {
+    if (closing) return
+    event.preventDefault()
+    closing = true
+    animateOpacity(window.getOpacity(), 0, 300, () => window.destroy())
+  })
+  window.on("closed", () => {
+    clearInterval(opacityTimer)
+    if (dxvkGuideWindow === window) dxvkGuideWindow = null
+  })
+  const builtGuidePath = join(root, "dist", "dxvk-guide.html")
+  const loading = process.argv.includes("--dev")
+    ? window.loadURL("http://localhost:5173/dxvk-guide.html")
+    : window.loadFile(existsSync(builtGuidePath)
+      ? builtGuidePath
+      : join(root, "dxvk-guide.html"))
+  void loading
+    .catch(error => showWindowLoadError(window, error))
+    .catch(error => console.error("DXVK 가이드 화면 로드 실패", error))
 }
 
 function openCharacterSimplificationGuide() {

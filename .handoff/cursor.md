@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-05 03:38
+Last Updated: 2026-09-05 03:50
 
 ## Current Objective
 타이틀바 없는 640×290 창을 시작 애니메이션, 부스트 홈, 통합 설정의 compact UI로 구성한다.
@@ -530,6 +530,12 @@ Last Updated: 2026-09-05 03:38
 - DXVK 게임 적용 테스트를 추가해 전체 25개 테스트, 관련 구문 검사, 프로덕션 웹 빌드와 편집기 린트가 통과했다. 설치 패키징은 수행하지 않았다.
 - DXVK 관리 페이지의 DOM `window.close()`가 BrowserWindow close fade를 우회하던 문제를 수정했다. 닫기 버튼은 제한된 `dxvk:request-close` IPC로 메인 프로세스의 `window.close()`를 호출해 반드시 300ms fade-out 후 destroy된다.
 - DXVK 닫기 IPC 변경 후 Electron·preload 구문 검사, 프로덕션 웹 빌드와 편집기 린트가 통과했다.
+- Affinity의 2초 프로세스 갱신은 현재 Client.exe의 최신 시작시각을 상태에 포함하고 같은 실행에 생성된 `Client_d3d9.log`를 함께 판정한다.
+- 로그가 현재 실행 시작 5초 전 이후에 갱신됐고 `DXVK:`, `Creating device:`, `Presenter: Actual swapchain properties:`를 모두 포함할 때만 Vulkan 적용 성공으로 판정한다. 시작 후 15초까지는 `detecting`, 이후 미완료 로그는 `direct3d9`다.
+- 실행 중 마비노기가 `direct3d9`로 판정되면 좌측 `DXVK 업데이트`가 주황색 경고 아이콘과 `DXVK를 사용중이지 않음`으로 바뀐다. 게임 미실행·판정 대기·Vulkan 상태에서는 기존 업데이트 항목을 유지한다.
+- 경고 항목은 880×790 프레임리스·작업표시줄 제외·항상 위 DXVK 가이드 창을 열며 `public/doc_dxvk/option.png`와 Vulkan 선택 후 재실행 안내만 표시한다. 창은 300ms fade-in/out과 전용 닫기 IPC를 사용한다.
+- 제공된 두 로그를 실제 판정해 짧은 현재 로그는 초기화 실패, 복사본은 Vulkan 초기화 성공으로 확인했다.
+- DXVK 로그 판정 테스트 2개를 추가해 전체 27개 테스트, 관련 구문 검사, 프로덕션 웹 빌드와 편집기 린트가 통과했다. 설치 패키징은 수행하지 않았다.
 - 재개 시 흰 마스크만 지연돼 이미지 링 안쪽에서 검은 원이 드러나던 문제를 수정했다. 첫 500ms는 이미지가 중심까지 채우고 이후 안쪽 반경이 흰 마스크와 같은 3000ms 선형 속도로 열린다.
 - 홈 전환을 6.2초 종료 후에서 5초 마지막 파동 구간으로 당기고, 오디오 페이드는 별도 6.2초 타이머까지 유지했다.
 - 기존 상세 대시보드를 compact 홈과 3개 최적화 행을 가진 설정 화면으로 대체 표시했다.

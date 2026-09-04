@@ -24,6 +24,8 @@
     "start:memory": "node src/index.mjs --apply --memory-cleaner",
     "start:memory:quiet": "node src/index.mjs --apply --memory-cleaner --quiet",
     "memory:status": "node src/index.mjs --memory-status --quiet",
+    "muo:status": "node src/muo-status.mjs",
+    "muo:status:json": "node src/muo-status.mjs --json",
     "nvidia:status": "node src/index.mjs --nvidia-status",
     "nvidia:apply": "node src/index.mjs --nvidia-apply",
     "fast-ping:status": "node src/index.mjs --fast-ping-status",
@@ -76,6 +78,8 @@
       "config.json",
       "icon.ico",
       "character-guide.html",
+      "dxvk-guide.html",
+      "public/doc_dxvk/**/*",
       "package.json"
     ],
     "win": {

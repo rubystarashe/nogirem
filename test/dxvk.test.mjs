@@ -6,11 +6,33 @@ import { join } from "node:path"
 import test from "node:test"
 import {
   applyInstalledDxvk,
+  detectDxvkRendererFromLog,
   getDxvkDeploymentStatus,
   getDxvkReleases,
   getInstalledDxvk,
   getLatestDxvkRelease,
 } from "../src/dxvk.mjs"
+
+test("DXVK 장치와 스왑체인 초기화 완료 로그를 Vulkan 실행으로 판정한다", () => {
+  const result = detectDxvkRendererFromLog([
+    "info: Game: Client.exe",
+    "info: DXVK: v2.7.1+",
+    "info: Creating device:",
+    "info: Presenter: Actual swapchain properties:",
+  ].join("\n"))
+
+  assert.deepEqual(result, { initialized: true, version: "v2.7.1+" })
+})
+
+test("DXVK 헤더만 남은 초기화 실패 로그는 Vulkan 실행으로 판정하지 않는다", () => {
+  const result = detectDxvkRendererFromLog([
+    "info: Game: Client.exe",
+    "info: DXVK: v2.7.1+",
+    "info: Process set as DPI aware",
+  ].join("\n"))
+
+  assert.deepEqual(result, { initialized: false, version: "v2.7.1+" })
+})
 
 test("DXVK 최신 정식 릴리즈의 압축 파일과 SHA-256을 해석한다", async () => {
   const fetchImpl = async () => ({

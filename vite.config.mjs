@@ -13,6 +13,7 @@ export default defineConfig({
         main: resolve("index.html"),
         characterGuide: resolve("character-guide.html"),
         dxvkManager: resolve("dxvk-manager.html"),
+        dxvkGuide: resolve("dxvk-guide.html"),
       },
     },
   },
