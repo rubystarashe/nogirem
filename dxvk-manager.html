@@ -237,7 +237,7 @@
         <img class="watermark" src="./logo2-white-transparent.png" alt="" draggable="false" />
         <p class="eyebrow">VULKAN RUNTIME</p>
         <h1>DXVK 업데이트 관리</h1>
-        <p class="description">공식 최신 정식 릴리즈의 x64 d3d9.dll을 검증하여 보관합니다.</p>
+        <p class="description">공식 최신 정식 릴리즈의 DXVK x64 d3d9.dll을 검증하여 보관합니다.</p>
       </header>
       <section class="status-grid" aria-label="DXVK 버전 상태">
         <article class="status-card">
@@ -274,7 +274,7 @@
         return lastStatus?.releases?.find(release => release.version === versionSelect.value)
       }
 
-      function selectionNeedsInstall() {
+      function selectionNeedsDownload() {
         const selected = selectedRelease()
         const installed = lastStatus?.installed
         return Boolean(
@@ -288,6 +288,16 @@
         )
       }
 
+      function selectionNeedsInstall() {
+        const selected = selectedRelease()
+        return selectionNeedsDownload()
+          || Boolean(
+            selected
+            && lastStatus?.installed?.current?.version === selected.version
+            && !lastStatus?.deployment?.matchesCurrent
+          )
+      }
+
       function updateSelection() {
         const selected = selectedRelease()
         const isLatest = selected?.version === lastStatus?.latest?.version
@@ -296,9 +306,9 @@
           : "GitHub 릴리즈 확인이 필요합니다"
         latestDetail.className = `status-detail ${selected ? "ready" : ""}`
         installButton.disabled = busy || !selectionNeedsInstall()
-        installButton.textContent = selectionNeedsInstall()
-          ? lastStatus?.installed?.installed ? "선택 버전으로 교체" : "다운로드"
-          : "설치됨"
+        installButton.textContent = selectionNeedsDownload()
+          ? lastStatus?.installed?.installed ? "선택 버전으로 교체" : "다운로드 및 적용"
+          : selectionNeedsInstall() ? "게임에 적용" : "적용됨"
       }
 
       function errorMessage(error) {
@@ -324,9 +334,13 @@
         if (installed.installed) {
           installedVersion.textContent = installed.current.version
           installedDetail.textContent = installed.integrity
-            ? "SHA-256 검증 완료"
+            ? status.deployment.matchesCurrent
+              ? "SHA-256 검증·게임 적용 완료"
+              : "SHA-256 검증 완료 · 게임 적용 필요"
             : "파일 SHA-256 불일치 · 다시 업데이트하세요"
-          installedDetail.className = `status-detail ${installed.integrity ? "ready" : "warning"}`
+          installedDetail.className = `status-detail ${
+            installed.integrity && status.deployment.matchesCurrent ? "ready" : "warning"
+          }`
         } else {
           installedVersion.textContent = "없음"
           installedDetail.textContent = installed.current
@@ -371,7 +385,12 @@
         setBusy(true, "GitHub에서 최신 정식 릴리즈를 확인하고 있습니다")
         try {
           render(await window.dxvkManager.checkUpdate())
-          message.textContent = lastStatus.updateAvailable
+          message.textContent = lastStatus.installed.installed
+            && lastStatus.installed.integrity
+            && !lastStatus.deployment.matchesCurrent
+            && lastStatus.installed.current.version === lastStatus.latest?.version
+            ? "다운로드된 DXVK를 마비노기 폴더에 적용해야 합니다"
+            : lastStatus.updateAvailable
             ? "다운로드할 수 있는 DXVK가 있습니다"
             : "설치된 DXVK가 최신 상태입니다"
         } catch (error) {
@@ -384,12 +403,12 @@
 
       async function installUpdate() {
         const version = versionSelect.value
-        setBusy(true, "압축 파일 다운로드·SHA-256 검증·DLL 추출을 진행하고 있습니다")
+        setBusy(true, "DXVK 다운로드·검증 및 마비노기 폴더 적용을 진행하고 있습니다")
         try {
           await window.dxvkManager.installUpdate(version)
           render(await window.dxvkManager.checkUpdate())
           message.classList.remove("error")
-          message.textContent = `${version} 설치와 무결성 검증이 완료되었습니다`
+          message.textContent = `${version} 검증과 d3d9_dxvk.dll 적용이 완료되었습니다`
         } catch (error) {
           message.classList.add("error")
           message.textContent = errorMessage(error)
@@ -405,9 +424,11 @@
         const selected = selectedRelease()
         if (!selected) return
         message.classList.remove("error")
-        message.textContent = selectionNeedsInstall()
+        message.textContent = selectionNeedsDownload()
           ? `${selected.version} 버전으로 교체할 수 있습니다`
-          : `설치된 DXVK가 ${selected.version} 버전입니다`
+          : selectionNeedsInstall()
+            ? `${selected.version} 버전을 마비노기 폴더에 적용할 수 있습니다`
+            : `${selected.version} 버전이 마비노기에 적용되어 있습니다`
       })
       void loadInstalled().then(checkUpdate)
     </script>

@@ -21,6 +21,8 @@ import {
 } from "../src/nic.mjs"
 import { createMemoryManager } from "../src/memory.mjs"
 import {
+  applyInstalledDxvk,
+  getDxvkDeploymentStatus,
   getDxvkReleases,
   getInstalledDxvk,
   installDxvkVersion,
@@ -1053,17 +1055,24 @@ function getDxvkDirectory() {
   return join(app.getPath("appData"), "마비노기 렘 부스터", "vulkan")
 }
 
+function getDxvkTargetPath() {
+  return join(dirname(config.gameExecutable), "d3d9_dxvk.dll")
+}
+
 async function getDxvkManagerStatus({ checkLatest = false } = {}) {
   const installed = await getInstalledDxvk(getDxvkDirectory())
+  const deployment = await getDxvkDeploymentStatus(installed, getDxvkTargetPath())
   const releases = checkLatest ? await getDxvkReleases() : []
   const latest = releases[0] ?? null
   return {
     installed,
+    deployment,
     latest,
     releases,
     updateAvailable: latest
       ? !installed.installed
         || !installed.integrity
+        || !deployment.matchesCurrent
         || installed.current?.version !== latest.version
         || installed.current?.archiveSha256 !== latest.archiveSha256
       : null,
@@ -1072,7 +1081,11 @@ async function getDxvkManagerStatus({ checkLatest = false } = {}) {
 }
 
 async function updateDxvk(version) {
-  dxvkUpdatePromise ??= installDxvkVersion(getDxvkDirectory(), version)
+  dxvkUpdatePromise ??= (async () => {
+    const result = await installDxvkVersion(getDxvkDirectory(), version)
+    const deployment = await applyInstalledDxvk(getDxvkDirectory(), getDxvkTargetPath())
+    return { ...result, deployment }
+  })()
   try {
     const result = await dxvkUpdatePromise
     return {

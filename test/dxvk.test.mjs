@@ -1,10 +1,12 @@
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 import {
+  applyInstalledDxvk,
+  getDxvkDeploymentStatus,
   getDxvkReleases,
   getInstalledDxvk,
   getLatestDxvkRelease,
@@ -97,5 +99,37 @@ test("저장된 DXVK DLL의 SHA-256 무결성을 확인한다", async () => {
     assert.equal(installed.integrity, true)
   } finally {
     await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test("검증된 DXVK를 게임 폴더의 d3d9_dxvk.dll로 적용한다", async () => {
+  const root = await mkdtemp(join(tmpdir(), "nogirem-dxvk-apply-"))
+  const vulkanDirectory = join(root, "vulkan")
+  const targetPath = join(root, "Mabinogi", "d3d9_dxvk.dll")
+  const dll = Buffer.from("verified-dxvk")
+  const digest = createHash("sha256").update(dll).digest("hex")
+  try {
+    await mkdir(vulkanDirectory, { recursive: true })
+    await writeFile(join(vulkanDirectory, "dxvk-v3.1-d3d9.dll"), dll)
+    await writeFile(join(vulkanDirectory, "current.json"), JSON.stringify({
+      version: "v3.1",
+      fileName: "dxvk-v3.1-d3d9.dll",
+      sha256: digest,
+    }))
+    const installed = await getInstalledDxvk(vulkanDirectory)
+    assert.deepEqual(
+      await getDxvkDeploymentStatus(installed, targetPath),
+      { exists: false, matchesCurrent: false },
+    )
+
+    await applyInstalledDxvk(vulkanDirectory, targetPath)
+
+    assert.deepEqual(await readFile(targetPath), dll)
+    assert.deepEqual(
+      await getDxvkDeploymentStatus(installed, targetPath),
+      { exists: true, matchesCurrent: true },
+    )
+  } finally {
+    await rm(root, { recursive: true, force: true })
   }
 })

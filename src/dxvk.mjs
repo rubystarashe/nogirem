@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto"
 import { execFile } from "node:child_process"
 import {
+  copyFile,
   mkdir,
   readFile,
   rename,
@@ -8,7 +9,7 @@ import {
   unlink,
   writeFile,
 } from "node:fs/promises"
-import { basename, join } from "node:path"
+import { basename, dirname, join } from "node:path"
 import { tmpdir } from "node:os"
 import { promisify } from "node:util"
 
@@ -143,6 +144,50 @@ export async function getInstalledDxvk(vulkanDirectory) {
       return { installed: false, current, integrity: false }
     }
     throw error
+  }
+}
+
+export async function getDxvkDeploymentStatus(installed, targetPath) {
+  try {
+    const target = await readFile(targetPath)
+    return {
+      exists: true,
+      matchesCurrent: Boolean(
+        installed.installed
+        && installed.integrity
+        && sha256(target) === installed.current.sha256
+      ),
+    }
+  } catch (error) {
+    if (error?.code === "ENOENT") return { exists: false, matchesCurrent: false }
+    throw error
+  }
+}
+
+export async function applyInstalledDxvk(vulkanDirectory, targetPath) {
+  const installed = await getInstalledDxvk(vulkanDirectory)
+  if (!installed.installed || !installed.integrity) {
+    throw new Error("게임에 적용할 검증된 DXVK 파일이 없습니다")
+  }
+  await mkdir(dirname(targetPath), { recursive: true })
+  const sourcePath = join(vulkanDirectory, installed.current.fileName)
+  const temporaryPath = `${targetPath}.${randomUUID()}.tmp`
+  try {
+    await copyFile(sourcePath, temporaryPath)
+    const temporary = await readFile(temporaryPath)
+    if (sha256(temporary) !== installed.current.sha256) {
+      throw new Error("게임 폴더 적용 전 DXVK 무결성 검증에 실패했습니다")
+    }
+    await copyFile(temporaryPath, targetPath)
+    const deployment = await getDxvkDeploymentStatus(installed, targetPath)
+    if (!deployment.matchesCurrent) {
+      throw new Error("게임 폴더의 d3d9_dxvk.dll 적용 검증에 실패했습니다")
+    }
+    return deployment
+  } finally {
+    await unlink(temporaryPath).catch(error => {
+      if (error?.code !== "ENOENT") throw error
+    })
   }
 }
 
