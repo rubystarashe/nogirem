@@ -7,7 +7,7 @@ import { setTimeout as delay } from "node:timers/promises"
 import { promisify } from "node:util"
 import { fileURLToPath } from "node:url"
 import { randomUUID } from "node:crypto"
-import { app, BrowserWindow, dialog, ipcMain } from "electron"
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
 import {
   ensureFastPingForPrimaryInterface,
   ensureTcpAutoTuningNormal,
@@ -28,6 +28,7 @@ import {
   getInstalledDxvk,
   installDxvkVersion,
 } from "../src/dxvk.mjs"
+import { getLatestMuoStatus } from "../src/muo-status.mjs"
 
 const execFileAsync = promisify(execFile)
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -53,6 +54,7 @@ let closeRequestPending = false
 let applicationExitInProgress = false
 let primaryWindowFocusPending = false
 let primaryWindowFocusTimer = null
+let primaryVisualActivityTimer = null
 let primaryWindowRevealDelayTimer = null
 let primaryWindowRevealFrameTimer = null
 let primaryWindowRevealStarted = false
@@ -60,7 +62,20 @@ let focusRequestMonitor = null
 let focusRequestReading = false
 let lastFocusRequestAt = 0
 let characterGuideDrag = null
+let dxvkGuideDrag = null
 let dxvkUpdatePromise = null
+let dxvkRuntimeStatus = {
+  state: "checking",
+  latestVersion: null,
+  error: null,
+}
+let dxvkRuntimeCheckPromise = null
+let dxvkReleasesCache = []
+let dxvkReleasesCheckedAt = 0
+let dxvkReleasesCheckPromise = null
+let dxvkReleasesCacheError = null
+let dxvkRuntimeRefreshTimer = null
+const dxvkReleaseCacheDurationMs = 6 * 60 * 1000
 
 const instanceDirectory = join(app.getPath("userData"), "instance")
 const primaryInstancePath = join(instanceDirectory, "primary.json")
@@ -108,6 +123,28 @@ async function detectMabinogiRenderer(gameActive, gameStartTime) {
   return {
     mode: Date.now() - startedAt >= 15000 ? "direct3d9" : "detecting",
     version: null,
+  }
+}
+
+async function getCharacterSimplificationStatus() {
+  const directory = join(app.getPath("documents"), "마비노기", "설정")
+  try {
+    const status = await getLatestMuoStatus(directory)
+    return {
+      applied: status.applied,
+      value: status.value,
+      fileName: status.fileName,
+      modifiedAt: status.modifiedAt,
+      error: null,
+    }
+  } catch (error) {
+    return {
+      applied: false,
+      value: null,
+      fileName: null,
+      modifiedAt: null,
+      error: serializeError(error),
+    }
   }
 }
 
@@ -233,14 +270,15 @@ async function runAffinityHelper() {
 
   const writeStatus = async values => {
     const gameActive = affinity?.isGameActive() ?? false
-    const renderer = await detectMabinogiRenderer(
-      gameActive,
-      affinity?.getLatestGameStartTime(),
-    )
+    const [renderer, characterSimplification] = await Promise.all([
+      detectMabinogiRenderer(gameActive, affinity?.getLatestGameStartTime()),
+      getCharacterSimplificationStatus(),
+    ])
     return writeJsonAtomic(statusPath, {
       running: !stopping,
       gameActive,
       renderer,
+      characterSimplification,
       includeNic,
       nicManaged,
       backgroundCpuRange: `0-${half - 1}`,
@@ -643,6 +681,10 @@ async function readAffinityRuntimeStatus() {
     renderer: fresh && status?.renderer
       ? status.renderer
       : { mode: "not-running", version: null },
+    characterSimplification: fresh && status?.characterSimplification
+      ? status.characterSimplification
+      : { applied: false, value: null },
+    dxvk: dxvkRuntimeStatus,
     conflictingPrograms: Array.isArray(status?.conflictingPrograms)
       ? status.conflictingPrograms
       : [],
@@ -1099,10 +1141,154 @@ function getDxvkTargetPath() {
   return join(dirname(config.gameExecutable), "d3d9_dxvk.dll")
 }
 
+function getDxvkLatestCachePath() {
+  return join(getDxvkDirectory(), "latest.json")
+}
+
+function getDxvkReleasesCachePath() {
+  return join(getDxvkDirectory(), "releases.json")
+}
+
+function isValidCachedDxvkRelease(release) {
+  return Boolean(
+    release
+    && /^v\d+(?:\.\d+){1,3}$/.test(release.version ?? "")
+    && /^[a-f0-9]{64}$/i.test(release.archiveSha256 ?? "")
+    && /^dxvk-\d+(?:\.\d+){1,3}\.tar\.gz$/i.test(release.archiveName ?? "")
+    && String(release.downloadUrl ?? "").startsWith(
+      "https://github.com/doitsujin/dxvk/releases/download/",
+    )
+  )
+}
+
+async function loadCachedDxvkReleases() {
+  const cache = await readJson(getDxvkReleasesCachePath())
+  const checkedAt = Date.parse(cache?.checkedAt ?? "")
+  const releases = Array.isArray(cache?.releases)
+    ? cache.releases.filter(isValidCachedDxvkRelease)
+    : []
+  if (!Number.isFinite(checkedAt)) return []
+  dxvkReleasesCache = releases
+  dxvkReleasesCheckedAt = checkedAt
+  dxvkReleasesCacheError = typeof cache?.error === "string" ? cache.error : null
+  return releases
+}
+
+async function getCachedDxvkReleases() {
+  const cacheFresh = Date.now() - dxvkReleasesCheckedAt < dxvkReleaseCacheDurationMs
+  if (cacheFresh) {
+    if (dxvkReleasesCache.length > 0) return dxvkReleasesCache
+    throw new Error(dxvkReleasesCacheError ?? "DXVK 릴리즈 목록을 확인할 수 없습니다")
+  }
+  if (dxvkReleasesCheckPromise) return dxvkReleasesCheckPromise
+  dxvkReleasesCheckPromise = (async () => {
+    try {
+      const releases = await getDxvkReleases()
+      dxvkReleasesCache = releases
+      dxvkReleasesCheckedAt = Date.now()
+      dxvkReleasesCacheError = null
+      await writeJsonAtomic(getDxvkReleasesCachePath(), {
+        checkedAt: new Date(dxvkReleasesCheckedAt).toISOString(),
+        releases,
+        error: null,
+      }).catch(() => {})
+      return releases
+    } catch (error) {
+      dxvkReleasesCheckedAt = Date.now()
+      dxvkReleasesCacheError = error?.message ?? String(error)
+      await writeJsonAtomic(getDxvkReleasesCachePath(), {
+        checkedAt: new Date(dxvkReleasesCheckedAt).toISOString(),
+        releases: dxvkReleasesCache,
+        error: dxvkReleasesCacheError,
+      }).catch(() => {})
+      if (dxvkReleasesCache.length > 0) return dxvkReleasesCache
+      throw error
+    } finally {
+      dxvkReleasesCheckPromise = null
+    }
+  })()
+  return dxvkReleasesCheckPromise
+}
+
+async function evaluateDxvkRuntimeStatus(latest) {
+  const installed = await getInstalledDxvk(getDxvkDirectory())
+  const deployment = await getDxvkDeploymentStatus(installed, getDxvkTargetPath())
+  const latestApplied = Boolean(
+    installed.installed
+    && installed.integrity
+    && installed.current?.version === latest.version
+    && installed.current?.archiveSha256 === latest.archiveSha256
+    && deployment.matchesCurrent
+  )
+  return {
+    state: latestApplied ? "latest" : "update-required",
+    latestVersion: latest.version,
+    error: null,
+  }
+}
+
+async function loadCachedDxvkRuntimeStatus() {
+  const latest = await readJson(getDxvkLatestCachePath())
+  if (
+    !latest?.version
+    || !/^v\d+(?:\.\d+){1,3}$/.test(latest.version)
+    || !/^[a-f0-9]{64}$/i.test(latest.archiveSha256 ?? "")
+  ) return dxvkRuntimeStatus
+  dxvkRuntimeStatus = await evaluateDxvkRuntimeStatus(latest)
+  return dxvkRuntimeStatus
+}
+
+async function refreshDxvkRuntimeStatus({ force = false } = {}) {
+  if (dxvkRuntimeCheckPromise) {
+    if (!force) return dxvkRuntimeCheckPromise
+    await dxvkRuntimeCheckPromise
+  }
+  const previousStatus = dxvkRuntimeStatus
+  if (!["latest", "update-required"].includes(previousStatus.state)) {
+    dxvkRuntimeStatus = {
+      state: "checking",
+      latestVersion: previousStatus.latestVersion,
+      error: null,
+    }
+  }
+  dxvkRuntimeCheckPromise = (async () => {
+    try {
+      const [latest] = await getCachedDxvkReleases()
+      if (!latest) throw new Error("DXVK 최신 정식 릴리즈를 찾지 못했습니다")
+      dxvkRuntimeStatus = await evaluateDxvkRuntimeStatus(latest)
+      await writeJsonAtomic(getDxvkLatestCachePath(), {
+        version: latest.version,
+        archiveSha256: latest.archiveSha256,
+        checkedAt: new Date().toISOString(),
+      }).catch(() => {})
+    } catch (error) {
+      dxvkRuntimeStatus = ["latest", "update-required"].includes(previousStatus.state)
+        ? { ...previousStatus, error: serializeError(error) }
+        : {
+            state: "unavailable",
+            latestVersion: null,
+            error: serializeError(error),
+          }
+    } finally {
+      dxvkRuntimeCheckPromise = null
+    }
+    return dxvkRuntimeStatus
+  })()
+  return dxvkRuntimeCheckPromise
+}
+
+function scheduleDxvkRuntimeRefresh() {
+  clearTimeout(dxvkRuntimeRefreshTimer)
+  dxvkRuntimeRefreshTimer = setTimeout(() => {
+    void refreshDxvkRuntimeStatus({ force: true })
+      .finally(scheduleDxvkRuntimeRefresh)
+  }, dxvkReleaseCacheDurationMs)
+}
+
 async function getDxvkManagerStatus({ checkLatest = false } = {}) {
   const installed = await getInstalledDxvk(getDxvkDirectory())
   const deployment = await getDxvkDeploymentStatus(installed, getDxvkTargetPath())
-  const releases = checkLatest ? await getDxvkReleases() : []
+  const releases = checkLatest ? await getCachedDxvkReleases() : []
   const latest = releases[0] ?? null
   return {
     installed,
@@ -1121,17 +1307,32 @@ async function getDxvkManagerStatus({ checkLatest = false } = {}) {
 }
 
 async function updateDxvk(version) {
+  if (await detectMabinogi().catch(() => false)) {
+    throw new Error("마비노기가 실행 중일 때에는 DXVK를 교체할 수 없습니다")
+  }
   dxvkUpdatePromise ??= (async () => {
-    const result = await installDxvkVersion(getDxvkDirectory(), version)
+    const releases = await getCachedDxvkReleases()
+    const result = await installDxvkVersion(
+      getDxvkDirectory(),
+      version,
+      globalThis.fetch,
+      releases,
+    )
     const deployment = await applyInstalledDxvk(getDxvkDirectory(), getDxvkTargetPath())
     return { ...result, deployment }
   })()
   try {
     const result = await dxvkUpdatePromise
+    await refreshDxvkRuntimeStatus({ force: true })
     return {
       ...result,
       storagePath: getDxvkDirectory(),
     }
+  } catch (error) {
+    if (await detectMabinogi().catch(() => false)) {
+      throw new Error("마비노기가 실행 중일 때에는 DXVK를 교체할 수 없습니다")
+    }
+    throw error
   } finally {
     dxvkUpdatePromise = null
   }
@@ -1204,6 +1405,10 @@ function registerIpc() {
     if (BrowserWindow.fromWebContents(event.sender) === primaryWindow) {
       beginPrimaryWindowReveal()
     }
+  })
+  ipcMain.handle("application:get-visual-activity", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
+    return isPrimaryWindowVisuallyActive()
   })
   ipcMain.handle("application:request-close", () => requestApplicationExitConfirmation())
   ipcMain.handle("application:open-character-guide", () => {
@@ -1283,6 +1488,42 @@ function registerIpc() {
       characterGuideDrag = null
     }
   })
+  ipcMain.on("dxvk-guide:drag-start", (event, point) => {
+    if (
+      !dxvkGuideWindow
+      || dxvkGuideWindow.isDestroyed()
+      || event.sender !== dxvkGuideWindow.webContents
+      || !Number.isFinite(point?.screenX)
+      || !Number.isFinite(point?.screenY)
+    ) return
+    const [windowX, windowY] = dxvkGuideWindow.getPosition()
+    dxvkGuideDrag = {
+      window: dxvkGuideWindow,
+      pointerX: point.screenX,
+      pointerY: point.screenY,
+      windowX,
+      windowY,
+    }
+  })
+  ipcMain.on("dxvk-guide:drag-move", (event, point) => {
+    const drag = dxvkGuideDrag
+    if (
+      !drag
+      || drag.window.isDestroyed()
+      || event.sender !== drag.window.webContents
+      || !Number.isFinite(point?.screenX)
+      || !Number.isFinite(point?.screenY)
+    ) return
+    drag.window.setPosition(
+      Math.round(drag.windowX + point.screenX - drag.pointerX),
+      Math.round(drag.windowY + point.screenY - drag.pointerY),
+    )
+  })
+  ipcMain.on("dxvk-guide:drag-end", event => {
+    if (dxvkGuideDrag?.window.webContents === event.sender) {
+      dxvkGuideDrag = null
+    }
+  })
   ipcMain.handle("application:confirm-close", (_event, action) => {
     return finishApplicationExit(action)
   })
@@ -1315,7 +1556,7 @@ function openDxvkManager() {
     resizable: false,
     maximizable: false,
     parent: primaryWindow ?? undefined,
-    title: "DXVK 업데이트 관리",
+    title: "Vulkan 업데이트 관리",
     icon: iconPath,
     autoHideMenuBar: true,
     skipTaskbar: true,
@@ -1331,6 +1572,13 @@ function openDxvkManager() {
   })
   disableProductionRefresh(window)
   dxvkManagerWindow = window
+  observeInternalWindowVisualActivity(window)
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (url === "https://github.com/doitsujin/dxvk") {
+      void shell.openExternal(url)
+    }
+    return { action: "deny" }
+  })
   let opacityTimer = null
   let closing = false
   const animateOpacity = (from, to, duration, onComplete) => {
@@ -1352,6 +1600,7 @@ function openDxvkManager() {
   }
   window.once("ready-to-show", () => {
     if (window.isDestroyed()) return
+    window.center()
     window.show()
     window.focus()
     animateOpacity(0, 1, 300)
@@ -1365,6 +1614,7 @@ function openDxvkManager() {
   window.on("closed", () => {
     clearInterval(opacityTimer)
     if (dxvkManagerWindow === window) dxvkManagerWindow = null
+    if (!applicationExitInProgress) focusPrimaryWindow()
   })
   const builtManagerPath = join(root, "dist", "dxvk-manager.html")
   const loading = process.argv.includes("--dev")
@@ -1388,8 +1638,8 @@ function openDxvkGuide() {
   }
 
   const window = new BrowserWindow({
-    width: 880,
-    height: 790,
+    width: 920,
+    height: 900,
     show: false,
     opacity: 0,
     resizable: false,
@@ -1401,8 +1651,9 @@ function openDxvkGuide() {
     alwaysOnTop: true,
     skipTaskbar: true,
     frame: false,
+    transparent: true,
     roundedCorners: true,
-    backgroundColor: "#101214",
+    backgroundColor: "#00000000",
     webPreferences: {
       preload: dxvkGuidePreloadPath,
       contextIsolation: true,
@@ -1412,6 +1663,7 @@ function openDxvkGuide() {
   })
   disableProductionRefresh(window)
   dxvkGuideWindow = window
+  observeInternalWindowVisualActivity(window)
   let opacityTimer = null
   let closing = false
   const animateOpacity = (from, to, duration, onComplete) => {
@@ -1434,9 +1686,10 @@ function openDxvkGuide() {
   window.setAlwaysOnTop(true, "screen-saver", 1)
   window.once("ready-to-show", () => {
     if (window.isDestroyed()) return
+    window.center()
     window.show()
     window.focus()
-    animateOpacity(0, 1, 300)
+    animateOpacity(0, 0.9, 300)
   })
   window.on("show", () => {
     if (!window.isDestroyed()) window.setAlwaysOnTop(true, "screen-saver", 1)
@@ -1449,7 +1702,9 @@ function openDxvkGuide() {
   })
   window.on("closed", () => {
     clearInterval(opacityTimer)
+    if (dxvkGuideDrag?.window === window) dxvkGuideDrag = null
     if (dxvkGuideWindow === window) dxvkGuideWindow = null
+    if (!applicationExitInProgress) focusPrimaryWindow()
   })
   const builtGuidePath = join(root, "dist", "dxvk-guide.html")
   const loading = process.argv.includes("--dev")
@@ -1497,6 +1752,7 @@ function openCharacterSimplificationGuide() {
   })
   disableProductionRefresh(window)
   characterGuideWindow = window
+  observeInternalWindowVisualActivity(window)
   let opacityTimer = null
   let closing = false
   const animateOpacity = (from, to, duration, onComplete) => {
@@ -1520,7 +1776,7 @@ function openCharacterSimplificationGuide() {
   window.once("ready-to-show", () => {
     if (window.isDestroyed()) return
     window.show()
-    animateOpacity(0, 0.9, 500)
+    animateOpacity(0, 0.9, 300)
   })
   window.on("show", () => {
     if (!window.isDestroyed()) window.setAlwaysOnTop(true, "screen-saver", 1)
@@ -1535,6 +1791,7 @@ function openCharacterSimplificationGuide() {
     clearInterval(opacityTimer)
     if (characterGuideDrag?.window === window) characterGuideDrag = null
     if (characterGuideWindow === window) characterGuideWindow = null
+    if (!applicationExitInProgress) focusPrimaryWindow()
   })
   const builtGuidePath = join(root, "dist", "character-guide.html")
   const loading = process.argv.includes("--dev")
@@ -1638,6 +1895,44 @@ function focusPrimaryWindow() {
   }
 }
 
+function isPrimaryWindowVisuallyActive() {
+  const internalWindowFocused = [
+    primaryWindow,
+    characterGuideWindow,
+    dxvkManagerWindow,
+    dxvkGuideWindow,
+  ].some(window => window && !window.isDestroyed() && window.isFocused())
+  return Boolean(
+    primaryWindow
+    && !primaryWindow.isDestroyed()
+    && primaryWindow.isVisible()
+    && !primaryWindow.isMinimized()
+    && internalWindowFocused
+  )
+}
+
+function notifyPrimaryVisualActivity() {
+  clearTimeout(primaryVisualActivityTimer)
+  primaryVisualActivityTimer = setTimeout(() => {
+    primaryVisualActivityTimer = null
+    if (
+      !primaryWindow
+      || primaryWindow.isDestroyed()
+      || primaryWindow.webContents.isDestroyed()
+    ) return
+    primaryWindow.webContents.send(
+      "application:visual-activity-changed",
+      isPrimaryWindowVisuallyActive(),
+    )
+  }, 50)
+}
+
+function observeInternalWindowVisualActivity(window) {
+  for (const eventName of ["focus", "blur", "show", "hide", "minimize", "restore", "closed"]) {
+    window.on(eventName, notifyPrimaryVisualActivity)
+  }
+}
+
 function createWindow() {
   const window = new BrowserWindow({
     width: 640,
@@ -1664,6 +1959,9 @@ function createWindow() {
     console.error("렌더러 프로세스 종료", details)
   })
   primaryWindow = window
+  for (const eventName of ["focus", "blur", "show", "hide", "minimize", "restore"]) {
+    window.on(eventName, notifyPrimaryVisualActivity)
+  }
   window.on("close", event => {
     if (applicationExitInProgress) return
     event.preventDefault()
@@ -1672,9 +1970,11 @@ function createWindow() {
   })
   window.on("closed", () => {
     clearTimeout(primaryWindowFocusTimer)
+    clearTimeout(primaryVisualActivityTimer)
     clearTimeout(primaryWindowRevealDelayTimer)
     clearTimeout(primaryWindowRevealFrameTimer)
     primaryWindowFocusTimer = null
+    primaryVisualActivityTimer = null
     primaryWindowRevealDelayTimer = null
     primaryWindowRevealFrameTimer = null
     primaryWindowRevealStarted = false
@@ -1708,6 +2008,15 @@ async function startApplication() {
 
   registerIpc()
   await app.whenReady()
+  await loadCachedDxvkReleases().catch(() => {})
+  await loadCachedDxvkRuntimeStatus().catch(error => {
+    dxvkRuntimeStatus = {
+      state: "checking",
+      latestVersion: null,
+      error: serializeError(error),
+    }
+  })
+  void refreshDxvkRuntimeStatus().finally(scheduleDxvkRuntimeRefresh)
   await installCharacterSimplificationFile()
   await startFocusRequestMonitor()
   frameBoostStartupPromise = ensureFrameBoostStarted().catch(error => {
@@ -1727,6 +2036,8 @@ async function startApplication() {
   })
   app.on("window-all-closed", () => app.quit())
   app.on("will-quit", () => {
+    clearTimeout(dxvkRuntimeRefreshTimer)
+    dxvkRuntimeRefreshTimer = null
     clearInterval(focusRequestMonitor)
     focusRequestMonitor = null
     void readJson(primaryInstancePath)

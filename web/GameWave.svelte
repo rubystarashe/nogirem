@@ -4,6 +4,7 @@
   export let onstartupcomplete = () => {}
   export let onstartuphidden = () => {}
   export let onplaybackstart = () => {}
+  export let onstartuplogomaskchange = () => {}
 
   const width = 640
   const height = 290
@@ -13,6 +14,13 @@
   let image
   let imageCache
   let imageReady = false
+  let logoImage
+  let logoImageReady = false
+  let logoMaskCanvas
+  let logoMaskContext
+  let logoMaskSource
+  let logoMaskFrame
+  let startupLogoMaskActive = false
   let startupAllowed = false
   let startupStopPending = false
   let audio
@@ -72,6 +80,52 @@
     imageCache.height = imageHeight
     imageCache.getContext("2d").drawImage(sourceImage, 0, 0, imageWidth, imageHeight)
     image = null
+  }
+
+  function createLogoMaskCache() {
+    const logoHeight = 150
+    const logoWidth = Math.round(logoImage.width * (logoHeight / logoImage.height))
+    const sourceCanvas = document.createElement("canvas")
+    sourceCanvas.width = logoWidth
+    sourceCanvas.height = logoHeight
+    const sourceContext = sourceCanvas.getContext("2d")
+    sourceContext.drawImage(logoImage, 0, 0, logoWidth, logoHeight)
+    logoMaskSource = sourceContext.getImageData(0, 0, logoWidth, logoHeight)
+    logoMaskCanvas = document.createElement("canvas")
+    logoMaskCanvas.width = logoWidth
+    logoMaskCanvas.height = logoHeight
+    logoMaskContext = logoMaskCanvas.getContext("2d")
+    logoMaskFrame = logoMaskContext.createImageData(logoWidth, logoHeight)
+  }
+
+  function drawStartupLogoMask(wave) {
+    const logoWidth = logoMaskCanvas.width
+    const logoHeight = logoMaskCanvas.height
+    const logoX = Math.round((width - logoWidth) / 2)
+    const logoY = 42
+    const source = logoMaskSource.data
+    const target = logoMaskFrame.data
+    target.fill(0)
+    for (let index = 0; index < source.length; index += 4) {
+      const sourceAlpha = source[index + 3]
+      if (sourceAlpha === 0) continue
+      const pixel = index / 4
+      const x = pixel % logoWidth
+      const y = Math.floor(pixel / logoWidth)
+      const distance = Math.hypot(
+        logoX + x + 0.5 - wave.x,
+        logoY + y + 0.5 - wave.y,
+      )
+      const insideWave = distance >= wave.innerRadius && distance <= wave.outerRadius
+      const white = darkBackground ? !insideWave : insideWave
+      const color = white ? 255 : 0
+      target[index] = color
+      target[index + 1] = color
+      target[index + 2] = color
+      target[index + 3] = Math.round(sourceAlpha * 0.7)
+    }
+    logoMaskContext.putImageData(logoMaskFrame, 0, 0)
+    context.drawImage(logoMaskCanvas, logoX, logoY)
   }
 
   function requestDraw() {
@@ -159,7 +213,6 @@
   function draw() {
     animationFrame = null
     if (!context || !imageCache) return
-    if (mode === "background" && !pageVisible) return
 
     const now = Date.now()
     smoothX += (pointerX - smoothX) * 0.05
@@ -199,6 +252,7 @@
     const retainedCircles = []
     let activeWave = false
     let nextWaveDelay = Infinity
+    let startupFinaleWave = null
 
     for (const circle of circles) {
       const duration = circle.duration ?? circle.size * 8
@@ -219,6 +273,14 @@
       const innerRadius = innerProgress * circle.size
       const stroke = (progress > 0.5 ? 2 - progress * 2 : progress * 2)
         * (circle.stroke ?? 6)
+      if (circle.kind === "startup-finale") {
+        startupFinaleWave = {
+          x: circle.x,
+          y: circle.y,
+          outerRadius: radius + stroke,
+          innerRadius,
+        }
+      }
       context.moveTo(circle.x, circle.y)
       context.arc(circle.x, circle.y, radius + stroke, 0, Math.PI * 2)
       context.arc(circle.x, circle.y, innerRadius, 0, Math.PI * 2, true)
@@ -230,6 +292,15 @@
     const imageY = -height * 0.05 + smoothY / 10
     context.drawImage(imageCache, imageX, imageY)
     context.restore()
+
+    const nextStartupLogoMaskActive = Boolean(startupFinaleWave && logoImageReady)
+    if (nextStartupLogoMaskActive !== startupLogoMaskActive) {
+      startupLogoMaskActive = nextStartupLogoMaskActive
+      onstartuplogomaskchange(startupLogoMaskActive)
+    }
+    if (startupLogoMaskActive) {
+      drawStartupLogoMask(startupFinaleWave)
+    }
 
     const audioPlaying = Boolean(audio && !audio.paused)
     if (audioPlaying) {
@@ -346,13 +417,6 @@
     if (!pageVisible) {
       window.clearTimeout(ambientTimer)
       ambientTimer = null
-      circles = circles.filter(circle => circle.kind !== "ambient")
-      if (mode === "background") {
-        window.clearTimeout(drawWakeTimer)
-        drawWakeTimer = null
-        cancelAnimationFrame(animationFrame)
-        animationFrame = null
-      }
       return
     }
     requestDraw()
@@ -361,7 +425,21 @@
       && mode === "background"
       && (!darkBackground || backgroundTransition?.targetDark === false)
     ) {
-      scheduleAmbientWaves(300)
+      const timelineElapsed = currentTimelineElapsed()
+      const ambientRemaining = Math.max(
+        0,
+        ...circles
+          .filter(circle => circle.kind === "ambient")
+          .map(circle => circle.time + (circle.duration ?? circle.size * 8) - timelineElapsed),
+      )
+      if (ambientRemaining > 0) {
+        ambientTimer = window.setTimeout(
+          () => scheduleAmbientWaves(300),
+          ambientRemaining,
+        )
+      } else {
+        scheduleAmbientWaves(300)
+      }
     }
   }
 
@@ -457,6 +535,13 @@
       console.warn("시작 배경 이미지를 불러오지 못했습니다", error)
     }
     image.src = "./main3-optimized.jpg"
+    logoImage = new Image()
+    logoImage.onload = () => {
+      createLogoMaskCache()
+      logoImageReady = true
+      requestDraw()
+    }
+    logoImage.src = "./logo3.png"
     return () => {
       playbackId += 1
       window.clearTimeout(hideTimer)
@@ -465,6 +550,7 @@
       window.clearTimeout(drawWakeTimer)
       cancelAnimationFrame(animationFrame)
       audio?.pause()
+      if (startupLogoMaskActive) onstartuplogomaskchange(false)
     }
   })
 </script>

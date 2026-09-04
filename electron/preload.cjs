@@ -27,6 +27,12 @@ contextBridge.exposeInMainWorld("nogirem", {
     return () => ipcRenderer.removeListener("application:close-requested", listener)
   },
   beginStartupReveal: () => ipcRenderer.invoke("application:begin-startup-reveal"),
+  getVisualActivity: () => ipcRenderer.invoke("application:get-visual-activity"),
+  onVisualActivityChanged: callback => {
+    const listener = (_event, active) => callback(Boolean(active))
+    ipcRenderer.on("application:visual-activity-changed", listener)
+    return () => ipcRenderer.removeListener("application:visual-activity-changed", listener)
+  },
   requestClose: () => ipcRenderer.invoke("application:request-close"),
   openCharacterGuide: () => ipcRenderer.invoke("application:open-character-guide"),
   openDxvkManager: () => ipcRenderer.invoke("application:open-dxvk-manager"),

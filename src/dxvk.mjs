@@ -97,6 +97,7 @@ async function fetchReleaseJson(url, fetchImpl, failureMessage) {
       "User-Agent": "mabinogi-rem-booster",
       "X-GitHub-Api-Version": "2022-11-28",
     },
+    signal: AbortSignal.timeout(15000),
   })
   if (!response.ok) throw new Error(`${failureMessage} (${response.status})`)
   return response.json()
@@ -311,9 +312,10 @@ export async function installDxvkVersion(
   vulkanDirectory,
   version,
   fetchImpl = globalThis.fetch,
+  cachedReleases = null,
 ) {
   const normalizedVersion = normalizeVersion(version)
-  const releases = await getDxvkReleases(fetchImpl)
+  const releases = cachedReleases ?? await getDxvkReleases(fetchImpl)
   const release = releases.find(item => item.version === normalizedVersion)
   if (!release) throw new Error("선택한 DXVK 정식 릴리즈를 찾지 못했습니다")
   return installDxvkRelease(vulkanDirectory, release, fetchImpl)

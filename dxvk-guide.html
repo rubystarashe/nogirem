@@ -16,24 +16,56 @@
         height: 100%;
         margin: 0;
         overflow: hidden;
+      }
+
+      html,
+      body {
         color: #f3f5f7;
-        background: #101214;
+        background: transparent;
         font-family: "Pretendard Variable", Pretendard, "Segoe UI", sans-serif;
       }
 
-      .titlebar {
+      body::before {
         position: fixed;
-        z-index: 10;
+        inset: 0;
+        z-index: 0;
+        border-radius: 16px;
+        background: #101214;
+        content: "";
+        pointer-events: none;
+      }
+
+      .window-watermark {
+        position: fixed;
+        top: 18px;
+        left: 50%;
+        width: 110px;
+        height: auto;
+        z-index: 1;
+        opacity: 0.08;
+        transform: translateX(-50%);
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      .drag-region {
+        position: fixed;
         top: 0;
         left: 0;
         right: 52px;
         height: 46px;
-        -webkit-app-region: drag;
+        z-index: 100;
+        background: rgba(16, 18, 20, 0.01);
+        cursor: move;
+        pointer-events: auto;
+        touch-action: none;
+        -webkit-app-region: no-drag;
       }
 
       .window-close {
         position: fixed;
-        z-index: 11;
+        z-index: 101;
         top: 10px;
         right: 13px;
         width: 28px;
@@ -57,20 +89,21 @@
       }
 
       main {
-        display: flex;
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
         height: 100%;
-        padding: 42px 28px 24px;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 18px;
+        padding: 58px 28px 24px;
+        gap: 14px;
       }
 
       .guide-image {
         display: block;
         width: 100%;
         max-width: 818px;
-        max-height: 662px;
+        max-height: 600px;
+        margin: auto;
         border: 1px solid #343a3e;
         border-radius: 8px;
         object-fit: contain;
@@ -79,23 +112,77 @@
       }
 
       .guide-copy {
+        min-height: 88px;
+      }
+
+      .guide-kicker {
+        display: block;
+        margin-bottom: 5px;
+        color: #8f949c;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+      }
+
+      .guide-title {
+        margin: 0 0 7px;
+        font-size: 19px;
+        line-height: 1.3;
+      }
+
+      .guide-description {
+        max-width: 700px;
         margin: 0;
-        color: #f3f5f7;
-        font-size: 15px;
-        font-weight: 600;
-        line-height: 1.6;
-        text-align: center;
+        color: #c7c9cd;
+        font-size: 12px;
+        line-height: 1.55;
+        word-break: keep-all;
+      }
+
+      .guide-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .complete-button {
+        height: 36px;
+        padding: 0 18px;
+        border: 1px solid #f1f3f4;
+        border-radius: 7px;
+        color: #141617;
+        background: #f1f3f4;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .complete-button:hover {
+        background: #fff;
       }
     </style>
   </head>
   <body>
-    <div class="titlebar"></div>
+    <div class="drag-region"></div>
+    <img
+      class="window-watermark"
+      src="./logo2-white-transparent.png"
+      alt=""
+      draggable="false"
+    />
     <button class="window-close" aria-label="창 닫기">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M5.3 4 12 10.7 18.7 4 20 5.3 13.3 12l6.7 6.7-1.3 1.3-6.7-6.7L5.3 20 4 18.7l6.7-6.7L4 5.3 5.3 4Z" />
       </svg>
     </button>
     <main>
+      <header class="guide-copy">
+        <span class="guide-kicker">VULKAN RUNTIME</span>
+        <h1 class="guide-title">Vulkan 옵션 활성화</h1>
+        <p class="guide-description">
+          환경설정 / 실험실 / 그래픽 / 렌더링 엔진 옵션에서 Vulkan 을 선택하고 게임을 다시 실행해 주세요
+        </p>
+      </header>
       <img
         class="guide-image"
         src="./doc_dxvk/option.png"
@@ -103,16 +190,48 @@
         alt="마비노기 환경설정의 Vulkan 렌더링 엔진 선택 화면"
         draggable="false"
       />
-      <p class="guide-copy">
-        환경설정 / 실험실 / 그래픽 / 렌더링 엔진 옵션에서 Vulkan 을 선택하고 게임을 다시 실행해 주세요
-      </p>
+      <footer class="guide-actions">
+        <button class="complete-button" type="button">완료</button>
+      </footer>
     </main>
     <script>
       const closeButton = document.querySelector(".window-close")
-      closeButton.addEventListener("click", () => {
+      const completeButton = document.querySelector(".complete-button")
+      const dragRegion = document.querySelector(".drag-region")
+      let closing = false
+      let dragPointerId = null
+
+      function closeGuide() {
+        if (closing) return
+        closing = true
         closeButton.disabled = true
+        completeButton.disabled = true
         void window.dxvkGuide.requestClose()
+      }
+
+      function finishDrag(event) {
+        if (event.pointerId !== dragPointerId) return
+        window.dxvkGuide.endDrag()
+        if (dragRegion.hasPointerCapture(event.pointerId)) {
+          dragRegion.releasePointerCapture(event.pointerId)
+        }
+        dragPointerId = null
+      }
+
+      dragRegion.addEventListener("pointerdown", event => {
+        if (event.button !== 0 || dragPointerId !== null) return
+        dragPointerId = event.pointerId
+        dragRegion.setPointerCapture(event.pointerId)
+        window.dxvkGuide.startDrag(event.screenX, event.screenY)
       })
+      dragRegion.addEventListener("pointermove", event => {
+        if (event.pointerId !== dragPointerId) return
+        window.dxvkGuide.moveDrag(event.screenX, event.screenY)
+      })
+      dragRegion.addEventListener("pointerup", finishDrag)
+      dragRegion.addEventListener("pointercancel", finishDrag)
+      closeButton.addEventListener("click", closeGuide)
+      completeButton.addEventListener("click", closeGuide)
     </script>
   </body>
 </html>

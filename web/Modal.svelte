@@ -8,6 +8,7 @@
     hideTitle = false,
     closeSignal = 0,
     closeDisabled = false,
+    hideClose = false,
     onclose = () => {},
     children,
   } = $props()
@@ -49,16 +50,18 @@
       alt=""
       draggable="false"
     />
-    <button
-      class="modal-close"
-      aria-label="모달 닫기"
-      disabled={closeDisabled || closing}
-      onclick={requestClose}
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5.3 4 12 10.7 18.7 4 20 5.3 13.3 12l6.7 6.7-1.3 1.3-6.7-6.7L5.3 20 4 18.7l6.7-6.7L4 5.3 5.3 4Z" />
-      </svg>
-    </button>
+    {#if !hideClose}
+      <button
+        class="modal-close"
+        aria-label="모달 닫기"
+        disabled={closeDisabled || closing}
+        onclick={requestClose}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5.3 4 12 10.7 18.7 4 20 5.3 13.3 12l6.7 6.7-1.3 1.3-6.7-6.7L5.3 20 4 18.7l6.7-6.7L4 5.3 5.3 4Z" />
+        </svg>
+      </button>
+    {/if}
     {#if eyebrow}
       <p class="modal-eyebrow">{eyebrow}</p>
     {/if}

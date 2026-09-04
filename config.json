@@ -2,7 +2,7 @@
   "gameExecutable": "C:\\Nexon\\Mabinogi\\Client.exe",
   "gameExecutableName": "Client.exe",
   "gameDirectoryName": "Mabinogi",
-  "pollIntervalMs": 2000,
+  "pollIntervalMs": 5000,
   "memoryCleaner": {
     "pollIntervalMs": 1000,
     "availablePercent": 10,

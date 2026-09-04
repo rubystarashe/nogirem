@@ -19,6 +19,9 @@
   let closeModalVisible = false
   let optimizationModalVisible = false
   let conflictModalVisible = false
+  let networkReconnectModalVisible = false
+  let networkReconnectCloseSignal = 0
+  let networkReconnectAction = null
   let conflictPrograms = []
   let ignoredConflictSignature = ""
   let conflictModalCloseSignal = 0
@@ -27,8 +30,13 @@
   let settingsVisible = false
   let startupDataReady = false
   let startupAnimationFinished = false
+  let startupLogoMaskActive = false
   let interfaceVisible = false
+  let documentVisible = true
+  let windowVisuallyActive = true
   let pageVisible = true
+  let spinnerAnimationVisible = true
+  let spinnerFinishTimer
   let statusTransitionPhase = "enter"
   let statusTransitionFrom = "노기렘 실행중"
   let statusTransitionTo = "실시간 부스트중"
@@ -51,6 +59,8 @@
   let testVersionNoticeTimer
 
   const versionText = "미공개 테스트 버전"
+  const ambientRhythmEnabled = true
+  const boostSpinnerEnabled = true
 
   const goalNames = {
     verticalSyncOff: "수직 동기화 끄기",
@@ -99,16 +109,45 @@
     void window.nogirem.openDxvkManager()
   }
 
-  function syncPageVisibility() {
-    pageVisible = document.visibilityState === "visible"
+  function dxvkLinkState() {
+    if (services.affinity.data?.renderer?.mode === "direct3d9") return "not-in-use"
+    if (services.affinity.data?.dxvk?.state === "latest") return "latest"
+    if (services.affinity.data?.dxvk?.state === "update-required") return "update-required"
+    return "checking"
+  }
+
+  function applyVisualActivity() {
+    const nextPageVisible = documentVisible && windowVisuallyActive
+    if (nextPageVisible) {
+      window.clearTimeout(spinnerFinishTimer)
+      spinnerFinishTimer = null
+      spinnerAnimationVisible = true
+    } else if (pageVisible) {
+      window.clearTimeout(spinnerFinishTimer)
+      spinnerFinishTimer = window.setTimeout(() => {
+        spinnerAnimationVisible = false
+        spinnerFinishTimer = null
+      }, 1500)
+    }
+    pageVisible = nextPageVisible
     gameWave?.setPageVisible(pageVisible)
+  }
+
+  function syncPageVisibility() {
+    documentVisible = document.visibilityState === "visible"
+    applyVisualActivity()
+  }
+
+  function setWindowVisualActivity(active) {
+    windowVisuallyActive = active
+    applyVisualActivity()
   }
 
   function handleStartupHidden() {
     const statusText = frameBoostStatusText()
     visualPaused = isPausedStatus(statusText)
     gameWave?.setPaused(visualPaused)
-    gameWave?.setAmbientEnabled(statusText === "실시간 부스트중")
+    gameWave?.setAmbientEnabled(ambientRhythmEnabled && statusText === "실시간 부스트중")
     displayedStatusText = statusText
     displayedGuideText = guideTextForStatus(statusText)
     statusTransitionPhase = "done"
@@ -137,9 +176,9 @@
       window.clearTimeout(leftTopContentTimer)
       leftTopContentTimer = window.setTimeout(() => {
         leftTopContentEntered = true
-      }, 30)
+      }, 2030)
       animateStatusTransition(versionText, statusText)
-    }, 1800)
+    }, 1500)
   }
 
   function startColorTransition(clientX, clientY, paused, duration, radius, delay = 0) {
@@ -207,7 +246,7 @@
   function syncDisplayedBoostStatus() {
     if (!interfaceVisible || frameBoostAction) return
     const nextStatusText = frameBoostStatusText()
-    gameWave?.setAmbientEnabled(nextStatusText === "실시간 부스트중")
+    gameWave?.setAmbientEnabled(ambientRhythmEnabled && nextStatusText === "실시간 부스트중")
     if (startupIdentityPhase !== "done") {
       displayedStatusText = nextStatusText
       displayedGuideText = guideTextForStatus(nextStatusText)
@@ -293,6 +332,35 @@
     }
   }
 
+  function fastPingReconnectRequired() {
+    const current = services.network.data?.fastPing?.current
+    return current?.TcpAckFrequency !== 1 || current?.TCPNoDelay !== 1
+  }
+
+  function requestNetworkOptimization() {
+    if (!fastPingReconnectRequired()) {
+      void optimize("network", window.nogirem.optimizeNetwork)
+      return
+    }
+    networkReconnectAction = null
+    networkReconnectModalVisible = true
+  }
+
+  function closeNetworkReconnectModal(action) {
+    if (networkReconnectAction) return
+    networkReconnectAction = action
+    networkReconnectCloseSignal += 1
+  }
+
+  function finishNetworkReconnectModal() {
+    const action = networkReconnectAction
+    networkReconnectModalVisible = false
+    networkReconnectAction = null
+    if (action === "continue") {
+      void optimize("network", window.nogirem.optimizeNetwork)
+    }
+  }
+
   function nvidiaReady(data) {
     return data?.supported && data?.nvidia && data?.goals?.allMet
   }
@@ -315,7 +383,9 @@
     const paused = !enabled
     const wave = gameWave?.makeActionWave(event.clientX, event.clientY, paused)
       ?? { duration: paused ? 600 : 3000, radius: paused ? 420 : 600, delay: paused ? 0 : 500 }
-    gameWave?.setAmbientEnabled(enabled && frameBoostStatusText() === "실시간 부스트중")
+    gameWave?.setAmbientEnabled(
+      ambientRhythmEnabled && enabled && frameBoostStatusText() === "실시간 부스트중",
+    )
     startColorTransition(
       event.clientX,
       event.clientY,
@@ -361,7 +431,9 @@
       })
       if (result.affinity.running) includeNic = result.affinity.includeNic
       const actualStatusText = frameBoostStatusText()
-      gameWave?.setAmbientEnabled(actualStatusText === "실시간 부스트중")
+      gameWave?.setAmbientEnabled(
+        ambientRhythmEnabled && actualStatusText === "실시간 부스트중",
+      )
       syncConflictWarning(
         result.affinity.conflictingPrograms,
         actualStatusText === "실시간 부스트중",
@@ -382,7 +454,9 @@
       visualPaused = isPausedStatus(previousStatusText)
       colorTransition = null
       gameWave?.setPaused(visualPaused)
-      gameWave?.setAmbientEnabled(previousStatusText === "실시간 부스트중")
+      gameWave?.setAmbientEnabled(
+        ambientRhythmEnabled && previousStatusText === "실시간 부스트중",
+      )
       animateStatusTransition(requestedStatusText, previousStatusText)
     } finally {
       frameBoostAction = null
@@ -466,6 +540,8 @@
           includeNic: runtime.includeNic,
           nicManaged: runtime.nicManaged,
           renderer: runtime.renderer,
+          characterSimplification: runtime.characterSimplification,
+          dxvk: runtime.dxvk,
           conflictingPrograms: runtime.conflictingPrograms,
         },
       })
@@ -511,7 +587,11 @@
 
   onMount(() => {
     document.addEventListener("visibilitychange", syncPageVisibility)
+    const removeVisualActivityListener = window.nogirem.onVisualActivityChanged(
+      setWindowVisualActivity,
+    )
     syncPageVisibility()
+    void window.nogirem.getVisualActivity().then(setWindowVisualActivity)
     void loadAll().finally(() => {
       startupDataReady = true
       gameWave?.allowStartup()
@@ -530,7 +610,9 @@
       window.clearTimeout(startupIdentityTimer)
       window.clearTimeout(leftTopContentTimer)
       window.clearTimeout(testVersionNoticeTimer)
+      window.clearTimeout(spinnerFinishTimer)
       document.removeEventListener("visibilitychange", syncPageVisibility)
+      removeVisualActivityListener()
       removeCloseListener()
     }
   })
@@ -557,6 +639,10 @@
     </svg>
   </button>
 </div>
+
+<span class="creator-credit entered">
+  [류트@렘] 제작
+</span>
 
 <main class="compact-shell">
   {#if interfaceVisible}
@@ -608,7 +694,7 @@
           disabled={services.network.loading
             || services.network.optimizing
             || networkReady(services.network.data)}
-          onclick={() => optimize("network", window.nogirem.optimizeNetwork)}
+          onclick={requestNetworkOptimization}
         >
           {services.network.optimizing ? "적용 중" : "최적화"}
         </button>
@@ -637,7 +723,12 @@
         class:paused={visualPaused}
         aria-label="실시간 부스트 상태"
       >
-        <img src="./logo3.png" alt="" draggable="false" />
+        <img
+          class:canvas-logo-hidden={startupLogoMaskActive}
+          src="./logo3.png"
+          alt=""
+          draggable="false"
+        />
         {#if startupIdentityPhase === "done"}
           <button
             class="optimization-summary"
@@ -682,36 +773,46 @@
           </button>
           <button
             class="character-guide-link"
+            class:ready={services.affinity.data?.characterSimplification?.applied}
+            class:warning={!services.affinity.data?.characterSimplification?.applied}
             class:entered={leftTopContentEntered}
             onclick={() => window.nogirem.openCharacterGuide()}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2Z" />
+              {#if services.affinity.data?.characterSimplification?.applied}
+                <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9Z" />
+              {:else}
+                <path d="M1 21h22L12 2 1 21Zm12-3h-2v2h2v-2Zm0-2h-2v-4h2v4Z" />
+              {/if}
             </svg>
             <span>주변 캐릭터 강제 간소화</span>
           </button>
           <button
             class="dxvk-update-link"
-            class:warning={services.affinity.data?.renderer?.mode === "direct3d9"}
+            class:ready={dxvkLinkState() === "latest"}
+            class:warning={["not-in-use", "update-required"].includes(dxvkLinkState())}
             class:entered={leftTopContentEntered}
             onclick={openDxvkWindow}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              {#if services.affinity.data?.renderer?.mode === "direct3d9"}
+              {#if ["not-in-use", "update-required"].includes(dxvkLinkState())}
                 <path d="M1 21h22L12 2 1 21Zm12-3h-2v2h2v-2Zm0-2h-2v-4h2v4Z" />
+              {:else if dxvkLinkState() === "latest"}
+                <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9Z" />
               {:else}
                 <path d="M12 4V1L8 5l4 4V6a6 6 0 0 1 5.65 8H19.7A8 8 0 0 0 12 4Zm-5.65 6H4.3A8 8 0 0 0 12 20v3l4-4-4-4v3a6 6 0 0 1-5.65-8Z" />
               {/if}
             </svg>
             <span>
-              {services.affinity.data?.renderer?.mode === "direct3d9"
-                ? "DXVK를 사용중이지 않음"
-                : "DXVK 업데이트"}
+              {dxvkLinkState() === "not-in-use"
+                ? "Vulkan을 사용중이지 않음"
+                : dxvkLinkState() === "update-required"
+                  ? "Vulkan 업데이트가 필요함"
+                  : dxvkLinkState() === "latest"
+                    ? "Vulkan 최신버전 사용중"
+                    : "DXVK 업데이트"}
             </span>
           </button>
-          <span class="creator-credit" class:entered={leftTopContentEntered}>
-            [류트@렘] 제작
-          </span>
         {/if}
         <button
           class="boost-text-area"
@@ -741,6 +842,7 @@
               class:concealed={statusTransitionPhase === "enter"}
               class:boosting={displayedStatusText === "실시간 부스트중"
                 && statusTransitionPhase === "done"}
+              class:animation-paused={!pageVisible}
             >
               {displayedStatusText}
             </span>
@@ -769,8 +871,9 @@
             {/key}
           {/if}
         </button>
-        {#if startupIdentityPhase === "done"
-          && pageVisible
+        {#if boostSpinnerEnabled
+          && startupIdentityPhase === "done"
+          && spinnerAnimationVisible
           && displayedStatusText === "실시간 부스트중"
           && statusTransitionPhase === "done"}
           <span class="boost-progress" aria-hidden="true">
@@ -1129,7 +1232,7 @@
             || services.network.optimizing
             || !services.network.data
             || networkReady(services.network.data)}
-          onclick={() => optimize("network", window.nogirem.optimizeNetwork)}
+          onclick={requestNetworkOptimization}
         >
           {services.network.optimizing ? "적용 중…" : "네트워크 최적화"}
         </button>
@@ -1146,6 +1249,7 @@
   onplaybackstart={handleStartupPlaybackStart}
   onstartupcomplete={handleStartupComplete}
   onstartuphidden={handleStartupHidden}
+  onstartuplogomaskchange={active => startupLogoMaskActive = active}
 />
 
 {#if testVersionNoticeVisible}
@@ -1251,7 +1355,7 @@
               || services.network.optimizing
               || !services.network.data
               || networkReady(services.network.data)}
-            onclick={() => optimize("network", window.nogirem.optimizeNetwork)}
+            onclick={requestNetworkOptimization}
           >
             {services.network.loading
               ? "확인 중"
@@ -1290,6 +1394,37 @@
           <p class="detail-empty">네트워크 상태를 확인하고 있습니다</p>
         {/if}
       </section>
+    </div>
+  </Modal>
+{/if}
+
+{#if networkReconnectModalVisible}
+  <Modal
+    eyebrow="네트워크 최적화"
+    title="네트워크 연결을 다시 시작합니다"
+    hideClose={true}
+    closeSignal={networkReconnectCloseSignal}
+    onclose={finishNetworkReconnectModal}
+  >
+    <p class="modal-description">
+      TCP ACK 빈도 또는 TCP No Delay를 적용하려면 네트워크 어댑터를 다시 연결해야 합니다.
+      인터넷 연결이 잠시 끊길 수 있습니다. 계속하시겠습니까?
+    </p>
+    <div class="modal-actions">
+      <button
+        class="secondary"
+        disabled={Boolean(networkReconnectAction)}
+        onclick={() => closeNetworkReconnectModal("cancel")}
+      >
+        취소
+      </button>
+      <button
+        class="monochrome"
+        disabled={Boolean(networkReconnectAction)}
+        onclick={() => closeNetworkReconnectModal("continue")}
+      >
+        계속하기
+      </button>
     </div>
   </Modal>
 {/if}

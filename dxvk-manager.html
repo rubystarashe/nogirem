@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>DXVK 업데이트 관리</title>
+    <title>Vulkan 업데이트 관리</title>
     <style>
       * {
         box-sizing: border-box;
@@ -103,6 +103,21 @@
         color: #aeb5b9;
         font-size: 12px;
         line-height: 1.5;
+      }
+
+      .source-link {
+        display: inline-block;
+        margin-top: 4px;
+        color: #d8dcde;
+        font-size: 11px;
+        text-decoration-color: #61686c;
+        text-underline-offset: 3px;
+        -webkit-app-region: no-drag;
+      }
+
+      .source-link:hover {
+        color: #fff;
+        text-decoration-color: #fff;
       }
 
       .status-grid {
@@ -236,8 +251,14 @@
       <header class="heading">
         <img class="watermark" src="./logo2-white-transparent.png" alt="" draggable="false" />
         <p class="eyebrow">VULKAN RUNTIME</p>
-        <h1>DXVK 업데이트 관리</h1>
+        <h1>Vulkan 업데이트 관리</h1>
         <p class="description">공식 최신 정식 릴리즈의 DXVK x64 d3d9.dll을 검증하여 보관합니다.</p>
+        <a
+          class="source-link"
+          href="https://github.com/doitsujin/dxvk"
+          target="_blank"
+          rel="noopener noreferrer"
+        >https://github.com/doitsujin/dxvk</a>
       </header>
       <section class="status-grid" aria-label="DXVK 버전 상태">
         <article class="status-card">
@@ -255,7 +276,6 @@
       </section>
       <p class="message" role="status"></p>
       <footer class="actions">
-        <button class="action check" type="button">업데이트 확인</button>
         <button class="action primary install" type="button" disabled>다운로드 및 업데이트</button>
       </footer>
     </main>
@@ -266,7 +286,6 @@
       const versionSelect = document.querySelector(".version-select")
       const latestDetail = document.querySelector(".latest-detail")
       const message = document.querySelector(".message")
-      const checkButton = document.querySelector(".check")
       const installButton = document.querySelector(".install")
       let busy = false
       let lastStatus = null
@@ -319,7 +338,6 @@
 
       function setBusy(value, text = "") {
         busy = value
-        checkButton.disabled = value
         versionSelect.disabled = value || !lastStatus?.releases?.length
         installButton.disabled = value || !selectionNeedsInstall()
         if (text) {
@@ -418,7 +436,6 @@
         }
       }
 
-      checkButton.addEventListener("click", checkUpdate)
       installButton.addEventListener("click", installUpdate)
       closeButton.addEventListener("click", () => {
         closeButton.disabled = true
