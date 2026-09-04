@@ -1241,6 +1241,7 @@ function openDxvkManager() {
     width: 560,
     height: 430,
     show: false,
+    opacity: 0,
     resizable: false,
     maximizable: false,
     parent: primaryWindow ?? undefined,
@@ -1260,12 +1261,39 @@ function openDxvkManager() {
   })
   disableProductionRefresh(window)
   dxvkManagerWindow = window
+  let opacityTimer = null
+  let closing = false
+  const animateOpacity = (from, to, duration, onComplete) => {
+    clearInterval(opacityTimer)
+    const startedAt = Date.now()
+    opacityTimer = setInterval(() => {
+      if (window.isDestroyed()) {
+        clearInterval(opacityTimer)
+        opacityTimer = null
+        return
+      }
+      const progress = Math.min(1, (Date.now() - startedAt) / duration)
+      window.setOpacity(from + (to - from) * progress)
+      if (progress < 1) return
+      clearInterval(opacityTimer)
+      opacityTimer = null
+      onComplete?.()
+    }, 16)
+  }
   window.once("ready-to-show", () => {
     if (window.isDestroyed()) return
     window.show()
     window.focus()
+    animateOpacity(0, 1, 300)
+  })
+  window.on("close", event => {
+    if (closing) return
+    event.preventDefault()
+    closing = true
+    animateOpacity(window.getOpacity(), 0, 300, () => window.destroy())
   })
   window.on("closed", () => {
+    clearInterval(opacityTimer)
     if (dxvkManagerWindow === window) dxvkManagerWindow = null
   })
   const builtManagerPath = join(root, "dist", "dxvk-manager.html")
