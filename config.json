@@ -1,0 +1,30 @@
+{
+  "gameExecutable": "C:\\Nexon\\Mabinogi\\Client.exe",
+  "gameExecutableName": "Client.exe",
+  "gameDirectoryName": "Mabinogi",
+  "pollIntervalMs": 2000,
+  "memoryCleaner": {
+    "pollIntervalMs": 1000,
+    "availablePercent": 10,
+    "availableMinMiB": 768,
+    "availableMaxMiB": 2048,
+    "standbyPercent": 5,
+    "standbyMinMiB": 256,
+    "standbyMaxMiB": 1024,
+    "rearmPercent": 15,
+    "rearmMinMiB": 1536,
+    "rearmMaxMiB": 4096,
+    "cooldownMs": 600000
+  },
+  "excludeNames": [
+    "csrss.exe", "dwm.exe", "explorer.exe", "fontdrvhost.exe",
+    "lsass.exe", "memory compression.exe", "msmpeng.exe", "nvcontainer.exe",
+    "processgovernor.exe", "processlasso.exe", "registry.exe", "secure system.exe",
+    "services.exe", "sihost.exe", "smss.exe", "spoolsv.exe",
+    "startmenuexperiencehost.exe", "system.exe", "system idle process.exe",
+    "taskhostw.exe", "wininit.exe", "winlogon.exe", "wmiprvse.exe"
+  ],
+  "excludeNamePatterns": [
+    "^svchost\\.exe$", "anti.*cheat", "blackcipher", "nexon.*security"
+  ]
+}

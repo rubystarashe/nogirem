@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>주변 캐릭터 강제 간소화</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+
+      html {
+        background: transparent;
+      }
+
+      body {
+        background: transparent;
+        color: #f7f7f7;
+        font-family: "Pretendard Variable", Pretendard, "Segoe UI", sans-serif;
+        opacity: 1;
+        transition: opacity 300ms ease;
+      }
+
+      body.closing {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      body::before {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        border-radius: 16px;
+        background: #101214;
+        content: "";
+        pointer-events: none;
+      }
+
+      .window-watermark {
+        position: fixed;
+        top: 18px;
+        left: 50%;
+        width: 110px;
+        height: auto;
+        opacity: 0.08;
+        transform: translateX(-50%);
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      .drag-region {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 54px;
+        height: 52px;
+        z-index: 100;
+        background: rgba(16, 18, 20, 0.01);
+        cursor: move;
+        pointer-events: auto;
+        touch-action: none;
+        -webkit-app-region: no-drag;
+      }
+
+      .window-close {
+        position: fixed;
+        top: 12px;
+        right: 14px;
+        width: 28px;
+        height: 28px;
+        padding: 4px;
+        border: 0;
+        color: #aaa;
+        background: transparent;
+        cursor: pointer;
+        z-index: 101;
+        transition: color 180ms ease;
+        -webkit-app-region: no-drag;
+      }
+
+      .window-close:hover {
+        color: #fff;
+      }
+
+      .window-close svg {
+        width: 100%;
+        height: 100%;
+        fill: currentColor;
+      }
+
+      .guide-shell {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: 14px;
+        width: 100%;
+        height: 100%;
+        padding: 58px 38px 24px;
+        -webkit-app-region: no-drag;
+      }
+
+      .step-copy {
+        min-height: 88px;
+        transition: opacity 150ms ease, transform 150ms ease;
+      }
+
+      .step-copy.changing,
+      .step-image-wrap.changing {
+        opacity: 0;
+        transform: translateX(10px);
+      }
+
+      .step-kicker {
+        display: block;
+        margin-bottom: 5px;
+        color: #8f949c;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+      }
+
+      .step-title {
+        margin: 0 0 7px;
+        font-size: 19px;
+        line-height: 1.3;
+      }
+
+      .step-description {
+        max-width: 625px;
+        margin: 0;
+        color: #c7c9cd;
+        font-size: 12px;
+        line-height: 1.55;
+        word-break: keep-all;
+      }
+
+      .step-image-wrap {
+        display: flex;
+        min-height: 0;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border: 1px solid #2c2f34;
+        border-radius: 8px;
+        background: #191b1f;
+        transition: opacity 150ms ease, transform 150ms ease;
+      }
+
+      .step-image {
+        display: block;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      .step-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .step-progress {
+        display: grid;
+        flex: 1;
+        grid-template-columns: repeat(6, minmax(18px, 1fr));
+        gap: 6px;
+      }
+
+      .progress-segment {
+        height: 3px;
+        border: 0;
+        border-radius: 99px;
+        background: #34373c;
+        transition: background 180ms ease;
+      }
+
+      .progress-segment.active {
+        background: #f1f1f1;
+      }
+
+      .step-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .step-button {
+        min-width: 74px;
+        height: 32px;
+        padding: 0 15px;
+        border: 1px solid #3b3e43;
+        border-radius: 6px;
+        color: #e9e9e9;
+        background: #22252a;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        transition: border-color 150ms ease, background 150ms ease;
+      }
+
+      .step-button:hover:not(:disabled) {
+        border-color: #676b72;
+        background: #2c2f35;
+      }
+
+      .step-button.primary {
+        border-color: #e9e9e9;
+        color: #111315;
+        background: #e9e9e9;
+      }
+
+      .step-button.primary:hover {
+        background: #fff;
+      }
+
+      .step-button:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="drag-region"></div>
+    <img
+      class="window-watermark"
+      src="./logo2-white-transparent.png"
+      alt=""
+      draggable="false"
+    />
+    <button class="window-close" aria-label="창 닫기" onclick="closeGuide()">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5.3 4 12 10.7 18.7 4 20 5.3 13.3 12l6.7 6.7-1.3 1.3-6.7-6.7L5.3 20 4 18.7l6.7-6.7L4 5.3 5.3 4Z" />
+      </svg>
+    </button>
+    <main class="guide-shell">
+      <header class="step-copy">
+        <span class="step-kicker"></span>
+        <h1 class="step-title"></h1>
+        <p class="step-description"></p>
+      </header>
+      <div class="step-image-wrap">
+        <img class="step-image" alt="" draggable="false" />
+      </div>
+      <footer class="step-footer">
+        <div class="step-progress" aria-label="가이드 진행 상태"></div>
+        <div class="step-actions">
+          <button class="step-button previous" type="button">이전</button>
+          <button class="step-button primary next" type="button">다음</button>
+        </div>
+      </footer>
+    </main>
+    <script>
+      const steps = [
+        {
+          title: "주변 캐릭터 간소화 프레임 제한 해제",
+          description: "마비노기의 효과 옵션 중 하나인 주변 캐릭터 간소화 옵션의 간소화 시작 최저 프레임 상한선을 해제하여 모든 프레임 환경에서도 주변 캐릭터 간소화 기능을 사용할 수 있도록 하는 설정입니다.",
+          image: "./doc_minimize/introduce.webp",
+        },
+        {
+          title: "환경설정 내보내기/가져오기",
+          description: "마비노기 환경 설정에서 \"환경설정 내보내기/가져오기\" 버튼을 클릭합니다.",
+          image: "./doc_minimize/step_1.png",
+        },
+        {
+          title: "설정 파일 가져오기",
+          description: "\"주변캐릭터간소화프레임제한해제\" 설정을 선택하고 \"가져오기\" 버튼을 클릭합니다.",
+          image: "./doc_minimize/step_2.png",
+        },
+        {
+          title: "적용 항목 확인",
+          description: "\"환경설정 / 그래픽-효과\" 항목이 선택된 것을 확인하고 \"확인\" 버튼을 클릭합니다.",
+          image: "./doc_minimize/step_3.png",
+        },
+        {
+          title: "단축키 설정",
+          description: "주변 캐릭터 간소화 기능을 켜고 끌 수 있는 단축키를 설정할 수 있습니다.",
+          image: "./doc_minimize/shortcut.png",
+        },
+        {
+          title: "설정 변경 주의",
+          description: "적용 후 \"그래픽 / 효과 / 주변 캐릭터 간소화 / 간소화 시작 최저 프레임\"을 수정하면 제한 해제 설정이 사라지고 기준 프레임 설정이 적용됩니다. 이 경우 설정 파일을 다시 불러오면 해결할 수 있습니다.",
+          image: "./doc_minimize/do_not_touch.png",
+        },
+      ]
+
+      const copy = document.querySelector(".step-copy")
+      const kicker = document.querySelector(".step-kicker")
+      const title = document.querySelector(".step-title")
+      const description = document.querySelector(".step-description")
+      const imageWrap = document.querySelector(".step-image-wrap")
+      const image = document.querySelector(".step-image")
+      const progress = document.querySelector(".step-progress")
+      const previous = document.querySelector(".previous")
+      const next = document.querySelector(".next")
+      const dragRegion = document.querySelector(".drag-region")
+      let currentStep = 0
+      let transitionTimer
+      let closing = false
+      let dragPointerId = null
+
+      const progressSegments = steps.map((_, index) => {
+        const segment = document.createElement("button")
+        segment.className = "progress-segment"
+        segment.type = "button"
+        segment.setAttribute("aria-label", `${index + 1}단계로 이동`)
+        segment.addEventListener("click", () => showStep(index))
+        progress.append(segment)
+        return segment
+      })
+
+      function renderStep() {
+        const step = steps[currentStep]
+        kicker.textContent = `가이드 ${currentStep + 1} / ${steps.length}`
+        title.textContent = step.title
+        description.textContent = step.description
+        image.src = step.image
+        image.alt = `${step.title} 안내 이미지`
+        previous.disabled = currentStep === 0
+        next.textContent = currentStep === steps.length - 1 ? "완료" : "다음"
+        progressSegments.forEach((segment, index) => {
+          segment.classList.toggle("active", index <= currentStep)
+          segment.setAttribute("aria-current", index === currentStep ? "step" : "false")
+        })
+      }
+
+      function showStep(index) {
+        if (index < 0 || index >= steps.length || index === currentStep) return
+        window.clearTimeout(transitionTimer)
+        copy.classList.add("changing")
+        imageWrap.classList.add("changing")
+        transitionTimer = window.setTimeout(() => {
+          currentStep = index
+          renderStep()
+          requestAnimationFrame(() => {
+            copy.classList.remove("changing")
+            imageWrap.classList.remove("changing")
+          })
+        }, 150)
+      }
+
+      function closeGuide() {
+        if (closing) return
+        closing = true
+        document.body.classList.add("closing")
+        window.setTimeout(() => window.close(), 300)
+      }
+
+      function finishDrag(event) {
+        if (event.pointerId !== dragPointerId) return
+        window.characterGuide.endDrag()
+        if (dragRegion.hasPointerCapture(event.pointerId)) {
+          dragRegion.releasePointerCapture(event.pointerId)
+        }
+        dragPointerId = null
+      }
+
+      dragRegion.addEventListener("pointerdown", event => {
+        if (event.button !== 0 || dragPointerId !== null) return
+        dragPointerId = event.pointerId
+        dragRegion.setPointerCapture(event.pointerId)
+        window.characterGuide.startDrag(event.screenX, event.screenY)
+      })
+      dragRegion.addEventListener("pointermove", event => {
+        if (event.pointerId !== dragPointerId) return
+        window.characterGuide.moveDrag(event.screenX, event.screenY)
+      })
+      dragRegion.addEventListener("pointerup", finishDrag)
+      dragRegion.addEventListener("pointercancel", finishDrag)
+
+      previous.addEventListener("click", () => showStep(currentStep - 1))
+      next.addEventListener("click", () => {
+        if (currentStep === steps.length - 1) closeGuide()
+        else showStep(currentStep + 1)
+      })
+      window.addEventListener("keydown", event => {
+        if (event.key === "ArrowLeft") showStep(currentStep - 1)
+        if (event.key === "ArrowRight") showStep(currentStep + 1)
+        if (event.key === "Escape") closeGuide()
+      })
+
+      renderStep()
+    </script>
+  </body>
+</html>

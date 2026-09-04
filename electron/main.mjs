@@ -1,0 +1,1554 @@
+import { execFile, spawn } from "node:child_process"
+import { existsSync } from "node:fs"
+import { copyFile, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises"
+import { cpus, tmpdir } from "node:os"
+import { dirname, join } from "node:path"
+import { setTimeout as delay } from "node:timers/promises"
+import { promisify } from "node:util"
+import { fileURLToPath } from "node:url"
+import { randomUUID } from "node:crypto"
+import { app, BrowserWindow, dialog, ipcMain } from "electron"
+import {
+  ensureFastPingForPrimaryInterface,
+  ensureTcpAutoTuningNormal,
+} from "../src/network.mjs"
+import {
+  applyNicRssAffinity,
+  buildNicRssAffinityPlan,
+  getNicRssAffinityStatus,
+  isNicRssAffinityOptimized,
+  restoreNicRssAffinity,
+} from "../src/nic.mjs"
+import { createMemoryManager } from "../src/memory.mjs"
+import {
+  getInstalledDxvk,
+  getLatestDxvkRelease,
+  installLatestDxvk,
+} from "../src/dxvk.mjs"
+
+const execFileAsync = promisify(execFile)
+const root = dirname(dirname(fileURLToPath(import.meta.url)))
+const preloadPath = join(root, "electron", "preload.cjs")
+const characterGuidePreloadPath = join(root, "electron", "character-guide-preload.cjs")
+const dxvkManagerPreloadPath = join(root, "electron", "dxvk-manager-preload.cjs")
+const iconPath = join(root, "icon.ico")
+const characterSimplificationFileName = "주변캐릭터간소화프레임제한해제.muo"
+const conflictingProgramDefinitions = [
+  {
+    name: "ISLC",
+    executables: ["islc.exe", "intelligent standby list cleaner islc.exe"],
+  },
+  { name: "Process Lasso", executables: ["processlasso.exe", "processgovernor.exe"] },
+]
+const config = JSON.parse(await readFile(join(root, "config.json"), "utf8"))
+let primaryWindow = null
+let characterGuideWindow = null
+let dxvkManagerWindow = null
+let closeRequestPending = false
+let applicationExitInProgress = false
+let primaryWindowFocusPending = false
+let primaryWindowFocusTimer = null
+let primaryWindowRevealDelayTimer = null
+let primaryWindowRevealFrameTimer = null
+let primaryWindowRevealStarted = false
+let focusRequestMonitor = null
+let focusRequestReading = false
+let lastFocusRequestAt = 0
+let characterGuideDrag = null
+let dxvkUpdatePromise = null
+
+const instanceDirectory = join(app.getPath("userData"), "instance")
+const primaryInstancePath = join(instanceDirectory, "primary.json")
+const focusRequestPath = join(instanceDirectory, "focus-request.json")
+
+function serializeError(error) {
+  return {
+    name: error?.name ?? "Error",
+    message: error?.message ?? String(error),
+  }
+}
+
+function argumentValue(name) {
+  return process.argv.find(argument => argument.startsWith(`--${name}=`))
+    ?.slice(name.length + 3)
+}
+
+function findConflictingPrograms(processNames = []) {
+  const running = new Set(processNames.map(name => name.toLowerCase()))
+  return conflictingProgramDefinitions
+    .filter(program => program.executables.some(executable => running.has(executable)))
+    .map(program => program.name)
+}
+
+async function writeJsonAtomic(path, value) {
+  await mkdir(dirname(path), { recursive: true })
+  const temporaryPath = `${path}.${process.pid}.tmp`
+  await writeFile(temporaryPath, JSON.stringify(value), "utf8")
+  await rename(temporaryPath, path)
+}
+
+async function readJson(path) {
+  try {
+    return JSON.parse(await readFile(path, "utf8"))
+  } catch (error) {
+    if (error.code === "ENOENT") return null
+    throw error
+  }
+}
+
+async function isProcessRunning(pid) {
+  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error?.code === "EPERM"
+  }
+}
+
+async function requestPrimaryWindowFocus() {
+  await writeJsonAtomic(focusRequestPath, {
+    requestedAt: Date.now(),
+    requesterPid: process.pid,
+  })
+}
+
+async function focusRunningPrimaryInstance() {
+  const primary = await readJson(primaryInstancePath)
+  if (!await isProcessRunning(primary?.pid)) return false
+  await requestPrimaryWindowFocus()
+  return true
+}
+
+async function startFocusRequestMonitor() {
+  await mkdir(instanceDirectory, { recursive: true })
+  const existingRequest = await readJson(focusRequestPath)
+  lastFocusRequestAt = existingRequest?.requestedAt ?? 0
+  await writeJsonAtomic(primaryInstancePath, {
+    pid: process.pid,
+    startedAt: Date.now(),
+  })
+  focusRequestMonitor = setInterval(async () => {
+    if (focusRequestReading) return
+    focusRequestReading = true
+    try {
+      const request = await readJson(focusRequestPath)
+      if ((request?.requestedAt ?? 0) > lastFocusRequestAt) {
+        lastFocusRequestAt = request.requestedAt
+        focusPrimaryWindow()
+      }
+    } catch (error) {
+      console.error("기존 창 포커스 요청 확인 실패", error)
+    } finally {
+      focusRequestReading = false
+    }
+  }, 200)
+}
+
+async function waitForAffinityCommand(controlPath, durationMs) {
+  const deadline = Date.now() + durationMs
+  while (true) {
+    const control = await readJson(controlPath)
+    if (control?.command === "stop" || control?.command === "reset") {
+      return control.command
+    }
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) return null
+    await delay(Math.min(250, remaining))
+  }
+}
+
+async function runAffinityHelper() {
+  const statusPath = argumentValue("status-path")
+  const controlPath = argumentValue("control-path")
+  const affinityStatePath = argumentValue("affinity-state-path")
+  const appliedMarkerPath = argumentValue("applied-marker-path")
+  const includeNic = argumentValue("include-nic") === "true"
+  const inheritedNicManaged = argumentValue("nic-managed") === "true"
+  if (!statusPath || !controlPath || !affinityStatePath) {
+    throw new Error("Affinity helper 제어 경로가 없습니다")
+  }
+
+  let stopping = false
+  let affinity = null
+  let nicManaged = inheritedNicManaged
+  let failure = null
+  let helperAffinity = null
+  let nicStatus = null
+  let appliedMarker = appliedMarkerPath ? await readJson(appliedMarkerPath) : null
+  let appliedMarkerRecorded = Boolean(appliedMarker)
+  let recordedChangeCount = 0
+  let exitAction = "keep"
+  const logicalCpuCount = cpus().length
+  const half = logicalCpuCount / 2
+
+  const updateAppliedMarker = async entries => {
+    if (!appliedMarkerPath) return
+    const mergedEntries = new Map(
+      (appliedMarker?.entries ?? []).map(entry => [`${entry.pid}:${entry.startTime}`, entry]),
+    )
+    for (const entry of entries) {
+      mergedEntries.set(`${entry.pid}:${entry.startTime}`, entry)
+    }
+    appliedMarker = {
+      appliedAt: appliedMarker?.appliedAt ?? Date.now(),
+      helperPid: process.pid,
+      nicManaged: Boolean(appliedMarker?.nicManaged || nicManaged),
+      entries: [...mergedEntries.values()],
+    }
+    await writeJsonAtomic(appliedMarkerPath, appliedMarker)
+    appliedMarkerRecorded = true
+  }
+
+  const writeStatus = async values => writeJsonAtomic(statusPath, {
+    running: !stopping,
+    gameActive: affinity?.isGameActive() ?? false,
+    includeNic,
+    nicManaged,
+    backgroundCpuRange: `0-${half - 1}`,
+    gameCpuRange: `${half}-${logicalCpuCount - 1}`,
+    helperPid: process.pid,
+    helperAffinity,
+    nicStatus,
+    appliedMarkerRecorded,
+    conflictingPrograms: findConflictingPrograms(affinity?.getRunningProcessNames()),
+    updatedAt: Date.now(),
+    error: failure,
+    ...values,
+  })
+
+  const requestStop = () => {
+    stopping = true
+  }
+  process.on("SIGINT", requestStop)
+  process.on("SIGTERM", requestStop)
+
+  try {
+    const {
+      createAffinityManager,
+      pinCurrentProcessToBackgroundCpus,
+    } = await import("../src/affinity.mjs")
+    helperAffinity = pinCurrentProcessToBackgroundCpus()
+    await unlink(affinityStatePath).catch(() => {})
+
+    if (includeNic) {
+      const nic = await applyNicRssAffinity({ applyChanges: true })
+      nicManaged ||= nic.applied
+      nicStatus = nic
+      if (nicManaged) await updateAppliedMarker([])
+    }
+
+    affinity = await createAffinityManager({
+      config,
+      statePath: affinityStatePath,
+      applyChanges: true,
+      quiet: true,
+      lastCoreMode: false,
+      passiveMode: false,
+      restoreOnGameExit: false,
+    })
+    await writeStatus()
+
+    while (!stopping) {
+      const immediateCommand = await waitForAffinityCommand(controlPath, 0)
+      if (immediateCommand) {
+        exitAction = immediateCommand === "reset" ? "reset" : "keep"
+        stopping = true
+        break
+      }
+      await affinity.tick()
+      const appliedChanges = affinity.getAppliedChanges()
+      if (appliedChanges.length > recordedChangeCount) {
+        await updateAppliedMarker(appliedChanges)
+        recordedChangeCount = appliedChanges.length
+      }
+      await writeStatus()
+      const delayedCommand = await waitForAffinityCommand(controlPath, config.pollIntervalMs)
+      if (delayedCommand) {
+        exitAction = delayedCommand === "reset" ? "reset" : "keep"
+        stopping = true
+        break
+      }
+    }
+  } catch (error) {
+    stopping = true
+    failure = serializeError(error)
+    await writeStatus({ error: serializeError(error) })
+    throw error
+  } finally {
+    stopping = true
+    try {
+      if (affinity) {
+        if (exitAction === "reset") await affinity.resetAllAffinities()
+        else await affinity.stopWithoutRestore()
+      }
+    } catch (error) {
+      failure ??= serializeError(error)
+    }
+    if (exitAction === "reset" && nicManaged) {
+      try {
+        const restored = await restoreNicRssAffinity({ applyChanges: true })
+        if (restored.current) {
+          const target = buildNicRssAffinityPlan(restored.current, { logicalCpuCount })
+          nicStatus = {
+            supported: true,
+            optimized: isNicRssAffinityOptimized(restored.current, target),
+            rssEnabled: restored.current.enabled,
+            current: restored.current,
+            target,
+            gameCpuOverlap: restored.current.enabled !== true
+              || restored.current.maxProcessorNumber === null
+              || restored.current.maxProcessorNumber >= target.gameProcessorStart,
+          }
+        } else {
+          nicStatus = await getNicRssAffinityStatus()
+        }
+        nicManaged = false
+      } catch (error) {
+        failure ??= serializeError(error)
+      }
+    }
+    if (exitAction === "reset" && !failure && appliedMarkerPath) {
+      await unlink(appliedMarkerPath).catch(() => {})
+      appliedMarker = null
+      appliedMarkerRecorded = false
+    }
+    await writeStatus({
+      running: false,
+      gameActive: false,
+      exitAction,
+      stoppedAt: Date.now(),
+    }).catch(() => {})
+  }
+}
+
+async function detectMabinogi() {
+  const executableName = String(config.gameExecutableName ?? "Client.exe")
+  const configuredPath = String(config.gameExecutable ?? "").replaceAll("/", "\\").toLowerCase()
+  const directoryName = String(config.gameDirectoryName ?? "Mabinogi").toLowerCase()
+  const script = `
+$ErrorActionPreference = "SilentlyContinue"
+$found = Get-Process | Where-Object {
+  ($_.ProcessName + ".exe") -ieq ${quotePowerShellLiteral(executableName)}
+} | Where-Object {
+  if (-not $_.Path) {
+    $false
+  } else {
+    $path = $_.Path.Replace("/", "\\").ToLowerInvariant()
+    $path -eq ${quotePowerShellLiteral(configuredPath)} -or
+      $path.Split("\\") -contains ${quotePowerShellLiteral(directoryName)}
+  }
+} | Select-Object -First 1
+[bool]$found
+`
+  const { stdout } = await execFileAsync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", script],
+    { windowsHide: true, timeout: 15000 },
+  )
+  return stdout.trim().toLowerCase() === "true"
+}
+
+async function runMemoryHelper() {
+  const statusPath = argumentValue("status-path")
+  const controlPath = argumentValue("control-path")
+  const purgeOnStart = argumentValue("purge-on-start") === "true"
+  if (!statusPath || !controlPath) throw new Error("메모리 helper 제어 경로가 없습니다")
+
+  let stopping = false
+  let gameActive = false
+  let failure = null
+  const memory = createMemoryManager({
+    config,
+    applyChanges: true,
+    isGameActive: () => gameActive,
+    isStopping: () => stopping,
+  })
+
+  const writeStatus = async values => {
+    const memoryStatus = memory.getStatus()
+    return writeJsonAtomic(statusPath, {
+      ...memoryStatus,
+      running: !stopping,
+      gameActive,
+      helperPid: process.pid,
+      updatedAt: Date.now(),
+      error: failure ?? memoryStatus.error,
+      ...values,
+    })
+  }
+
+  const requestStop = () => {
+    stopping = true
+  }
+  process.on("SIGINT", requestStop)
+  process.on("SIGTERM", requestStop)
+
+  try {
+    if (purgeOnStart) memory.purgeNow()
+    await writeStatus()
+    while (!stopping) {
+      const control = await readJson(controlPath)
+      if (control?.command === "stop") break
+      gameActive = await detectMabinogi()
+      memory.checkNow()
+      await writeStatus()
+      await delay(config.memoryCleaner?.pollIntervalMs ?? 1000)
+    }
+  } catch (error) {
+    failure = serializeError(error)
+    throw error
+  } finally {
+    stopping = true
+    memory.stop()
+    await writeStatus({
+      running: false,
+      gameActive: false,
+      stoppedAt: Date.now(),
+    }).catch(() => {})
+  }
+}
+
+async function runOptimizationHelper(operation) {
+  const outputArgument = process.argv.find(argument => argument.startsWith("--output="))
+  if (!outputArgument) throw new Error("관리자 작업 결과 경로가 없습니다")
+  const outputPath = outputArgument.slice("--output=".length)
+
+  try {
+    const result = await operation()
+    await writeFile(outputPath, JSON.stringify({ ok: true, data: result }), "utf8")
+  } catch (error) {
+    await writeFile(
+      outputPath,
+      JSON.stringify({ ok: false, error: serializeError(error) }),
+      "utf8",
+    )
+    process.exitCode = 1
+  }
+}
+
+const networkHelperMode = process.argv.includes("--network-helper")
+const affinityHelperMode = process.argv.includes("--affinity-helper")
+const memoryHelperMode = process.argv.includes("--memory-helper")
+const testVersionExpiration = new Date(2026, 8, 12)
+
+if (affinityHelperMode) {
+  try {
+    await runAffinityHelper()
+  } catch (error) {
+    console.error(error)
+    process.exitCode = 1
+  }
+  app.exit(process.exitCode ?? 0)
+} else if (memoryHelperMode) {
+  try {
+    await runMemoryHelper()
+  } catch (error) {
+    console.error(error)
+    process.exitCode = 1
+  }
+  app.exit(process.exitCode ?? 0)
+} else if (networkHelperMode) {
+  await runOptimizationHelper(optimizeNetworkDirect)
+  app.exit(process.exitCode ?? 0)
+} else if (Date.now() >= testVersionExpiration.getTime()) {
+  app.exit(0)
+} else {
+  const primaryInstance = app.requestSingleInstanceLock()
+  if (!primaryInstance) {
+    void requestPrimaryWindowFocus()
+      .catch(error => console.error("기존 창 포커스 요청 실패", error))
+      .finally(() => app.exit(0))
+  } else {
+    app.on("second-instance", focusPrimaryWindow)
+    void startApplication().catch(error => {
+      console.error(error)
+      dialog.showErrorBox(
+        "마비노기 렘 부스터 시작 실패",
+        error?.message ?? String(error),
+      )
+      app.exit(1)
+    })
+  }
+}
+
+async function checkNvidia() {
+  const { checkNvidiaProfile } = await import("../src/nvidia.mjs")
+  return checkNvidiaProfile(config.gameExecutable)
+}
+
+async function optimizeNvidia() {
+  const { applyNvidiaProfileGoals } = await import("../src/nvidia.mjs")
+  return applyNvidiaProfileGoals(config.gameExecutable)
+}
+
+async function checkNetwork() {
+  const [fastPing, tcpAutoTuning] = await Promise.all([
+    ensureFastPingForPrimaryInterface(),
+    ensureTcpAutoTuningNormal(),
+  ])
+  return {
+    fastPing,
+    tcpAutoTuning,
+    optimized: fastPing.configured && tcpAutoTuning.optimized,
+  }
+}
+
+const memoryStatusReader = createMemoryManager({
+  config,
+  applyChanges: false,
+  isGameActive: () => false,
+  isStopping: () => false,
+})
+let memoryStartPromise = null
+let frameBoostStartupPromise = null
+let frameBoostDesiredEnabled = true
+
+function getMemoryPaths() {
+  const base = join(app.getPath("userData"), "memory")
+  return {
+    statusPath: join(base, "status.json"),
+    controlPath: join(base, "control.json"),
+  }
+}
+
+async function readMemoryRuntimeStatus() {
+  const { statusPath } = getMemoryPaths()
+  const status = await readJson(statusPath)
+  const fresh = status?.updatedAt
+    && Date.now() - status.updatedAt < Math.max(
+      (config.memoryCleaner?.pollIntervalMs ?? 1000) * 4,
+      15000,
+    )
+  return {
+    ...(status ?? {}),
+    running: Boolean(status?.running && fresh),
+    gameActive: Boolean(status?.gameActive && status?.running && fresh),
+  }
+}
+
+async function checkMemory() {
+  const runtime = await readMemoryRuntimeStatus()
+  if (runtime.running) return runtime
+  return {
+    ...memoryStatusReader.getStatus(),
+    running: false,
+    gameActive: false,
+    error: runtime.error ?? null,
+  }
+}
+
+let affinityStartPromise = null
+const NIC_STATUS_CACHE_MS = 30000
+let nicStatusCache = null
+let nicStatusCheckedAt = 0
+let nicStatusPromise = null
+
+function setNicStatusCache(status) {
+  nicStatusCache = status
+  nicStatusCheckedAt = Date.now()
+  return status
+}
+
+async function getCachedNicStatus({ refresh = false } = {}) {
+  if (
+    !refresh
+    && nicStatusCache
+    && Date.now() - nicStatusCheckedAt < NIC_STATUS_CACHE_MS
+  ) {
+    return nicStatusCache
+  }
+  nicStatusPromise ??= getNicRssAffinityStatus()
+    .catch(error => ({
+      supported: false,
+      optimized: false,
+      reason: error?.message ?? String(error),
+    }))
+    .then(setNicStatusCache)
+    .finally(() => {
+      nicStatusPromise = null
+    })
+  return nicStatusPromise
+}
+
+function invalidateNicStatusCache() {
+  nicStatusCheckedAt = 0
+}
+
+function getAffinityPaths() {
+  const base = join(app.getPath("userData"), "affinity")
+  return {
+    statusPath: join(base, "status.json"),
+    controlPath: join(base, "control.json"),
+    statePath: join(base, "runtime-state.json"),
+    appliedMarkerPath: join(base, "applied-marker.json"),
+  }
+}
+
+async function readAffinityRuntimeStatus() {
+  const { statusPath } = getAffinityPaths()
+  const status = await readJson(statusPath)
+  const fresh = status?.updatedAt
+    && Date.now() - status.updatedAt < Math.max(config.pollIntervalMs * 4, 30000)
+  const logicalCpuCount = cpus().length
+  const half = logicalCpuCount / 2
+  return {
+    running: Boolean(status?.running && fresh),
+    gameActive: Boolean(status?.gameActive && fresh),
+    includeNic: Boolean(status?.includeNic),
+    nicManaged: Boolean(status?.nicManaged),
+    backgroundCpuRange: status?.backgroundCpuRange ?? `0-${half - 1}`,
+    gameCpuRange: status?.gameCpuRange ?? `${half}-${logicalCpuCount - 1}`,
+    error: status?.error ?? null,
+    nicStatus: status?.nicStatus ?? null,
+    conflictingPrograms: Array.isArray(status?.conflictingPrograms)
+      ? status.conflictingPrograms
+      : [],
+  }
+}
+
+async function checkAffinity({ refreshNic = false } = {}) {
+  const runtime = await readAffinityRuntimeStatus()
+  if (!refreshNic && runtime.nicStatus) setNicStatusCache(runtime.nicStatus)
+  const nic = await getCachedNicStatus({ refresh: refreshNic })
+  const previousNicFailureResolved = runtime.running === false
+    && nic.optimized
+    && runtime.error?.message?.startsWith("NIC RSS affinity")
+  return {
+    ...runtime,
+    error: previousNicFailureResolved ? null : runtime.error,
+    nic,
+  }
+}
+
+function quotePowerShellLiteral(value) {
+  return `'${String(value).replaceAll("'", "''")}'`
+}
+
+function quoteProcessArgument(value) {
+  return quotePowerShellLiteral(`"${String(value).replaceAll('"', '\\"')}"`)
+}
+
+async function isAdministrator() {
+  const script = [
+    "$identity = [Security.Principal.WindowsIdentity]::GetCurrent()",
+    "$principal = [Security.Principal.WindowsPrincipal]::new($identity)",
+    "$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)",
+  ].join("\n")
+  const { stdout } = await execFileAsync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", script],
+    { windowsHide: true, timeout: 15000 },
+  )
+  return stdout.trim().toLowerCase() === "true"
+}
+
+async function relaunchAsAdministrator() {
+  const relaunchArguments = app.isPackaged
+    ? process.argv.slice(1)
+    : [root, ...process.argv.slice(2)]
+  const workingDirectory = app.isPackaged ? dirname(process.execPath) : root
+  if (!relaunchArguments.includes("--elevated-relaunch")) {
+    relaunchArguments.push("--elevated-relaunch")
+  }
+  const argumentList = relaunchArguments.map(quoteProcessArgument).join(", ")
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    `Start-Process -FilePath ${quotePowerShellLiteral(process.execPath)} -ArgumentList @(${argumentList}) -Verb RunAs -WorkingDirectory ${quotePowerShellLiteral(workingDirectory)}`,
+  ].join("\n")
+  const encodedCommand = Buffer.from(script, "utf16le").toString("base64")
+
+  try {
+    await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-EncodedCommand", encodedCommand],
+      { windowsHide: true, timeout: 120000 },
+    )
+  } catch {
+    throw new Error("관리자 권한이 필요합니다. UAC 요청을 승인한 뒤 다시 실행하세요")
+  }
+}
+
+async function launchMemoryHelper({ purgeOnStart = false } = {}) {
+  const paths = getMemoryPaths()
+  await mkdir(dirname(paths.statusPath), { recursive: true })
+  await Promise.all([
+    unlink(paths.statusPath).catch(() => {}),
+    unlink(paths.controlPath).catch(() => {}),
+  ])
+
+  const helperArguments = [
+    "--memory-helper",
+    `--status-path=${paths.statusPath}`,
+    `--control-path=${paths.controlPath}`,
+    `--purge-on-start=${purgeOnStart}`,
+  ]
+  if (!app.isPackaged) helperArguments.unshift(root)
+  const argumentList = helperArguments.map(quoteProcessArgument).join(", ")
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    `$process = Start-Process -FilePath ${quotePowerShellLiteral(process.execPath)} -ArgumentList @(${argumentList}) -WindowStyle Hidden -PassThru`,
+    "$process.Id",
+  ].join("\n")
+  const encodedCommand = Buffer.from(script, "utf16le").toString("base64")
+
+  try {
+    await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-EncodedCommand", encodedCommand],
+      { windowsHide: true, timeout: 120000 },
+    )
+  } catch {
+    throw new Error("메모리 최적화 helper 실행에 실패했습니다")
+  }
+
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const status = await readJson(paths.statusPath)
+    if (status?.error) throw new Error(status.error.message ?? "메모리 최적화 시작 실패")
+    if (status?.running) return checkMemory()
+    await delay(500)
+  }
+  await writeJsonAtomic(paths.controlPath, {
+    command: "stop",
+    requestedAt: Date.now(),
+    reason: "start-timeout",
+  })
+  throw new Error("메모리 최적화 helper가 제한 시간 안에 시작되지 않았습니다")
+}
+
+async function stopMemoryHelper() {
+  if (memoryStartPromise) await memoryStartPromise.catch(() => {})
+  const paths = getMemoryPaths()
+  const current = await checkMemory()
+  if (!current.running) return current
+
+  await writeJsonAtomic(paths.controlPath, { command: "stop", requestedAt: Date.now() })
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const status = await readJson(paths.statusPath)
+    if (status?.running === false) return checkMemory()
+    await delay(500)
+  }
+  throw new Error("메모리 최적화 helper가 제한 시간 안에 종료되지 않았습니다")
+}
+
+async function setMemoryEnabled(enabled, { purgeOnStart = false } = {}) {
+  if (typeof enabled !== "boolean") throw new Error("메모리 최적화 활성화 여부가 올바르지 않습니다")
+  const current = await checkMemory()
+  if (enabled) {
+    if (current.running) return current
+    memoryStartPromise ??= launchMemoryHelper({ purgeOnStart })
+    try {
+      return await memoryStartPromise
+    } finally {
+      memoryStartPromise = null
+    }
+  }
+  return stopMemoryHelper()
+}
+
+async function launchAffinityHelper(includeNic, inheritedNicManaged = false) {
+  const paths = getAffinityPaths()
+  await mkdir(dirname(paths.statusPath), { recursive: true })
+  await Promise.all([
+    unlink(paths.statusPath).catch(() => {}),
+    unlink(paths.controlPath).catch(() => {}),
+  ])
+
+  const helperArguments = [
+    "--affinity-helper",
+    `--status-path=${paths.statusPath}`,
+    `--control-path=${paths.controlPath}`,
+    `--affinity-state-path=${paths.statePath}`,
+    `--applied-marker-path=${paths.appliedMarkerPath}`,
+    `--include-nic=${includeNic}`,
+    `--nic-managed=${inheritedNicManaged}`,
+  ]
+  if (!app.isPackaged) helperArguments.unshift(root)
+
+  try {
+    if (app.isPackaged) {
+      const argumentList = helperArguments.map(quoteProcessArgument).join(", ")
+      const script = [
+        "$ErrorActionPreference = 'Stop'",
+        `$process = Start-Process -FilePath ${quotePowerShellLiteral(process.execPath)} -ArgumentList @(${argumentList}) -WindowStyle Hidden -WorkingDirectory ${quotePowerShellLiteral(dirname(process.execPath))} -PassThru`,
+        "$process.Id",
+      ].join("\n")
+      const encodedCommand = Buffer.from(script, "utf16le").toString("base64")
+      await execFileAsync(
+        "powershell.exe",
+        ["-NoProfile", "-NonInteractive", "-EncodedCommand", encodedCommand],
+        { windowsHide: true, timeout: 120000 },
+      )
+    } else {
+      const child = spawn(process.execPath, helperArguments, {
+        cwd: root,
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+      })
+      await new Promise((resolve, reject) => {
+        child.once("spawn", resolve)
+        child.once("error", reject)
+      })
+      child.unref()
+    }
+  } catch {
+    throw new Error("Affinity helper 실행에 실패했습니다")
+  }
+
+  for (let attempt = 0; attempt < 450; attempt++) {
+    const status = await readJson(paths.statusPath)
+    if (status?.error) throw new Error(status.error.message ?? "Affinity 최적화 시작 실패")
+    if (status?.running) {
+      if (status.nicStatus) setNicStatusCache(status.nicStatus)
+      return readAffinityRuntimeStatus()
+    }
+    await delay(100)
+  }
+  await writeJsonAtomic(paths.controlPath, {
+    command: "stop",
+    requestedAt: Date.now(),
+    reason: "start-timeout",
+  })
+  throw new Error("Affinity helper가 제한 시간 안에 시작되지 않았습니다")
+}
+
+async function stopAffinityHelper({ reset = false } = {}) {
+  if (affinityStartPromise) await affinityStartPromise.catch(() => {})
+  const paths = getAffinityPaths()
+  const current = await readAffinityRuntimeStatus()
+  if (!current.running) {
+    if (reset) {
+      await launchAffinityHelper(false, current.nicManaged)
+      return stopAffinityHelper({ reset: true })
+    }
+    return checkAffinity()
+  }
+
+  await writeJsonAtomic(paths.controlPath, {
+    command: reset ? "reset" : "stop",
+    requestedAt: Date.now(),
+  })
+  for (let attempt = 0; attempt < 450; attempt++) {
+    const status = await readJson(paths.statusPath)
+    if (status?.running === false) {
+      if (status.nicStatus) setNicStatusCache(status.nicStatus)
+      else if (current.nicManaged) invalidateNicStatusCache()
+      return checkAffinity()
+    }
+    await delay(100)
+  }
+  throw new Error("Affinity helper가 제한 시간 안에 종료되지 않았습니다")
+}
+
+async function setAffinityEnabled({ enabled, includeNic = false } = {}) {
+  if (typeof enabled !== "boolean") throw new Error("Affinity 활성화 여부가 올바르지 않습니다")
+  const current = await readAffinityRuntimeStatus()
+  if (enabled) {
+    if (current.running) return checkAffinity()
+    affinityStartPromise ??= launchAffinityHelper(Boolean(includeNic), current.nicManaged)
+    try {
+      await affinityStartPromise
+      return checkAffinity()
+    } finally {
+      affinityStartPromise = null
+    }
+  }
+  return stopAffinityHelper()
+}
+
+async function resetAllAffinities() {
+  frameBoostDesiredEnabled = false
+  return stopAffinityHelper({ reset: true })
+}
+
+async function setFrameBoostEnabled({ enabled, includeNic = false } = {}) {
+  if (typeof enabled !== "boolean") throw new Error("프레임 부스트 활성화 여부가 올바르지 않습니다")
+  const previousDesiredEnabled = frameBoostDesiredEnabled
+  frameBoostDesiredEnabled = enabled
+  try {
+    const [affinity, memory] = await Promise.all([
+      setAffinityEnabled({ enabled, includeNic }),
+      setMemoryEnabled(enabled),
+    ])
+    return { affinity, memory }
+  } catch (error) {
+    frameBoostDesiredEnabled = previousDesiredEnabled
+    throw error
+  }
+}
+
+async function resetFrameBoost() {
+  const [affinity, memory] = await Promise.all([
+    resetAllAffinities(),
+    setMemoryEnabled(false),
+  ])
+  return { affinity, memory }
+}
+
+async function ensureAffinityStarted() {
+  const current = await readAffinityRuntimeStatus()
+  if (current.running) return current
+  affinityStartPromise ??= launchAffinityHelper(false, current.nicManaged)
+  try {
+    return await affinityStartPromise
+  } finally {
+    affinityStartPromise = null
+  }
+}
+
+async function ensureFrameBoostStarted() {
+  return Promise.all([
+    ensureAffinityStarted(),
+    setMemoryEnabled(true, { purgeOnStart: true }),
+  ])
+}
+
+async function requestApplicationExitConfirmation() {
+  if (!applicationExitInProgress && primaryWindow && !primaryWindow.isDestroyed()) {
+    focusPrimaryWindow()
+  }
+  if (closeRequestPending || applicationExitInProgress) return
+  if (!primaryWindow || primaryWindow.isDestroyed() || primaryWindow.webContents.isDestroyed()) {
+    await finishApplicationExit("keep")
+    return
+  }
+  closeRequestPending = true
+  try {
+    const paths = getAffinityPaths()
+    const [affinityState, affinityStatus, appliedMarker] = await Promise.all([
+      readJson(paths.statePath),
+      readJson(paths.statusPath),
+      readJson(paths.appliedMarkerPath),
+    ])
+    const { hasLiveAppliedAffinityEntries } = await import("../src/affinity.mjs")
+    const hasLiveAppliedAffinity = await hasLiveAppliedAffinityEntries([
+      ...(affinityState?.entries ?? []),
+      ...(appliedMarker?.entries ?? []),
+    ])
+    const hasManagedNic = Boolean(
+      affinityStatus?.nicManaged
+      || appliedMarker?.nicManaged,
+    )
+    const hasAppliedBoost = Boolean(
+      hasLiveAppliedAffinity
+      || hasManagedNic,
+    )
+    if (!hasAppliedBoost) {
+      await unlink(paths.appliedMarkerPath).catch(() => {})
+      await finishApplicationExitWithoutAppliedBoost()
+      return
+    }
+  } catch (error) {
+    console.error("종료 전 부스트 적용 기록 확인 실패", error)
+  }
+  primaryWindow.webContents.send("application:close-requested")
+}
+
+async function finishApplicationExitWithoutAppliedBoost() {
+  if (applicationExitInProgress) return { closing: true }
+  applicationExitInProgress = true
+  closeRequestPending = false
+  const requestedAt = Date.now()
+  const results = await Promise.allSettled([
+    writeJsonAtomic(getAffinityPaths().controlPath, {
+      command: "stop",
+      requestedAt,
+      reason: "application-exit-without-applied-boost",
+    }),
+    writeJsonAtomic(getMemoryPaths().controlPath, {
+      command: "stop",
+      requestedAt,
+      reason: "application-exit-without-applied-boost",
+    }),
+  ])
+  for (const result of results) {
+    if (result.status === "rejected") console.error(result.reason)
+  }
+  app.quit()
+  return { closing: true }
+}
+
+async function finishApplicationExit(action) {
+  if (action === "cancel") {
+    closeRequestPending = false
+    return { closing: false }
+  }
+  if (action !== "reset" && action !== "keep") {
+    throw new Error("종료 방식이 올바르지 않습니다")
+  }
+  if (applicationExitInProgress) return { closing: true }
+
+  applicationExitInProgress = true
+  closeRequestPending = false
+  const results = await Promise.allSettled([
+    action === "reset" ? resetAllAffinities() : stopAffinityHelper(),
+    stopMemoryHelper(),
+  ])
+  for (const result of results) {
+    if (result.status === "rejected") console.error(result.reason)
+  }
+  app.quit()
+  return { closing: true }
+}
+
+async function runElevatedOptimization(helperFlag, failureMessage) {
+  const outputPath = join(tmpdir(), `nogirem-${randomUUID()}.json`)
+  const helperArguments = app.isPackaged
+    ? [helperFlag, `--output=${outputPath}`]
+    : [root, helperFlag, `--output=${outputPath}`]
+  const argumentList = helperArguments.map(quoteProcessArgument).join(", ")
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    `$process = Start-Process -FilePath ${quotePowerShellLiteral(process.execPath)} -ArgumentList @(${argumentList}) -Wait -PassThru`,
+    "exit $process.ExitCode",
+  ].join("\n")
+  const encodedCommand = Buffer.from(script, "utf16le").toString("base64")
+
+  try {
+    await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-EncodedCommand", encodedCommand],
+      { windowsHide: true, timeout: 120000 },
+    )
+  } catch (error) {
+    try {
+      const payload = JSON.parse(await readFile(outputPath, "utf8"))
+      if (!payload.ok) throw new Error(payload.error?.message ?? failureMessage)
+    } catch (resultError) {
+      if (resultError.code === "ENOENT") {
+        throw new Error("관리자 helper 실행에 실패했습니다")
+      }
+      throw resultError
+    }
+  }
+
+  try {
+    const payload = JSON.parse(await readFile(outputPath, "utf8"))
+    if (!payload.ok) throw new Error(payload.error?.message ?? failureMessage)
+    return payload.data
+  } finally {
+    await unlink(outputPath).catch(() => {})
+  }
+}
+
+async function optimizeNetworkDirect() {
+  const tcpAutoTuning = await ensureTcpAutoTuningNormal({ applyChanges: true })
+  const fastPing = await ensureFastPingForPrimaryInterface({
+    applyChanges: true,
+    restartAfterApply: true,
+  })
+  return {
+    fastPing,
+    tcpAutoTuning,
+    optimized: fastPing.configured && tcpAutoTuning.optimized,
+  }
+}
+
+async function optimizeNetwork() {
+  return runElevatedOptimization("--network-helper", "네트워크 최적화 실패")
+}
+
+function getDxvkDirectory() {
+  return join(app.getPath("appData"), "마비노기 렘 부스터", "vulkan")
+}
+
+async function getDxvkManagerStatus({ checkLatest = false } = {}) {
+  const installed = await getInstalledDxvk(getDxvkDirectory())
+  const latest = checkLatest ? await getLatestDxvkRelease() : null
+  return {
+    installed,
+    latest,
+    updateAvailable: latest
+      ? !installed.installed
+        || !installed.integrity
+        || installed.current?.version !== latest.version
+        || installed.current?.archiveSha256 !== latest.archiveSha256
+      : null,
+    storagePath: getDxvkDirectory(),
+  }
+}
+
+async function updateDxvk() {
+  dxvkUpdatePromise ??= installLatestDxvk(getDxvkDirectory())
+  try {
+    const result = await dxvkUpdatePromise
+    return {
+      ...result,
+      storagePath: getDxvkDirectory(),
+    }
+  } finally {
+    dxvkUpdatePromise = null
+  }
+}
+
+function resultOf(promise) {
+  return promise.then(
+    data => ({ ok: true, data }),
+    error => ({ ok: false, error: serializeError(error) }),
+  )
+}
+
+function registerIpc() {
+  ipcMain.handle("optimization:get-status", async () => {
+    await frameBoostStartupPromise
+    return Promise.all([
+      resultOf(checkNvidia()),
+      resultOf(checkNetwork()),
+      resultOf(checkAffinity({ refreshNic: true })),
+      resultOf(checkMemory()),
+    ]).then(([nvidia, network, affinity, memory]) => ({
+      nvidia,
+      network,
+      affinity,
+      memory,
+    }))
+  })
+  ipcMain.handle("optimization:refresh-nvidia", () => checkNvidia())
+  ipcMain.handle("optimization:refresh-network", () => checkNetwork())
+  ipcMain.handle("optimization:refresh-affinity", () => checkAffinity({ refreshNic: true }))
+  ipcMain.handle("optimization:get-affinity-runtime", async () => {
+    const runtime = await readAffinityRuntimeStatus()
+    if (
+      frameBoostDesiredEnabled
+      && !runtime.running
+      && !applicationExitInProgress
+      && !closeRequestPending
+    ) {
+      return ensureAffinityStarted()
+    }
+    return runtime
+  })
+  ipcMain.handle("optimization:refresh-memory", () => checkMemory())
+  ipcMain.handle("optimization:get-memory-runtime", async () => {
+    const runtime = await readMemoryRuntimeStatus()
+    if (
+      frameBoostDesiredEnabled
+      && !runtime.running
+      && !applicationExitInProgress
+      && !closeRequestPending
+    ) {
+      return setMemoryEnabled(true)
+    }
+    return runtime
+  })
+  ipcMain.handle("optimization:optimize-nvidia", () => optimizeNvidia())
+  ipcMain.handle("optimization:optimize-network", () => optimizeNetwork())
+  ipcMain.handle("optimization:set-affinity-enabled", (_event, options) => {
+    return setAffinityEnabled(options)
+  })
+  ipcMain.handle("optimization:reset-affinity", () => resetAllAffinities())
+  ipcMain.handle("optimization:set-frame-boost-enabled", (_event, options) => {
+    return setFrameBoostEnabled(options)
+  })
+  ipcMain.handle("optimization:reset-frame-boost", () => resetFrameBoost())
+  ipcMain.handle("optimization:set-memory-enabled", (_event, enabled) => {
+    return setMemoryEnabled(enabled)
+  })
+  ipcMain.handle("application:begin-startup-reveal", event => {
+    if (BrowserWindow.fromWebContents(event.sender) === primaryWindow) {
+      beginPrimaryWindowReveal()
+    }
+  })
+  ipcMain.handle("application:request-close", () => requestApplicationExitConfirmation())
+  ipcMain.handle("application:open-character-guide", () => {
+    openCharacterSimplificationGuide()
+  })
+  ipcMain.handle("application:open-dxvk-manager", () => {
+    openDxvkManager()
+  })
+  ipcMain.handle("dxvk:get-status", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== dxvkManagerWindow) {
+      throw new Error("허용되지 않은 DXVK 상태 요청입니다")
+    }
+    return getDxvkManagerStatus()
+  })
+  ipcMain.handle("dxvk:check-update", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== dxvkManagerWindow) {
+      throw new Error("허용되지 않은 DXVK 업데이트 확인 요청입니다")
+    }
+    return getDxvkManagerStatus({ checkLatest: true })
+  })
+  ipcMain.handle("dxvk:install-update", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== dxvkManagerWindow) {
+      throw new Error("허용되지 않은 DXVK 설치 요청입니다")
+    }
+    return updateDxvk()
+  })
+  ipcMain.on("character-guide:drag-start", (event, point) => {
+    if (
+      !characterGuideWindow
+      || characterGuideWindow.isDestroyed()
+      || event.sender !== characterGuideWindow.webContents
+      || !Number.isFinite(point?.screenX)
+      || !Number.isFinite(point?.screenY)
+    ) return
+    const [windowX, windowY] = characterGuideWindow.getPosition()
+    characterGuideDrag = {
+      window: characterGuideWindow,
+      pointerX: point.screenX,
+      pointerY: point.screenY,
+      windowX,
+      windowY,
+    }
+  })
+  ipcMain.on("character-guide:drag-move", (event, point) => {
+    const drag = characterGuideDrag
+    if (
+      !drag
+      || drag.window.isDestroyed()
+      || event.sender !== drag.window.webContents
+      || !Number.isFinite(point?.screenX)
+      || !Number.isFinite(point?.screenY)
+    ) return
+    drag.window.setPosition(
+      Math.round(drag.windowX + point.screenX - drag.pointerX),
+      Math.round(drag.windowY + point.screenY - drag.pointerY),
+    )
+  })
+  ipcMain.on("character-guide:drag-end", event => {
+    if (characterGuideDrag?.window.webContents === event.sender) {
+      characterGuideDrag = null
+    }
+  })
+  ipcMain.handle("application:confirm-close", (_event, action) => {
+    return finishApplicationExit(action)
+  })
+}
+
+function disableProductionRefresh(window) {
+  if (!app.isPackaged) return
+  window.webContents.on("before-input-event", (event, input) => {
+    const key = input.key.toLowerCase()
+    if (key === "f5" || ((input.control || input.meta) && key === "r")) {
+      event.preventDefault()
+    }
+  })
+}
+
+function openDxvkManager() {
+  if (dxvkManagerWindow && !dxvkManagerWindow.isDestroyed()) {
+    if (dxvkManagerWindow.isMinimized()) dxvkManagerWindow.restore()
+    dxvkManagerWindow.show()
+    dxvkManagerWindow.moveTop()
+    dxvkManagerWindow.focus()
+    return
+  }
+
+  const window = new BrowserWindow({
+    width: 560,
+    height: 430,
+    show: false,
+    resizable: false,
+    maximizable: false,
+    parent: primaryWindow ?? undefined,
+    title: "DXVK 업데이트 관리",
+    icon: iconPath,
+    autoHideMenuBar: true,
+    skipTaskbar: true,
+    frame: false,
+    roundedCorners: true,
+    backgroundColor: "#101214",
+    webPreferences: {
+      preload: dxvkManagerPreloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  disableProductionRefresh(window)
+  dxvkManagerWindow = window
+  window.once("ready-to-show", () => {
+    if (window.isDestroyed()) return
+    window.show()
+    window.focus()
+  })
+  window.on("closed", () => {
+    if (dxvkManagerWindow === window) dxvkManagerWindow = null
+  })
+  const builtManagerPath = join(root, "dist", "dxvk-manager.html")
+  const loading = process.argv.includes("--dev")
+    ? window.loadURL("http://localhost:5173/dxvk-manager.html")
+    : window.loadFile(existsSync(builtManagerPath)
+      ? builtManagerPath
+      : join(root, "dxvk-manager.html"))
+  void loading
+    .catch(error => showWindowLoadError(window, error))
+    .catch(error => console.error("DXVK 관리 화면 로드 실패", error))
+}
+
+function openCharacterSimplificationGuide() {
+  if (characterGuideWindow && !characterGuideWindow.isDestroyed()) {
+    if (characterGuideWindow.isMinimized()) characterGuideWindow.restore()
+    characterGuideWindow.setAlwaysOnTop(true, "screen-saver", 1)
+    characterGuideWindow.show()
+    characterGuideWindow.moveTop()
+    characterGuideWindow.focus()
+    return
+  }
+
+  const window = new BrowserWindow({
+    width: 920,
+    height: 900,
+    minWidth: 520,
+    minHeight: 360,
+    show: false,
+    title: "주변 캐릭터 강제 간소화",
+    icon: iconPath,
+    autoHideMenuBar: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    frame: false,
+    transparent: true,
+    opacity: 0,
+    roundedCorners: true,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      preload: characterGuidePreloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  disableProductionRefresh(window)
+  characterGuideWindow = window
+  let opacityTimer = null
+  let closing = false
+  const animateOpacity = (from, to, duration, onComplete) => {
+    clearInterval(opacityTimer)
+    const startedAt = Date.now()
+    opacityTimer = setInterval(() => {
+      if (window.isDestroyed()) {
+        clearInterval(opacityTimer)
+        opacityTimer = null
+        return
+      }
+      const progress = Math.min(1, (Date.now() - startedAt) / duration)
+      window.setOpacity(from + (to - from) * progress)
+      if (progress < 1) return
+      clearInterval(opacityTimer)
+      opacityTimer = null
+      onComplete?.()
+    }, 16)
+  }
+  window.setAlwaysOnTop(true, "screen-saver", 1)
+  window.once("ready-to-show", () => {
+    if (window.isDestroyed()) return
+    window.show()
+    animateOpacity(0, 0.9, 500)
+  })
+  window.on("show", () => {
+    if (!window.isDestroyed()) window.setAlwaysOnTop(true, "screen-saver", 1)
+  })
+  window.on("close", event => {
+    if (closing) return
+    event.preventDefault()
+    closing = true
+    animateOpacity(window.getOpacity(), 0, 300, () => window.destroy())
+  })
+  window.on("closed", () => {
+    clearInterval(opacityTimer)
+    if (characterGuideDrag?.window === window) characterGuideDrag = null
+    if (characterGuideWindow === window) characterGuideWindow = null
+  })
+  const builtGuidePath = join(root, "dist", "character-guide.html")
+  const loading = process.argv.includes("--dev")
+    ? window.loadURL("http://localhost:5173/character-guide.html")
+    : window.loadFile(existsSync(builtGuidePath)
+      ? builtGuidePath
+      : join(root, "character-guide.html"))
+  void loading
+    .catch(error => showWindowLoadError(window, error))
+    .catch(error => console.error("간소화 안내 오류 화면 로드 실패", error))
+}
+
+async function installCharacterSimplificationFile() {
+  const sourcePath = join(root, "assets", characterSimplificationFileName)
+  const settingsDirectory = join(app.getPath("documents"), "마비노기", "설정")
+  const destinationDirectory = join(settingsDirectory, "목록")
+  await mkdir(destinationDirectory, { recursive: true })
+  await copyFile(sourcePath, join(destinationDirectory, characterSimplificationFileName))
+  await unlink(join(settingsDirectory, characterSimplificationFileName)).catch(error => {
+    if (error?.code !== "ENOENT") throw error
+  })
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;")
+}
+
+async function showWindowLoadError(window, error) {
+  console.error("렌더러 화면 로드 실패", error)
+  const message = escapeHtml(error?.message ?? String(error))
+  const html = `<!doctype html>
+<html lang="ko">
+<meta charset="UTF-8">
+<meta name="color-scheme" content="dark">
+<title>nogirem 화면 로드 실패</title>
+<style>
+body{margin:0;padding:48px;background:#101214;color:#f3f5f7;font:15px/1.6 "Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:28px;border:1px solid #49302d;border-radius:12px;background:#211918}
+h1{margin:0 0 14px;font-size:24px}
+p{margin:0;color:#efaaa3;white-space:pre-wrap;overflow-wrap:anywhere}
+</style>
+<main><h1>화면을 불러오지 못했습니다</h1><p>${message}</p></main>
+</html>`
+  await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+  window.setOpacity(1)
+  window.show()
+}
+
+function beginPrimaryWindowReveal() {
+  if (primaryWindowRevealStarted || !primaryWindow || primaryWindow.isDestroyed()) return
+  primaryWindowRevealStarted = true
+  const window = primaryWindow
+  primaryWindowRevealDelayTimer = setTimeout(() => {
+    primaryWindowRevealDelayTimer = null
+    if (primaryWindow !== window || window.isDestroyed()) return
+    const startedAt = Date.now()
+    window.setOpacity(0)
+    window.show()
+    window.focus()
+
+    const revealFrame = () => {
+      if (primaryWindow !== window || window.isDestroyed()) return
+      const progress = Math.min(1, (Date.now() - startedAt) / 1000)
+      window.setOpacity(progress)
+      if (progress < 1) {
+        primaryWindowRevealFrameTimer = setTimeout(revealFrame, 16)
+      } else {
+        primaryWindowRevealFrameTimer = null
+      }
+    }
+    revealFrame()
+  }, 1000)
+}
+
+function focusPrimaryWindow() {
+  if (!primaryWindow || primaryWindow.isDestroyed()) {
+    primaryWindowFocusPending = true
+    return
+  }
+  primaryWindowFocusPending = false
+  if (primaryWindow.isMinimized()) primaryWindow.restore()
+  if (!primaryWindow.isVisible()) primaryWindow.show()
+  const window = primaryWindow
+  const wasAlwaysOnTop = window.isAlwaysOnTop()
+  if (!wasAlwaysOnTop) window.setAlwaysOnTop(true, "screen-saver")
+  window.moveTop()
+  primaryWindow.focus()
+  if (!wasAlwaysOnTop) {
+    clearTimeout(primaryWindowFocusTimer)
+    primaryWindowFocusTimer = setTimeout(() => {
+      if (primaryWindow === window && !window.isDestroyed()) {
+        window.setAlwaysOnTop(false)
+      }
+      primaryWindowFocusTimer = null
+    }, 500)
+  }
+}
+
+function createWindow() {
+  const window = new BrowserWindow({
+    width: 640,
+    height: 290,
+    show: false,
+    opacity: 0,
+    icon: iconPath,
+    resizable: false,
+    maximizable: false,
+    autoHideMenuBar: true,
+    frame: false,
+    roundedCorners: false,
+    backgroundColor: "#ffffff",
+    webPreferences: {
+      preload: preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      backgroundThrottling: false,
+    },
+  })
+  disableProductionRefresh(window)
+  window.webContents.on("render-process-gone", (_event, details) => {
+    console.error("렌더러 프로세스 종료", details)
+  })
+  primaryWindow = window
+  window.on("close", event => {
+    if (applicationExitInProgress) return
+    event.preventDefault()
+    void requestApplicationExitConfirmation()
+      .catch(error => console.error("종료 요청 처리 실패", error))
+  })
+  window.on("closed", () => {
+    clearTimeout(primaryWindowFocusTimer)
+    clearTimeout(primaryWindowRevealDelayTimer)
+    clearTimeout(primaryWindowRevealFrameTimer)
+    primaryWindowFocusTimer = null
+    primaryWindowRevealDelayTimer = null
+    primaryWindowRevealFrameTimer = null
+    primaryWindowRevealStarted = false
+    if (primaryWindow === window) primaryWindow = null
+  })
+
+  const loading = process.argv.includes("--dev")
+    ? window.loadURL("http://localhost:5173")
+    : window.loadFile(join(root, "dist", "index.html"))
+  void loading
+    .then(() => {
+      if (primaryWindowFocusPending) focusPrimaryWindow()
+    })
+    .catch(error => showWindowLoadError(window, error))
+    .catch(error => console.error("오류 화면 로드 실패", error))
+}
+
+async function startApplication() {
+  if (!(await isAdministrator())) {
+    if (await focusRunningPrimaryInstance()) {
+      app.releaseSingleInstanceLock()
+      await delay(300)
+      app.exit(0)
+      return
+    }
+    app.releaseSingleInstanceLock()
+    await relaunchAsAdministrator()
+    app.exit(0)
+    return
+  }
+
+  registerIpc()
+  await app.whenReady()
+  await installCharacterSimplificationFile()
+  await startFocusRequestMonitor()
+  frameBoostStartupPromise = ensureFrameBoostStarted().catch(error => {
+    console.error("앱 시작 프레임 부스트 자동 실행 실패", error)
+  })
+  createWindow()
+
+  app.on("before-quit", event => {
+    if (applicationExitInProgress) return
+    event.preventDefault()
+    void requestApplicationExitConfirmation()
+      .catch(error => console.error("종료 요청 처리 실패", error))
+  })
+
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+  app.on("window-all-closed", () => app.quit())
+  app.on("will-quit", () => {
+    clearInterval(focusRequestMonitor)
+    focusRequestMonitor = null
+    void readJson(primaryInstancePath)
+      .then(primary => {
+        if (primary?.pid === process.pid) return unlink(primaryInstancePath).catch(() => {})
+        return null
+      })
+      .catch(() => {})
+  })
+}

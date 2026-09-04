@@ -1,0 +1,101 @@
+{
+  "name": "nogirem",
+  "productName": "마비노기 렘 부스터",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.mjs",
+  "scripts": {
+    "app": "electron .",
+    "app:dev": "concurrently --kill-others-on-fail \"vite\" \"wait-on tcp:5173 && electron . --dev\"",
+    "app:build": "vite build",
+    "package:win": "node scripts/package-win.mjs",
+    "start": "node src/index.mjs --apply",
+    "start:quiet": "node src/index.mjs --apply --quiet",
+    "start:last-core": "node src/index.mjs --apply --last-core",
+    "start:last-core:quiet": "node src/index.mjs --apply --last-core --quiet",
+    "start:passive": "node src/index.mjs --apply --passive",
+    "start:passive:quiet": "node src/index.mjs --apply --passive --quiet",
+    "dry-run": "node src/index.mjs --dry-run",
+    "dry-run:last-core": "node src/index.mjs --dry-run --last-core",
+    "dry-run:passive": "node src/index.mjs --dry-run --passive",
+    "reset": "node src/index.mjs --apply --reset-all",
+    "reset:quiet": "node src/index.mjs --apply --reset-all --quiet",
+    "start:memory": "node src/index.mjs --apply --memory-cleaner",
+    "start:memory:quiet": "node src/index.mjs --apply --memory-cleaner --quiet",
+    "memory:status": "node src/index.mjs --memory-status --quiet",
+    "nvidia:status": "node src/index.mjs --nvidia-status",
+    "nvidia:apply": "node src/index.mjs --nvidia-apply",
+    "fast-ping:status": "node src/index.mjs --fast-ping-status",
+    "fast-ping:apply": "node src/index.mjs --apply --fast-ping-status",
+    "fast-ping:restart": "node src/index.mjs --apply --fast-ping-restart",
+    "tcp:status": "node src/index.mjs --tcp-auto-tuning-status",
+    "tcp:apply": "node src/index.mjs --apply --tcp-auto-tuning-status",
+    "nic-rss:status": "node src/index.mjs --nic-rss-status",
+    "nic-rss:apply": "node src/index.mjs --apply --nic-rss-apply",
+    "nic-rss:restore": "node src/index.mjs --apply --nic-rss-restore",
+    "test": "node --test",
+    "self-test": "node src/index.mjs --self-test"
+  },
+  "dependencies": {
+    "ffi-rs": "^1.3.4",
+    "koffi": "^3.2.0",
+    "svelte": "^5.38.7"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.1.1",
+    "concurrently": "^9.2.1",
+    "electron": "^37.4.0",
+    "electron-builder": "^26.15.3",
+    "vite": "^6.2.6",
+    "wait-on": "^8.0.4"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "build": {
+    "appId": "com.ryut.rem.mabinogi-booster",
+    "productName": "마비노기 렘 부스터",
+    "compression": "maximum",
+    "electronLanguages": [
+      "ko",
+      "en-US"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "!dist/main1.png",
+      "!dist/main3.jpg",
+      "!dist/logo.png",
+      "!dist/doc_minimize/introduce.png",
+      "electron/**/*",
+      "src/**/*",
+      "assets/**/*",
+      "config.json",
+      "icon.ico",
+      "character-guide.html",
+      "package.json"
+    ],
+    "win": {
+      "icon": "icon.ico",
+      "requestedExecutionLevel": "requireAdministrator",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "마비노기 렘 부스터"
+    }
+  }
+}
