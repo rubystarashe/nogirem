@@ -14,6 +14,7 @@ import { promisify } from "node:util"
 
 const execFileAsync = promisify(execFile)
 const latestReleaseUrl = "https://api.github.com/repos/doitsujin/dxvk/releases/latest"
+const releasesUrl = "https://api.github.com/repos/doitsujin/dxvk/releases?per_page=100"
 const maximumArchiveBytes = 64 * 1024 * 1024
 
 function sha256(buffer) {
@@ -50,20 +51,9 @@ async function readJson(path) {
   }
 }
 
-export async function getLatestDxvkRelease(fetchImpl = globalThis.fetch) {
-  const response = await fetchImpl(latestReleaseUrl, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      "User-Agent": "mabinogi-rem-booster",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-  })
-  if (!response.ok) {
-    throw new Error(`DXVK 최신 릴리즈 조회 실패 (${response.status})`)
-  }
-  const release = await response.json()
+function parseRelease(release) {
   if (release.draft || release.prerelease) {
-    throw new Error("DXVK 최신 정식 릴리즈를 찾지 못했습니다")
+    throw new Error("DXVK 정식 릴리즈가 아닙니다")
   }
   const version = normalizeVersion(release.tag_name)
   const asset = release.assets?.find(item => (
@@ -86,6 +76,51 @@ export async function getLatestDxvkRelease(fetchImpl = globalThis.fetch) {
     archiveSha256: digest[1].toLowerCase(),
     publishedAt: release.published_at,
   }
+}
+
+async function fetchReleaseJson(url, fetchImpl, failureMessage) {
+  const response = await fetchImpl(url, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "mabinogi-rem-booster",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  })
+  if (!response.ok) throw new Error(`${failureMessage} (${response.status})`)
+  return response.json()
+}
+
+export async function getLatestDxvkRelease(fetchImpl = globalThis.fetch) {
+  const release = await fetchReleaseJson(
+    latestReleaseUrl,
+    fetchImpl,
+    "DXVK 최신 릴리즈 조회 실패",
+  )
+  try {
+    return parseRelease(release)
+  } catch {
+    throw new Error("DXVK 최신 정식 릴리즈를 찾지 못했습니다")
+  }
+}
+
+export async function getDxvkReleases(fetchImpl = globalThis.fetch) {
+  const response = await fetchReleaseJson(
+    releasesUrl,
+    fetchImpl,
+    "DXVK 릴리즈 목록 조회 실패",
+  )
+  if (!Array.isArray(response)) throw new Error("DXVK 릴리즈 목록 형식이 올바르지 않습니다")
+  const releases = response.flatMap(release => {
+    try {
+      return [parseRelease(release)]
+    } catch {
+      return []
+    }
+  })
+  if (releases.length === 0) {
+    throw new Error("SHA-256 검증 가능한 DXVK 정식 릴리즈가 없습니다")
+  }
+  return releases
 }
 
 export async function getInstalledDxvk(vulkanDirectory) {
@@ -111,8 +146,7 @@ export async function getInstalledDxvk(vulkanDirectory) {
   }
 }
 
-export async function installLatestDxvk(vulkanDirectory, fetchImpl = globalThis.fetch) {
-  const release = await getLatestDxvkRelease(fetchImpl)
+async function installDxvkRelease(vulkanDirectory, release, fetchImpl) {
   const installed = await getInstalledDxvk(vulkanDirectory)
   if (
     installed.installed
@@ -210,4 +244,21 @@ export async function installLatestDxvk(vulkanDirectory, fetchImpl = globalThis.
   } finally {
     await rm(workDirectory, { recursive: true, force: true })
   }
+}
+
+export async function installLatestDxvk(vulkanDirectory, fetchImpl = globalThis.fetch) {
+  const release = await getLatestDxvkRelease(fetchImpl)
+  return installDxvkRelease(vulkanDirectory, release, fetchImpl)
+}
+
+export async function installDxvkVersion(
+  vulkanDirectory,
+  version,
+  fetchImpl = globalThis.fetch,
+) {
+  const normalizedVersion = normalizeVersion(version)
+  const releases = await getDxvkReleases(fetchImpl)
+  const release = releases.find(item => item.version === normalizedVersion)
+  if (!release) throw new Error("선택한 DXVK 정식 릴리즈를 찾지 못했습니다")
+  return installDxvkRelease(vulkanDirectory, release, fetchImpl)
 }

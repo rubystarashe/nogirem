@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 import {
+  getDxvkReleases,
   getInstalledDxvk,
   getLatestDxvkRelease,
 } from "../src/dxvk.mjs"
@@ -49,6 +50,35 @@ test("사전 릴리즈는 최신 정식 DXVK로 허용하지 않는다", async (
     getLatestDxvkRelease(fetchImpl),
     /최신 정식 릴리즈/,
   )
+})
+
+test("검증 가능한 이전 DXVK 정식 릴리즈 목록을 반환한다", async () => {
+  const release = (version, digest = "b".repeat(64)) => ({
+    tag_name: version,
+    draft: false,
+    prerelease: false,
+    html_url: `https://github.com/doitsujin/dxvk/releases/tag/${version}`,
+    published_at: "2026-01-01T00:00:00Z",
+    assets: [{
+      name: `dxvk-${version.slice(1)}.tar.gz`,
+      state: "uploaded",
+      size: 100,
+      digest: digest ? `sha256:${digest}` : null,
+      browser_download_url: `https://example.com/dxvk-${version}.tar.gz`,
+    }],
+  })
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => [
+      release("v3.1"),
+      release("v3.0"),
+      { ...release("v3.2"), prerelease: true },
+      release("v2.7", null),
+    ],
+  })
+
+  const releases = await getDxvkReleases(fetchImpl)
+  assert.deepEqual(releases.map(item => item.version), ["v3.1", "v3.0"])
 })
 
 test("저장된 DXVK DLL의 SHA-256 무결성을 확인한다", async () => {

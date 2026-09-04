@@ -21,9 +21,9 @@ import {
 } from "../src/nic.mjs"
 import { createMemoryManager } from "../src/memory.mjs"
 import {
+  getDxvkReleases,
   getInstalledDxvk,
-  getLatestDxvkRelease,
-  installLatestDxvk,
+  installDxvkVersion,
 } from "../src/dxvk.mjs"
 
 const execFileAsync = promisify(execFile)
@@ -1055,10 +1055,12 @@ function getDxvkDirectory() {
 
 async function getDxvkManagerStatus({ checkLatest = false } = {}) {
   const installed = await getInstalledDxvk(getDxvkDirectory())
-  const latest = checkLatest ? await getLatestDxvkRelease() : null
+  const releases = checkLatest ? await getDxvkReleases() : []
+  const latest = releases[0] ?? null
   return {
     installed,
     latest,
+    releases,
     updateAvailable: latest
       ? !installed.installed
         || !installed.integrity
@@ -1069,8 +1071,8 @@ async function getDxvkManagerStatus({ checkLatest = false } = {}) {
   }
 }
 
-async function updateDxvk() {
-  dxvkUpdatePromise ??= installLatestDxvk(getDxvkDirectory())
+async function updateDxvk(version) {
+  dxvkUpdatePromise ??= installDxvkVersion(getDxvkDirectory(), version)
   try {
     const result = await dxvkUpdatePromise
     return {
@@ -1169,11 +1171,11 @@ function registerIpc() {
     }
     return getDxvkManagerStatus({ checkLatest: true })
   })
-  ipcMain.handle("dxvk:install-update", event => {
+  ipcMain.handle("dxvk:install-update", (event, version) => {
     if (BrowserWindow.fromWebContents(event.sender) !== dxvkManagerWindow) {
       throw new Error("허용되지 않은 DXVK 설치 요청입니다")
     }
-    return updateDxvk()
+    return updateDxvk(version)
   })
   ipcMain.on("character-guide:drag-start", (event, point) => {
     if (

@@ -133,6 +133,29 @@
         font-size: 17px;
       }
 
+      .version-select {
+        width: 100%;
+        height: 29px;
+        margin: -2px 0 5px;
+        padding: 0 8px;
+        border: 1px solid #3a4044;
+        border-radius: 6px;
+        color: #f3f5f7;
+        background: #202427;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        outline: none;
+      }
+
+      .version-select:focus {
+        border-color: #7f898f;
+      }
+
+      .version-select:disabled {
+        opacity: 0.55;
+      }
+
       .status-detail {
         display: block;
         color: #8f989d;
@@ -148,22 +171,15 @@
         color: #e39a42;
       }
 
-      .storage {
+      .message {
+        min-height: 34px;
         margin: 12px 0 0;
         padding: 10px 12px;
         border-radius: 8px;
-        color: #979da1;
-        background: #151719;
-        font-size: 10px;
-        line-height: 1.4;
-        overflow-wrap: anywhere;
-      }
-
-      .message {
-        min-height: 19px;
-        margin: 10px 0 0;
         color: #aeb5b9;
+        background: #151719;
         font-size: 11px;
+        line-height: 1.4;
       }
 
       .message.error {
@@ -230,12 +246,13 @@
           <span class="status-detail installed-detail">로컬 파일을 확인하고 있습니다</span>
         </article>
         <article class="status-card">
-          <span class="status-label">최신 정식 버전</span>
-          <strong class="status-value latest-version">확인 전</strong>
+          <label class="status-label" for="version-select">설치할 버전</label>
+          <select class="version-select" id="version-select" disabled>
+            <option>확인 전</option>
+          </select>
           <span class="status-detail latest-detail">GitHub 릴리즈 확인이 필요합니다</span>
         </article>
       </section>
-      <p class="storage"></p>
       <p class="message" role="status"></p>
       <footer class="actions">
         <button class="action check" type="button">업데이트 확인</button>
@@ -245,14 +262,44 @@
     <script>
       const installedVersion = document.querySelector(".installed-version")
       const installedDetail = document.querySelector(".installed-detail")
-      const latestVersion = document.querySelector(".latest-version")
+      const versionSelect = document.querySelector(".version-select")
       const latestDetail = document.querySelector(".latest-detail")
-      const storage = document.querySelector(".storage")
       const message = document.querySelector(".message")
       const checkButton = document.querySelector(".check")
       const installButton = document.querySelector(".install")
       let busy = false
       let lastStatus = null
+
+      function selectedRelease() {
+        return lastStatus?.releases?.find(release => release.version === versionSelect.value)
+      }
+
+      function selectionNeedsInstall() {
+        const selected = selectedRelease()
+        const installed = lastStatus?.installed
+        return Boolean(
+          selected
+          && (
+            !installed?.installed
+            || !installed.integrity
+            || installed.current?.version !== selected.version
+            || installed.current?.archiveSha256 !== selected.archiveSha256
+          )
+        )
+      }
+
+      function updateSelection() {
+        const selected = selectedRelease()
+        const isLatest = selected?.version === lastStatus?.latest?.version
+        latestDetail.textContent = selected
+          ? isLatest ? "최신 정식 버전" : "이전 정식 버전"
+          : "GitHub 릴리즈 확인이 필요합니다"
+        latestDetail.className = `status-detail ${selected ? "ready" : ""}`
+        installButton.disabled = busy || !selectionNeedsInstall()
+        installButton.textContent = selectionNeedsInstall()
+          ? lastStatus?.installed?.installed ? "선택 버전으로 교체" : "다운로드"
+          : "설치됨"
+      }
 
       function errorMessage(error) {
         return error?.message?.replace(/^Error invoking remote method '[^']+': Error: /, "")
@@ -262,7 +309,8 @@
       function setBusy(value, text = "") {
         busy = value
         checkButton.disabled = value
-        installButton.disabled = value || !lastStatus?.latest || !lastStatus?.updateAvailable
+        versionSelect.disabled = value || !lastStatus?.releases?.length
+        installButton.disabled = value || !selectionNeedsInstall()
         if (text) {
           message.classList.remove("error")
           message.textContent = text
@@ -270,8 +318,8 @@
       }
 
       function render(status) {
+        const previousSelection = versionSelect.value
         lastStatus = status
-        storage.textContent = `저장 위치 · ${status.storagePath}`
         const installed = status.installed
         if (installed.installed) {
           installedVersion.textContent = installed.current.version
@@ -286,15 +334,28 @@
             : "아직 다운로드한 DXVK가 없습니다"
           installedDetail.className = "status-detail warning"
         }
-        if (status.latest) {
-          latestVersion.textContent = status.latest.version
-          latestDetail.textContent = status.updateAvailable
-            ? "새 버전 또는 파일 복구가 필요합니다"
-            : "현재 최신 버전을 사용하고 있습니다"
-          latestDetail.className = `status-detail ${status.updateAvailable ? "warning" : "ready"}`
+        versionSelect.replaceChildren()
+        if (status.releases?.length) {
+          for (const release of status.releases) {
+            const option = document.createElement("option")
+            option.value = release.version
+            option.textContent = release.version === status.latest?.version
+              ? `${release.version} · 최신`
+              : release.version
+            versionSelect.append(option)
+          }
+          const selectionExists = status.releases.some(
+            release => release.version === previousSelection,
+          )
+          versionSelect.value = selectionExists ? previousSelection : status.latest.version
+          versionSelect.disabled = busy
+        } else {
+          const option = document.createElement("option")
+          option.textContent = "확인 전"
+          versionSelect.append(option)
+          versionSelect.disabled = true
         }
-        installButton.disabled = busy || !status.latest || !status.updateAvailable
-        installButton.textContent = status.installed.installed ? "다운로드 및 업데이트" : "다운로드"
+        updateSelection()
       }
 
       async function loadInstalled() {
@@ -322,12 +383,13 @@
       }
 
       async function installUpdate() {
+        const version = versionSelect.value
         setBusy(true, "압축 파일 다운로드·SHA-256 검증·DLL 추출을 진행하고 있습니다")
         try {
-          await window.dxvkManager.installUpdate()
+          await window.dxvkManager.installUpdate(version)
           render(await window.dxvkManager.checkUpdate())
           message.classList.remove("error")
-          message.textContent = "DXVK 다운로드와 무결성 검증이 완료되었습니다"
+          message.textContent = `${version} 설치와 무결성 검증이 완료되었습니다`
         } catch (error) {
           message.classList.add("error")
           message.textContent = errorMessage(error)
@@ -338,6 +400,15 @@
 
       checkButton.addEventListener("click", checkUpdate)
       installButton.addEventListener("click", installUpdate)
+      versionSelect.addEventListener("change", () => {
+        updateSelection()
+        const selected = selectedRelease()
+        if (!selected) return
+        message.classList.remove("error")
+        message.textContent = selectionNeedsInstall()
+          ? `${selected.version} 버전으로 교체할 수 있습니다`
+          : `설치된 DXVK가 ${selected.version} 버전입니다`
+      })
       void loadInstalled().then(checkUpdate)
     </script>
   </body>
