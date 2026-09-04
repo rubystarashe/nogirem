@@ -227,7 +227,7 @@
   </head>
   <body>
     <div class="titlebar"></div>
-    <button class="window-close" aria-label="창 닫기" onclick="window.close()">
+    <button class="window-close" aria-label="창 닫기">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M5.3 4 12 10.7 18.7 4 20 5.3 13.3 12l6.7 6.7-1.3 1.3-6.7-6.7L5.3 20 4 18.7l6.7-6.7L4 5.3 5.3 4Z" />
       </svg>
@@ -261,6 +261,7 @@
     </main>
     <script>
       const installedVersion = document.querySelector(".installed-version")
+      const closeButton = document.querySelector(".window-close")
       const installedDetail = document.querySelector(".installed-detail")
       const versionSelect = document.querySelector(".version-select")
       const latestDetail = document.querySelector(".latest-detail")
@@ -419,6 +420,10 @@
 
       checkButton.addEventListener("click", checkUpdate)
       installButton.addEventListener("click", installUpdate)
+      closeButton.addEventListener("click", () => {
+        closeButton.disabled = true
+        void window.dxvkManager.requestClose()
+      })
       versionSelect.addEventListener("change", () => {
         updateSelection()
         const selected = selectedRelease()

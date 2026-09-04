@@ -1172,6 +1172,13 @@ function registerIpc() {
   ipcMain.handle("application:open-dxvk-manager", () => {
     openDxvkManager()
   })
+  ipcMain.handle("dxvk:request-close", event => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window !== dxvkManagerWindow) {
+      throw new Error("허용되지 않은 DXVK 창 닫기 요청입니다")
+    }
+    window.close()
+  })
   ipcMain.handle("dxvk:get-status", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== dxvkManagerWindow) {
       throw new Error("허용되지 않은 DXVK 상태 요청입니다")
