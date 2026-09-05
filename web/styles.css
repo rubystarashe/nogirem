@@ -1454,7 +1454,7 @@ button.direct-donation-card:hover {
   transition: opacity 600ms ease;
 }
 
-.boost-home.waiting .boost-text-final {
+.boost-home.waiting:has(> img:not(.canvas-logo-hidden)) .boost-text-final {
   opacity: 0.4;
 }
 
