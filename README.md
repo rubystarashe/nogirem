@@ -182,6 +182,8 @@ npm run release:github
 배포 스크립트는 로그인된 GitHub CLI 토큰을 자동으로 사용합니다. CI에서는
 `GH_TOKEN` 또는 `GITHUB_TOKEN` 환경 변수를 사용할 수 있습니다. 토큰에는
 `rubystarashe/nogirem` 저장소의 Contents 쓰기 권한이 필요합니다.
+배포 전에 작업 트리가 깨끗한지 확인하고 현재 버전 태그를 생성·게시하므로,
+버전 변경 사항은 먼저 커밋해야 합니다.
 
 자동 업데이트가 정상 동작하려면 GitHub 정식 Release에 설치 파일, blockmap과
 `latest.yml`이 모두 게시되어야 합니다.

@@ -33,6 +33,40 @@ function readGithubCliToken() {
   return null
 }
 
+function ensureReleaseTag() {
+  const status = execFileSync("git", ["status", "--porcelain"], {
+    encoding: "utf8",
+    windowsHide: true,
+  }).trim()
+  if (status) {
+    throw new Error("GitHub 배포 전에 변경 사항을 커밋해야 합니다")
+  }
+
+  const tag = `v${packageInfo.version}`
+  const head = execFileSync("git", ["rev-parse", "HEAD"], {
+    encoding: "utf8",
+    windowsHide: true,
+  }).trim()
+  let tagCommit
+  try {
+    tagCommit = execFileSync("git", ["rev-list", "-n", "1", tag], {
+      encoding: "utf8",
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim()
+  } catch {
+    execFileSync("git", ["tag", tag], { windowsHide: true })
+    tagCommit = head
+  }
+  if (tagCommit !== head) {
+    throw new Error(`${tag} 태그가 현재 커밋과 일치하지 않습니다`)
+  }
+  execFileSync("git", ["push", "origin", tag], {
+    windowsHide: true,
+    stdio: "inherit",
+  })
+}
+
 if (publishRequested && !process.env.GH_TOKEN) {
   if (process.env.GITHUB_TOKEN) {
     process.env.GH_TOKEN = process.env.GITHUB_TOKEN
@@ -44,6 +78,7 @@ if (publishRequested && !process.env.GH_TOKEN) {
     process.env.GH_TOKEN = githubCliToken
   }
 }
+if (publishRequested) ensureReleaseTag()
 
 function run(command, arguments_) {
   return new Promise((resolve, reject) => {
