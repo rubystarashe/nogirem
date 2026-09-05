@@ -18,7 +18,7 @@
   },
   "excludeNames": [
     "csrss.exe", "dwm.exe", "explorer.exe", "fontdrvhost.exe",
-    "lsass.exe", "memory compression.exe", "msmpeng.exe", "nvcontainer.exe",
+    "lsass.exe", "memory compression.exe", "msmpeng.exe", "node.exe", "nvcontainer.exe",
     "processgovernor.exe", "processlasso.exe", "registry.exe", "secure system.exe",
     "services.exe", "sihost.exe", "smss.exe", "spoolsv.exe",
     "startmenuexperiencehost.exe", "system.exe", "system idle process.exe",
