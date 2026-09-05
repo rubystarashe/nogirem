@@ -34,8 +34,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     UnhookWindowsHookEx, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
-const REPEAT_HZ: u32 = 100;
-const REPEAT_INTERVAL: Duration = Duration::from_millis(10);
+const REPEAT_HZ: u32 = 50;
+const REPEAT_INTERVAL: Duration = Duration::from_millis(20);
 const INJECTION_MARKER: usize = 0x4e4f_4749_5245_4d54;
 const SYNCHRONIZE_ACCESS: u32 = 0x0010_0000;
 
@@ -637,8 +637,8 @@ mod tests {
 
     #[test]
     fn late_repeat_does_not_catch_up_in_a_burst() {
-        assert_eq!(REPEAT_HZ, 100);
-        assert_eq!(REPEAT_INTERVAL, Duration::from_millis(10));
+        assert_eq!(REPEAT_HZ, 50);
+        assert_eq!(REPEAT_INTERVAL, Duration::from_millis(20));
         let previous = Instant::now();
         let late = previous + Duration::from_millis(200);
         let next = next_repeat_deadline(previous, late);
