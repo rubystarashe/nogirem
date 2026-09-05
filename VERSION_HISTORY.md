@@ -8,8 +8,7 @@
 - 다른 드라이브에 설치된 마비노기 경로를 실행 중인 프로세스에서 자동 감지
 - 업데이트 다운로드 진행률이 일시적으로 뒤로 돌아가는 표시 오류 수정
 - 개발자 기능에 Windows 로그인 시 창과 시작 음악 없이 트레이에서 자동 실행하는 옵션 추가
-- Logitech G Hub, Razer Synapse, Wooting, SteelSeries GG의 입력·매크로 엔진만 CPU 조정 대상에서 제외
-- iCUE, Options+, NGENUITY, Swarm, Glorious CORE, MasterPlus, reWASD, X-Mouse, AutoHotkey 등 입력·매크로 엔진을 CPU 조정 대상에서 제외
+- 주요 키보드·마우스 및 매크로 프로그램의 입력 엔진을 CPU 조정 대상에서 제외
 
 ## 0.1.4
 

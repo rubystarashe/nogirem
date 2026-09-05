@@ -146,6 +146,7 @@ test("입력 엔진과 무관한 장치 프로그램 UI와 부가 프로세스�
   const excludeNames = new Set(config.excludeNames.map(name => name.toLowerCase()))
   const excludePatterns = config.excludeNamePatterns.map(pattern => new RegExp(pattern, "i"))
   const auxiliaryNames = [
+    "node.exe",
     "lghub.exe",
     "lghub_updater.exe",
     "Razer Central.exe",
