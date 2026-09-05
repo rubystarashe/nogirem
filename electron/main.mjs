@@ -94,6 +94,7 @@ let dxvkReleasesCacheError = null
 let dxvkRuntimeRefreshTimer = null
 let applicationUpdateStartupTimer = null
 let applicationUpdateCheckTimer = null
+let applicationUpdateCompletionTimer = null
 let applicationUpdateCheckPromise = null
 let applicationUpdaterConfigured = false
 let applicationUpdateState = {
@@ -155,6 +156,11 @@ function setApplicationUpdateState(nextState) {
   notifyApplicationUpdateState()
 }
 
+function clearApplicationUpdateCompletionTimer() {
+  clearTimeout(applicationUpdateCompletionTimer)
+  applicationUpdateCompletionTimer = null
+}
+
 function configureApplicationUpdater() {
   if (applicationUpdaterConfigured || !app.isPackaged) return
   applicationUpdaterConfigured = true
@@ -162,6 +168,7 @@ function configureApplicationUpdater() {
   autoUpdater.autoInstallOnAppQuit = false
 
   autoUpdater.on("checking-for-update", () => {
+    clearApplicationUpdateCompletionTimer()
     setApplicationUpdateState({
       phase: "checking",
       percent: 0,
@@ -169,6 +176,7 @@ function configureApplicationUpdater() {
     })
   })
   autoUpdater.on("update-available", info => {
+    clearApplicationUpdateCompletionTimer()
     setApplicationUpdateState({
       phase: "downloading",
       percent: 0,
@@ -177,6 +185,7 @@ function configureApplicationUpdater() {
     })
   })
   autoUpdater.on("update-not-available", () => {
+    clearApplicationUpdateCompletionTimer()
     setApplicationUpdateState({
       phase: "idle",
       percent: 0,
@@ -196,14 +205,24 @@ function configureApplicationUpdater() {
     })
   })
   autoUpdater.on("update-downloaded", info => {
+    clearApplicationUpdateCompletionTimer()
     setApplicationUpdateState({
-      phase: "downloaded",
+      phase: "downloading",
       percent: 100,
       version: info?.version ?? applicationUpdateState.version,
       error: null,
     })
+    applicationUpdateCompletionTimer = setTimeout(() => {
+      applicationUpdateCompletionTimer = null
+      setApplicationUpdateState({
+        phase: "downloaded",
+        percent: 100,
+        error: null,
+      })
+    }, 350)
   })
   autoUpdater.on("error", error => {
+    clearApplicationUpdateCompletionTimer()
     console.error("앱 업데이트 확인 실패", error)
     setApplicationUpdateState({
       phase: "error",
@@ -2873,6 +2892,7 @@ async function startApplication() {
     applicationUpdateStartupTimer = null
     clearInterval(applicationUpdateCheckTimer)
     applicationUpdateCheckTimer = null
+    clearApplicationUpdateCompletionTimer()
     clearTimeout(dxvkRuntimeRefreshTimer)
     dxvkRuntimeRefreshTimer = null
     clearInterval(focusRequestMonitor)
