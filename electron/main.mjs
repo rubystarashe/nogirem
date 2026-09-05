@@ -583,7 +583,7 @@ async function runAffinityHelper() {
       quiet: true,
       lastCoreMode: false,
       passiveMode: false,
-      restoreOnGameExit: false,
+      restoreOnGameExit: true,
     })
     await writeStatus()
 
