@@ -1,16 +1,16 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 01:58
+Last Updated: 2026-09-06 02:09
 
 ## Current Objective
-게임 종료로 프로세스 affinity가 복원된 상태에서는 종료 확인 모달을 표시하지 않는다.
+실제 적용 중인 프로세스 affinity가 없으면 부스트 대기 중에도 종료 확인 모달을 표시하지 않는다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
 - Affinity는 `GetSystemCpuSetInformation`의 `EfficiencyClass`, `CoreIndex`, 논리 프로세서 번호를 사용해 실제 코어 토폴로지를 판정한다.
 - 마비노기는 P-core 물리 코어의 절반을 사용하며 홀수이면 게임 측을 올림한다. 백그라운드는 나머지 P-core와 모든 E-core를 사용한다.
 - P/E 구분이 없는 CPU도 물리 코어 단위로 절반을 나누고 SMT sibling 전체를 같은 마스크에 유지한다.
-- 앱과 잠금 파일의 현재 버전 문자열은 0.1.5이며 `VERSION_HISTORY.md`에 0.1.4 이후 사용자 체감 변경을 기록했다.
+- 앱과 잠금 파일의 현재 버전 문자열은 0.2.0이며 `VERSION_HISTORY.md`에 0.1.4 이후 사용자 체감 변경을 기록했다.
 - 설치본의 고급 기능에서 `Windows 시작 시 트레이 실행`을 켜고 끌 수 있다.
 - 자동 실행은 현재 사용자 로그온 예약 작업과 `--startup-tray` 인자를 사용하며 시작 창·OST 없이 트레이와 프레임 부스트를 준비한다.
 - 0.1.5 Windows x64 원클릭 NSIS 설치 파일, blockmap과 `latest.yml`을 로컬 `release`에 생성했다. GitHub 배포는 진행하지 않았다.
@@ -187,7 +187,7 @@ Last Updated: 2026-09-06 01:58
 - UI와 helper는 `%APPDATA%\nogirem\affinity`의 상태·제어 JSON으로 통신하고 상태 파일은 임시 파일 rename으로 교체한다.
 - Affinity 중지는 helper에 `stop` 명령을 보내 감시만 끝내고 적용된 프로세스 마스크를 유지한다.
 - 전체 복구는 helper에 `reset` 명령을 보내 접근 가능한 프로세스를 전체 논리 CPU 마스크로 설정한다.
-- Electron 전용 helper는 게임 종료 시에도 백그라운드 Affinity를 자동 원복하지 않는다.
+- Electron 전용 helper는 게임 종료 시 백그라운드 Affinity를 자동 원복한다.
 - NIC 적용 소유 상태는 helper 중지·재실행·앱 재시작에도 전달한다.
 - 전체 복구는 NIC 적용 소유 상태가 있을 때만 저장된 RSS 원본을 복원한다.
 - 현재 NIC가 저장된 원본과 이미 같으면 `Restart-NetAdapter`를 실행하지 않는다.
@@ -255,6 +255,7 @@ Last Updated: 2026-09-06 01:58
 12. 0.0.2 설치본에서 `v0.0.3`의 실제 자동 다운로드와 설치를 수동 검증한다.
 13. Intel 하이브리드 CPU에서 실제 P/E 코어 번호와 적용 마스크를 수동 검증한다.
 14. 0.1.5 설치본에서 시작 트레이 옵션 등록·재로그인·열기·해제를 수동 검증한다.
+15. 최신 메인 프로세스로 앱을 재시작하고 부스트 대기 상태에서 종료 확인 모달이 생략되는지 확인한다.
 
 ## Known Issues
 - `runtime-state.json`을 직접 덮어써 동시 읽기 시 일시적으로 불완전한 JSON이 노출될 수 있다.
@@ -859,5 +860,7 @@ Last Updated: 2026-09-06 01:58
 - 기존 상세 대시보드를 compact 홈과 3개 최적화 행을 가진 설정 화면으로 대체 표시했다.
 - `roundedCorners: false`로 Windows 11 창 모서리를 직각으로 고정했다.
 
+- 종료 검사에서 모듈 범위에 없던 프로세스 조회 함수를 호출해 예외 fallback 모달이 표시되던 문제를 수정했다. 적용 기록이 비어 있으면 프로세스 조회 없이 즉시 미적용으로 판정하며 전체 테스트 55개가 통과했다.
+
 ## Next Recommended Step
-게임 실행·종료 후 affinity가 복원된 상태에서 앱 닫기 모달이 생략되는지 수동 확인한 뒤 필요할 때만 0.1.5를 다시 패키징한다.
+실행 중인 개발 앱을 재시작한 뒤 마비노기를 켜지 않은 부스트 대기 상태와 게임 실행·종료 후 복원 상태 모두에서 종료 확인 모달이 생략되는지 확인한다. 패키징은 사용자 요청 전까지 진행하지 않는다.

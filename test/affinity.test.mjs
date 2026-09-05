@@ -1,7 +1,11 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
-import { buildCpuHalfMasks, buildCpuTopologyMasks } from "../src/affinity.mjs"
+import {
+  buildCpuHalfMasks,
+  buildCpuTopologyMasks,
+  hasLiveAppliedAffinityEntries,
+} from "../src/affinity.mjs"
 
 test("CPU 절반 마스크를 논리 CPU 수에 맞게 동적으로 계산한다", () => {
   assert.deepEqual(buildCpuHalfMasks(4), {
@@ -163,4 +167,35 @@ test("입력 엔진과 무관한 장치 프로그램 UI와 부가 프로세스�
       || excludePatterns.some(pattern => pattern.test(name))
     assert.equal(excluded, false, `${name} should remain adjustable`)
   }
+})
+
+test("적용 기록이 없으면 프로세스 조회 없이 종료 확인을 생략한다", async () => {
+  const result = await hasLiveAppliedAffinityEntries([], {
+    processLister: () => {
+      throw new Error("호출되면 안 됨")
+    },
+  })
+
+  assert.equal(result, false)
+})
+
+test("PID와 시작 시각 및 현재 마스크가 모두 일치할 때만 적용 상태로 판정한다", async () => {
+  const entries = [{
+    pid: 1234,
+    startTime: "2026-09-05T17:00:00.000Z",
+    appliedMask: "0xff",
+  }]
+  const processLister = async () => [{
+    pid: 1234,
+    startTime: "2026-09-05T17:00:00.000Z",
+  }]
+
+  assert.equal(await hasLiveAppliedAffinityEntries(entries, {
+    processLister,
+    affinityReader: () => 0xffn,
+  }), true)
+  assert.equal(await hasLiveAppliedAffinityEntries(entries, {
+    processLister,
+    affinityReader: () => 0xffffn,
+  }), false)
 })

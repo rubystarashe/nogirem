@@ -62,6 +62,17 @@ function queryProcessPath(pid) {
   }
 }
 
+async function listProcessIdentities() {
+  const ps = `$ErrorActionPreference='SilentlyContinue'; Get-Process | ForEach-Object { [pscustomobject]@{ pid=$_.Id; startTime=if($_.StartTime){$_.StartTime.ToUniversalTime().ToString('O')}else{$null} } } | ConvertTo-Json -Compress`
+  const { stdout } = await execFileAsync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", ps],
+    { windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
+  )
+  const value = JSON.parse(stdout || "[]")
+  return Array.isArray(value) ? value : [value]
+}
+
 function getAffinity(pid) {
   const handle = openProcess(pid)
   if (!handle) throw new Error("OpenProcess failed")
@@ -685,13 +696,18 @@ export async function createAffinityManager({
   }
 }
 
-export async function hasLiveAppliedAffinityEntries(entries = []) {
-  const processes = await listProcesses()
+export async function hasLiveAppliedAffinityEntries(entries = [], {
+  processLister = listProcessIdentities,
+  affinityReader = getAffinity,
+} = {}) {
+  const applicableEntries = entries.filter(entry => entry?.appliedMask)
+  if (!applicableEntries.length) return false
+  const processes = await processLister()
   const live = new Set(processes.map(processInfo => `${processInfo.pid}:${processInfo.startTime}`))
-  for (const entry of entries) {
-    if (!entry?.appliedMask || !live.has(`${entry.pid}:${entry.startTime}`)) continue
+  for (const entry of applicableEntries) {
+    if (!live.has(`${entry.pid}:${entry.startTime}`)) continue
     try {
-      if (getAffinity(entry.pid) === BigInt(entry.appliedMask)) return true
+      if (affinityReader(entry.pid) === BigInt(entry.appliedMask)) return true
     } catch {
     }
   }
