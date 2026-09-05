@@ -113,10 +113,16 @@ test("입력 장치와 매크로 엔진은 affinity 조정 대상에서 제외�
   const excludePatterns = config.excludeNamePatterns.map(pattern => new RegExp(pattern, "i"))
   const inputEngineNames = [
     "iCUE.exe",
+    "lghub_agent.exe",
     "logioptionsplus_agent.exe",
     "NGenuity.exe",
+    "RazerAppEngine.exe",
+    "Razer Synapse Service Process.exe",
     "ROCCAT_Swarm_Monitor.exe",
     "SwarmHW_Service.exe",
+    "SteelSeriesEngine.exe",
+    "Wootomation.exe",
+    "wooting-double-movement.exe",
     "Glorious Core.exe",
     "MasterPlusApp.exe",
     "reWASDEngine.exe",
@@ -132,5 +138,28 @@ test("입력 장치와 매크로 엔진은 affinity 조정 대상에서 제외�
     const excluded = excludeNames.has(name.toLowerCase())
       || excludePatterns.some(pattern => pattern.test(name))
     assert.equal(excluded, true, `${name} should be excluded`)
+  }
+})
+
+test("입력 엔진과 무관한 장치 프로그램 UI와 부가 프로세스는 제외하지 않는다", async () => {
+  const config = JSON.parse(await readFile(new URL("../config.json", import.meta.url), "utf8"))
+  const excludeNames = new Set(config.excludeNames.map(name => name.toLowerCase()))
+  const excludePatterns = config.excludeNamePatterns.map(pattern => new RegExp(pattern, "i"))
+  const auxiliaryNames = [
+    "lghub.exe",
+    "lghub_updater.exe",
+    "Razer Central.exe",
+    "RzSDKServer.exe",
+    "Wootility.exe",
+    "SteelSeriesGG.exe",
+    "SteelSeriesGGEZ.exe",
+    "SteelSeriesPrism.exe",
+    "SteelSeriesSonar.exe",
+  ]
+
+  for (const name of auxiliaryNames) {
+    const excluded = excludeNames.has(name.toLowerCase())
+      || excludePatterns.some(pattern => pattern.test(name))
+    assert.equal(excluded, false, `${name} should remain adjustable`)
   }
 })

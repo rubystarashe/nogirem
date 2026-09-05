@@ -18,22 +18,23 @@
   },
   "excludeNames": [
     "corsair.service.exe", "csrss.exe", "dwm.exe", "explorer.exe", "fontdrvhost.exe",
-    "glorious core.exe", "icue.exe", "logioptionsplus_agent.exe",
+    "glorious core.exe", "icue.exe", "lghub_agent.exe", "logioptionsplus_agent.exe",
     "lsass.exe", "masterplusapp.exe", "memory compression.exe", "mpservice.exe",
     "msmpeng.exe", "ngenuity.exe", "node.exe", "nvcontainer.exe",
     "powertoys.keyboardmanagerengine.exe",
     "processgovernor.exe", "processlasso.exe", "registry.exe", "secure system.exe",
-    "rewasdengine.exe", "rewasdservice.exe", "roccat_swarm_monitor.exe",
-    "services.exe", "sihost.exe", "smss.exe", "spoolsv.exe", "streamdeck.exe",
+    "razer synapse service process.exe", "razer synapse service.exe",
+    "razerappengine.exe", "rewasdengine.exe", "rewasdservice.exe",
+    "roccat_swarm_monitor.exe",
+    "services.exe", "sihost.exe", "smss.exe", "spoolsv.exe", "steelseriesengine.exe",
+    "streamdeck.exe",
     "swarmhw_service.exe",
     "startmenuexperiencehost.exe", "system.exe", "system idle process.exe",
     "taskhostw.exe", "wininit.exe", "winlogon.exe", "wmiprvse.exe",
-    "xmousebuttoncontrol.exe"
+    "wooting-double-movement.exe", "wootomation.exe", "xmousebuttoncontrol.exe"
   ],
   "excludeNamePatterns": [
     "^svchost\\.exe$", "anti.*cheat", "blackcipher", "nexon.*security",
-    "^autohotkey(?:a32|u32|u64|32|64|32_uia|64_uia)?\\.exe$",
-    "^(lghub|logi).*\\.exe$", "^(razer|rz).*\\.exe$",
-    "^(wootility|wooting).*\\.exe$", "^steelseries.*\\.exe$"
+    "^autohotkey(?:a32|u32|u64|32|64|32_uia|64_uia)?\\.exe$"
   ]
 }
