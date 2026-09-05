@@ -7,7 +7,7 @@ import { setTimeout as delay } from "node:timers/promises"
 import { promisify } from "node:util"
 import { fileURLToPath } from "node:url"
 import { randomUUID } from "node:crypto"
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell, Tray } from "electron"
 import updaterPackage from "electron-updater"
 import {
   ensureFastPingForPrimaryInterface,
@@ -55,6 +55,7 @@ let primaryWindow = null
 let characterGuideWindow = null
 let dxvkManagerWindow = null
 let dxvkGuideWindow = null
+let applicationTray = null
 let closeRequestPending = false
 let applicationExitInProgress = false
 let primaryWindowFocusPending = false
@@ -1735,6 +1736,12 @@ function registerIpc() {
     return installDownloadedApplicationUpdate()
   })
   ipcMain.handle("application:request-close", () => requestApplicationExitConfirmation())
+  ipcMain.handle("application:minimize-to-tray", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 최소화 요청입니다")
+    }
+    return minimizePrimaryWindowToTray()
+  })
   ipcMain.handle("application:open-character-guide", () => {
     openCharacterSimplificationGuide()
   })
@@ -2220,6 +2227,7 @@ function focusPrimaryWindow() {
   }
   primaryWindowFocusPending = false
   if (primaryWindow.isMinimized()) primaryWindow.restore()
+  primaryWindow.setSkipTaskbar(false)
   if (!primaryWindow.isVisible()) primaryWindow.show()
   const window = primaryWindow
   const wasAlwaysOnTop = window.isAlwaysOnTop()
@@ -2235,6 +2243,38 @@ function focusPrimaryWindow() {
       primaryWindowFocusTimer = null
     }, 500)
   }
+}
+
+function ensureApplicationTray() {
+  if (applicationTray && !applicationTray.isDestroyed()) return applicationTray
+  applicationTray = new Tray(iconPath)
+  applicationTray.setToolTip("마비노기 렘 부스터")
+  applicationTray.setContextMenu(Menu.buildFromTemplate([
+    {
+      label: "열기",
+      click: () => focusPrimaryWindow(),
+    },
+    {
+      label: "종료",
+      click: () => {
+        focusPrimaryWindow()
+        void requestApplicationExitConfirmation()
+          .catch(error => console.error("트레이 종료 요청 처리 실패", error))
+      },
+    },
+  ]))
+  applicationTray.on("click", focusPrimaryWindow)
+  applicationTray.on("double-click", focusPrimaryWindow)
+  return applicationTray
+}
+
+function minimizePrimaryWindowToTray() {
+  if (!primaryWindow || primaryWindow.isDestroyed()) return false
+  ensureApplicationTray()
+  primaryWindow.setSkipTaskbar(true)
+  primaryWindow.hide()
+  notifyPrimaryVisualActivity()
+  return true
 }
 
 function isPrimaryWindowVisuallyActive() {
@@ -2304,6 +2344,10 @@ function createWindow() {
   for (const eventName of ["focus", "blur", "show", "hide", "minimize", "restore"]) {
     window.on(eventName, notifyPrimaryVisualActivity)
   }
+  window.on("minimize", event => {
+    event.preventDefault()
+    minimizePrimaryWindowToTray()
+  })
   window.on("close", event => {
     if (applicationExitInProgress) return
     event.preventDefault()
@@ -2381,6 +2425,8 @@ async function startApplication() {
     dxvkRuntimeRefreshTimer = null
     clearInterval(focusRequestMonitor)
     focusRequestMonitor = null
+    if (applicationTray && !applicationTray.isDestroyed()) applicationTray.destroy()
+    applicationTray = null
     try {
       unlinkSync(primaryInstancePath)
     } catch (error) {

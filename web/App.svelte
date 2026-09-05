@@ -794,6 +794,12 @@
     }
   }
 
+  function minimizeApplicationToTray() {
+    void window.nogirem.minimizeToTray().catch(error => {
+      updateService("affinity", { error: messageOf(error) })
+    })
+  }
+
   async function syncAffinityRuntime() {
     if (
       closeActionPending
@@ -948,6 +954,18 @@
   <div class="window-drag creator-window-drag-right" aria-hidden="true"></div>
 {/if}
 <div class="window-controls">
+  <button
+    class="window-control window-minimize"
+    aria-label="트레이로 최소화"
+    onclick={minimizeApplicationToTray}
+  >
+    <svg class="control-icon-bg" width="25" height="25" aria-hidden="true">
+      <line x1="0" y1="18" x2="25" y2="18" stroke-width="2" />
+    </svg>
+    <svg width="25" height="25" aria-hidden="true">
+      <line class="control-line-one" x1="0" y1="18" x2="25" y2="18" stroke-width="2" />
+    </svg>
+  </button>
   <button
     class="window-control window-close"
     aria-label="프로그램 닫기"

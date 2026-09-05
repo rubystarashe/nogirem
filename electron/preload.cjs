@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld("nogirem", {
     return () => ipcRenderer.removeListener("application:update-state-changed", listener)
   },
   requestClose: () => ipcRenderer.invoke("application:request-close"),
+  minimizeToTray: () => ipcRenderer.invoke("application:minimize-to-tray"),
   openCharacterGuide: () => ipcRenderer.invoke("application:open-character-guide"),
   openDxvkManager: () => ipcRenderer.invoke("application:open-dxvk-manager"),
   openDxvkGuide: () => ipcRenderer.invoke("application:open-dxvk-guide"),
