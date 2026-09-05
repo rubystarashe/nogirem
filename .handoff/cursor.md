@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-05 16:30
+Last Updated: 2026-09-05 16:34
 
 ## Current Objective
-GitHub Releases 기반 앱 자동 업데이트를 실제 다운로드·설치 흐름에 연결한다.
+0.0.3 버전을 패키징해 GitHub 정식 Release로 배포한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -32,6 +32,7 @@ GitHub Releases 기반 앱 자동 업데이트를 실제 다운로드·설치 �
 - 실제 다운로드 진행률을 모달의 숫자와 막대에 반영하고 다운로드 완료 시 `새 버전 설치` 버튼을 표시한다. 설치 요청 시 Affinity·메모리 helper를 정상 종료한 뒤 NSIS 업데이트를 실행한다.
 - `npm run package:win`은 현재 `package.json` 버전을 로컬 패키징하고, `npm run release:github`은 같은 결과물을 GitHub 정식 Release로 게시한다.
 - GitHub CLI 2.100.0으로 `rubystarashe` 계정에 로그인했으며 `rubystarashe/nogirem` 저장소의 ADMIN 권한과 `repo` 토큰 범위를 확인했다. 배포 명령은 별도 환경 변수 없이 이 로그인 토큰을 자동 사용한다.
+- 앱과 잠금 파일의 버전 문자열을 0.0.3으로 맞췄으며 `VERSION_HISTORY.md`에도 0.0.3 자동 업데이트 기록이 준비되어 있다.
 - 중앙 상단 아래 화살표를 누르면 소개 화면이 내려가고 기존 홈이 위에서 복귀한다.
 - 소개 화면에서는 창 드래그 영역을 좌우로 분리해 중앙 상단 복귀 버튼 전체가 클릭된다.
 - `[류트@렘] 제작` 표시는 소개 화면에서도 우측 하단에 유지되며 다시 누르면 기존 화면으로 복귀한다.
