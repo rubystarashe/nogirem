@@ -105,11 +105,12 @@
     right: 0;
     bottom: 20px;
     left: 0;
+    opacity: 0.8;
   }
 
   .update-progress > span {
     display: block;
-    margin: 0 15px 40px 0;
+    margin: 0 15px 0 0;
     color: #fff;
     font-size: 80px;
     font-variant-numeric: tabular-nums;
