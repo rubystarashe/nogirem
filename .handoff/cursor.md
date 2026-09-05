@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 01:46
+Last Updated: 2026-09-06 01:48
 
 ## Current Objective
-입력 지연을 막기 위해 주요 입력 장치 관리 프로그램을 CPU affinity 조정 대상에서 제외한다.
+입력 지연을 막기 위해 확인 가능한 입력·매크로 엔진 실행 파일을 CPU affinity 조정 대상에서 제외한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -16,6 +16,7 @@ Last Updated: 2026-09-06 01:46
 - 0.1.5 Windows x64 원클릭 NSIS 설치 파일, blockmap과 `latest.yml`을 로컬 `release`에 생성했다. GitHub 배포는 진행하지 않았다.
 - `config.json`의 Affinity 제외 목록에 `node.exe`를 다시 추가해 Node.js 프로세스는 백그라운드 CPU 마스크를 적용받지 않는다.
 - Logitech G Hub·Logi, Razer Synapse·Rz, Wooting·Wootility, SteelSeries GG 계열 프로세스는 이름 패턴으로 Affinity 조정에서 제외한다.
+- iCUE, Logi Options+ Agent, HyperX NGENUITY, ROCCAT Swarm Monitor·HW Service, Glorious CORE, Cooler Master MasterPlus, reWASD Engine·Service, X-Mouse Button Control, PowerToys Keyboard Manager Engine, AutoHotkey 인터프리터와 Stream Deck을 명시적으로 제외한다.
 - affinity 기능은 `src/affinity.mjs`, 메모리 기능은 `src/memory.mjs`로 분리했다.
 - 구문 검사, `npm run self-test`, `npm run memory:status`가 통과했다.
 - `npm run nvidia:status`로 NVIDIA GPU와 마비노기 3D 프로필을 읽기 전용 조회할 수 있다.
@@ -836,6 +837,7 @@ Last Updated: 2026-09-06 01:46
 - `npm run package:win`으로 0.1.5 설치본을 생성했다. `release/nogirem-setup-0.1.5.exe`는 92,270,110바이트이며 SHA-256은 `9A0EA170062E3F79EFBC5ECA376140A4C861C3C9ACFAB12BDB9C3D8586D70EB2`다. 배포하지 않았다.
 - 사용자 요청에 따라 `node.exe`를 Affinity 조정 예외로 임시 복원했다. 설치 패키징은 다시 수행하지 않았다.
 - 입력 장치 지연 방지를 위해 G Hub, Razer Synapse, Wooting과 SteelSeries GG 실행 파일 패턴을 Affinity 예외에 추가했다. 현재 실행 중인 SteelSeries Engine·GG·Prism·Sonar 이름이 모두 포함되는 것을 확인했다.
+- 공식·제품 문서와 확인 가능한 프로세스 자료를 기준으로 입력 이벤트·매핑·매크로를 실제 처리하는 추가 실행 파일만 예외에 넣었다. VIA/QMK 온보드 매크로는 상주 Windows 엔진이 없어 추가하지 않았고 updater·텔레메트리는 제외하지 않았다. 대표 엔진 14종의 제외 회귀 테스트를 추가해 전체 테스트는 49개다.
 - 첫 소개 탭 이름을 `안녕하세요`로 바꾸고 메뉴와 구분선 사이 여백을 절반으로 줄였다. 구분선을 항상 보이는 3px 가상 스크롤 트랙으로 전환해 긴 본문의 위치가 반투명 thumb로 표시되도록 했으며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - `VERSION_HISTORY.md`를 추가하고 `0.0.2`, `0.0.1` 최초 기록을 작성했다. 소개 화면은 이 파일을 raw import로 불러와 버전 제목과 변경 목록으로 안전하게 렌더링하며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - 소개 메뉴와 가상 스크롤 구분선 사이의 실제 간격을 줄이기 위해 좌측 그리드 열을 168px에서 132px로 축소했다. 프로덕션 웹 빌드와 편집기 린트가 통과했다.
@@ -854,4 +856,4 @@ Last Updated: 2026-09-06 01:46
 - `roundedCorners: false`로 Windows 11 창 모서리를 직각으로 고정했다.
 
 ## Next Recommended Step
-입력 장치 프로그램 예외를 포함한 상태를 검증한 뒤 필요할 때만 0.1.5를 다시 패키징한다.
+추가 입력·매크로 엔진 예외를 검증한 뒤 필요할 때만 0.1.5를 다시 패키징한다.

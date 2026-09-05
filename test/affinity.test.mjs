@@ -1,5 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import { buildCpuHalfMasks, buildCpuTopologyMasks } from "../src/affinity.mjs"
 
 test("CPU 절반 마스크를 논리 CPU 수에 맞게 동적으로 계산한다", () => {
@@ -104,4 +105,32 @@ test("P-core 수가 홀수면 게임 몫을 올림하고 SMT 스레드를 분리
 
   assert.deepEqual(allocation.gameCpuIndexes, [4, 5, 6, 7, 8, 9])
   assert.deepEqual(allocation.backgroundCpuIndexes, [0, 1, 2, 3, 10, 11, 12, 13])
+})
+
+test("입력 장치와 매크로 엔진은 affinity 조정 대상에서 제외한다", async () => {
+  const config = JSON.parse(await readFile(new URL("../config.json", import.meta.url), "utf8"))
+  const excludeNames = new Set(config.excludeNames.map(name => name.toLowerCase()))
+  const excludePatterns = config.excludeNamePatterns.map(pattern => new RegExp(pattern, "i"))
+  const inputEngineNames = [
+    "iCUE.exe",
+    "logioptionsplus_agent.exe",
+    "NGenuity.exe",
+    "ROCCAT_Swarm_Monitor.exe",
+    "SwarmHW_Service.exe",
+    "Glorious Core.exe",
+    "MasterPlusApp.exe",
+    "reWASDEngine.exe",
+    "reWASDService.exe",
+    "XMouseButtonControl.exe",
+    "PowerToys.KeyboardManagerEngine.exe",
+    "AutoHotkeyU64.exe",
+    "AutoHotkey64_UIA.exe",
+    "StreamDeck.exe",
+  ]
+
+  for (const name of inputEngineNames) {
+    const excluded = excludeNames.has(name.toLowerCase())
+      || excludePatterns.some(pattern => pattern.test(name))
+    assert.equal(excluded, true, `${name} should be excluded`)
+  }
 })
