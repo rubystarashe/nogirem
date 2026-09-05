@@ -89,7 +89,7 @@
     bottom: 20px;
     min-width: 168px;
     height: 48px;
-    padding: 0 23px;
+    padding: 0 18px;
     border: 1px solid #fff;
     border-radius: 0;
     color: #000;
@@ -113,7 +113,6 @@
     right: 0;
     bottom: 20px;
     left: 0;
-    opacity: 0.8;
   }
 
   .update-progress > span {
