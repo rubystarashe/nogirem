@@ -3,7 +3,7 @@
 Last Updated: 2026-09-06 04:54
 
 ## Current Objective
-선택 키·P-core 분리·가변 입력 간격을 적용한 Rust 터보 키를 0.2.1로 패키징하고 GitHub에 배포한다.
+0.2.1 배포를 완료했으며 설치본에서 Rust 터보 키와 자동 업데이트를 최종 확인한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -907,7 +907,8 @@ Last Updated: 2026-09-06 04:54
 - 초기화 버튼은 설정 완료와 혼동되지 않도록 적갈색 outline·글자 기본 상태와 적색 채움 hover 상태를 사용한다. 설정 완료는 기존 흰색 기본·투명 hover를 유지한다.
 - 소개 메뉴 선택 표시를 글꼴의 em dash 문자 대신 13×1px CSS 선으로 교체하고 메뉴 버튼을 flex 중앙 정렬해 표시선이 메뉴명 세로 중앙에 정확히 오도록 수정했다.
 - 선택 표시선은 2px 두께와 2px 하단 오프셋을 기본·활성 상태에 동일하게 적용해 메뉴 전환 중 위치가 튀지 않는다. 터보 키 전체 화면 제목은 `터보 키 적용 대상 설정`으로 변경했다.
-- 앱과 잠금 파일의 버전을 0.2.1로 올렸다. 전체 변경을 검증·커밋한 뒤 `npm run release:github`으로 패키징 및 GitHub 배포할 예정이다.
+- 앱과 잠금 파일의 버전을 0.2.1로 올리고 GitHub 정식 Release `v0.2.1`을 게시했다. 최종 `nogirem-setup-0.2.1.exe`는 92,862,554바이트이고 SHA-256은 `60DFB910E090972375521E489554BD8A90328EFDA073A3A79ABF48F8A56D55C5`다.
+- 병렬 게시가 같은 태그의 Release를 두 개 생성해 blockmap이 분리된 상태를 발견했다. blockmap을 기본 Release로 옮기고 불완전한 중복 Release를 제거했으며 installer, blockmap, `latest.yml` 세 자산과 기능 중심 릴리스 노트를 확인했다.
 
 ## Next Recommended Step
 0.2.1 빌드와 GitHub Release 자산을 확인한 뒤 설치본에서 터보 키의 실제 스킬 반복과 안전 중단 동작을 수동 검증한다.
