@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 00:56
+Last Updated: 2026-09-06 01:12
 
 ## Current Objective
-개발자 기능에서 Windows 로그인 시 앱을 창과 시작 음악 없이 트레이로 자동 실행할 수 있게 한다.
+0.1.5 Windows 설치본을 로컬 패키징하고 배포 전 수동 검증을 준비한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -13,6 +13,7 @@ Last Updated: 2026-09-06 00:56
 - 앱과 잠금 파일의 현재 버전 문자열은 0.1.5이며 `VERSION_HISTORY.md`에 0.1.4 이후 사용자 체감 변경을 기록했다.
 - 설치본의 개발자 기능에서 `Windows 시작 시 트레이 실행`을 켜고 끌 수 있다.
 - 자동 실행은 현재 사용자 로그온 예약 작업과 `--startup-tray` 인자를 사용하며 시작 창·OST 없이 트레이와 프레임 부스트를 준비한다.
+- 0.1.5 Windows x64 원클릭 NSIS 설치 파일, blockmap과 `latest.yml`을 로컬 `release`에 생성했다. GitHub 배포는 진행하지 않았다.
 - affinity 기능은 `src/affinity.mjs`, 메모리 기능은 `src/memory.mjs`로 분리했다.
 - 구문 검사, `npm run self-test`, `npm run memory:status`가 통과했다.
 - `npm run nvidia:status`로 NVIDIA GPU와 마비노기 3D 프로필을 읽기 전용 조회할 수 있다.
@@ -830,6 +831,7 @@ Last Updated: 2026-09-06 00:56
 - `package.json`과 lockfile 버전을 0.1.5로 올리고 P/E 코어 배분, 게임 종료 시 affinity 복원, 동적 게임 경로 감지와 업데이트 진행률 수정 내용을 버전 기록에 추가했다.
 - 개발자 기능에 Windows 시작 시 트레이 실행 옵션을 추가했다. 설치본은 최고 권한 로그온 예약 작업을 등록하며 자동 시작에서는 창·OST를 생략하고, 중복 실행 시 기존 창을 포커스하지 않는다. 앱 제거 시 예약 작업도 삭제한다.
 - 예약 작업 PowerShell 정의, Electron·preload 구문 검사, 전체 테스트 48개, 프로덕션 웹 빌드와 편집기 린트가 통과했다.
+- `npm run package:win`으로 0.1.5 설치본을 생성했다. `release/nogirem-setup-0.1.5.exe`는 92,270,110바이트이며 SHA-256은 `9A0EA170062E3F79EFBC5ECA376140A4C861C3C9ACFAB12BDB9C3D8586D70EB2`다. 배포하지 않았다.
 - 첫 소개 탭 이름을 `안녕하세요`로 바꾸고 메뉴와 구분선 사이 여백을 절반으로 줄였다. 구분선을 항상 보이는 3px 가상 스크롤 트랙으로 전환해 긴 본문의 위치가 반투명 thumb로 표시되도록 했으며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - `VERSION_HISTORY.md`를 추가하고 `0.0.2`, `0.0.1` 최초 기록을 작성했다. 소개 화면은 이 파일을 raw import로 불러와 버전 제목과 변경 목록으로 안전하게 렌더링하며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - 소개 메뉴와 가상 스크롤 구분선 사이의 실제 간격을 줄이기 위해 좌측 그리드 열을 168px에서 132px로 축소했다. 프로덕션 웹 빌드와 편집기 린트가 통과했다.
@@ -848,4 +850,4 @@ Last Updated: 2026-09-06 00:56
 - `roundedCorners: false`로 Windows 11 창 모서리를 직각으로 고정했다.
 
 ## Next Recommended Step
-0.1.5를 패키징한 뒤 설치본에서 시작 트레이 옵션을 켜고 Windows 재로그인 시 숨은 자동 실행과 트레이 복원을 확인한다.
+0.1.5 설치본에서 시작 트레이 옵션을 켜고 Windows 재로그인 시 숨은 자동 실행, 트레이 복원과 옵션 해제를 확인한다.
