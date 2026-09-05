@@ -2166,7 +2166,7 @@ function beginPrimaryWindowReveal() {
   const startedAt = Date.now()
   window.setOpacity(0)
   window.show()
-  window.focus()
+  focusPrimaryWindow()
 
   const revealFrame = () => {
     if (primaryWindow !== window || window.isDestroyed()) return
@@ -2176,7 +2176,6 @@ function beginPrimaryWindowReveal() {
       primaryWindowRevealFrameTimer = setTimeout(revealFrame, 16)
     } else {
       primaryWindowRevealFrameTimer = null
-      focusPrimaryWindow()
     }
   }
   revealFrame()
