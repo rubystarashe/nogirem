@@ -2,6 +2,11 @@ const { contextBridge, ipcRenderer } = require("electron")
 
 contextBridge.exposeInMainWorld("nogirem", {
   getStatus: () => ipcRenderer.invoke("optimization:get-status"),
+  onGraphicsStatusChanged: callback => {
+    const listener = (_event, status) => callback(status)
+    ipcRenderer.on("optimization:graphics-status-changed", listener)
+    return () => ipcRenderer.removeListener("optimization:graphics-status-changed", listener)
+  },
   refreshGraphics: () => ipcRenderer.invoke("optimization:refresh-graphics"),
   refreshNvidia: () => ipcRenderer.invoke("optimization:refresh-nvidia"),
   refreshNetwork: () => ipcRenderer.invoke("optimization:refresh-network"),

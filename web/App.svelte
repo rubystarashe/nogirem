@@ -887,6 +887,9 @@
 
   onMount(() => {
     document.addEventListener("visibilitychange", syncPageVisibility)
+    const removeGraphicsStatusListener = window.nogirem.onGraphicsStatusChanged(status => {
+      updateService("graphics", { loading: false, data: status, error: null })
+    })
     const removeVisualActivityListener = window.nogirem.onVisualActivityChanged(
       setWindowVisualActivity,
     )
@@ -934,6 +937,7 @@
       window.clearTimeout(spinnerFinishTimer)
       stopCreatorScroll()
       document.removeEventListener("visibilitychange", syncPageVisibility)
+      removeGraphicsStatusListener()
       removeVisualActivityListener()
       removeUpdateStateListener()
       removeCloseListener()

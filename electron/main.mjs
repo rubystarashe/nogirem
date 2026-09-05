@@ -93,6 +93,9 @@ let applicationUpdateState = {
   version: null,
   error: null,
 }
+let activeMabinogiExecutablePath = config.gameExecutable
+let gamePathStateMonitor = null
+let gamePathStateReading = false
 let creatorChannelProfilePromise = null
 const dxvkReleaseCacheDurationMs = 6 * 60 * 1000
 
@@ -420,6 +423,7 @@ async function runAffinityHelper() {
   const controlPath = argumentValue("control-path")
   const affinityStatePath = argumentValue("affinity-state-path")
   const appliedMarkerPath = argumentValue("applied-marker-path")
+  const gamePathStatePath = argumentValue("game-path-state-path")
   const includeNic = argumentValue("include-nic") === "true"
   const inheritedNicManaged = argumentValue("nic-managed") === "true"
   if (!statusPath || !controlPath || !affinityStatePath) {
@@ -437,7 +441,11 @@ async function runAffinityHelper() {
   let recordedChangeCount = 0
   let exitAction = "keep"
   let cpuReorder = null
-  let gameExecutablePath = (await readJson(statusPath))?.gameExecutablePath
+  const savedGameExecutablePath = (await readJson(gamePathStatePath))?.executablePath
+  const previousGameExecutablePath = (await readJson(statusPath))?.gameExecutablePath
+  let persistedGameExecutablePath = savedGameExecutablePath
+  let gameExecutablePath = [savedGameExecutablePath, previousGameExecutablePath]
+    .find(value => typeof value === "string" && value.trim())
     ?? config.gameExecutable
   const logicalCpuCount = cpus().length
   const half = logicalCpuCount / 2
@@ -462,8 +470,25 @@ async function runAffinityHelper() {
 
   const writeStatus = async values => {
     const gameActive = affinity?.isGameActive() ?? false
-    gameExecutablePath = affinity?.getLatestGameExecutablePath()
-      ?? gameExecutablePath
+    const detectedGameExecutablePath = affinity?.getLatestGameExecutablePath()
+    if (
+      detectedGameExecutablePath
+      && (
+        detectedGameExecutablePath.toLowerCase() !== gameExecutablePath.toLowerCase()
+        || detectedGameExecutablePath.toLowerCase()
+          !== String(persistedGameExecutablePath ?? "").toLowerCase()
+      )
+    ) {
+      gameExecutablePath = detectedGameExecutablePath
+      if (gamePathStatePath) {
+        await writeJsonAtomic(gamePathStatePath, {
+          executablePath: gameExecutablePath,
+          detectedAt: new Date().toISOString(),
+          source: "running-process",
+        })
+        persistedGameExecutablePath = gameExecutablePath
+      }
+    }
     const [renderer, characterSimplification] = await Promise.all([
       detectMabinogiRenderer(
         gameActive,
@@ -897,6 +922,10 @@ function getAffinityPaths() {
   }
 }
 
+function getMabinogiPathStatePath() {
+  return join(app.getPath("userData"), "game", "path.json")
+}
+
 function isMabinogiExecutablePath(value) {
   if (typeof value !== "string" || !value.trim()) return false
   const normalized = value.replaceAll("/", "\\")
@@ -905,11 +934,76 @@ function isMabinogiExecutablePath(value) {
     && existsSync(normalized)
 }
 
+function adoptMabinogiExecutablePath(value) {
+  if (!isMabinogiExecutablePath(value)) return false
+  if (value.toLowerCase() === activeMabinogiExecutablePath.toLowerCase()) return false
+  activeMabinogiExecutablePath = value
+  return true
+}
+
+async function refreshPathDependentStatuses() {
+  const [dxvkResult, graphicsResult] = await Promise.allSettled([
+    refreshDxvkRuntimeStatus({ force: true }),
+    checkGraphics(),
+  ])
+  if (dxvkResult.status === "rejected") {
+    console.error("마비노기 경로 변경 후 DXVK 재확인 실패", dxvkResult.reason)
+  }
+  if (graphicsResult.status === "rejected") {
+    console.error("마비노기 경로 변경 후 그래픽 설정 재확인 실패", graphicsResult.reason)
+  } else if (
+    primaryWindow
+    && !primaryWindow.isDestroyed()
+    && !primaryWindow.webContents.isDestroyed()
+  ) {
+    primaryWindow.webContents.send(
+      "optimization:graphics-status-changed",
+      graphicsResult.value,
+    )
+  }
+}
+
+function observeMabinogiExecutablePath(value) {
+  if (!adoptMabinogiExecutablePath(value)) return false
+  void refreshPathDependentStatuses()
+  return true
+}
+
+async function loadMabinogiExecutablePath() {
+  const state = await readJson(getMabinogiPathStatePath())
+  adoptMabinogiExecutablePath(state?.executablePath)
+  return activeMabinogiExecutablePath
+}
+
+function startMabinogiPathStateMonitor() {
+  clearInterval(gamePathStateMonitor)
+  gamePathStateMonitor = setInterval(async () => {
+    if (gamePathStateReading) return
+    gamePathStateReading = true
+    try {
+      const state = await readJson(getMabinogiPathStatePath())
+      observeMabinogiExecutablePath(state?.executablePath)
+    } catch (error) {
+      console.error("마비노기 실행 경로 상태 확인 실패", error)
+    } finally {
+      gamePathStateReading = false
+    }
+  }, 500)
+}
+
 async function resolveMabinogiExecutablePath() {
+  if (isMabinogiExecutablePath(activeMabinogiExecutablePath)) {
+    return activeMabinogiExecutablePath
+  }
+  await loadMabinogiExecutablePath()
+  if (isMabinogiExecutablePath(activeMabinogiExecutablePath)) {
+    return activeMabinogiExecutablePath
+  }
   const { statusPath } = getAffinityPaths()
   const status = await readJson(statusPath)
   if (isMabinogiExecutablePath(status?.gameExecutablePath)) {
-    return status.gameExecutablePath
+    activeMabinogiExecutablePath = status.gameExecutablePath
+    return activeMabinogiExecutablePath
   }
   return config.gameExecutable
 }
@@ -921,12 +1015,14 @@ async function readAffinityRuntimeStatus() {
     && Date.now() - status.updatedAt < Math.max(config.pollIntervalMs * 4, 30000)
   const logicalCpuCount = cpus().length
   const half = logicalCpuCount / 2
+  const detectedGameExecutablePath = isMabinogiExecutablePath(status?.gameExecutablePath)
+    ? status.gameExecutablePath
+    : null
+  if (detectedGameExecutablePath) observeMabinogiExecutablePath(detectedGameExecutablePath)
   return {
     running: Boolean(status?.running && fresh),
     gameActive: Boolean(status?.gameActive && fresh),
-    gameExecutablePath: isMabinogiExecutablePath(status?.gameExecutablePath)
-      ? status.gameExecutablePath
-      : config.gameExecutable,
+    gameExecutablePath: detectedGameExecutablePath ?? activeMabinogiExecutablePath,
     includeNic: Boolean(status?.includeNic),
     nicManaged: Boolean(status?.nicManaged),
     backgroundCpuRange: status?.backgroundCpuRange ?? `0-${half - 1}`,
@@ -1088,7 +1184,11 @@ async function setMemoryEnabled(enabled, { purgeOnStart = false } = {}) {
 
 async function launchAffinityHelper(includeNic, inheritedNicManaged = false) {
   const paths = getAffinityPaths()
-  await mkdir(dirname(paths.statusPath), { recursive: true })
+  const gamePathStatePath = getMabinogiPathStatePath()
+  await Promise.all([
+    mkdir(dirname(paths.statusPath), { recursive: true }),
+    mkdir(dirname(gamePathStatePath), { recursive: true }),
+  ])
   await Promise.all([
     unlink(paths.statusPath).catch(() => {}),
     unlink(paths.controlPath).catch(() => {}),
@@ -1100,6 +1200,7 @@ async function launchAffinityHelper(includeNic, inheritedNicManaged = false) {
     `--control-path=${paths.controlPath}`,
     `--affinity-state-path=${paths.statePath}`,
     `--applied-marker-path=${paths.appliedMarkerPath}`,
+    `--game-path-state-path=${gamePathStatePath}`,
     `--include-nic=${includeNic}`,
     `--nic-managed=${inheritedNicManaged}`,
   ]
@@ -2394,6 +2495,7 @@ async function startApplication() {
   registerIpc()
   await app.whenReady()
   configureApplicationUpdater()
+  await loadMabinogiExecutablePath()
   await loadCachedDxvkReleases().catch(() => {})
   await loadCachedDxvkRuntimeStatus().catch(error => {
     dxvkRuntimeStatus = {
@@ -2405,6 +2507,7 @@ async function startApplication() {
   void refreshDxvkRuntimeStatus().finally(scheduleDxvkRuntimeRefresh)
   await installCharacterSimplificationFile()
   await startFocusRequestMonitor()
+  startMabinogiPathStateMonitor()
   frameBoostStartupPromise = ensureFrameBoostStarted().catch(error => {
     console.error("앱 시작 프레임 부스트 자동 실행 실패", error)
   })
@@ -2439,6 +2542,8 @@ async function startApplication() {
     dxvkRuntimeRefreshTimer = null
     clearInterval(focusRequestMonitor)
     focusRequestMonitor = null
+    clearInterval(gamePathStateMonitor)
+    gamePathStateMonitor = null
     if (applicationTray && !applicationTray.isDestroyed()) applicationTray.destroy()
     applicationTray = null
     try {
