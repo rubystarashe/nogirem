@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-05 16:24
+Last Updated: 2026-09-05 16:30
 
 ## Current Objective
 GitHub Releases 기반 앱 자동 업데이트를 실제 다운로드·설치 흐름에 연결한다.
@@ -767,6 +767,7 @@ GitHub Releases 기반 앱 자동 업데이트를 실제 다운로드·설치 �
 - 자동 테스트 40개, Electron 구문 검사, 프로덕션 웹 빌드, 편집기 린트와 Windows NSIS 패키징이 통과했다. 생성된 `app-update.yml`은 GitHub owner `rubystarashe`, repo `nogirem`, provider `github`를 정확히 포함한다.
 - 현재 `package.json` 버전을 빌드하고 GitHub Release에 곧바로 게시하는 `npm run release:github` 명령을 추가했다. `GH_TOKEN` 또는 `GITHUB_TOKEN`을 요구하며 기존 임시 폴더 패키징과 동일한 설치 파일·blockmap·latest.yml을 게시한다.
 - GitHub CLI를 설치하고 브라우저 장치 인증으로 `rubystarashe` 로그인을 완료했다. 배포 스크립트는 `GH_TOKEN`, `GITHUB_TOKEN`, GitHub CLI 로그인 토큰 순으로 인증을 선택하며 토큰을 파일이나 출력에 노출하지 않는다.
+- CLI 테스트 도구 중심이던 `README.md`를 현재 Electron 데스크톱 앱 기준으로 전면 개편했다. `INTRODUCE.md`의 제작 목적과 `OPERATION.md`의 비변조 원칙을 바탕으로 사용자 기능, 안전한 작동 방식, 설치·사용, 주의사항, 앱 내 문서, 개발·패키징·GitHub 배포 절차를 정리했다.
 - 첫 소개 탭 이름을 `안녕하세요`로 바꾸고 메뉴와 구분선 사이 여백을 절반으로 줄였다. 구분선을 항상 보이는 3px 가상 스크롤 트랙으로 전환해 긴 본문의 위치가 반투명 thumb로 표시되도록 했으며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - `VERSION_HISTORY.md`를 추가하고 `0.0.2`, `0.0.1` 최초 기록을 작성했다. 소개 화면은 이 파일을 raw import로 불러와 버전 제목과 변경 목록으로 안전하게 렌더링하며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - 소개 메뉴와 가상 스크롤 구분선 사이의 실제 간격을 줄이기 위해 좌측 그리드 열을 168px에서 132px로 축소했다. 프로덕션 웹 빌드와 편집기 린트가 통과했다.

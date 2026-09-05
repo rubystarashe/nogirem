@@ -1,195 +1,187 @@
-# nogirem
+# 마비노기 렘 부스터
 
-마비노기가 실행되는 동안에만 Windows CPU Affinity를 임시 분리하는 Node.js 도구입니다.
+마비노기를 조금 더 부드럽고 안정적으로 실행할 수 있도록 Windows와 그래픽 드라이버의
+최적화 설정을 한곳에서 관리하는 데스크톱 앱입니다.
 
-- `C:\Nexon\Mabinogi\Client.exe`: 논리 CPU의 뒤쪽 절반
-- 현재 로그인 세션의 일반 사용자 앱: 앞쪽 절반
-- Windows·서비스·오디오·보안/안티치트 프로세스: 변경하지 않음
-- 마비노기나 도구 종료 시: 변경 전 Affinity로 복원
+복잡한 설정을 사용자가 직접 찾아 적용하지 않아도 되도록 CPU 배치, 메모리 정리,
+네트워크 응답 설정과 그래픽 드라이버 설정을 자동으로 확인하고 적용합니다.
 
-## 요구사항
+- 최신 설치 파일: [GitHub Releases](https://github.com/rubystarashe/nogirem/releases)
+- 제작자: 류트 서버 `[렘]`
+- YouTube: [마비노기 렘](https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zEBHg)
 
-- Windows x64, Node.js 20 이상
-- 4~52개의 짝수 논리 CPU
+## 만든 이유
 
-현재 버전은 논리 CPU 번호의 앞·뒤 절반을 사용합니다. 동종 SMT CPU를 대상으로 하며 Intel P/E 코어 같은 하이브리드 CPU에서는 물리 코어 구성이 기대와 다를 수 있습니다.
+마비노기를 부드럽게 플레이하기 위한 설정 문의가 많았지만, 사용자마다 직접 설정을
+안내하거나 PC를 확인하기에는 어려움이 있었습니다. 흔히 사용하는 최적화 방법을
+한 번에 적용하고 별도의 최적화 프로그램 없이도 주요 이점을 받을 수 있도록
+사용자 경험 중심의 앱으로 구성했습니다.
 
-## 실행
+마비노기 약관상 문제가 있거나 환경에 따라 심각한 부작용이 생길 수 있는 기능은
+기본 기능에서 제외합니다. 실험적이거나 고급 사용자를 위한 기능은 설명과 사용 조건을
+갖춘 개발자 기능으로 분리합니다.
 
-Mabinogi가 관리자 또는 안티치트 보호 상태로 실행되는 경우 일반 터미널에서는
-affinity 변경이 거부될 수 있습니다. 이때는 `nogirem-admin.cmd`를 실행하고 UAC를
-승인하세요. 이미 열려 있는 일반 권한 `npm start` 창은 먼저 Ctrl+C로 종료합니다.
+## 주요 기능
 
-간소화 로그는 관리자 터미널에서 `npm run start:quiet`로 시작하거나
-`nogirem-quiet-admin.cmd`를 실행합니다. 게임 감지 시 `마비노기 프레임 부스트 On`,
-게임 또는 nogirem 종료 시 `마비노기 프레임 부스트 Off`만 표시합니다.
+### 실시간 CPU 부스트
 
-마지막 물리 코어 하나만 게임에 격리하는 실험 모드는 `npm run start:last-core`로
-실행합니다. 간소화 로그는 `npm run start:last-core:quiet`입니다. 관리자 실행 파일은
-각각 `nogirem-last-core-admin.cmd`, `nogirem-last-core-quiet-admin.cmd`입니다. 16논리 CPU
-환경에서는 게임이 CPU 14~15(`0xC000`), 백그라운드가 CPU 0~13(`0x3FFF`)을 사용합니다.
+사용 가능한 논리 CPU 영역을 둘로 나눠 마비노기와 일반 프로그램이 서로 다른 영역을
+우선 사용하도록 배치합니다. 마비노기를 나중에 실행하거나 다른 프로그램이 새로
+실행되어도 약 5초 간격으로 상태를 확인해 자동으로 반영합니다.
 
-패시브 모드는 마비노기 affinity를 변경하지 않고, 게임 실행 중 다른 대상 프로그램만
-뒤쪽 절반의 CPU로 옮깁니다. 16논리 CPU에서는 백그라운드가 CPU 8~15(`0xFF00`)를
-사용합니다. `npm run start:passive` 또는 `nogirem-passive-admin.cmd`로 실행하며,
-간소화 버전은 `npm run start:passive:quiet` 또는 `nogirem-passive-quiet-admin.cmd`입니다.
+Windows 핵심 프로세스, 서비스, 오디오, 보안 및 안티치트처럼 변경하면 안 되는
+프로세스는 대상에서 제외합니다.
 
-현재 사용자 세션에서 접근 가능한 프로세스의 affinity를 전체 논리 CPU로 되돌리려면
-nogirem을 먼저 종료한 뒤 `npm run reset` 또는 `nogirem-reset-admin.cmd`를 실행합니다.
-Process Lasso의 Always 규칙은 삭제하지 않으므로 활성 규칙이 있으면 다시 적용될 수 있습니다.
+### 메모리 자동 정리
 
-선택형 메모리 정리는 `npm run start:memory` 또는 `nogirem-memory-admin.cmd`로 실행합니다.
-마비노기 실행 중에만 1초마다 상태를 확인합니다. 사용 가능 RAM 발동선은 총 RAM의
-10%(최소 768MB, 최대 2GB), Standby 발동선은 총 RAM의 5%(최소 256MB, 최대 1GB)로
-자동 계산하며 두 조건이 동시에 맞을 때만 정리합니다. 정리 후 최소 10분이 지나고 사용
-가능 RAM이 총 RAM의 15%(최소 1.5GB, 최대 4GB)까지 회복되어야 다시 실행됩니다.
-기본 실행에는 포함되지 않습니다. 현재 상태는 `npm run memory:status`로 확인합니다.
+마비노기 실행 중 사용 가능한 메모리와 대기 메모리를 감시합니다. 실제로 사용 가능한
+메모리가 부족하고 정리할 대기 메모리가 충분할 때만 Windows 기능으로 대기 목록을
+정리합니다. 다른 프로그램의 메모리를 강제로 빼앗거나 종료하지 않습니다.
 
-기본 실행은 연결된 IPv4 기본 경로 중 합산 메트릭이 가장 낮은 인터페이스를 주 사용
-인터페이스로 판별합니다. 해당 인터페이스에 `TcpAckFrequency=1`, `TCPNoDelay=1`이
-없으면 관리자 권한 실행에서 자동 적용하고 다시 읽어 검증한 다음 인터페이스를 한 번
-재시작합니다. 조회만 하려면 `npm run fast-ping:status`를 사용합니다. 값이 이미 있어도
-인터페이스를 강제로 재시작하려면 `nogirem-fast-ping-admin.cmd` 또는 관리자 터미널에서
-`npm run fast-ping:restart`를 실행합니다. 재시작하는 동안 네트워크 연결이 잠시 끊깁니다.
+### 네트워크 최적화
 
-Windows 전역 TCP 수신 창 자동 조정 수준은 `Normal`만 최적화 상태로 판정합니다.
-`Disabled`, `Restricted`, `HighlyRestricted`, `Experimental`이면 기본 관리자 실행에서
-`Normal`로 복구하고 재조회합니다. 조회는 `npm run tcp:status`, 별도 복구는 관리자
-터미널에서 `npm run tcp:apply`를 사용합니다. 그룹 정책이 다른 값을 강제하면 복구
-실패로 보고 정책 값을 함께 표시합니다.
+현재 인터넷 연결에 사용하는 네트워크 장치를 자동으로 찾아 TcpAckFrequency와
+TCPNoDelay를 적용합니다. Windows TCP 자동 조정 상태는 권장값인 Normal로 맞춥니다.
 
-마비노기 경로는 실행 중인 `Client.exe`에서 자동으로 읽습니다. 실행 파일명이
-`Client.exe`이고 전체 경로에 `Mabinogi` 폴더가 포함되면 설치 드라이브와 무관하게
-감지합니다. `config.json`의 `gameExecutable`은 기존 설치 경로를 위한 보조 판별값입니다.
+선택 기능인 NIC RSS 최적화를 함께 사용하면 네트워크 처리 작업이 마비노기가 사용하는
+CPU 영역과 겹치지 않도록 분리할 수 있습니다.
 
-로그의 `[already:background]`와 `[already:game]`은 Process Lasso 등에서 같은
-affinity가 이미 적용되어 있어 nogirem이 변경할 필요가 없었다는 뜻입니다.
-`[skip-permanent]`는 해당 PID와 시작 시간의 프로세스 인스턴스에는 다시 시도하지
-않는다는 뜻입니다. 같은 프로그램이 새 PID로 재실행되면 새 대상으로 한 번 처리합니다.
+### NVIDIA 그래픽 최적화
+
+마비노기 전용 NVIDIA 드라이버 프로필에 다음 설정을 적용합니다.
+
+- 수직 동기화 끄기
+- 최대 프레임 400 FPS
+- 스레드 최적화 켜기
+- 최고 성능 선호
+- 저지연 모드 조정
+
+다른 게임의 NVIDIA 프로필은 변경하지 않습니다.
+
+### AMD Radeon 그래픽 최적화
+
+AMD 공식 ADLX 기능으로 다음 설정을 적용합니다.
+
+- 수직 동기화 끄기
+- Enhanced Sync 끄기
+- Radeon Chill 끄기
+- Radeon Anti-Lag 켜기
+
+ADLX의 공개 기능 제약 때문에 Radeon 설정은 마비노기 전용이 아닌 그래픽카드 전역에
+적용되며 앱을 종료해도 유지됩니다. 다른 게임에도 영향을 줄 수 있으므로 앱에서
+적용 전에 별도로 안내합니다. Radeon에는 최대 프레임 400 FPS를 적용하지 않습니다.
+
+### 자동 업데이트
+
+설치된 앱은 시작 3초 후와 실행 중 4시간마다 GitHub의 최신 정식 버전을 확인합니다.
+새 버전이 있으면 앱 안에서 다운로드 진행률을 표시하고, 다운로드가 끝나면
+`새 버전 설치` 버튼으로 업데이트할 수 있습니다.
+
+## 안전한 작동 방식
+
+이 앱은 마비노기 실행 파일, 게임 데이터, 화면이나 통신 내용을 직접 수정하지 않습니다.
+Windows와 그래픽 드라이버가 제공하는 일반 설정과 공식 기능을 사용합니다.
+
+- CPU 배치는 Windows 작업 관리자에서도 설정할 수 있는 프로세서 선호도 기능을 사용합니다
+- 메모리 정리는 Windows 대기 목록 정리 기능을 사용합니다
+- 네트워크 설정은 Windows 레지스트리와 TCP 설정을 사용합니다
+- 그래픽 설정은 NVIDIA 드라이버 기능과 AMD 공식 ADLX를 사용합니다
+- 적용 전 상태를 기록하고 종료 시 복구 여부를 사용자가 선택할 수 있습니다
+
+세부 원리는 [OPERATION.md](./OPERATION.md)에서 확인할 수 있습니다.
+
+## 시스템 요구사항
+
+- Windows 10 또는 Windows 11 x64
+- 4개 이상 52개 이하의 짝수 논리 CPU
+- 설정 적용을 위한 관리자 권한
+- 그래픽 최적화 사용 시 지원되는 NVIDIA 또는 AMD Radeon GPU
+
+현재 CPU 분리 방식은 논리 CPU 번호의 앞쪽과 뒤쪽 절반을 사용합니다. Intel P/E 코어와
+같은 하이브리드 CPU에서는 실제 물리 코어 구성이 단순한 절반 분할과 다를 수 있습니다.
+
+## 설치 및 사용
+
+1. [GitHub Releases](https://github.com/rubystarashe/nogirem/releases)에서 최신
+   `nogirem-setup-<version>.exe`를 다운로드합니다
+2. 설치 파일을 실행합니다
+3. 앱 실행 시 표시되는 Windows 관리자 권한 요청을 승인합니다
+4. 앱이 현재 최적화 상태를 확인할 때까지 기다립니다
+5. 필요한 그래픽 및 네트워크 설정을 앱에서 적용합니다
+
+실시간 부스트는 앱 시작 시 자동으로 실행됩니다.
+
+- `실시간 부스트`: CPU 배치와 메모리 감시를 실행합니다
+- `일시정지`: 감시를 멈추되 현재 CPU 배치는 유지합니다
+- `정지(전체 복구)`: 감시를 멈추고 접근 가능한 프로세스가 전체 CPU를 사용하도록 복구합니다
+- `NIC RSS 최적화 포함`: 네트워크 수신 처리를 백그라운드 CPU 영역에 배치합니다
+
+앱을 닫을 때 변경된 CPU 설정이 남아 있다면 다음 중 하나를 선택할 수 있습니다.
+
+- 전체 복구 후 종료
+- 현재 적용을 유지하고 종료
+- 취소
+
+현재 적용 유지를 선택해도 백그라운드 감시 프로그램은 정상적으로 종료됩니다.
+
+## 사용 전 확인사항
+
+- 네트워크 설정을 처음 적용하거나 복구할 때 인터넷 연결이 잠시 끊길 수 있습니다
+- Process Lasso의 고정 규칙이 있으면 이 앱과 설정을 서로 덮어쓸 수 있습니다
+- Radeon 최적화는 전역 설정이므로 다른 게임에 미치는 영향을 확인해야 합니다
+- 접근 권한이 없는 시스템 프로세스는 변경하지 않고 건너뜁니다
+- CPU 재정렬 같은 개발자 기능은 안내된 실행 조건에서만 사용해야 합니다
+
+## 앱 내 문서
+
+- [INTRODUCE.md](./INTRODUCE.md): 제작 배경과 개발 방향
+- [OPERATION.md](./OPERATION.md): 비전문가를 위한 기능별 작동 원리
+- [VERSION_HISTORY.md](./VERSION_HISTORY.md): 버전별 변경 기록
+
+앱의 `[류트@렘] 제작`을 누르면 위 문서와 후원 안내, 개발자 기능을 앱 안에서
+확인할 수 있습니다.
+
+## 개발
+
+Node.js 20 이상이 필요합니다.
 
 ```powershell
 npm install
-npm run self-test
-npm run dry-run
-npm start
+npm test
+npm run app:dev
 ```
 
-## 데스크톱 최적화 앱
-
-Electron과 Svelte로 구현한 화면에서 프레임 부스트, NVIDIA/Radeon 그래픽 설정, 네트워크
-최적화 상태를 한 번에 확인하고 필요한 항목만 적용할 수 있습니다. 프레임 부스트
-카드는 Affinity 코어 분리와 메모리 최적화를 함께 표시하고 제어합니다.
+프로덕션 화면 빌드와 앱 실행:
 
 ```powershell
 npm run app:build
 npm run app
 ```
 
-개발 중에는 `npm run app:dev`를 사용합니다. 승격된 개발 앱이 Vite를 계속 사용할
-수 있도록 터미널의 개발 서버는 `Ctrl+C`로 종료할 때까지 유지됩니다. 앱은 시작할 때
-UAC를 한 번 요청하고 관리자 권한으로 재실행됩니다. 이후 Affinity와 네트워크
-최적화 버튼에서는 UAC를 다시 요청하지 않습니다. 패스트핑 레지스트리를 변경한
-경우에만 네트워크 인터페이스를 재시작합니다. 그래픽 최적화는 감지된 NVIDIA 또는
-AMD Radeon GPU에 맞는 설정을 조회하고 적용합니다.
-
-프레임 부스트는 앱 시작 시 자동 실행됩니다. `실시간 부스트`는 Affinity와 메모리
-helper를 동시에 실행하고, 같은 버튼의 `일시정지`는 두 감시를 함께 끝내면서 이미
-적용된 CPU 배치를 유지합니다. `정지(전체복구)`는 메모리 감시를 중지하고 접근 가능한
-현재 사용자 세션 프로세스를 모든 논리 CPU 사용 상태로 되돌립니다. `NIC RSS 최적화
-포함`을 선택하고 실시간 부스트를 실행하면 RSS 수신 처리도 백그라운드 CPU 범위에
-배치합니다. 이 앱이 NIC RSS를 실제로 변경한 경우에만 전체 복구에서 저장된 원본을
-복원하며, NIC가 이미 원본과 같으면 네트워크 인터페이스를 재시작하지 않습니다.
-
-창 닫기 버튼을 누르면 웹 모달에서 `전체 복구 후 종료`, `현재 적용 유지하고 종료`,
-`취소` 중 하나를 선택합니다. 적용 유지를 선택해도 helper 감시는 정상 중지되며,
-현재 프로세스의 CPU 배치만 그대로 남습니다.
-
-메모리 helper는 마비노기 실행 여부와 사용 가능 RAM·Standby RAM을 감시하고 기존
-임계치와 재발동 대기 정책에 따라 필요한 경우에만 Standby 목록을 정리합니다.
-
-## NVIDIA 3D 설정 확인
+Windows 설치 파일 패키징:
 
 ```powershell
-npm run nvidia:status
-npm run nvidia:apply
+npm run package:win
 ```
 
-NVIDIA GPU와 드라이버를 감지하고 `Client.exe` 프로필의 수직 동기화, 최대 프레임
-속도, 스레드 최적화, 전원 관리 모드, 저지연 모드를 읽기 전용으로 확인합니다.
-프로그램 프로필에 값이 없으면 전역 또는 드라이버 기본값을 표시합니다.
-수직 동기화가 응용 프로그램 제어 상태이면 마비노기의
-`HKCU\Software\Nexon\Mabinogi\VerticalSync` 값까지 읽어 최종 구성을 판정합니다.
+생성 파일:
 
-저지연 모드는 NVIDIA 공개 NVAPI 설정에 포함되지 않으므로 NVIDIA Profile Inspector가
-사용하는 제어판 상태와 드라이버 활성화 값을 함께 확인합니다. 이 명령은 설정을 변경하지
-않습니다.
+- `release/nogirem-setup-<version>.exe`
+- `release/nogirem-setup-<version>.exe.blockmap`
+- `release/latest.yml`
 
-`nvidia:apply`는 마비노기 프로그램 프로필에 수직 동기화 끄기, 최대 프레임 속도
-400 FPS, 스레드 최적화 켜기, 최고 성능 선호, 저지연 모드 울트라를 적용합니다.
-저지연 모드의 실제 드라이버 경로에 필요한 최대 사전 렌더링 프레임도 1로 설정하고,
-마비노기 자체 `VerticalSync` 값도 끕니다. 저장 후 모든 목표값을 다시 읽어 검증하며
-실행 중인 게임에는 다음 클라이언트 실행부터 확실히 반영됩니다.
+## GitHub Release 배포
 
-## AMD Radeon 3D 설정 확인
-
-```powershell
-npm run graphics:status
-npm run graphics:apply
-```
-
-NVIDIA GPU가 없고 AMD Radeon GPU가 감지되면 공식 AMD ADLX 인터페이스로 수직
-동기화 항상 끄기, Enhanced Sync 끄기, Radeon Anti-Lag 켜기, Radeon Chill 끄기를
-조회하고 적용합니다. 지원하지 않는 기능은 `해당 없음`으로 표시하며 완료 판정에서
-제외합니다. 최대 프레임 제한은 변경하지 않습니다.
-
-ADLX 공개 3D 설정은 프로그램별 프로필이 아니라 Radeon GPU 전역 설정입니다.
-적용값은 앱과 마비노기를 종료해도 유지되며 다른 게임에도 영향을 줄 수 있으므로,
-데스크톱 앱은 적용 전에 전역 설정 변경 안내를 표시합니다. 마비노기 내부 수직
-동기화 값은 NVIDIA와 동일하게 별도로 끄고 재검증합니다.
-
-## NIC RSS CPU 분리
-
-```powershell
-npm run nic-rss:status
-npm run nic-rss:apply
-npm run nic-rss:restore
-```
-
-주 IPv4 네트워크 어댑터의 RSS 상태와 처리 CPU 범위를 affinity 기능과 별도로
-진단합니다. 16개 논리 CPU에서는 마비노기 영역 8~15와 겹치지 않도록 RSS를
-CPU 0~7, 프로세서 그룹 0의 `ClosestStatic` 프로필로 설정합니다.
-
-적용 전 원본 RSS 설정은 `%LOCALAPPDATA%\nogirem\nic-rss-state.json`에 저장하며
-`nic-rss:restore`로 되돌릴 수 있습니다. 적용과 복원에는 관리자 권한이 필요하고
-네트워크 인터페이스가 잠시 재시작됩니다. 이 기능은 RSS 수신 처리를 조정하며
-장치 IRQ affinity 자체를 강제로 변경하지 않습니다.
-
-`dry-run`은 대상을 출력만 하고 `start`는 실제 적용합니다. 게임이 없을 때는 변경하지 않습니다. 게임이 종료되면 원복하고 다음 실행을 기다립니다. 도구 종료는 `Ctrl+C`를 사용합니다.
-
-같은 프로세스에 Process Lasso 규칙이 남아 있으면 양쪽 프로그램이 서로 설정을 덮어쓸 수 있습니다. 실제 사용 전 `client.exe`와 백그라운드 앱의 기존 Lasso Affinity 규칙을 비활성화하세요.
-
-설정은 `config.json`에서 바꿀 수 있습니다. 접근할 수 없는 프로세스는 건너뜁니다.
-
-적용 중에는 `runtime-state.json`에 PID·시작 시각·원래 마스크를 기록합니다. 비정상 종료 후 다음 실행에서도 PID와 시작 시각이 모두 일치할 때만 원복합니다.
-
-## 앱 자동 업데이트 배포
-
-`package.json`의 버전을 올린 뒤 `npm run package:win`을 실행합니다. 생성된
-`release/latest.yml`, `release/nogirem-setup-<version>.exe`,
-`release/nogirem-setup-<version>.exe.blockmap` 세 파일을
-`rubystarashe/nogirem`의 새 GitHub 정식 Release에 모두 첨부합니다.
-
-GitHub 토큰으로 패키징과 Release 배포를 한 번에 수행할 수도 있습니다.
+배포 전에 `package.json`의 버전을 올리고 변경 기록을 갱신합니다.
 
 ```powershell
 gh auth login
 npm run release:github
 ```
 
-배포 스크립트는 GitHub CLI의 로그인 토큰을 자동으로 사용합니다. 자동화 환경에서는
-`GH_TOKEN` 또는 `GITHUB_TOKEN` 환경 변수도 사용할 수 있으며, 인증에는 해당
-저장소의 Contents 쓰기 권한이 필요합니다.
+배포 스크립트는 로그인된 GitHub CLI 토큰을 자동으로 사용합니다. CI에서는
+`GH_TOKEN` 또는 `GITHUB_TOKEN` 환경 변수를 사용할 수 있습니다. 토큰에는
+`rubystarashe/nogirem` 저장소의 Contents 쓰기 권한이 필요합니다.
 
-패키징된 앱은 시작 3초 후와 실행 중 4시간마다 최신 정식 Release를 확인합니다.
-새 버전은 자동 다운로드되며 완료 후 화면의 `새 버전 설치` 버튼으로 설치합니다.
-개발 모드에서는 자동 업데이트를 확인하지 않습니다.
+자동 업데이트가 정상 동작하려면 GitHub 정식 Release에 설치 파일, blockmap과
+`latest.yml`이 모두 게시되어야 합니다.
