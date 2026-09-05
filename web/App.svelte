@@ -98,7 +98,7 @@
     { id: "operation", label: "작동 원리", content: [] },
     { id: "donation", label: "후원 / 기부", content: [] },
     { id: "history", label: "버전 변경 기록", content: [] },
-    { id: "developer-tools", label: "개발자 기능", content: [] },
+    { id: "developer-tools", label: "고급 기능", content: [] },
   ]
   const introduceBlocks = parseIntroduceMarkdown(introduceMarkdown)
   const operationBlocks = parseIntroduceMarkdown(operationMarkdown)

@@ -32,6 +32,7 @@ import {
 import { getLatestMuoStatus } from "../src/muo-status.mjs"
 import { advanceDownloadProgress } from "../src/update-progress.mjs"
 import { getYouTubeChannelProfile } from "../src/youtube-channel.mjs"
+import { assessExitConfirmation } from "../src/exit-confirmation.mjs"
 
 const { autoUpdater } = updaterPackage
 const execFileAsync = promisify(execFile)
@@ -1505,12 +1506,14 @@ async function requestApplicationExitConfirmation() {
       affinityStatus?.nicManaged
       || appliedMarker?.nicManaged,
     )
-    const hasAppliedBoost = Boolean(
-      hasLiveAppliedAffinity
-      || hasManagedNic,
-    )
-    if (!hasAppliedBoost) {
-      await unlink(paths.appliedMarkerPath).catch(() => {})
+    const exitConfirmation = assessExitConfirmation({
+      hasLiveAppliedAffinity,
+      hasManagedNic,
+    })
+    if (!exitConfirmation.confirm) {
+      if (exitConfirmation.removeAppliedMarker) {
+        await unlink(paths.appliedMarkerPath).catch(() => {})
+      }
       await finishApplicationExitWithoutAppliedBoost()
       return
     }

@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 01:56
+Last Updated: 2026-09-06 01:58
 
 ## Current Objective
-Node.js는 다시 일반 백그라운드 CPU affinity 조정 대상으로 사용한다.
+게임 종료로 프로세스 affinity가 복원된 상태에서는 종료 확인 모달을 표시하지 않는다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -11,7 +11,7 @@ Node.js는 다시 일반 백그라운드 CPU affinity 조정 대상으로 사용
 - 마비노기는 P-core 물리 코어의 절반을 사용하며 홀수이면 게임 측을 올림한다. 백그라운드는 나머지 P-core와 모든 E-core를 사용한다.
 - P/E 구분이 없는 CPU도 물리 코어 단위로 절반을 나누고 SMT sibling 전체를 같은 마스크에 유지한다.
 - 앱과 잠금 파일의 현재 버전 문자열은 0.1.5이며 `VERSION_HISTORY.md`에 0.1.4 이후 사용자 체감 변경을 기록했다.
-- 설치본의 개발자 기능에서 `Windows 시작 시 트레이 실행`을 켜고 끌 수 있다.
+- 설치본의 고급 기능에서 `Windows 시작 시 트레이 실행`을 켜고 끌 수 있다.
 - 자동 실행은 현재 사용자 로그온 예약 작업과 `--startup-tray` 인자를 사용하며 시작 창·OST 없이 트레이와 프레임 부스트를 준비한다.
 - 0.1.5 Windows x64 원클릭 NSIS 설치 파일, blockmap과 `latest.yml`을 로컬 `release`에 생성했다. GitHub 배포는 진행하지 않았다.
 - `node.exe`는 Affinity 예외가 아니며 일반 Node.js 프로세스에 백그라운드 CPU 마스크를 적용한다.
@@ -837,6 +837,8 @@ Node.js는 다시 일반 백그라운드 CPU affinity 조정 대상으로 사용
 - `npm run package:win`으로 0.1.5 설치본을 생성했다. `release/nogirem-setup-0.1.5.exe`는 92,270,110바이트이며 SHA-256은 `9A0EA170062E3F79EFBC5ECA376140A4C861C3C9ACFAB12BDB9C3D8586D70EB2`다. 배포하지 않았다.
 - 사용자 요청에 따라 `node.exe`를 Affinity 조정 예외로 임시 복원했다. 설치 패키징은 다시 수행하지 않았다.
 - 임시 `node.exe` 예외를 다시 제거하고 미제외 회귀 테스트에 추가했다. 입력·매크로 엔진 예외는 그대로 유지한다.
+- 소개 메뉴의 `개발자 기능` 이름을 `고급 기능`으로 변경했다.
+- 종료 확인은 실제 적용 마스크가 남은 프로세스 affinity가 있을 때만 표시한다. 게임 종료 복원 뒤 NIC RSS 소유 기록만 남은 경우에는 모달 없이 종료하되 NIC 복원용 마커는 보존한다. 관련 회귀 테스트 3개를 추가해 전체 테스트 53개와 프로덕션 빌드·구문 검사·린트가 통과했다.
 - 입력 장치 지연 방지를 위해 G Hub, Razer Synapse, Wooting과 SteelSeries GG 실행 파일 패턴을 Affinity 예외에 추가했다. 현재 실행 중인 SteelSeries Engine·GG·Prism·Sonar 이름이 모두 포함되는 것을 확인했다.
 - 공식·제품 문서와 확인 가능한 프로세스 자료를 기준으로 입력 이벤트·매핑·매크로를 실제 처리하는 추가 실행 파일만 예외에 넣었다. VIA/QMK 온보드 매크로는 상주 Windows 엔진이 없어 추가하지 않았고 updater·텔레메트리는 제외하지 않았다. 대표 엔진 14종의 제외 회귀 테스트를 추가해 전체 테스트는 49개다.
 - G Hub·Razer·Wooting·SteelSeries에 남아 있던 광범위한 접두사 예외를 제거했다. 각 제품의 입력·매크로 엔진만 정확히 남기고 G Hub UI·업데이터, Razer Central·Chroma SDK, Wootility, SteelSeries GG·Sonar·Prism은 일반 백그라운드 조정 대상으로 복귀시켰다. 엔진 포함과 부가 프로세스 미포함 테스트를 추가해 전체 테스트는 50개다.
@@ -858,4 +860,4 @@ Node.js는 다시 일반 백그라운드 CPU affinity 조정 대상으로 사용
 - `roundedCorners: false`로 Windows 11 창 모서리를 직각으로 고정했다.
 
 ## Next Recommended Step
-추가 입력·매크로 엔진 예외를 검증한 뒤 필요할 때만 0.1.5를 다시 패키징한다.
+게임 실행·종료 후 affinity가 복원된 상태에서 앱 닫기 모달이 생략되는지 수동 확인한 뒤 필요할 때만 0.1.5를 다시 패키징한다.
