@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 05:08
+Last Updated: 2026-09-06 05:19
 
 ## Current Objective
-0.2.1 배포 후 발견한 업데이트 완료 시 99%에서 바로 완료 화면으로 바뀌는 표시 오류를 수정하고 다음 배포를 준비한다.
+수정된 변경 기록과 업데이트 100% 표시 개선을 포함해 기존 GitHub Release v0.2.1을 교체한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
