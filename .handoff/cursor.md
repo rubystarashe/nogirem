@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 00:47
+Last Updated: 2026-09-06 00:54
 
 ## Current Objective
 Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노기는 P-core 절반, 백그라운드는 나머지 P-core와 모든 E-core를 사용하게 한다.
@@ -10,6 +10,7 @@ Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노�
 - Affinity는 `GetSystemCpuSetInformation`의 `EfficiencyClass`, `CoreIndex`, 논리 프로세서 번호를 사용해 실제 코어 토폴로지를 판정한다.
 - 마비노기는 P-core 물리 코어의 절반을 사용하며 홀수이면 게임 측을 올림한다. 백그라운드는 나머지 P-core와 모든 E-core를 사용한다.
 - P/E 구분이 없는 CPU도 물리 코어 단위로 절반을 나누고 SMT sibling 전체를 같은 마스크에 유지한다.
+- 앱과 잠금 파일의 현재 버전 문자열은 0.1.5이며 `VERSION_HISTORY.md`에 0.1.4 이후 사용자 체감 변경을 기록했다.
 - affinity 기능은 `src/affinity.mjs`, 메모리 기능은 `src/memory.mjs`로 분리했다.
 - 구문 검사, `npm run self-test`, `npm run memory:status`가 통과했다.
 - `npm run nvidia:status`로 NVIDIA GPU와 마비노기 3D 프로필을 읽기 전용 조회할 수 있다.
@@ -818,6 +819,7 @@ Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노�
 - Electron Affinity helper의 `restoreOnGameExit`를 활성화했다. 마비노기 종료 감지 시 앱이 변경한 게임·백그라운드 프로세스 affinity를 원래 마스크로 복원하고, 다시 게임을 감지하면 새 원본을 기록해 부스트를 재적용한다. NIC RSS와 영구 그래픽·네트워크 설정은 이 흐름에서 변경하지 않는다.
 - 논리 CPU 번호 절반 분할을 Windows CPU Set 기반 물리 코어 배분으로 교체했다. P-core 절반과 SMT sibling은 게임에, 나머지 P-core와 모든 E-core는 백그라운드에 배정하며 홀수 P-core는 게임 측을 올림한다.
 - CPU 재정렬도 E-core를 게임에 넘기지 않고 P-core 그룹끼리만 교환한다. 토폴로지 단위 테스트를 추가해 전체 테스트 48개, 프로덕션 웹 빌드, 구문 검사와 린트가 통과했다.
+- `package.json`과 lockfile 버전을 0.1.5로 올리고 P/E 코어 배분, 게임 종료 시 affinity 복원, 동적 게임 경로 감지와 업데이트 진행률 수정 내용을 버전 기록에 추가했다.
 - 첫 소개 탭 이름을 `안녕하세요`로 바꾸고 메뉴와 구분선 사이 여백을 절반으로 줄였다. 구분선을 항상 보이는 3px 가상 스크롤 트랙으로 전환해 긴 본문의 위치가 반투명 thumb로 표시되도록 했으며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - `VERSION_HISTORY.md`를 추가하고 `0.0.2`, `0.0.1` 최초 기록을 작성했다. 소개 화면은 이 파일을 raw import로 불러와 버전 제목과 변경 목록으로 안전하게 렌더링하며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - 소개 메뉴와 가상 스크롤 구분선 사이의 실제 간격을 줄이기 위해 좌측 그리드 열을 168px에서 132px로 축소했다. 프로덕션 웹 빌드와 편집기 린트가 통과했다.
@@ -836,4 +838,4 @@ Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노�
 - `roundedCorners: false`로 Windows 11 창 모서리를 직각으로 고정했다.
 
 ## Next Recommended Step
-Intel 하이브리드 CPU에서 helper 상태의 P/E 개수와 게임·백그라운드 CPU 범위를 확인한 뒤 실제 마비노기 실행 중 affinity를 검증한다.
+Intel 하이브리드 CPU에서 helper 상태의 P/E 개수와 게임·백그라운드 CPU 범위를 확인한 뒤 0.1.5를 패키징·배포한다.
