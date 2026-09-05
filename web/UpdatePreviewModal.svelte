@@ -1,11 +1,44 @@
 <script>
-  const progress = 50
+  import { onMount } from "svelte"
+
+  export let active = false
+
+  let progress = 0
+  let mounted = false
+  let started = false
+  let frame
+
+  function startPreview() {
+    if (!mounted || started || !active) return
+
+    started = true
+    const startedAt = performance.now()
+    const duration = 15000
+
+    const updateProgress = now => {
+      progress = Math.min(100, Math.floor(((now - startedAt) / duration) * 100))
+      if (progress < 100) frame = requestAnimationFrame(updateProgress)
+    }
+
+    frame = requestAnimationFrame(updateProgress)
+  }
+
+  $: if (active && mounted) startPreview()
+
+  onMount(() => {
+    mounted = true
+    startPreview()
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+    }
+  })
 </script>
 
 <div class="update-preview-overlay" role="dialog" aria-modal="true" aria-label="업데이트">
   <section class="update-preview-panel">
     <h2>
-      {progress < 100 ? "업데이트 다운로드 중" : "업데이트 다운로드 완료"}
+      {progress < 100 ? "새 버전을 가져오고 있습니다" : "업데이트 다운로드 완료"}
     </h2>
 
     {#if progress < 100}

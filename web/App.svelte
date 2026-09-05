@@ -2013,4 +2013,4 @@
   </Modal>
 {/if}
 
-<UpdatePreviewModal />
+<UpdatePreviewModal active={windowVisuallyActive} />
