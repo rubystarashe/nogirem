@@ -88,6 +88,7 @@
       "assets/**/*",
       "config.json",
       "icon.ico",
+      "icon-paused.png",
       "character-guide.html",
       "dxvk-guide.html",
       "public/doc_dxvk/**/*",

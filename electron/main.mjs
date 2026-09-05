@@ -40,6 +40,7 @@ const characterGuidePreloadPath = join(root, "electron", "character-guide-preloa
 const dxvkManagerPreloadPath = join(root, "electron", "dxvk-manager-preload.cjs")
 const dxvkGuidePreloadPath = join(root, "electron", "dxvk-guide-preload.cjs")
 const iconPath = join(root, "icon.ico")
+const pausedTrayIconPath = join(root, "icon-paused.png")
 const characterSimplificationFileName = "주변캐릭터간소화프레임제한해제.muo"
 const creatorChannelUrl = "https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zEBHg"
 const directDonationUrl = "https://thedirectdonation.org/"
@@ -1194,6 +1195,7 @@ async function setAffinityEnabled({ enabled, includeNic = false } = {}) {
 
 async function resetAllAffinities() {
   frameBoostDesiredEnabled = false
+  updateApplicationTrayIcon()
   return stopAffinityHelper({ reset: true })
 }
 
@@ -1201,6 +1203,7 @@ async function setFrameBoostEnabled({ enabled, includeNic = false } = {}) {
   if (typeof enabled !== "boolean") throw new Error("프레임 부스트 활성화 여부가 올바르지 않습니다")
   const previousDesiredEnabled = frameBoostDesiredEnabled
   frameBoostDesiredEnabled = enabled
+  updateApplicationTrayIcon()
   try {
     const [affinity, memory] = await Promise.all([
       setAffinityEnabled({ enabled, includeNic }),
@@ -1209,6 +1212,7 @@ async function setFrameBoostEnabled({ enabled, includeNic = false } = {}) {
     return { affinity, memory }
   } catch (error) {
     frameBoostDesiredEnabled = previousDesiredEnabled
+    updateApplicationTrayIcon()
     throw error
   }
 }
@@ -2248,6 +2252,7 @@ function focusPrimaryWindow() {
 function ensureApplicationTray() {
   if (applicationTray && !applicationTray.isDestroyed()) return applicationTray
   applicationTray = new Tray(iconPath)
+  updateApplicationTrayIcon()
   applicationTray.setToolTip("마비노기 렘 부스터")
   applicationTray.setContextMenu(Menu.buildFromTemplate([
     {
@@ -2266,6 +2271,11 @@ function ensureApplicationTray() {
   applicationTray.on("click", focusPrimaryWindow)
   applicationTray.on("double-click", focusPrimaryWindow)
   return applicationTray
+}
+
+function updateApplicationTrayIcon() {
+  if (!applicationTray || applicationTray.isDestroyed()) return
+  applicationTray.setImage(frameBoostDesiredEnabled ? iconPath : pausedTrayIconPath)
 }
 
 function minimizePrimaryWindowToTray() {
