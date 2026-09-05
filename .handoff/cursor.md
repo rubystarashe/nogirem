@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 02:16
+Last Updated: 2026-09-06 02:22
 
 ## Current Objective
-종료 확인 개선이 포함된 0.2.0 Windows 설치본을 준비한다.
+종료 확인 개선이 포함된 0.2.0 Windows 설치본을 GitHub에 배포한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -13,7 +13,7 @@ Last Updated: 2026-09-06 02:16
 - 앱과 잠금 파일의 현재 버전 문자열은 0.2.0이며 `VERSION_HISTORY.md`에 0.1.4 이후 사용자 체감 변경을 기록했다.
 - 설치본의 고급 기능에서 `Windows 시작 시 트레이 실행`을 켜고 끌 수 있다.
 - 자동 실행은 현재 사용자 로그온 예약 작업과 `--startup-tray` 인자를 사용하며 시작 창·OST 없이 트레이와 프레임 부스트를 준비한다.
-- 0.2.0 Windows x64 원클릭 NSIS 설치 파일, blockmap과 `latest.yml`을 로컬 `release`에 생성했다. GitHub 배포는 진행하지 않았다.
+- 0.2.0 Windows x64 원클릭 NSIS 설치 파일, blockmap과 `latest.yml`을 GitHub 정식 Release로 배포했다.
 - `node.exe`는 Affinity 예외가 아니며 일반 Node.js 프로세스에 백그라운드 CPU 마스크를 적용한다.
 - Logitech G Hub는 `lghub_agent.exe`, Razer Synapse는 App Engine과 Synapse Service, Wooting은 Wootomation과 구형 Double Movement, SteelSeries GG는 Engine만 Affinity 조정에서 제외한다.
 - iCUE, Logi Options+ Agent, HyperX NGENUITY, ROCCAT Swarm Monitor·HW Service, Glorious CORE, Cooler Master MasterPlus, reWASD Engine·Service, X-Mouse Button Control, PowerToys Keyboard Manager Engine, AutoHotkey 인터프리터와 Stream Deck을 명시적으로 제외한다.
@@ -864,7 +864,9 @@ Last Updated: 2026-09-06 02:16
 
 - 종료 시 실제 affinity 확인에서 약 1초가 걸리는 PowerShell 전체 프로세스 조회를 제거했다. `GetProcessTimes`와 `GetProcessAffinityMask`를 직접 호출해 PID 재사용 여부와 현재 마스크를 약 0.51ms에 검증한다.
 
-- `npm run package:win`으로 0.2.0 설치본을 생성했다. `release/nogirem-setup-0.2.0.exe`는 92,306,057바이트이며 SHA-256은 `BD6B577455C17608699575365668F010809F7CF9B288A7C9B75850FB31ED08BD`다. blockmap과 `latest.yml`도 함께 생성했으며 배포하지 않았다.
+- `npm run package:win`으로 최초 0.2.0 설치본을 생성했다. GitHub 배포 빌드에서 최종 설치본이 다시 생성됐다.
+
+- GitHub 정식 Release `v0.2.0`을 게시했다. 최종 `nogirem-setup-0.2.0.exe`는 92,306,056바이트이고 SHA-256은 `5786D511472BF4A6E9D8A7EF2A15673FF2201AD1B8EFFC86EA4E9C42BE04D3B6`이며 installer, blockmap, `latest.yml` 세 자산을 확인했다. 동시에 생성된 불완전한 중복 Release를 제거하고 기능 변경 중심의 릴리스 노트를 추가했다.
 
 ## Next Recommended Step
-0.2.0 설치본에서 마비노기를 켜지 않은 부스트 대기 상태와 게임 실행·종료 후 복원 상태의 종료 동작을 확인한다. GitHub 배포는 사용자 요청 전까지 진행하지 않는다.
+0.2.0 자동 업데이트 또는 설치본에서 부스트 대기 상태와 게임 실행·종료 후 복원 상태의 종료 동작을 확인한다.
