@@ -389,8 +389,13 @@ footer {
   object-fit: contain;
   pointer-events: none;
   transform: translateX(-50%);
+  transition: opacity 600ms ease;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+.boost-home.waiting > img {
+  opacity: 0.4;
 }
 
 .boost-home img.canvas-logo-hidden {
@@ -1446,6 +1451,11 @@ button.direct-donation-card:hover {
 .boost-text-final {
   z-index: 1;
   color: rgba(20, 20, 20, 0.7);
+  transition: opacity 600ms ease;
+}
+
+.boost-home.waiting .boost-text-final {
+  opacity: 0.4;
 }
 
 .boost-text-final.concealed {
@@ -1475,6 +1485,12 @@ button.direct-donation-card:hover {
 .boost-home .boost-text-area .boost-text-final.boosting {
   color: #141414;
   animation: boost-text-pulse 1200ms ease-in-out infinite;
+}
+
+.boost-home .boost-text-area .boost-text-final.boosting.from-waiting {
+  animation:
+    waiting-to-boost 600ms ease-out both,
+    boost-text-pulse 1200ms 600ms ease-in-out infinite;
 }
 
 .boost-home .boost-text-area .boost-text-final.boosting.animation-paused {
@@ -1537,6 +1553,10 @@ button.direct-donation-card:hover {
 .guide-text {
   display: block;
   white-space: nowrap;
+}
+
+.status-guide.waiting .guide-text:not(.guide-text-out):not(.guide-text-in) {
+  animation: waiting-guide-blink 1100ms ease-in-out infinite;
 }
 
 .guide-text-out {
@@ -1920,6 +1940,27 @@ button.direct-donation-card:hover {
   0%,
   100% {
     opacity: 0.58;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes waiting-to-boost {
+  from {
+    opacity: 0.4;
+  }
+
+  to {
+    opacity: 0.58;
+  }
+}
+
+@keyframes waiting-guide-blink {
+  0%,
+  100% {
+    opacity: 0.35;
   }
 
   50% {

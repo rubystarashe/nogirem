@@ -94,7 +94,7 @@
   const ambientRhythmEnabled = true
   const boostSpinnerEnabled = true
   const creatorSections = [
-    { id: "developer", label: "안녕하세요", content: [] },
+    { id: "developer", label: "소개", content: [] },
     { id: "operation", label: "작동 원리", content: [] },
     { id: "donation", label: "후원 / 기부", content: [] },
     { id: "history", label: "버전 변경 기록", content: [] },
@@ -1149,6 +1149,7 @@
       <section
         class="boost-home"
         class:paused={visualPaused}
+        class:waiting={startupIdentityPhase === "done" && displayedStatusText === "부스트 대기중"}
         class:creator-opening={creatorViewPhase === "opening"}
         class:creator-open={creatorViewPhase === "open"}
         class:creator-closing={creatorViewPhase === "closing"}
@@ -1274,6 +1275,8 @@
               class:concealed={statusTransitionPhase === "enter"}
               class:boosting={displayedStatusText === "실시간 부스트중"
                 && statusTransitionPhase === "done"}
+              class:from-waiting={statusTransitionFrom === "부스트 대기중"
+                && statusTransitionTo === "실시간 부스트중"}
               class:animation-paused={!pageVisible}
             >
               {displayedStatusText}
@@ -1316,7 +1319,10 @@
           </span>
         {/if}
         {#if startupIdentityPhase === "done"}
-        <span class="status-guide">
+        <span
+          class="status-guide"
+          class:waiting={displayedStatusText === "부스트 대기중"}
+        >
           {#key guideTransitionId}
             {#if guideTransitionPhase === "out"}
               <span
