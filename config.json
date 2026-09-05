@@ -30,7 +30,7 @@
     "streamdeck.exe",
     "swarmhw_service.exe",
     "startmenuexperiencehost.exe", "system.exe", "system idle process.exe",
-    "taskhostw.exe", "wininit.exe", "winlogon.exe", "wmiprvse.exe",
+    "taskhostw.exe", "turbo-key-helper.exe", "wininit.exe", "winlogon.exe", "wmiprvse.exe",
     "wooting-double-movement.exe", "wootomation.exe", "xmousebuttoncontrol.exe"
   ],
   "excludeNamePatterns": [

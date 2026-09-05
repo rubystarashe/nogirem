@@ -97,6 +97,7 @@ function run(command, arguments_) {
 }
 
 await run("npm", ["run", "native:radeon"])
+await run("npm", ["run", "native:turbo-key"])
 await run("npm", ["run", "app:build"])
 const builderArguments = [
   "electron-builder",

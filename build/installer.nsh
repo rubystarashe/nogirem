@@ -8,6 +8,11 @@
   FileOpen $0 "$APPDATA\${PRODUCT_NAME}\memory\control.json" w
   FileWrite $0 `{"command":"stop","requestedAt":0,"reason":"installer-upgrade"}`
   FileClose $0
+
+  CreateDirectory "$APPDATA\${PRODUCT_NAME}\turbo-key"
+  FileOpen $0 "$APPDATA\${PRODUCT_NAME}\turbo-key\control.json" w
+  FileWrite $0 `{"command":"stop","requestedAt":0,"reason":"installer-upgrade"}`
+  FileClose $0
 !macroend
 
 !macro customCheckAppRunning

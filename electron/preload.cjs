@@ -40,6 +40,10 @@ contextBridge.exposeInMainWorld("nogirem", {
   setStartupTraySetting: enabled => {
     return ipcRenderer.invoke("application:set-startup-tray-setting", enabled)
   },
+  getTurboKeySetting: () => ipcRenderer.invoke("application:get-turbo-key-setting"),
+  setTurboKeySetting: enabled => {
+    return ipcRenderer.invoke("application:set-turbo-key-setting", enabled)
+  },
   getVisualActivity: () => ipcRenderer.invoke("application:get-visual-activity"),
   onVisualActivityChanged: callback => {
     const listener = (_event, active) => callback(Boolean(active))

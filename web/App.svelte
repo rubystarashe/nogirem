@@ -29,6 +29,11 @@
   let startupTraySettingLoaded = false
   let startupTrayAction = null
   let startupTrayNotice = ""
+  let turboKeyEnabled = false
+  let turboKeyRunning = false
+  let turboKeySettingLoaded = false
+  let turboKeyAction = null
+  let turboKeyNotice = ""
   let closeModalVisible = false
   let optimizationModalVisible = false
   let conflictModalVisible = false
@@ -497,11 +502,40 @@
     }
   }
 
+  async function toggleTurboKey() {
+    if (!turboKeySettingLoaded || turboKeyAction) return
+    turboKeyAction = "saving"
+    turboKeyNotice = ""
+    try {
+      const state = await window.nogirem.setTurboKeySetting(!turboKeyEnabled)
+      turboKeyEnabled = Boolean(state.enabled)
+      turboKeyRunning = Boolean(state.running)
+      turboKeyNotice = turboKeyEnabled
+        ? "마비노기가 전면에 있을 때 마지막으로 누른 키를 반복합니다"
+        : "터보 키를 사용하지 않습니다"
+    } catch (error) {
+      turboKeyNotice = messageOf(error)
+    } finally {
+      turboKeyAction = null
+    }
+  }
+
+  async function syncTurboKeySetting() {
+    if (!turboKeySettingLoaded || turboKeyAction) return
+    try {
+      const state = await window.nogirem.getTurboKeySetting()
+      turboKeyEnabled = Boolean(state.enabled)
+      turboKeyRunning = Boolean(state.running)
+      if (state.reason) turboKeyNotice = state.reason
+    } catch {
+    }
+  }
+
   function guideTextForStatus(statusText) {
     if (statusText === "실시간 부스트중") {
       return "마비노기를 위해 모든 프로세스를 최적화 하고 있습니다"
     }
-    if (statusText === "부스트 대기중") return "마비노기 클라이언트를 찾고 있습니다"
+    if (statusText === "부스트 대기중") return "마비노기 클라이언트를 기다리고 있습니다"
     return "적용된 부스트 설정은 여전히 남아있습니다"
   }
 
@@ -951,6 +985,18 @@
       .finally(() => {
         startupTraySettingLoaded = true
       })
+    void window.nogirem.getTurboKeySetting()
+      .then(state => {
+        turboKeyEnabled = Boolean(state.enabled)
+        turboKeyRunning = Boolean(state.running)
+        if (state.reason) turboKeyNotice = state.reason
+      })
+      .catch(error => {
+        turboKeyNotice = messageOf(error)
+      })
+      .finally(() => {
+        turboKeySettingLoaded = true
+      })
     void window.nogirem.getLaunchContext()
       .catch(() => ({ startupTray: false }))
       .then(launchContext => loadAll().finally(() => {
@@ -971,8 +1017,12 @@
       void syncAffinityRuntime()
       void syncMemoryRuntime()
     }, 500)
+    const turboKeyTimer = window.setInterval(() => {
+      void syncTurboKeySetting()
+    }, 1000)
     return () => {
       window.clearInterval(timer)
+      window.clearInterval(turboKeyTimer)
       window.clearTimeout(startupIdentityTimer)
       window.clearTimeout(leftTopContentTimer)
       window.clearTimeout(creatorNavigationTimer)
@@ -1541,6 +1591,30 @@
                   </div>
                   {#if startupTrayNotice}
                     <span class="developer-tool-status">{startupTrayNotice}</span>
+                  {/if}
+                  <div class="developer-tool-row">
+                    <div>
+                      <h2>터보 키</h2>
+                      <p>마비노기에서 마지막으로 누른 키를 대기 후 초당 30회 반복합니다</p>
+                    </div>
+                    <button
+                      class:active={turboKeyEnabled}
+                      disabled={!turboKeySettingLoaded || turboKeyAction}
+                      aria-pressed={turboKeyEnabled}
+                      onclick={toggleTurboKey}
+                    >
+                      {turboKeyAction === "saving"
+                        ? "저장 중…"
+                        : (turboKeyEnabled
+                          ? (turboKeyRunning ? "사용 중" : "실행 오류")
+                          : "사용 안 함")}
+                    </button>
+                  </div>
+                  <span class="developer-tool-status">
+                    반복 입력 도구는 게임 운영정책에 따라 이용 제한 대상이 될 수 있습니다
+                  </span>
+                  {#if turboKeyNotice}
+                    <span class="developer-tool-status">{turboKeyNotice}</span>
                   {/if}
                   <div class="developer-tool-row">
                     <div>

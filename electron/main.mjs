@@ -100,6 +100,7 @@ let activeMabinogiExecutablePath = config.gameExecutable
 let gamePathStateMonitor = null
 let gamePathStateReading = false
 let creatorChannelProfilePromise = null
+let turboKeyProcess = null
 const dxvkReleaseCacheDurationMs = 6 * 60 * 1000
 
 const instanceDirectory = join(app.getPath("userData"), "instance")
@@ -107,6 +108,22 @@ const primaryInstancePath = join(instanceDirectory, "primary.json")
 const focusRequestPath = join(instanceDirectory, "focus-request.json")
 const focusAcknowledgementPath = join(instanceDirectory, "focus-acknowledgement.json")
 const installerCloseRequestPath = join(instanceDirectory, "installer-close-request")
+
+function getTurboKeyPaths() {
+  const directory = join(app.getPath("userData"), "turbo-key")
+  return {
+    settingsPath: join(directory, "settings.json"),
+    statusPath: join(directory, "status.json"),
+    controlPath: join(directory, "control.json"),
+  }
+}
+
+function getTurboKeyExecutablePath() {
+  const nativeRoot = app.isPackaged
+    ? root.replace(/app\.asar$/i, "app.asar.unpacked")
+    : root
+  return join(nativeRoot, "native", "turbo-key", "bin", "turbo-key-helper.exe")
+}
 
 function serializeError(error) {
   return {
@@ -217,6 +234,7 @@ async function installDownloadedApplicationUpdate() {
   const results = await Promise.allSettled([
     stopAffinityHelper(),
     stopMemoryHelper(),
+    stopTurboKeyHelper(),
   ])
   for (const result of results) {
     if (result.status === "rejected") console.error(result.reason)
@@ -1188,6 +1206,156 @@ async function setStartupTraySetting(enabled) {
   return state
 }
 
+async function getTurboKeySetting() {
+  const paths = getTurboKeyPaths()
+  const [settings, status] = await Promise.all([
+    readJson(paths.settingsPath),
+    readJson(paths.statusPath),
+  ])
+  const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 3000
+  const enabled = Boolean(settings?.enabled)
+  const running = Boolean(
+    turboKeyProcess
+    && turboKeyProcess.exitCode === null
+    && status?.running
+    && statusFresh,
+  )
+  return {
+    enabled,
+    running,
+    repeatHz: 30,
+    gameOnly: true,
+    reason: status?.error
+      ?? (enabled && !running ? "터보 키 프로세스가 실행 중이 아닙니다" : null),
+  }
+}
+
+async function waitForTurboKeyStatus(predicate, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs
+  const { statusPath } = getTurboKeyPaths()
+  while (Date.now() < deadline) {
+    const status = await readJson(statusPath)
+    if (predicate(status)) return status
+    await delay(50)
+  }
+  return null
+}
+
+function waitForTurboKeyProcessExit(child, timeoutMs) {
+  if (!child || child.exitCode !== null) return Promise.resolve(true)
+  return new Promise(resolve => {
+    const timer = setTimeout(() => {
+      child.removeListener("exit", onExit)
+      resolve(false)
+    }, timeoutMs)
+    const onExit = () => {
+      clearTimeout(timer)
+      resolve(true)
+    }
+    child.once("exit", onExit)
+  })
+}
+
+async function launchTurboKeyHelper() {
+  if (turboKeyProcess && turboKeyProcess.exitCode === null) {
+    return getTurboKeySetting()
+  }
+  const executablePath = getTurboKeyExecutablePath()
+  if (!existsSync(executablePath)) {
+    throw new Error("터보 키 실행 파일을 찾지 못했습니다")
+  }
+  const paths = getTurboKeyPaths()
+  await mkdir(dirname(paths.statusPath), { recursive: true })
+  await Promise.all([
+    unlink(paths.statusPath).catch(() => {}),
+    unlink(paths.controlPath).catch(() => {}),
+  ])
+  const child = spawn(executablePath, [
+    `--status-path=${paths.statusPath}`,
+    `--control-path=${paths.controlPath}`,
+    `--parent-pid=${process.pid}`,
+  ], {
+    windowsHide: true,
+    stdio: "ignore",
+  })
+  turboKeyProcess = child
+  let spawnError = null
+  child.once("error", error => {
+    spawnError = error
+  })
+  child.once("exit", () => {
+    if (turboKeyProcess === child) turboKeyProcess = null
+  })
+  const status = await waitForTurboKeyStatus(
+    value => value?.running || value?.error || spawnError || child.exitCode !== null,
+  )
+  if (!status?.running) {
+    try {
+      if (child.pid && child.exitCode === null) child.kill()
+    } catch {
+    }
+    await waitForTurboKeyProcessExit(child, 1000)
+    if (turboKeyProcess === child) turboKeyProcess = null
+    throw new Error(
+      status?.error
+      ?? spawnError?.message
+      ?? "터보 키 실행을 확인하지 못했습니다",
+    )
+  }
+  return getTurboKeySetting()
+}
+
+async function stopTurboKeyHelper() {
+  const paths = getTurboKeyPaths()
+  const child = turboKeyProcess
+  if (!child || child.exitCode !== null) {
+    turboKeyProcess = null
+    return getTurboKeySetting()
+  }
+  await writeJsonAtomic(paths.controlPath, {
+    command: "stop",
+    requestedAt: Date.now(),
+  })
+  await waitForTurboKeyStatus(value => value?.running === false, 2000)
+  let exited = await waitForTurboKeyProcessExit(child, 1000)
+  if (!exited) {
+    child.kill()
+    exited = await waitForTurboKeyProcessExit(child, 500)
+  }
+  if (!exited) throw new Error("터보 키 프로세스를 종료하지 못했습니다")
+  if (turboKeyProcess === child) turboKeyProcess = null
+  return getTurboKeySetting()
+}
+
+async function setTurboKeySetting(enabled) {
+  const paths = getTurboKeyPaths()
+  if (enabled) {
+    await launchTurboKeyHelper()
+    try {
+      await writeJsonAtomic(paths.settingsPath, {
+        enabled: true,
+        updatedAt: Date.now(),
+      })
+    } catch (error) {
+      await stopTurboKeyHelper().catch(() => {})
+      throw error
+    }
+  } else {
+    await stopTurboKeyHelper()
+    await writeJsonAtomic(paths.settingsPath, {
+      enabled: false,
+      updatedAt: Date.now(),
+    })
+  }
+  return getTurboKeySetting()
+}
+
+async function ensureTurboKeyStarted() {
+  const settings = await readJson(getTurboKeyPaths().settingsPath)
+  if (!settings?.enabled) return
+  await launchTurboKeyHelper()
+}
+
 async function launchMemoryHelper({ purgeOnStart = false } = {}) {
   const paths = getMemoryPaths()
   await mkdir(dirname(paths.statusPath), { recursive: true })
@@ -1539,6 +1707,7 @@ async function finishApplicationExitWithoutAppliedBoost() {
       requestedAt,
       reason: "application-exit-without-applied-boost",
     }),
+    stopTurboKeyHelper(),
   ])
   for (const result of results) {
     if (result.status === "rejected") console.error(result.reason)
@@ -1562,6 +1731,7 @@ async function finishApplicationExit(action) {
   const results = await Promise.allSettled([
     action === "reset" ? resetAllAffinities() : stopAffinityHelper(),
     stopMemoryHelper(),
+    stopTurboKeyHelper(),
   ])
   for (const result of results) {
     if (result.status === "rejected") console.error(result.reason)
@@ -1928,6 +2098,19 @@ function registerIpc() {
     }
     if (typeof enabled !== "boolean") throw new Error("시작 설정 값이 올바르지 않습니다")
     return setStartupTraySetting(enabled)
+  })
+  ipcMain.handle("application:get-turbo-key-setting", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 터보 키 설정 요청입니다")
+    }
+    return getTurboKeySetting()
+  })
+  ipcMain.handle("application:set-turbo-key-setting", (event, enabled) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 터보 키 설정 변경 요청입니다")
+    }
+    if (typeof enabled !== "boolean") throw new Error("터보 키 설정 값이 올바르지 않습니다")
+    return setTurboKeySetting(enabled)
   })
   ipcMain.handle("application:get-visual-activity", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
@@ -2621,6 +2804,9 @@ async function startApplication() {
   startMabinogiPathStateMonitor()
   frameBoostStartupPromise = ensureFrameBoostStarted().catch(error => {
     console.error("앱 시작 프레임 부스트 자동 실행 실패", error)
+  })
+  await ensureTurboKeyStarted().catch(error => {
+    console.error("터보 키 자동 실행 실패", error)
   })
   if (startupTrayLaunch) ensureApplicationTray()
   createWindow()

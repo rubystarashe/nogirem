@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 02:55
+Last Updated: 2026-09-06 03:11
 
 ## Current Objective
-부스트 대기 상태의 시각적 구분과 상태 전환 연출을 개선한다.
+고급 기능에 마비노기 전용 Rust 터보 키를 안전하게 통합한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -11,6 +11,7 @@ Last Updated: 2026-09-06 02:55
 - 마비노기는 P-core 물리 코어의 절반을 사용하며 홀수이면 게임 측을 올림한다. 백그라운드는 나머지 P-core와 모든 E-core를 사용한다.
 - P/E 구분이 없는 CPU도 물리 코어 단위로 절반을 나누고 SMT sibling 전체를 같은 마스크에 유지한다.
 - 앱과 잠금 파일의 현재 버전 문자열은 0.2.0이며 `VERSION_HISTORY.md`에 0.1.4 이후 사용자 체감 변경을 기록했다.
+- 고급 기능에 기본 비활성화 상태의 터보 키 토글을 추가했다. 마비노기 `Client.exe`가 전면 창일 때만 Windows 키 반복 대기 후 마지막 일반 키 1개를 30Hz로 반복한다.
 - 설치본의 고급 기능에서 `Windows 시작 시 트레이 실행`을 켜고 끌 수 있다.
 - 자동 실행은 현재 사용자 로그온 예약 작업과 `--startup-tray` 인자를 사용하며 시작 창·OST 없이 트레이와 프레임 부스트를 준비한다.
 - 0.2.0 Windows x64 원클릭 NSIS 설치 파일, blockmap과 `latest.yml`을 GitHub 정식 Release로 배포했다.
@@ -127,6 +128,10 @@ Last Updated: 2026-09-06 02:55
 - 프로덕션 빌드, Electron 구문 검사, 전체 테스트 20개와 편집기 린트가 통과했다.
 
 ## Architecture / Important Decisions
+- `native/turbo-key` Rust helper가 `WH_KEYBOARD_LL`로 물리 키를 추적하고 `SendInput`으로 down/up pulse를 보낸다. 주입 이벤트와 Windows 자동 반복은 다시 처리하지 않는다.
+- Shift/Ctrl/Alt/Win 및 잠금·시스템 키는 제외하며 modifier 입력, 게임 포커스 상실, 부모 앱 종료 시 즉시 반복을 중단한다.
+- helper는 시작 즉시 상속된 CPU 마스크를 시스템 전체 마스크로 복구하고 `turbo-key-helper.exe`도 Affinity 제외 목록에 둔다.
+- Electron은 `%APPDATA%/마비노기 렘 부스터/turbo-key`의 settings/status/control JSON으로 설정과 생명주기를 관리하며 트레이 자동 시작과 업데이트 종료에도 동일하게 적용한다.
 - affinity 모듈이 CPU 마스크 계산, 프로세스 탐색, 적용·복구, 상태 저장을 소유한다.
 - 가장 높은 `EfficiencyClass`를 P-core 계층으로 취급하고 그보다 낮은 계층은 모두 백그라운드 마스크에 포함한다.
 - CPU 재정렬은 두 P-core 절반만 교환하며 E-core는 항상 백그라운드 쪽에 유지한다.
@@ -256,8 +261,11 @@ Last Updated: 2026-09-06 02:55
 13. Intel 하이브리드 CPU에서 실제 P/E 코어 번호와 적용 마스크를 수동 검증한다.
 14. 0.1.5 설치본에서 시작 트레이 옵션 등록·재로그인·열기·해제를 수동 검증한다.
 15. 최신 메인 프로세스로 앱을 재시작하고 부스트 대기 상태에서 종료 확인 모달이 생략되는지 확인한다.
+16. 마비노기 전면 창에서 터보 키의 실제 스킬 반복, modifier 취소, 포커스 상실 중단을 수동 검증한다.
 
 ## Known Issues
+- 터보 키의 hook·주입·종료·CPU 마스크 복구는 독립 helper로 검증했지만 실제 마비노기와 BlackCipher 환경에서의 입력 수용 여부는 수동 검증이 필요하다.
+- 반복 입력 도구는 마비노기 운영정책에 따라 계정 이용 제한 위험이 있으므로 기본 비활성화와 UI 경고를 유지한다.
 - `runtime-state.json`을 직접 덮어써 동시 읽기 시 일시적으로 불완전한 JSON이 노출될 수 있다.
 - 복구 실패 여부와 관계없이 상태 파일을 삭제하는 기존 동작이 남아 있다.
 - 실행 중인 기존 인스턴스와 동시에 드라이런했을 때 상태 파일 파싱 오류가 재현됐다.
@@ -300,6 +308,7 @@ Last Updated: 2026-09-06 02:55
 - `src/radeon.mjs`: ADLX helper 실행, Radeon 상태 정규화와 적용 검증
 - `src/game-graphics.mjs`: 공통 마비노기 내부 수직 동기화 조회·적용
 - `native/radeon-helper`: AMD ADLX 전역 설정용 격리 x64 실행 파일과 빌드 정의
+- `native/turbo-key`: 마비노기 전면 창 전용 키 반복 Rust helper와 고정 MSVC 도구 체인
 - `third_party/adlx`: 공식 AMD ADLX SDK 및 라이선스
 - `src/nic.mjs`: 주 NIC RSS CPU 범위 진단·적용·원본 복원
 - `test/network.test.mjs`: 패스트핑과 TCP 자동 조정 판정, 적용 및 사후 검증 테스트
@@ -873,5 +882,9 @@ Last Updated: 2026-09-06 02:55
 - 시작 마지막 파형의 Canvas 로고가 원본 로고를 숨긴 동안 대기 불투명도 전환이 소진되던 문제를 수정했다. 원본 로고가 다시 표시되는 순간 70%에서 40%로 600ms 전환되며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - `부스트 대기중` 문구의 40% 불투명도 적용 조건을 원본 로고 표시 조건과 통일해 두 요소가 같은 시점에 600ms 전환되도록 했다. 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 
+- Rust helper에 Windows 키 반복 대기 시간, 마지막 키 30Hz pulse, modifier·포커스 안전 중단, 자체 주입 재귀 방지, 부모 종료 감시와 전체 CPU 마스크 복구를 구현했다. Rust 테스트 7개, Node 테스트 57개, clippy, 웹 빌드, helper 시작·정지·부모 종료와 CPU 마스크 복구 검증이 통과했다.
+- Electron IPC·AppData 설정·상태 polling·정상 종료·업데이트 종료·트레이 자동 시작에 helper를 연결하고 고급 기능 토글 및 운영정책 경고를 추가했다.
+- Cargo 빌드 스크립트, 고정 `x86_64-pc-windows-msvc` 1.98.1 도구 체인, electron-builder 포함·asarUnpack, 설치기 stop 요청과 Affinity 예외를 추가했다. 패키징과 배포는 진행하지 않았다.
+
 ## Next Recommended Step
-실행 앱에서 대기 상태의 40% 불투명도, 안내 문구 점멸과 게임 감지 시 600ms 전환을 확인한다.
+실행 앱에서 대기 상태 시각 연출을 확인하고, 최신 메인 프로세스로 재시작한 뒤 마비노기 전면 창에서 터보 키의 실제 스킬 반복과 안전 중단 동작을 수동 검증한다.

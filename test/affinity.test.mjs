@@ -136,6 +136,7 @@ test("입력 장치와 매크로 엔진은 affinity 조정 대상에서 제외�
     "AutoHotkeyU64.exe",
     "AutoHotkey64_UIA.exe",
     "StreamDeck.exe",
+    "turbo-key-helper.exe",
   ]
 
   for (const name of inputEngineNames) {

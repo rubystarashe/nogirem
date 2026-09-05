@@ -7,3 +7,4 @@ builder-effective-config.yaml
 runtime-state.json
 npm-debug.log*
 native/radeon-helper/build/
+native/turbo-key/target/
