@@ -8,6 +8,7 @@ import { promisify } from "node:util"
 import { fileURLToPath } from "node:url"
 import { randomUUID } from "node:crypto"
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron"
+import updaterPackage from "electron-updater"
 import {
   ensureFastPingForPrimaryInterface,
   ensureTcpAutoTuningNormal,
@@ -31,6 +32,7 @@ import {
 import { getLatestMuoStatus } from "../src/muo-status.mjs"
 import { getYouTubeChannelProfile } from "../src/youtube-channel.mjs"
 
+const { autoUpdater } = updaterPackage
 const execFileAsync = promisify(execFile)
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const preloadPath = join(root, "electron", "preload.cjs")
@@ -78,6 +80,16 @@ let dxvkReleasesCheckedAt = 0
 let dxvkReleasesCheckPromise = null
 let dxvkReleasesCacheError = null
 let dxvkRuntimeRefreshTimer = null
+let applicationUpdateStartupTimer = null
+let applicationUpdateCheckTimer = null
+let applicationUpdateCheckPromise = null
+let applicationUpdaterConfigured = false
+let applicationUpdateState = {
+  phase: "idle",
+  percent: 0,
+  version: null,
+  error: null,
+}
 let creatorChannelProfilePromise = null
 const dxvkReleaseCacheDurationMs = 6 * 60 * 1000
 
@@ -91,6 +103,113 @@ function serializeError(error) {
     name: error?.name ?? "Error",
     message: error?.message ?? String(error),
   }
+}
+
+function notifyApplicationUpdateState() {
+  if (
+    !primaryWindow
+    || primaryWindow.isDestroyed()
+    || primaryWindow.webContents.isDestroyed()
+  ) return
+  primaryWindow.webContents.send("application:update-state-changed", applicationUpdateState)
+}
+
+function setApplicationUpdateState(nextState) {
+  applicationUpdateState = {
+    ...applicationUpdateState,
+    ...nextState,
+  }
+  notifyApplicationUpdateState()
+}
+
+function configureApplicationUpdater() {
+  if (applicationUpdaterConfigured || !app.isPackaged) return
+  applicationUpdaterConfigured = true
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = false
+
+  autoUpdater.on("checking-for-update", () => {
+    setApplicationUpdateState({
+      phase: "checking",
+      percent: 0,
+      error: null,
+    })
+  })
+  autoUpdater.on("update-available", info => {
+    setApplicationUpdateState({
+      phase: "downloading",
+      percent: 0,
+      version: info?.version ?? null,
+      error: null,
+    })
+  })
+  autoUpdater.on("update-not-available", () => {
+    setApplicationUpdateState({
+      phase: "idle",
+      percent: 0,
+      version: null,
+      error: null,
+    })
+  })
+  autoUpdater.on("download-progress", progress => {
+    const percent = Math.max(0, Math.min(100, Number(progress?.percent) || 0))
+    setApplicationUpdateState({
+      phase: "downloading",
+      percent,
+      error: null,
+    })
+  })
+  autoUpdater.on("update-downloaded", info => {
+    setApplicationUpdateState({
+      phase: "downloaded",
+      percent: 100,
+      version: info?.version ?? applicationUpdateState.version,
+      error: null,
+    })
+  })
+  autoUpdater.on("error", error => {
+    console.error("앱 업데이트 확인 실패", error)
+    setApplicationUpdateState({
+      phase: "error",
+      percent: 0,
+      error: serializeError(error),
+    })
+  })
+}
+
+async function checkForApplicationUpdate() {
+  if (!app.isPackaged) return applicationUpdateState
+  if (applicationUpdateCheckPromise) return applicationUpdateCheckPromise
+  configureApplicationUpdater()
+  applicationUpdateCheckPromise = autoUpdater.checkForUpdates()
+    .then(() => applicationUpdateState)
+    .catch(error => {
+      setApplicationUpdateState({
+        phase: "error",
+        percent: 0,
+        error: serializeError(error),
+      })
+      return applicationUpdateState
+    })
+    .finally(() => {
+      applicationUpdateCheckPromise = null
+    })
+  return applicationUpdateCheckPromise
+}
+
+async function installDownloadedApplicationUpdate() {
+  if (!app.isPackaged || applicationUpdateState.phase !== "downloaded") return false
+  applicationExitInProgress = true
+  closeRequestPending = false
+  const results = await Promise.allSettled([
+    stopAffinityHelper(),
+    stopMemoryHelper(),
+  ])
+  for (const result of results) {
+    if (result.status === "rejected") console.error(result.reason)
+  }
+  autoUpdater.quitAndInstall(false, true)
+  return true
 }
 
 function argumentValue(name) {
@@ -1554,6 +1673,18 @@ function registerIpc() {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
     return isPrimaryWindowVisuallyActive()
   })
+  ipcMain.handle("application:get-update-state", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 업데이트 상태 요청입니다")
+    }
+    return applicationUpdateState
+  })
+  ipcMain.handle("application:install-update", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 업데이트 설치 요청입니다")
+    }
+    return installDownloadedApplicationUpdate()
+  })
   ipcMain.handle("application:request-close", () => requestApplicationExitConfirmation())
   ipcMain.handle("application:open-character-guide", () => {
     openCharacterSimplificationGuide()
@@ -2155,6 +2286,7 @@ function createWindow() {
 async function startApplication() {
   registerIpc()
   await app.whenReady()
+  configureApplicationUpdater()
   await loadCachedDxvkReleases().catch(() => {})
   await loadCachedDxvkRuntimeStatus().catch(error => {
     dxvkRuntimeStatus = {
@@ -2170,6 +2302,15 @@ async function startApplication() {
     console.error("앱 시작 프레임 부스트 자동 실행 실패", error)
   })
   createWindow()
+  if (app.isPackaged) {
+    applicationUpdateStartupTimer = setTimeout(() => {
+      applicationUpdateStartupTimer = null
+      void checkForApplicationUpdate()
+    }, 3000)
+    applicationUpdateCheckTimer = setInterval(() => {
+      void checkForApplicationUpdate()
+    }, 4 * 60 * 60 * 1000)
+  }
 
   app.on("before-quit", event => {
     if (applicationExitInProgress) return
@@ -2183,6 +2324,10 @@ async function startApplication() {
   })
   app.on("window-all-closed", () => app.quit())
   app.on("will-quit", () => {
+    clearTimeout(applicationUpdateStartupTimer)
+    applicationUpdateStartupTimer = null
+    clearInterval(applicationUpdateCheckTimer)
+    applicationUpdateCheckTimer = null
     clearTimeout(dxvkRuntimeRefreshTimer)
     dxvkRuntimeRefreshTimer = null
     clearInterval(focusRequestMonitor)

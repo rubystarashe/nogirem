@@ -45,6 +45,13 @@
   let interfaceVisible = false
   let documentVisible = true
   let windowVisuallyActive = false
+  let applicationUpdateState = {
+    phase: "idle",
+    percent: 0,
+    version: null,
+    error: null,
+  }
+  let applicationUpdateInstalling = false
   let pageVisible = true
   let spinnerAnimationVisible = true
   let spinnerFinishTimer
@@ -857,13 +864,32 @@
     }
   }
 
+  async function installApplicationUpdate() {
+    if (applicationUpdateInstalling) return
+    applicationUpdateInstalling = true
+    try {
+      const started = await window.nogirem.installUpdate()
+      if (!started) applicationUpdateInstalling = false
+    } catch {
+      applicationUpdateInstalling = false
+    }
+  }
+
   onMount(() => {
     document.addEventListener("visibilitychange", syncPageVisibility)
     const removeVisualActivityListener = window.nogirem.onVisualActivityChanged(
       setWindowVisualActivity,
     )
+    const removeUpdateStateListener = window.nogirem.onUpdateStateChanged(state => {
+      applicationUpdateState = state
+    })
     syncPageVisibility()
     void window.nogirem.getVisualActivity().then(setWindowVisualActivity)
+    void window.nogirem.getUpdateState()
+      .then(state => {
+        applicationUpdateState = state
+      })
+      .catch(() => {})
     void window.nogirem.getCreatorPromptDismissed()
       .then(dismissed => {
         creatorPromptDismissed = Boolean(dismissed)
@@ -899,6 +925,7 @@
       stopCreatorScroll()
       document.removeEventListener("visibilitychange", syncPageVisibility)
       removeVisualActivityListener()
+      removeUpdateStateListener()
       removeCloseListener()
     }
   })
@@ -2013,4 +2040,11 @@
   </Modal>
 {/if}
 
-<UpdatePreviewModal active={windowVisuallyActive} />
+{#if applicationUpdateState.phase === "downloading" || applicationUpdateState.phase === "downloaded"}
+  <UpdatePreviewModal
+    progress={applicationUpdateState.percent}
+    downloaded={applicationUpdateState.phase === "downloaded"}
+    installing={applicationUpdateInstalling}
+    onInstall={installApplicationUpdate}
+  />
+{/if}

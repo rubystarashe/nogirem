@@ -171,3 +171,14 @@ CPU 0~7, 프로세서 그룹 0의 `ClosestStatic` 프로필로 설정합니다.
 설정은 `config.json`에서 바꿀 수 있습니다. 접근할 수 없는 프로세스는 건너뜁니다.
 
 적용 중에는 `runtime-state.json`에 PID·시작 시각·원래 마스크를 기록합니다. 비정상 종료 후 다음 실행에서도 PID와 시작 시각이 모두 일치할 때만 원복합니다.
+
+## 앱 자동 업데이트 배포
+
+`package.json`의 버전을 올린 뒤 `npm run package:win`을 실행합니다. 생성된
+`release/latest.yml`, `release/nogirem-setup-<version>.exe`,
+`release/nogirem-setup-<version>.exe.blockmap` 세 파일을
+`rubystarashe/nogirem`의 새 GitHub 정식 Release에 모두 첨부합니다.
+
+패키징된 앱은 시작 3초 후와 실행 중 4시간마다 최신 정식 Release를 확인합니다.
+새 버전은 자동 다운로드되며 완료 후 화면의 `새 버전 설치` 버튼으로 설치합니다.
+개발 모드에서는 자동 업데이트를 확인하지 않습니다.

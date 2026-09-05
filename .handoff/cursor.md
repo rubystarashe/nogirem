@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-05 15:59
+Last Updated: 2026-09-05 16:03
 
 ## Current Objective
-강제 업데이트 화면의 시각 디자인을 상시 노출 상태로 다시 검토한다.
+GitHub Releases 기반 앱 자동 업데이트를 실제 다운로드·설치 흐름에 연결한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -28,8 +28,8 @@ Last Updated: 2026-09-05 15:59
 - 현재 package 버전 숫자는 시작·홈·설정·소개 화면 모두에서 앱 좌측 하단에 9px 글씨로 항상 표시한다.
 - 시작 음악의 `playing` 이벤트가 발생하면 추가 1초 대기 없이 창을 즉시 표시하고 1초 opacity fade-in을 시작한다.
 - 이전의 숨은 1초 진행 상태는 음악 시작 cue와 연출 타임라인을 1초 앞으로 옮겨 보존하며, 볼륨은 실제 재생 시작 즉시 0%에서 2초 동안 최대 20%까지 상승한다.
-- 디자인 검토용 업데이트 오버레이를 `App.svelte`에 상시 마운트하고 창 활성화 후 진행률을 15초 동안 0부터 100까지 올려 화면과 입력을 가린다.
-- 업데이트 미리보기는 좌측 상단에 `새 버전을 가져오고 있습니다`를 표시하고 좌우 여백 없는 하단 진행선과 우측 숫자를 제공한다. 100 도달 즉시 진행선과 숫자를 제거하고 `업데이트 설치` 버튼만 노출한다.
+- GitHub `rubystarashe/nogirem` 정식 Release를 앱 시작 3초 후와 4시간마다 확인하고, 새 버전이 있을 때만 다운로드 오버레이로 화면과 입력을 가린다.
+- 실제 다운로드 진행률을 모달의 숫자와 막대에 반영하고 다운로드 완료 시 `새 버전 설치` 버튼을 표시한다. 설치 요청 시 Affinity·메모리 helper를 정상 종료한 뒤 NSIS 업데이트를 실행한다.
 - 중앙 상단 아래 화살표를 누르면 소개 화면이 내려가고 기존 홈이 위에서 복귀한다.
 - 소개 화면에서는 창 드래그 영역을 좌우로 분리해 중앙 상단 복귀 버튼 전체가 클릭된다.
 - `[류트@렘] 제작` 표시는 소개 화면에서도 우측 하단에 유지되며 다시 누르면 기존 화면으로 복귀한다.
@@ -226,6 +226,7 @@ Last Updated: 2026-09-05 15:59
 9. 앱 실행 중 `npm run app`을 다시 실행해 새 창 없이 기존 창이 포커스되는지 확인한다.
 10. `실시간 부스트중` 문구를 눌러 대형 파동과 일시정지·재개 상태 전환을 확인한다.
 11. 마비노기 실행·실시간 부스트 상태에서 CPU 재정렬의 3초 역전과 정상 복귀를 수동 확인한다.
+12. GitHub Release에 더 높은 버전의 `latest.yml`, `nogirem-setup-<version>.exe`, `.blockmap`을 올려 실제 자동 다운로드와 설치를 검증한다.
 
 ## Known Issues
 - `runtime-state.json`을 직접 덮어써 동시 읽기 시 일시적으로 불완전한 JSON이 노출될 수 있다.
@@ -256,6 +257,7 @@ Last Updated: 2026-09-05 15:59
 - 고정 640×290 창에서는 기존 대시보드 전체 내용이 세로 스크롤로 표시된다.
 - 시작 음악은 Electron의 미디어 자동재생 정책이나 오디오 장치 상태에 따라 재생이 거부될 수 있다.
 - 프레임리스 창에는 시스템 최소화 버튼이 없으며 현재 커스텀 UI는 닫기만 제공한다.
+- 앱 자동 업데이트는 패키징된 앱에서만 동작하며 GitHub Release에 설치 파일·blockmap·`latest.yml` 세 자산이 모두 있어야 한다.
 
 ## Key Files
 - `src/index.mjs`: CLI와 전체 실행 흐름
@@ -273,12 +275,12 @@ Last Updated: 2026-09-05 15:59
 - `test/nic.test.mjs`: NIC RSS 계획, 드라이런, 적용과 복원 테스트
 - `config.json`: 게임 판별, 제외 목록, 폴링 및 메모리 임계치
 - `runtime-state.json`: 실행 중 affinity 원본 상태
-- `electron/main.mjs`: 창 생성, 상태·적용 IPC, Affinity·메모리 helper 생명주기
-- `electron/preload.cjs`: 격리된 렌더러에 허용된 최적화 API만 노출
-- `web/App.svelte`: Affinity·NIC, NVIDIA, 네트워크, 메모리 상태와 최적화 버튼
+- `electron/main.mjs`: 창 생성, 상태·적용 IPC, helper 생명주기와 GitHub Release 자동 업데이트
+- `electron/preload.cjs`: 격리된 렌더러에 허용된 최적화·업데이트 API만 노출
+- `web/App.svelte`: 최적화 UI와 실제 앱 업데이트 상태 연결
 - `web/GameWave.svelte`: 게임 감지 전환 시 OST와 Canvas 파동 효과 재생
 - `web/styles.css`: 데스크톱 최적화 화면 스타일
-- `web/UpdatePreviewModal.svelte`: 실제 업데이트 로직 없이 항상 표시되는 다운로드·설치 화면 디자인 미리보기
+- `web/UpdatePreviewModal.svelte`: 실제 다운로드 진행률과 설치 요청을 표시하는 강제 업데이트 오버레이
 - `VERSION_HISTORY.md`: 소개 화면의 버전별 변경 기록 원본
 - `INTRODUCE.md`: 안녕하세요 탭의 개발자 소개 Markdown 원본
 - `OPERATION.md`: 작동 원리 탭의 Markdown 원본
@@ -757,6 +759,9 @@ Last Updated: 2026-09-05 15:59
 - 업데이트 완료 문구를 `새 버전 다운로드 완료됨`, 설치 버튼을 `새 버전 설치`로 변경했다. 설치 버튼은 가로·세로와 글자를 1.5배 확대하고 hover 시 흰 배경·검정 글자에서 투명 배경·흰 글자로 부드럽게 전환한다.
 - 진행률 숫자와 막대의 0.8 불투명도를 제거해 원래의 완전 불투명 상태로 복원하고, `새 버전 설치` 버튼의 좌우 패딩을 23px에서 18px로 줄였다.
 - 일반 권한 실행 프로세스가 단일 인스턴스 잠금을 잡은 상태에서 관리자 프로세스를 띄워 `process_singleton_win.cc` 오류 코드 32로 종료되던 경쟁 상태를 수정했다. 기존 실행 창 포커스 확인과 관리자 권한 재실행을 잠금 획득 전에 수행하고, 관리자 프로세스만 Electron 단일 인스턴스 잠금을 획득한다.
+- 디자인 검토용 가상 업데이트 진행과 상시 모달을 제거하고 `electron-updater`를 GitHub `rubystarashe/nogirem` 정식 Release에 연결했다. 패키징 앱은 시작 3초 후와 4시간마다 업데이트를 확인하고 실제 다운로드 진행률·완료 상태를 제한된 preload IPC로 UI에 전달한다.
+- 업데이트 설치 요청은 helper를 정상 종료한 뒤 `quitAndInstall`을 실행한다. 패키징 결과에는 GitHub Release용 `latest.yml`, `nogirem-setup-<version>.exe`, `.blockmap`을 함께 복사하며 설치 파일명과 메타데이터 URL이 일치하도록 고정했다.
+- 자동 테스트 40개, Electron 구문 검사, 프로덕션 웹 빌드, 편집기 린트와 Windows NSIS 패키징이 통과했다. 생성된 `app-update.yml`은 GitHub owner `rubystarashe`, repo `nogirem`, provider `github`를 정확히 포함한다.
 - 첫 소개 탭 이름을 `안녕하세요`로 바꾸고 메뉴와 구분선 사이 여백을 절반으로 줄였다. 구분선을 항상 보이는 3px 가상 스크롤 트랙으로 전환해 긴 본문의 위치가 반투명 thumb로 표시되도록 했으며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - `VERSION_HISTORY.md`를 추가하고 `0.0.2`, `0.0.1` 최초 기록을 작성했다. 소개 화면은 이 파일을 raw import로 불러와 버전 제목과 변경 목록으로 안전하게 렌더링하며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - 소개 메뉴와 가상 스크롤 구분선 사이의 실제 간격을 줄이기 위해 좌측 그리드 열을 168px에서 132px로 축소했다. 프로덕션 웹 빌드와 편집기 린트가 통과했다.
@@ -775,4 +780,4 @@ Last Updated: 2026-09-05 15:59
 - `roundedCorners: false`로 Windows 11 창 모서리를 직각으로 고정했다.
 
 ## Next Recommended Step
-상시 표시되는 업데이트 미리보기의 검은 영역과 다운로드·완료 상태 디자인을 사용자 피드백에 맞춰 조정한다.
+버전을 0.0.3 이상으로 올려 GitHub Release에 `latest.yml`, 같은 이름의 설치 파일과 blockmap을 게시한 뒤 0.0.2 설치본에서 실제 자동 업데이트를 검증한다.

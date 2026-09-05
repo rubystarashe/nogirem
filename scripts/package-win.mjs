@@ -8,7 +8,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const packageInfo = JSON.parse(await readFile(join(root, "package.json"), "utf8"))
 const temporaryOutput = join(tmpdir(), "nogirem-builder-output")
 const releaseOutput = join(root, "release")
-const installerName = `${packageInfo.productName} Setup ${packageInfo.version}.exe`
+const installerName = `nogirem-setup-${packageInfo.version}.exe`
 
 function run(command, arguments_) {
   return new Promise((resolve, reject) => {
@@ -44,6 +44,10 @@ await Promise.all([
   copyFile(
     join(temporaryOutput, `${installerName}.blockmap`),
     join(releaseOutput, `${installerName}.blockmap`),
+  ),
+  copyFile(
+    join(temporaryOutput, "latest.yml"),
+    join(releaseOutput, "latest.yml"),
   ),
 ])
 console.log(`패키징 완료: ${join(releaseOutput, installerName)}`)

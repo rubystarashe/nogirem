@@ -1,55 +1,29 @@
 <script>
-  import { onMount } from "svelte"
+  export let progress = 0
+  export let downloaded = false
+  export let installing = false
+  export let onInstall = () => {}
 
-  export let active = false
-
-  let progress = 0
-  let mounted = false
-  let started = false
-  let frame
-
-  function startPreview() {
-    if (!mounted || started || !active) return
-
-    started = true
-    const startedAt = performance.now()
-    const duration = 15000
-
-    const updateProgress = now => {
-      progress = Math.min(100, Math.floor(((now - startedAt) / duration) * 100))
-      if (progress < 100) frame = requestAnimationFrame(updateProgress)
-    }
-
-    frame = requestAnimationFrame(updateProgress)
-  }
-
-  $: if (active && mounted) startPreview()
-
-  onMount(() => {
-    mounted = true
-    startPreview()
-
-    return () => {
-      if (frame) cancelAnimationFrame(frame)
-    }
-  })
+  $: visibleProgress = Math.max(0, Math.min(100, Number(progress) || 0))
 </script>
 
 <div class="update-preview-overlay" role="dialog" aria-modal="true" aria-label="업데이트">
   <section class="update-preview-panel">
     <h2>
-      {progress < 100 ? "새 버전을 가져오고 있습니다" : "새 버전 다운로드 완료됨"}
+      {downloaded ? "새 버전 다운로드 완료됨" : "새 버전을 가져오고 있습니다"}
     </h2>
 
-    {#if progress < 100}
+    {#if !downloaded}
       <div class="update-progress" aria-live="polite">
-        <span>{progress}</span>
+        <span>{Math.floor(visibleProgress)}</span>
         <div class="update-progress-track">
-          <div class="update-progress-value" style={`width: ${progress}%`}></div>
+          <div class="update-progress-value" style={`width: ${visibleProgress}%`}></div>
         </div>
       </div>
     {:else}
-      <button type="button" onclick={() => {}}>새 버전 설치</button>
+      <button type="button" disabled={installing} onclick={onInstall}>
+        {installing ? "설치 준비 중" : "새 버전 설치"}
+      </button>
     {/if}
   </section>
 </div>
@@ -108,6 +82,11 @@
     background-color: transparent;
   }
 
+  button:disabled {
+    cursor: wait;
+    opacity: 0.7;
+  }
+
   .update-progress {
     position: absolute;
     right: 0;
@@ -135,7 +114,7 @@
   .update-progress-value {
     height: 100%;
     background: #fff;
-    transition: width 80ms linear;
+    transition: width 300ms ease-out;
   }
 
   @keyframes install-button-in {
