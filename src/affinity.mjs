@@ -3,6 +3,7 @@ import { promisify } from "node:util"
 import { cpus } from "node:os"
 import { readFile, writeFile, unlink } from "node:fs/promises"
 import { basename } from "node:path"
+import { setTimeout as delay } from "node:timers/promises"
 import { DataType, PointerType, createPointer, freePointer, load, open, restorePointer } from "ffi-rs"
 
 const execFileAsync = promisify(execFile)
@@ -99,16 +100,27 @@ function setAffinity(pid, mask) {
 
 const normalizePath = value => value?.replaceAll("/", "\\").toLowerCase() ?? ""
 
+export function buildCpuHalfMasks(logicalCpuCount) {
+  if (logicalCpuCount < 4 || logicalCpuCount > 52 || logicalCpuCount % 2) {
+    throw new Error(`Unsupported logical CPU count: ${logicalCpuCount}; expected an even count from 4 to 52.`)
+  }
+  const half = logicalCpuCount / 2
+  const allMask = (1n << BigInt(logicalCpuCount)) - 1n
+  const lowerHalfMask = (1n << BigInt(half)) - 1n
+  return {
+    half,
+    allMask,
+    lowerHalfMask,
+    upperHalfMask: allMask ^ lowerHalfMask,
+  }
+}
+
 export function pinCurrentProcessToBackgroundCpus() {
   const logicalCpuCount = cpus().length
   if (process.platform !== "win32" || process.arch !== "x64") {
     throw new Error("Windows x64 only.")
   }
-  if (logicalCpuCount < 4 || logicalCpuCount > 52 || logicalCpuCount % 2) {
-    throw new Error(`Unsupported logical CPU count: ${logicalCpuCount}; expected an even count from 4 to 52.`)
-  }
-  const backgroundCpuCount = logicalCpuCount / 2
-  const backgroundMask = (1n << BigInt(backgroundCpuCount)) - 1n
+  const { half: backgroundCpuCount, lowerHalfMask: backgroundMask } = buildCpuHalfMasks(logicalCpuCount)
   setAffinity(process.pid, backgroundMask)
   return {
     mask: `0x${backgroundMask.toString(16)}`,
@@ -128,14 +140,12 @@ export async function createAffinityManager({
   const logicalCpuCount = cpus().length
 
   if (process.platform !== "win32" || process.arch !== "x64") throw new Error("Windows x64 only.")
-  if (logicalCpuCount < 4 || logicalCpuCount > 52 || logicalCpuCount % 2) {
-    throw new Error(`Unsupported logical CPU count: ${logicalCpuCount}; expected an even count from 4 to 52.`)
-  }
-
-  const half = logicalCpuCount / 2
-  const allMask = (1n << BigInt(logicalCpuCount)) - 1n
-  const lowerHalfMask = (1n << BigInt(half)) - 1n
-  const upperHalfMask = allMask ^ lowerHalfMask
+  const {
+    half,
+    allMask,
+    lowerHalfMask,
+    upperHalfMask,
+  } = buildCpuHalfMasks(logicalCpuCount)
   const gameMask = passiveMode
     ? null
     : (lastCoreMode ? 3n << BigInt(logicalCpuCount - 2) : upperHalfMask)
@@ -253,6 +263,76 @@ export async function createAffinityManager({
     const backgroundProcesses = processes.filter(isEligibleBackground)
     for (const backgroundProcess of backgroundProcesses) {
       await applyTo(backgroundProcess, backgroundMask, "background")
+    }
+  }
+
+  function forceAffinity(processes, mask) {
+    let changedCount = 0
+    let alreadyCount = 0
+    let skippedCount = 0
+
+    for (const processInfo of processes) {
+      try {
+        const currentMask = getAffinity(processInfo.pid)
+        if (currentMask === mask) {
+          alreadyCount++
+          continue
+        }
+        if (applyChanges) setAffinity(processInfo.pid, mask)
+        changedCount++
+      } catch (error) {
+        skippedCount++
+        if (!quiet) {
+          console.warn(`[reorder-skip] ${processInfo.name} PID=${processInfo.pid}: ${error.message}`)
+        }
+      }
+    }
+
+    return { changedCount, alreadyCount, skippedCount }
+  }
+
+  async function performCpuReorder() {
+    if (passiveMode || lastCoreMode) {
+      throw new Error("CPU 재정렬은 기본 절반 분할 모드에서만 사용할 수 있습니다")
+    }
+
+    const temporaryProcesses = await listProcesses()
+    const temporaryGames = temporaryProcesses.filter(isGame)
+    if (!temporaryGames.length) throw new Error("실행 중인 마비노기를 찾을 수 없습니다")
+
+    await applyToGameProcesses(temporaryGames)
+    await applyToBackgroundProcesses(temporaryProcesses)
+    const temporaryBackground = temporaryProcesses.filter(isEligibleBackground)
+    const temporaryGameResult = forceAffinity(temporaryGames, lowerHalfMask)
+    const temporaryBackgroundResult = forceAffinity(temporaryBackground, upperHalfMask)
+
+    let finalGameResult = { changedCount: 0, alreadyCount: 0, skippedCount: 0 }
+    let finalBackgroundResult = { changedCount: 0, alreadyCount: 0, skippedCount: 0 }
+    try {
+      await delay(3000)
+    } finally {
+      const finalProcesses = await listProcesses()
+      const finalGames = finalProcesses.filter(isGame)
+      await applyToGameProcesses(finalGames)
+      await applyToBackgroundProcesses(finalProcesses)
+      finalGameResult = forceAffinity(finalGames, upperHalfMask)
+      finalBackgroundResult = forceAffinity(
+        finalProcesses.filter(isEligibleBackground),
+        lowerHalfMask,
+      )
+      gameActive = finalGames.length > 0
+    }
+
+    return {
+      durationMs: 3000,
+      temporary: {
+        game: temporaryGameResult,
+        background: temporaryBackgroundResult,
+      },
+      final: {
+        game: finalGameResult,
+        background: finalBackgroundResult,
+      },
     }
   }
 
@@ -402,6 +482,7 @@ export async function createAffinityManager({
     hasAppliedChanges: () => changed.size > 0,
     isGameActive: () => gameActive,
     getLatestGameStartTime: () => latestGameStartTime,
+    performCpuReorder,
     printStartupSummary,
     recover,
     resetAllAffinities,

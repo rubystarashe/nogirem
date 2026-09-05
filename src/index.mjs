@@ -21,6 +21,8 @@ const passiveMode = process.argv.includes("--passive")
 const resetAllMode = process.argv.includes("--reset-all")
 const memoryCleanerEnabled = process.argv.includes("--memory-cleaner")
 const memoryStatusMode = process.argv.includes("--memory-status")
+const graphicsStatusMode = process.argv.includes("--graphics-status")
+const graphicsApplyMode = process.argv.includes("--graphics-apply")
 const nvidiaStatusMode = process.argv.includes("--nvidia-status")
 const nvidiaApplyMode = process.argv.includes("--nvidia-apply")
 const fastPingStatusMode = process.argv.includes("--fast-ping-status")
@@ -42,6 +44,20 @@ if (fastPingRestartMode && !applyChanges) {
 }
 if ((nicRssApplyMode || nicRssRestoreMode) && !applyChanges) {
   throw new Error("--nic-rss-apply and --nic-rss-restore require --apply.")
+}
+
+if (graphicsStatusMode || graphicsApplyMode) {
+  const {
+    applyGraphicsGoals,
+    checkGraphics,
+    printGraphicsStatus,
+  } = await import("./graphics.mjs")
+  const result = graphicsApplyMode
+    ? await applyGraphicsGoals(config.gameExecutable)
+    : await checkGraphics(config.gameExecutable)
+  printGraphicsStatus(result)
+  if (graphicsApplyMode) console.log("그래픽 최적화 목표 적용 및 검증 완료")
+  process.exit(0)
 }
 
 if (nvidiaStatusMode || nvidiaApplyMode) {

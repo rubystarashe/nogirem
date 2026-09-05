@@ -29,6 +29,7 @@ import {
   installDxvkVersion,
 } from "../src/dxvk.mjs"
 import { getLatestMuoStatus } from "../src/muo-status.mjs"
+import { getYouTubeChannelProfile } from "../src/youtube-channel.mjs"
 
 const execFileAsync = promisify(execFile)
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -38,6 +39,8 @@ const dxvkManagerPreloadPath = join(root, "electron", "dxvk-manager-preload.cjs"
 const dxvkGuidePreloadPath = join(root, "electron", "dxvk-guide-preload.cjs")
 const iconPath = join(root, "icon.ico")
 const characterSimplificationFileName = "주변캐릭터간소화프레임제한해제.muo"
+const creatorChannelUrl = "https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zEBHg"
+const directDonationUrl = "https://thedirectdonation.org/"
 const conflictingProgramDefinitions = [
   {
     name: "ISLC",
@@ -55,12 +58,12 @@ let applicationExitInProgress = false
 let primaryWindowFocusPending = false
 let primaryWindowFocusTimer = null
 let primaryVisualActivityTimer = null
-let primaryWindowRevealDelayTimer = null
 let primaryWindowRevealFrameTimer = null
 let primaryWindowRevealStarted = false
 let focusRequestMonitor = null
 let focusRequestReading = false
 let lastFocusRequestAt = 0
+let lastInstallerCloseRequestAt = 0
 let characterGuideDrag = null
 let dxvkGuideDrag = null
 let dxvkUpdatePromise = null
@@ -75,11 +78,13 @@ let dxvkReleasesCheckedAt = 0
 let dxvkReleasesCheckPromise = null
 let dxvkReleasesCacheError = null
 let dxvkRuntimeRefreshTimer = null
+let creatorChannelProfilePromise = null
 const dxvkReleaseCacheDurationMs = 6 * 60 * 1000
 
 const instanceDirectory = join(app.getPath("userData"), "instance")
 const primaryInstancePath = join(instanceDirectory, "primary.json")
 const focusRequestPath = join(instanceDirectory, "focus-request.json")
+const installerCloseRequestPath = join(instanceDirectory, "installer-close-request")
 
 function serializeError(error) {
   return {
@@ -98,6 +103,34 @@ function findConflictingPrograms(processNames = []) {
   return conflictingProgramDefinitions
     .filter(program => program.executables.some(executable => running.has(executable)))
     .map(program => program.name)
+}
+
+async function readCreatorChannelProfile() {
+  creatorChannelProfilePromise ??= getYouTubeChannelProfile({
+    cachePath: join(app.getPath("userData"), "creator", "youtube-channel.json"),
+  })
+  try {
+    return await creatorChannelProfilePromise
+  } finally {
+    creatorChannelProfilePromise = null
+  }
+}
+
+function creatorPromptStatePath() {
+  return join(app.getPath("userData"), "creator", "prompt.json")
+}
+
+async function readCreatorPromptDismissed() {
+  const state = await readJson(creatorPromptStatePath())
+  return state?.dismissed === true
+}
+
+async function dismissCreatorPrompt() {
+  await writeJsonAtomic(creatorPromptStatePath(), {
+    dismissed: true,
+    dismissedAt: new Date().toISOString(),
+  })
+  return true
 }
 
 async function detectMabinogiRenderer(gameActive, gameStartTime) {
@@ -174,6 +207,15 @@ async function isProcessRunning(pid) {
   }
 }
 
+async function fileModifiedAt(path) {
+  try {
+    return (await stat(path)).mtimeMs
+  } catch (error) {
+    if (error.code === "ENOENT") return 0
+    throw error
+  }
+}
+
 async function requestPrimaryWindowFocus() {
   await writeJsonAtomic(focusRequestPath, {
     requestedAt: Date.now(),
@@ -192,6 +234,7 @@ async function startFocusRequestMonitor() {
   await mkdir(instanceDirectory, { recursive: true })
   const existingRequest = await readJson(focusRequestPath)
   lastFocusRequestAt = existingRequest?.requestedAt ?? 0
+  lastInstallerCloseRequestAt = await fileModifiedAt(installerCloseRequestPath)
   await writeJsonAtomic(primaryInstancePath, {
     pid: process.pid,
     startedAt: Date.now(),
@@ -200,6 +243,16 @@ async function startFocusRequestMonitor() {
     if (focusRequestReading) return
     focusRequestReading = true
     try {
+      const installerCloseRequestAt = await fileModifiedAt(installerCloseRequestPath)
+      if (
+        installerCloseRequestAt > lastInstallerCloseRequestAt
+        && !applicationExitInProgress
+      ) {
+        lastInstallerCloseRequestAt = installerCloseRequestAt
+        await unlink(installerCloseRequestPath).catch(() => {})
+        await finishApplicationExit("keep")
+        return
+      }
       const request = await readJson(focusRequestPath)
       if ((request?.requestedAt ?? 0) > lastFocusRequestAt) {
         lastFocusRequestAt = request.requestedAt
@@ -217,8 +270,8 @@ async function waitForAffinityCommand(controlPath, durationMs) {
   const deadline = Date.now() + durationMs
   while (true) {
     const control = await readJson(controlPath)
-    if (control?.command === "stop" || control?.command === "reset") {
-      return control.command
+    if (["stop", "reset", "cpu-reorder"].includes(control?.command)) {
+      return control
     }
     const remaining = deadline - Date.now()
     if (remaining <= 0) return null
@@ -247,6 +300,7 @@ async function runAffinityHelper() {
   let appliedMarkerRecorded = Boolean(appliedMarker)
   let recordedChangeCount = 0
   let exitAction = "keep"
+  let cpuReorder = null
   const logicalCpuCount = cpus().length
   const half = logicalCpuCount / 2
 
@@ -288,6 +342,7 @@ async function runAffinityHelper() {
       nicStatus,
       appliedMarkerRecorded,
       conflictingPrograms: findConflictingPrograms(affinity?.getRunningProcessNames()),
+      cpuReorder,
       updatedAt: Date.now(),
       error: failure,
       ...values,
@@ -299,6 +354,42 @@ async function runAffinityHelper() {
   }
   process.on("SIGINT", requestStop)
   process.on("SIGTERM", requestStop)
+
+  const handleCommand = async control => {
+    if (!control) return false
+    if (control.command === "cpu-reorder") {
+      await unlink(controlPath).catch(() => {})
+      cpuReorder = {
+        requestId: control.requestId,
+        state: "running",
+        startedAt: Date.now(),
+        endsAt: Date.now() + 3000,
+        error: null,
+      }
+      await writeStatus()
+      try {
+        const result = await affinity.performCpuReorder()
+        cpuReorder = {
+          ...cpuReorder,
+          state: "completed",
+          completedAt: Date.now(),
+          result,
+        }
+      } catch (error) {
+        cpuReorder = {
+          ...cpuReorder,
+          state: "failed",
+          completedAt: Date.now(),
+          error: serializeError(error),
+        }
+      }
+      await writeStatus()
+      return false
+    }
+    exitAction = control.command === "reset" ? "reset" : "keep"
+    stopping = true
+    return true
+  }
 
   try {
     const {
@@ -328,11 +419,7 @@ async function runAffinityHelper() {
 
     while (!stopping) {
       const immediateCommand = await waitForAffinityCommand(controlPath, 0)
-      if (immediateCommand) {
-        exitAction = immediateCommand === "reset" ? "reset" : "keep"
-        stopping = true
-        break
-      }
+      if (await handleCommand(immediateCommand)) break
       await affinity.tick()
       const appliedChanges = affinity.getAppliedChanges()
       if (appliedChanges.length > recordedChangeCount) {
@@ -341,11 +428,7 @@ async function runAffinityHelper() {
       }
       await writeStatus()
       const delayedCommand = await waitForAffinityCommand(controlPath, config.pollIntervalMs)
-      if (delayedCommand) {
-        exitAction = delayedCommand === "reset" ? "reset" : "keep"
-        stopping = true
-        break
-      }
+      if (await handleCommand(delayedCommand)) break
     }
   } catch (error) {
     stopping = true
@@ -507,7 +590,6 @@ async function runOptimizationHelper(operation) {
 const networkHelperMode = process.argv.includes("--network-helper")
 const affinityHelperMode = process.argv.includes("--affinity-helper")
 const memoryHelperMode = process.argv.includes("--memory-helper")
-const testVersionExpiration = new Date(2026, 8, 12)
 
 if (affinityHelperMode) {
   try {
@@ -528,8 +610,6 @@ if (affinityHelperMode) {
 } else if (networkHelperMode) {
   await runOptimizationHelper(optimizeNetworkDirect)
   app.exit(process.exitCode ?? 0)
-} else if (Date.now() >= testVersionExpiration.getTime()) {
-  app.exit(0)
 } else {
   const primaryInstance = app.requestSingleInstanceLock()
   if (!primaryInstance) {
@@ -549,14 +629,14 @@ if (affinityHelperMode) {
   }
 }
 
-async function checkNvidia() {
-  const { checkNvidiaProfile } = await import("../src/nvidia.mjs")
-  return checkNvidiaProfile(config.gameExecutable)
+async function checkGraphics() {
+  const { checkGraphics: checkGraphicsStatus } = await import("../src/graphics.mjs")
+  return checkGraphicsStatus(config.gameExecutable)
 }
 
-async function optimizeNvidia() {
-  const { applyNvidiaProfileGoals } = await import("../src/nvidia.mjs")
-  return applyNvidiaProfileGoals(config.gameExecutable)
+async function optimizeGraphics() {
+  const { applyGraphicsGoals } = await import("../src/graphics.mjs")
+  return applyGraphicsGoals(config.gameExecutable)
 }
 
 async function checkNetwork() {
@@ -616,6 +696,7 @@ async function checkMemory() {
 }
 
 let affinityStartPromise = null
+let cpuReorderPromise = null
 const NIC_STATUS_CACHE_MS = 30000
 let nicStatusCache = null
 let nicStatusCheckedAt = 0
@@ -676,6 +757,7 @@ async function readAffinityRuntimeStatus() {
     nicManaged: Boolean(status?.nicManaged),
     backgroundCpuRange: status?.backgroundCpuRange ?? `0-${half - 1}`,
     gameCpuRange: status?.gameCpuRange ?? `${half}-${logicalCpuCount - 1}`,
+    cpuReorder: fresh ? status?.cpuReorder ?? null : null,
     error: status?.error ?? null,
     nicStatus: status?.nicStatus ?? null,
     renderer: fresh && status?.renderer
@@ -959,6 +1041,55 @@ async function setFrameBoostEnabled({ enabled, includeNic = false } = {}) {
   } catch (error) {
     frameBoostDesiredEnabled = previousDesiredEnabled
     throw error
+  }
+}
+
+async function runCpuReorder() {
+  if (cpuReorderPromise) return cpuReorderPromise
+  cpuReorderPromise = (async () => {
+    if (applicationExitInProgress || closeRequestPending) {
+      throw new Error("앱 종료 처리 중에는 CPU 재정렬을 실행할 수 없습니다")
+    }
+    if (!frameBoostDesiredEnabled) {
+      throw new Error("실시간 부스트가 켜져 있을 때만 CPU 재정렬을 실행할 수 있습니다")
+    }
+
+    const [affinity, memory] = await Promise.all([
+      readAffinityRuntimeStatus(),
+      readMemoryRuntimeStatus(),
+    ])
+    if (!(affinity.running && memory.running)) {
+      throw new Error("실시간 부스트가 켜져 있을 때만 CPU 재정렬을 실행할 수 있습니다")
+    }
+    if (!affinity.gameActive) throw new Error("실행 중인 마비노기를 찾을 수 없습니다")
+    if (affinity.cpuReorder?.state === "running") throw new Error("CPU 재정렬이 이미 실행 중입니다")
+
+    const requestId = randomUUID()
+    const { controlPath, statusPath } = getAffinityPaths()
+    await writeJsonAtomic(controlPath, {
+      command: "cpu-reorder",
+      requestId,
+      requestedAt: Date.now(),
+    })
+
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const status = await readJson(statusPath)
+      if (status?.running === false) throw new Error("Affinity helper가 CPU 재정렬 중 종료되었습니다")
+      if (status?.cpuReorder?.requestId === requestId) {
+        if (status.cpuReorder.state === "completed") return readAffinityRuntimeStatus()
+        if (status.cpuReorder.state === "failed") {
+          throw new Error(status.cpuReorder.error?.message ?? "CPU 재정렬에 실패했습니다")
+        }
+      }
+      await delay(100)
+    }
+    throw new Error("CPU 재정렬이 제한 시간 안에 완료되지 않았습니다")
+  })()
+
+  try {
+    return await cpuReorderPromise
+  } finally {
+    cpuReorderPromise = null
   }
 }
 
@@ -1349,18 +1480,20 @@ function registerIpc() {
   ipcMain.handle("optimization:get-status", async () => {
     await frameBoostStartupPromise
     return Promise.all([
-      resultOf(checkNvidia()),
+      resultOf(checkGraphics()),
       resultOf(checkNetwork()),
       resultOf(checkAffinity({ refreshNic: true })),
       resultOf(checkMemory()),
-    ]).then(([nvidia, network, affinity, memory]) => ({
-      nvidia,
+    ]).then(([graphics, network, affinity, memory]) => ({
+      graphics,
+      nvidia: graphics,
       network,
       affinity,
       memory,
     }))
   })
-  ipcMain.handle("optimization:refresh-nvidia", () => checkNvidia())
+  ipcMain.handle("optimization:refresh-graphics", () => checkGraphics())
+  ipcMain.handle("optimization:refresh-nvidia", () => checkGraphics())
   ipcMain.handle("optimization:refresh-network", () => checkNetwork())
   ipcMain.handle("optimization:refresh-affinity", () => checkAffinity({ refreshNic: true }))
   ipcMain.handle("optimization:get-affinity-runtime", async () => {
@@ -1388,7 +1521,8 @@ function registerIpc() {
     }
     return runtime
   })
-  ipcMain.handle("optimization:optimize-nvidia", () => optimizeNvidia())
+  ipcMain.handle("optimization:optimize-graphics", () => optimizeGraphics())
+  ipcMain.handle("optimization:optimize-nvidia", () => optimizeGraphics())
   ipcMain.handle("optimization:optimize-network", () => optimizeNetwork())
   ipcMain.handle("optimization:set-affinity-enabled", (_event, options) => {
     return setAffinityEnabled(options)
@@ -1397,6 +1531,7 @@ function registerIpc() {
   ipcMain.handle("optimization:set-frame-boost-enabled", (_event, options) => {
     return setFrameBoostEnabled(options)
   })
+  ipcMain.handle("optimization:run-cpu-reorder", () => runCpuReorder())
   ipcMain.handle("optimization:reset-frame-boost", () => resetFrameBoost())
   ipcMain.handle("optimization:set-memory-enabled", (_event, enabled) => {
     return setMemoryEnabled(enabled)
@@ -1419,6 +1554,28 @@ function registerIpc() {
   })
   ipcMain.handle("application:open-dxvk-guide", () => {
     openDxvkGuide()
+  })
+  ipcMain.handle("application:open-creator-channel", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
+    return shell.openExternal(creatorChannelUrl).then(() => true)
+  })
+  ipcMain.handle("application:get-creator-channel", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 채널 정보 요청입니다")
+    }
+    return readCreatorChannelProfile()
+  })
+  ipcMain.handle("application:get-creator-prompt-dismissed", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return true
+    return readCreatorPromptDismissed()
+  })
+  ipcMain.handle("application:dismiss-creator-prompt", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
+    return dismissCreatorPrompt()
+  })
+  ipcMain.handle("application:open-direct-donation", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
+    return shell.openExternal(directDonationUrl).then(() => true)
   })
   ipcMain.handle("dxvk-guide:request-close", event => {
     const window = BrowserWindow.fromWebContents(event.sender)
@@ -1849,26 +2006,22 @@ function beginPrimaryWindowReveal() {
   if (primaryWindowRevealStarted || !primaryWindow || primaryWindow.isDestroyed()) return
   primaryWindowRevealStarted = true
   const window = primaryWindow
-  primaryWindowRevealDelayTimer = setTimeout(() => {
-    primaryWindowRevealDelayTimer = null
-    if (primaryWindow !== window || window.isDestroyed()) return
-    const startedAt = Date.now()
-    window.setOpacity(0)
-    window.show()
-    window.focus()
+  const startedAt = Date.now()
+  window.setOpacity(0)
+  window.show()
+  window.focus()
 
-    const revealFrame = () => {
-      if (primaryWindow !== window || window.isDestroyed()) return
-      const progress = Math.min(1, (Date.now() - startedAt) / 1000)
-      window.setOpacity(progress)
-      if (progress < 1) {
-        primaryWindowRevealFrameTimer = setTimeout(revealFrame, 16)
-      } else {
-        primaryWindowRevealFrameTimer = null
-      }
+  const revealFrame = () => {
+    if (primaryWindow !== window || window.isDestroyed()) return
+    const progress = Math.min(1, (Date.now() - startedAt) / 1000)
+    window.setOpacity(progress)
+    if (progress < 1) {
+      primaryWindowRevealFrameTimer = setTimeout(revealFrame, 16)
+    } else {
+      primaryWindowRevealFrameTimer = null
     }
-    revealFrame()
-  }, 1000)
+  }
+  revealFrame()
 }
 
 function focusPrimaryWindow() {
@@ -1971,11 +2124,9 @@ function createWindow() {
   window.on("closed", () => {
     clearTimeout(primaryWindowFocusTimer)
     clearTimeout(primaryVisualActivityTimer)
-    clearTimeout(primaryWindowRevealDelayTimer)
     clearTimeout(primaryWindowRevealFrameTimer)
     primaryWindowFocusTimer = null
     primaryVisualActivityTimer = null
-    primaryWindowRevealDelayTimer = null
     primaryWindowRevealFrameTimer = null
     primaryWindowRevealStarted = false
     if (primaryWindow === window) primaryWindow = null

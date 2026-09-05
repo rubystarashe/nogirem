@@ -1,12 +1,18 @@
 <script>
   import { onMount } from "svelte"
+  import { fade, fly } from "svelte/transition"
   import packageInfo from "../package.json"
+  import introduceMarkdown from "../INTRODUCE.md?raw"
+  import operationMarkdown from "../OPERATION.md?raw"
+  import versionHistoryMarkdown from "../VERSION_HISTORY.md?raw"
+  import creatorChannelAvatarUrl from "./creator-channel-avatar.jpg"
+  import directDonationLogoUrl from "./direct-donation-logo.svg"
   import GameWave from "./GameWave.svelte"
   import Modal from "./Modal.svelte"
-  import NoticeModal from "./NoticeModal.svelte"
+  import UpdatePreviewModal from "./UpdatePreviewModal.svelte"
 
   let services = {
-    nvidia: { loading: true, data: null, error: null },
+    graphics: { loading: true, data: null, error: null },
     network: { loading: true, data: null, error: null },
     affinity: { loading: true, data: null, error: null },
     memory: { loading: true, data: null, error: null },
@@ -16,12 +22,17 @@
   let affinityRuntimeSyncing = false
   let memoryRuntimeSyncing = false
   let frameBoostAction = null
+  let cpuReorderAction = null
+  let cpuReorderNotice = ""
   let closeModalVisible = false
   let optimizationModalVisible = false
   let conflictModalVisible = false
   let networkReconnectModalVisible = false
   let networkReconnectCloseSignal = 0
   let networkReconnectAction = null
+  let radeonGlobalModalVisible = false
+  let radeonGlobalCloseSignal = 0
+  let radeonGlobalAction = null
   let conflictPrograms = []
   let ignoredConflictSignature = ""
   let conflictModalCloseSignal = 0
@@ -33,7 +44,7 @@
   let startupLogoMaskActive = false
   let interfaceVisible = false
   let documentVisible = true
-  let windowVisuallyActive = true
+  let windowVisuallyActive = false
   let pageVisible = true
   let spinnerAnimationVisible = true
   let spinnerFinishTimer
@@ -54,20 +65,223 @@
   let startupIdentityTimer
   let leftTopContentTimer
   let leftTopContentEntered = false
-  let testVersionNoticeVisible = false
-  let testVersionNoticeScheduled = false
-  let testVersionNoticeTimer
+  let creatorNavigationTimer
+  let creatorNavigationReady = false
+  let creatorPromptStateLoaded = false
+  let creatorPromptDismissed = false
+  let creatorViewPhase = "home"
+  let creatorTab = "developer"
+  let pendingCreatorTab = null
+  let creatorTabTransitionPhase = "idle"
+  let creatorContentElement
+  let creatorScrollTarget = 0
+  let creatorScrollFrame
+  let creatorChannelProfile = null
 
-  const versionText = "미공개 테스트 버전"
+  const versionText = "공개 사용자 버전"
   const ambientRhythmEnabled = true
   const boostSpinnerEnabled = true
+  const creatorSections = [
+    { id: "developer", label: "안녕하세요", content: [] },
+    { id: "operation", label: "작동 원리", content: [] },
+    { id: "donation", label: "후원 / 기부", content: [] },
+    { id: "history", label: "버전 변경 기록", content: [] },
+    { id: "developer-tools", label: "개발자 기능", content: [] },
+  ]
+  const introduceBlocks = parseIntroduceMarkdown(introduceMarkdown)
+  const operationBlocks = parseIntroduceMarkdown(operationMarkdown)
+  const versionHistoryEntries = parseVersionHistory(versionHistoryMarkdown)
 
-  const goalNames = {
-    verticalSyncOff: "수직 동기화 끄기",
-    maxFrameRate400: "최대 프레임 상한 설정",
-    threadedOptimizationOn: "스레드 최적화",
-    preferMaximumPerformance: "최고 성능 선호",
-    ultraLowLatency: "저지연 모드 울트라",
+  function decodeMarkdownText(text) {
+    return text.replace(/\\([\\`*_[\]{}()#+\-.!])/g, "$1")
+  }
+
+  function parseIntroduceMarkdown(markdown) {
+    const blocks = []
+    let paragraph = []
+    let listItems = []
+    const source = markdown.replace(/<!--[\s\S]*?-->/g, "")
+
+    const flushParagraph = () => {
+      if (!paragraph.length) return
+      blocks.push({ type: "paragraph", text: paragraph.join(" ") })
+      paragraph = []
+    }
+    const flushList = () => {
+      if (!listItems.length) return
+      blocks.push({ type: "list", items: listItems })
+      listItems = []
+    }
+
+    for (const sourceLine of source.split(/\r?\n/)) {
+      const line = sourceLine.trim()
+      const headingMatch = line.match(/^(#{1,3})\s+(.+)$/)
+      const listMatch = line.match(/^[-*]\s+(.+)$/)
+      const imageMatch = line.match(/^!\[([^\]]*)\]\((\.\/doc_operation\/[^)\s]+)\)$/)
+
+      if (imageMatch) {
+        flushParagraph()
+        flushList()
+        blocks.push({
+          type: "image",
+          alt: decodeMarkdownText(imageMatch[1]),
+          src: imageMatch[2],
+        })
+      } else if (headingMatch) {
+        flushParagraph()
+        flushList()
+        blocks.push({
+          type: "heading",
+          level: headingMatch[1].length,
+          text: decodeMarkdownText(headingMatch[2]),
+        })
+      } else if (listMatch) {
+        flushParagraph()
+        listItems.push(decodeMarkdownText(listMatch[1]))
+      } else if (!line) {
+        flushParagraph()
+        flushList()
+      } else {
+        flushList()
+        paragraph.push(decodeMarkdownText(line))
+      }
+    }
+    flushParagraph()
+    flushList()
+    return blocks
+  }
+
+  function parseVersionHistory(markdown) {
+    const entries = []
+    let currentEntry = null
+
+    for (const sourceLine of markdown.split(/\r?\n/)) {
+      const line = sourceLine.trim()
+      const versionMatch = line.match(/^##\s+(.+)$/)
+
+      if (versionMatch) {
+        currentEntry = { version: versionMatch[1], changes: [] }
+        entries.push(currentEntry)
+      } else if (currentEntry && /^[-*]\s+/.test(line)) {
+        currentEntry.changes.push(line.replace(/^[-*]\s+/, ""))
+      }
+    }
+
+    return entries
+  }
+
+  function activeCreatorSection() {
+    return creatorSections.find(section => section.id === creatorTab) ?? creatorSections[0]
+  }
+
+  function selectCreatorTab(nextTab) {
+    if (
+      nextTab === creatorTab
+      || creatorTabTransitionPhase !== "idle"
+    ) return
+    pendingCreatorTab = nextTab
+    creatorTabTransitionPhase = "leaving"
+  }
+
+  function stopCreatorScroll() {
+    if (creatorScrollFrame) cancelAnimationFrame(creatorScrollFrame)
+    creatorScrollFrame = null
+  }
+
+  function animateCreatorScroll() {
+    if (!creatorContentElement) {
+      creatorScrollFrame = null
+      return
+    }
+    const distance = creatorScrollTarget - creatorContentElement.scrollTop
+    if (Math.abs(distance) < 0.5) {
+      creatorContentElement.scrollTop = creatorScrollTarget
+      creatorScrollFrame = null
+      return
+    }
+    creatorContentElement.scrollTop += distance * 0.18
+    creatorScrollFrame = requestAnimationFrame(animateCreatorScroll)
+  }
+
+  function smoothCreatorScroll(event) {
+    if (event.ctrlKey || !creatorContentElement) return
+    const maximum = creatorContentElement.scrollHeight - creatorContentElement.clientHeight
+    if (maximum <= 0) return
+    const unit = event.deltaMode === 1
+      ? 16
+      : event.deltaMode === 2
+        ? creatorContentElement.clientHeight
+        : 1
+    const start = creatorScrollFrame
+      ? creatorScrollTarget
+      : creatorContentElement.scrollTop
+    const next = Math.max(0, Math.min(maximum, start + event.deltaY * unit * 0.8))
+    if (next === start) return
+    event.preventDefault()
+    creatorScrollTarget = next
+    if (!creatorScrollFrame) {
+      creatorScrollFrame = requestAnimationFrame(animateCreatorScroll)
+    }
+  }
+
+  function finishCreatorTabTransition(event) {
+    if (event.target !== event.currentTarget) return
+    if (
+      creatorTabTransitionPhase === "leaving"
+      && event.animationName === "creator-tab-out-left"
+    ) {
+      creatorTab = pendingCreatorTab
+      pendingCreatorTab = null
+      stopCreatorScroll()
+      creatorScrollTarget = 0
+      if (creatorContentElement) creatorContentElement.scrollTop = 0
+      creatorTabTransitionPhase = "entering"
+    } else if (
+      creatorTabTransitionPhase === "entering"
+      && event.animationName === "creator-tab-in-right"
+    ) {
+      creatorTabTransitionPhase = "idle"
+    }
+  }
+
+  function creatorChannelStatistics() {
+    if (
+      !Number.isFinite(creatorChannelProfile?.subscriberCount)
+      || !Number.isFinite(creatorChannelProfile?.videoCount)
+    ) {
+      return "YouTube 채널"
+    }
+    return `구독자 ${creatorChannelProfile.subscriberCount.toLocaleString("ko-KR")}명 · 동영상 ${creatorChannelProfile.videoCount.toLocaleString("ko-KR")}개`
+  }
+
+  function openCreatorView() {
+    if (
+      creatorViewPhase !== "home"
+      || !interfaceVisible
+      || settingsVisible
+      || startupIdentityPhase !== "done"
+      || !creatorNavigationReady
+      || colorTransition
+    ) return
+    creatorPromptDismissed = true
+    void window.nogirem.dismissCreatorPrompt().catch(() => {})
+    creatorViewPhase = "opening"
+  }
+
+  function closeCreatorView() {
+    if (creatorViewPhase !== "open") return
+    creatorViewPhase = "closing"
+  }
+
+  function toggleCreatorView() {
+    if (creatorViewPhase === "home") openCreatorView()
+    else if (creatorViewPhase === "open") closeCreatorView()
+  }
+
+  function finishCreatorViewTransition(event) {
+    if (event.target !== event.currentTarget || event.animationName === "") return
+    if (creatorViewPhase === "opening") creatorViewPhase = "open"
+    else if (creatorViewPhase === "closing") creatorViewPhase = "home"
   }
 
   function messageOf(error) {
@@ -153,12 +367,14 @@
     statusTransitionPhase = "done"
     startupIdentityPhase = "brand"
     leftTopContentEntered = false
+    creatorNavigationReady = false
     interfaceVisible = true
     syncConflictWarning(
       services.affinity.data?.conflictingPrograms,
       statusText === "실시간 부스트중",
     )
     window.clearTimeout(startupIdentityTimer)
+    window.clearTimeout(creatorNavigationTimer)
     startupIdentityTimer = window.setTimeout(() => {
       startupIdentityPhase = "transition"
     }, 250)
@@ -173,6 +389,10 @@
       displayedStatusText = statusText
       displayedGuideText = guideTextForStatus(statusText)
       startupIdentityPhase = "done"
+      window.clearTimeout(creatorNavigationTimer)
+      creatorNavigationTimer = window.setTimeout(() => {
+        creatorNavigationReady = true
+      }, 3000)
       window.clearTimeout(leftTopContentTimer)
       leftTopContentTimer = window.setTimeout(() => {
         leftTopContentEntered = true
@@ -213,6 +433,38 @@
 
   function isPausedStatus(statusText) {
     return statusText === "실시간 적용 일시정지됨"
+  }
+
+  function cpuReorderAvailable() {
+    return services.affinity.data?.running
+      && services.memory.data?.running
+      && services.affinity.data?.gameActive
+      && !frameBoostAction
+      && !cpuReorderAction
+  }
+
+  async function runCpuReorder() {
+    if (!cpuReorderAvailable()) return
+    cpuReorderAction = "running"
+    cpuReorderNotice = ""
+    updateService("affinity", { error: null })
+    try {
+      const runtime = await window.nogirem.runCpuReorder()
+      updateService("affinity", {
+        data: {
+          ...services.affinity.data,
+          ...runtime,
+        },
+        error: null,
+      })
+      cpuReorderNotice = "CPU 재정렬이 완료되었습니다"
+    } catch (error) {
+      const message = messageOf(error)
+      cpuReorderNotice = message
+      updateService("affinity", { error: message })
+    } finally {
+      cpuReorderAction = null
+    }
   }
 
   function guideTextForStatus(statusText) {
@@ -276,25 +528,19 @@
 
   function finishStatusTransition() {
     statusTransitionPhase = "done"
-    if (testVersionNoticeScheduled) return
-    testVersionNoticeScheduled = true
-    window.clearTimeout(testVersionNoticeTimer)
-    testVersionNoticeTimer = window.setTimeout(() => {
-      testVersionNoticeVisible = true
-    }, 3000)
   }
 
   async function loadAll() {
     refreshing = true
     services = {
-      nvidia: { ...services.nvidia, loading: true, error: null },
+      graphics: { ...services.graphics, loading: true, error: null },
       network: { ...services.network, loading: true, error: null },
       affinity: { ...services.affinity, loading: true, error: null },
       memory: { ...services.memory, loading: true, error: null },
     }
     try {
       const result = await window.nogirem.getStatus()
-      receiveResult("nvidia", result.nvidia)
+      receiveResult("graphics", result.graphics ?? result.nvidia)
       receiveResult("network", result.network)
       receiveResult("affinity", result.affinity)
       receiveResult("memory", result.memory)
@@ -303,7 +549,7 @@
       }
     } catch (error) {
       const message = messageOf(error)
-      updateService("nvidia", { loading: false, error: message })
+      updateService("graphics", { loading: false, error: message })
       updateService("network", { loading: false, error: message })
       updateService("affinity", { loading: false, error: message })
       updateService("memory", { loading: false, error: message })
@@ -361,8 +607,33 @@
     }
   }
 
-  function nvidiaReady(data) {
-    return data?.supported && data?.nvidia && data?.goals?.allMet
+  function graphicsReady(data) {
+    return data?.supported && data?.detected && data?.allMet
+  }
+
+  function requestGraphicsOptimization() {
+    if (services.graphics.data?.vendor !== "amd") {
+      void optimize("graphics", window.nogirem.optimizeGraphics)
+      return
+    }
+    optimizationModalVisible = false
+    radeonGlobalAction = null
+    radeonGlobalModalVisible = true
+  }
+
+  function closeRadeonGlobalModal(action) {
+    if (radeonGlobalAction) return
+    radeonGlobalAction = action
+    radeonGlobalCloseSignal += 1
+  }
+
+  function finishRadeonGlobalModal() {
+    const action = radeonGlobalAction
+    radeonGlobalModalVisible = false
+    radeonGlobalAction = null
+    if (action === "continue") {
+      void optimize("graphics", window.nogirem.optimizeGraphics)
+    }
   }
 
   function networkReady(data) {
@@ -543,6 +814,7 @@
           characterSimplification: runtime.characterSimplification,
           dxvk: runtime.dxvk,
           conflictingPrograms: runtime.conflictingPrograms,
+          cpuReorder: runtime.cpuReorder,
         },
       })
       if (runtime.running) includeNic = runtime.includeNic
@@ -592,6 +864,19 @@
     )
     syncPageVisibility()
     void window.nogirem.getVisualActivity().then(setWindowVisualActivity)
+    void window.nogirem.getCreatorPromptDismissed()
+      .then(dismissed => {
+        creatorPromptDismissed = Boolean(dismissed)
+      })
+      .catch(() => {})
+      .finally(() => {
+        creatorPromptStateLoaded = true
+      })
+    void window.nogirem.getCreatorChannel()
+      .then(profile => {
+        creatorChannelProfile = profile
+      })
+      .catch(() => {})
     void loadAll().finally(() => {
       startupDataReady = true
       gameWave?.allowStartup()
@@ -609,8 +894,9 @@
       window.clearInterval(timer)
       window.clearTimeout(startupIdentityTimer)
       window.clearTimeout(leftTopContentTimer)
-      window.clearTimeout(testVersionNoticeTimer)
+      window.clearTimeout(creatorNavigationTimer)
       window.clearTimeout(spinnerFinishTimer)
+      stopCreatorScroll()
       document.removeEventListener("visibilitychange", syncPageVisibility)
       removeVisualActivityListener()
       removeCloseListener()
@@ -622,7 +908,14 @@
   <title>마비노기 렘 부스터 - {packageInfo.version}</title>
 </svelte:head>
 
-<div class="window-drag" aria-hidden="true"></div>
+<div
+  class="window-drag"
+  class:creator-active={creatorViewPhase !== "home"}
+  aria-hidden="true"
+></div>
+{#if creatorViewPhase !== "home"}
+  <div class="window-drag creator-window-drag-right" aria-hidden="true"></div>
+{/if}
 <div class="window-controls">
   <button
     class="window-control window-close"
@@ -640,9 +933,41 @@
   </button>
 </div>
 
-<span class="creator-credit entered">
+<span class="app-version" class:paused={visualPaused}>{packageInfo.version}</span>
+
+{#if interfaceVisible
+  && !settingsVisible
+  && startupIdentityPhase === "done"
+  && creatorNavigationReady
+  && creatorPromptStateLoaded
+  && !creatorPromptDismissed
+  && creatorViewPhase === "home"
+}
+  <span
+    class="creator-prompt"
+    in:fly={{ y: 5, duration: 280 }}
+    out:fade={{ duration: 180 }}
+  >
+    작동 원리가 궁금하신가요?
+  </span>
+{/if}
+
+<button
+  class="creator-credit entered"
+  class:hidden={settingsVisible}
+  class:paused={visualPaused}
+  aria-label={creatorViewPhase === "home" ? "제작자 소개 열기" : "기존 화면으로 돌아가기"}
+  disabled={!interfaceVisible
+    || settingsVisible
+    || startupIdentityPhase !== "done"
+    || !creatorNavigationReady
+    || creatorViewPhase === "opening"
+    || creatorViewPhase === "closing"
+    || Boolean(colorTransition)}
+  onclick={toggleCreatorView}
+>
   [류트@렘] 제작
-</span>
+</button>
 
 <main class="compact-shell">
   {#if interfaceVisible}
@@ -702,18 +1027,18 @@
 
       <div class="setting-row">
         <div>
-          <strong>NVIDIA 최적화</strong>
-          <span>{nvidiaReady(services.nvidia.data) ? "최적화됨" : "확인 필요"}</span>
+          <strong>그래픽 최적화</strong>
+          <span>{graphicsReady(services.graphics.data) ? "최적화됨" : "확인 필요"}</span>
         </div>
         <button
           class="setting-action"
-          disabled={services.nvidia.loading
-            || services.nvidia.optimizing
-            || !services.nvidia.data?.nvidia
-            || nvidiaReady(services.nvidia.data)}
-          onclick={() => optimize("nvidia", window.nogirem.optimizeNvidia)}
+          disabled={services.graphics.loading
+            || services.graphics.optimizing
+            || !services.graphics.data?.detected
+            || graphicsReady(services.graphics.data)}
+          onclick={requestGraphicsOptimization}
         >
-          {services.nvidia.optimizing ? "적용 중" : "최적화"}
+          {services.graphics.optimizing ? "적용 중" : "최적화"}
         </button>
       </div>
     </section>
@@ -721,7 +1046,11 @@
       <section
         class="boost-home"
         class:paused={visualPaused}
+        class:creator-opening={creatorViewPhase === "opening"}
+        class:creator-open={creatorViewPhase === "open"}
+        class:creator-closing={creatorViewPhase === "closing"}
         aria-label="실시간 부스트 상태"
+        onanimationend={finishCreatorViewTransition}
       >
         <img
           class:canvas-logo-hidden={startupLogoMaskActive}
@@ -736,8 +1065,8 @@
             aria-label="최적화 상세 상태 열기"
             onclick={() => optimizationModalVisible = true}
           >
-            <div class:ready={nvidiaReady(services.nvidia.data)}>
-              {#if nvidiaReady(services.nvidia.data)}
+            <div class:ready={graphicsReady(services.graphics.data)}>
+              {#if graphicsReady(services.graphics.data)}
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9Z" />
                 </svg>
@@ -748,9 +1077,9 @@
               {/if}
               <span>
                 그래픽 설정
-                {services.nvidia.loading
+                {services.graphics.loading
                   ? "확인 중"
-                  : (nvidiaReady(services.nvidia.data) ? "최적화됨" : "확인 필요")}
+                  : (graphicsReady(services.graphics.data) ? "최적화됨" : "확인 필요")}
               </span>
             </div>
             <div class:ready={networkReady(services.network.data)}>
@@ -907,6 +1236,209 @@
         </span>
         {/if}
       </section>
+      {#if creatorViewPhase !== "home"}
+        <section
+          class="creator-view"
+          class:paused={visualPaused}
+          class:opening={creatorViewPhase === "opening"}
+          class:open={creatorViewPhase === "open"}
+          class:closing={creatorViewPhase === "closing"}
+          aria-label="제작자 및 프로그램 정보"
+        >
+          <button
+            class="creator-return"
+            aria-label="기존 기능으로 돌아가기"
+            disabled={creatorViewPhase !== "open"}
+            onclick={closeCreatorView}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m5.7 8.3 6.3 6.3 6.3-6.3 1.4 1.4-7.7 7.7-7.7-7.7 1.4-1.4Z" />
+            </svg>
+          </button>
+          <nav class="creator-tabs" aria-label="소개 항목">
+            {#each creatorSections as section}
+              <button
+                class:active={creatorTab === section.id}
+                aria-current={creatorTab === section.id ? "page" : undefined}
+                disabled={creatorViewPhase !== "open" || creatorTabTransitionPhase !== "idle"}
+                onclick={() => selectCreatorTab(section.id)}
+              >
+                {section.label}
+              </button>
+            {/each}
+          </nav>
+          <section
+            class="creator-content"
+            aria-label={activeCreatorSection().label}
+            bind:this={creatorContentElement}
+            onwheel={smoothCreatorScroll}
+          >
+            <div
+              class="creator-content-inner"
+              class:tab-leaving={creatorTabTransitionPhase === "leaving"}
+              class:tab-entering={creatorTabTransitionPhase === "entering"}
+              onanimationend={finishCreatorTabTransition}
+            >
+              {#if creatorTab === "developer"}
+                <div class="creator-introduction">
+                  <button
+                    class="creator-channel-card"
+                    aria-label="마비노기 렘 YouTube 채널 열기"
+                    onclick={() => window.nogirem.openCreatorChannel()}
+                  >
+                    <img
+                      src={creatorChannelProfile?.avatarDataUrl ?? creatorChannelAvatarUrl}
+                      alt=""
+                      draggable="false"
+                    />
+                    <span class="creator-channel-copy">
+                      <strong>{creatorChannelProfile?.name ?? "마비노기 렘"}</strong>
+                      {#if creatorChannelProfile}
+                        <span>{creatorChannelProfile.handle}</span>
+                        <small>{creatorChannelStatistics()}</small>
+                      {/if}
+                    </span>
+                    <svg class="youtube-logo" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.3 3.6-6.3 3.6Z" />
+                    </svg>
+                  </button>
+                  <div class="introduce-markdown">
+                    {#each introduceBlocks as block}
+                      {#if block.type === "heading"}
+                        {#if block.level === 1}
+                          <h1>{block.text}</h1>
+                        {:else if block.level === 2}
+                          <h2>{block.text}</h2>
+                        {:else}
+                          <h3>{block.text}</h3>
+                        {/if}
+                      {:else if block.type === "list"}
+                        <ul>
+                          {#each block.items as item}
+                            <li>{item}</li>
+                          {/each}
+                        </ul>
+                      {:else if block.type === "image"}
+                        <img
+                          class="markdown-image"
+                          src={block.src}
+                          alt={block.alt}
+                          draggable="false"
+                        />
+                      {:else}
+                        <p>{block.text}</p>
+                      {/if}
+                    {/each}
+                  </div>
+                </div>
+              {:else if creatorTab === "operation"}
+                <div class="introduce-markdown operation-markdown">
+                  {#each operationBlocks as block}
+                    {#if block.type === "heading"}
+                      {#if block.level === 1}
+                        <h1>{block.text}</h1>
+                      {:else if block.level === 2}
+                        <h2>{block.text}</h2>
+                      {:else}
+                        <h3>{block.text}</h3>
+                      {/if}
+                    {:else if block.type === "list"}
+                      <ul>
+                        {#each block.items as item}
+                          <li>{item}</li>
+                        {/each}
+                      </ul>
+                    {:else if block.type === "image"}
+                      <img
+                        class="markdown-image"
+                        src={block.src}
+                        alt={block.alt}
+                        draggable="false"
+                      />
+                    {:else}
+                      <p>{block.text}</p>
+                    {/if}
+                  {/each}
+                </div>
+              {:else if creatorTab === "donation"}
+                <div class="donation-grid">
+                  <article class="donation-card">
+                    <header>
+                      <img
+                        src={creatorChannelProfile?.avatarDataUrl ?? creatorChannelAvatarUrl}
+                        alt=""
+                        draggable="false"
+                      />
+                      <div>
+                        <small>개인 후원</small>
+                        <h2>류트 서버 렘</h2>
+                      </div>
+                    </header>
+                    <p>
+                      기능에 대한 문의나 간단한 커피값 지원 등은 마비노기 류트 서버의 렘 캐릭터로 연락해 주세요.
+                    </p>
+                  </article>
+                  <button
+                    class="donation-card direct-donation-card"
+                    aria-label="곧장기부 공식 페이지 열기"
+                    onclick={() => window.nogirem.openDirectDonation()}
+                  >
+                    <header>
+                      <img
+                        src={directDonationLogoUrl}
+                        alt=""
+                        draggable="false"
+                      />
+                      <div>
+                        <small>추천 기부처</small>
+                        <h2>곧장기부</h2>
+                      </div>
+                    </header>
+                    <p>
+                      SK그룹이 지원하는 행복나눔재단에서 운영하며, 기부금이 수수료 없이 100% 전달되는 것이 특징입니다.
+                    </p>
+                  </button>
+                </div>
+              {:else if creatorTab === "history"}
+                <div class="version-history">
+                  {#each versionHistoryEntries as entry}
+                    <article>
+                      <h2>{entry.version}</h2>
+                      <ul>
+                        {#each entry.changes as change}
+                          <li>{change}</li>
+                        {/each}
+                      </ul>
+                    </article>
+                  {/each}
+                </div>
+              {:else if creatorTab === "developer-tools"}
+                <div class="developer-tools">
+                  <div class="developer-tool-row">
+                    <div>
+                      <h2>CPU 재정렬</h2>
+                      <p>CPU 격리 구성을 재설정하여 캐시 초기화를 유도합니다</p>
+                    </div>
+                    <button
+                      disabled={!cpuReorderAvailable()}
+                      onclick={runCpuReorder}
+                    >
+                      {cpuReorderAction === "running" ? "재정렬 중…" : "CPU 재정렬"}
+                    </button>
+                  </div>
+                  {#if cpuReorderNotice}
+                    <span class="developer-tool-status">{cpuReorderNotice}</span>
+                  {/if}
+                </div>
+              {:else}
+                {#each activeCreatorSection().content as paragraph}
+                  <p>{paragraph}</p>
+                {/each}
+              {/if}
+            </div>
+          </section>
+        </section>
+      {/if}
       {#if colorTransition}
         {#key colorTransition.id}
           <section
@@ -1097,41 +1629,41 @@
       <div class="card-heading">
         <div>
           <p class="category">그래픽</p>
-          <h2>NVIDIA 프로필</h2>
+          <h2>{services.graphics.data?.title ?? "그래픽 설정"}</h2>
         </div>
-        {#if services.nvidia.loading}
+        {#if services.graphics.loading}
           <span class="status checking">확인 중</span>
-        {:else if services.nvidia.error}
+        {:else if services.graphics.error}
           <span class="status error">확인 실패</span>
-        {:else if nvidiaReady(services.nvidia.data)}
+        {:else if graphicsReady(services.graphics.data)}
           <span class="status ready">최적화됨</span>
         {:else}
           <span class="status needed">최적화 필요</span>
         {/if}
       </div>
 
-      {#if services.nvidia.error}
-        <p class="error-message">{services.nvidia.error}</p>
-      {:else if services.nvidia.data}
-        {#if services.nvidia.data.nvidia}
+      {#if services.graphics.error}
+        <p class="error-message">{services.graphics.error}</p>
+      {:else if services.graphics.data}
+        {#if services.graphics.data.detected}
           <p class="device">
-            {services.nvidia.data.gpus?.map(gpu => `${gpu.name} · ${gpu.driverVersion}`).join(", ")}
+            {services.graphics.data.gpus?.map(gpu => [gpu.name, gpu.driverVersion].filter(Boolean).join(" · ")).join(", ")}
           </p>
           <dl class="checks">
-            {#each Object.entries(goalNames) as [key, label]}
+            {#each services.graphics.data.goalsList ?? [] as goal}
               <div>
-                <dt>{label}</dt>
-                <dd class:passed={services.nvidia.data.goals?.[key]}>
-                  {services.nvidia.data.goals?.[key] ? "완료" : "필요"}
+                <dt>{goal.label}</dt>
+                <dd class:passed={goal.met}>
+                  {goal.supported === false ? "해당 없음" : (goal.met ? "완료" : "필요")}
                 </dd>
               </div>
             {/each}
           </dl>
           <p class="meta">
-            프로필: {services.nvidia.data.profileName ?? "확인되지 않음"}
+            적용 범위: {services.graphics.data.scopeLabel ?? "확인되지 않음"}
           </p>
         {:else}
-          <p class="empty">{services.nvidia.data.reason ?? "NVIDIA GPU를 찾지 못했습니다"}</p>
+          <p class="empty">{services.graphics.data.reason ?? "지원되는 GPU를 찾지 못했습니다"}</p>
         {/if}
       {:else}
         <div class="skeleton"></div>
@@ -1140,20 +1672,20 @@
       <div class="actions">
         <button
           class="secondary compact"
-          disabled={services.nvidia.loading || services.nvidia.optimizing}
-          onclick={() => refreshService("nvidia", window.nogirem.refreshNvidia)}
+          disabled={services.graphics.loading || services.graphics.optimizing}
+          onclick={() => refreshService("graphics", window.nogirem.refreshGraphics)}
         >
           다시 확인
         </button>
         <button
           class="primary"
-          disabled={services.nvidia.loading
-            || services.nvidia.optimizing
-            || !services.nvidia.data?.nvidia
-            || nvidiaReady(services.nvidia.data)}
-          onclick={() => optimize("nvidia", window.nogirem.optimizeNvidia)}
+          disabled={services.graphics.loading
+            || services.graphics.optimizing
+            || !services.graphics.data?.detected
+            || graphicsReady(services.graphics.data)}
+          onclick={requestGraphicsOptimization}
         >
-          {services.nvidia.optimizing ? "적용 중…" : "NVIDIA 최적화"}
+          {services.graphics.optimizing ? "적용 중…" : "그래픽 최적화"}
         </button>
       </div>
     </article>
@@ -1252,15 +1784,6 @@
   onstartuplogomaskchange={active => startupLogoMaskActive = active}
 />
 
-{#if testVersionNoticeVisible}
-  <NoticeModal
-    title="미공개 테스트 버전 안내"
-    onconfirm={() => testVersionNoticeVisible = false}
-  >
-    <p>미공개 테스트 버전은 9월 11일까지만 사용할 수 있습니다.</p>
-  </NoticeModal>
-{/if}
-
 {#if conflictModalVisible}
   <Modal
     title="충돌 우려 프로그램 감지"
@@ -1299,45 +1822,47 @@
         <header>
           <div class="detail-heading-copy">
             <span class="detail-category">그래픽 설정</span>
-            <h3 id="graphics-status-title">NVIDIA 프로필</h3>
+            <h3 id="graphics-status-title">
+              {services.graphics.data?.title ?? "그래픽 설정"}
+            </h3>
           </div>
           <button
             class="detail-action"
-            class:complete={nvidiaReady(services.nvidia.data)}
-            disabled={services.nvidia.loading
-              || services.nvidia.optimizing
-              || !services.nvidia.data?.nvidia
-              || nvidiaReady(services.nvidia.data)}
-            onclick={() => optimize("nvidia", window.nogirem.optimizeNvidia)}
+            class:complete={graphicsReady(services.graphics.data)}
+            disabled={services.graphics.loading
+              || services.graphics.optimizing
+              || !services.graphics.data?.detected
+              || graphicsReady(services.graphics.data)}
+            onclick={requestGraphicsOptimization}
           >
-            {services.nvidia.loading
+            {services.graphics.loading
               ? "확인 중"
-              : (services.nvidia.optimizing
+              : (services.graphics.optimizing
                 ? "적용 중"
-                : (nvidiaReady(services.nvidia.data) ? "완료됨" : "최적화"))}
+                : (graphicsReady(services.graphics.data) ? "완료됨" : "최적화"))}
           </button>
         </header>
-        {#if services.nvidia.error}
-          <p class="detail-error">{services.nvidia.error}</p>
-        {:else if services.nvidia.data?.nvidia}
+        {#if services.graphics.error}
+          <p class="detail-error">{services.graphics.error}</p>
+        {:else if services.graphics.data?.detected}
           <p class="detail-device">
-            {services.nvidia.data.gpus?.map(gpu => gpu.name).join(", ")}
+            {services.graphics.data.gpus?.map(gpu => gpu.name).join(", ")}
           </p>
           <dl class="detail-list">
-            {#each Object.entries(goalNames) as [key, label]}
+            {#each services.graphics.data.goalsList ?? [] as goal}
               <div>
-                <dt>{label}</dt>
-                <dd class:ready={services.nvidia.data.goals?.[key]}>
-                  {services.nvidia.data.goals?.[key] ? "완료" : "조정 필요"}
+                <dt>{goal.label}</dt>
+                <dd class:ready={goal.met}>
+                  {goal.supported === false ? "해당 없음" : (goal.met ? "완료" : "조정 필요")}
                 </dd>
               </div>
             {/each}
           </dl>
         {:else}
           <p class="detail-empty">
-            {services.nvidia.loading
+            {services.graphics.loading
               ? "그래픽 설정을 확인하고 있습니다"
-              : (services.nvidia.data?.reason ?? "NVIDIA GPU를 찾지 못했습니다")}
+              : (services.graphics.data?.reason ?? "지원되는 GPU를 찾지 못했습니다")}
           </p>
         {/if}
       </section>
@@ -1394,6 +1919,36 @@
           <p class="detail-empty">네트워크 상태를 확인하고 있습니다</p>
         {/if}
       </section>
+    </div>
+  </Modal>
+{/if}
+
+{#if radeonGlobalModalVisible}
+  <Modal
+    eyebrow="AMD Radeon 최적화"
+    title="Radeon 전역 설정을 변경합니다"
+    closeSignal={radeonGlobalCloseSignal}
+    onclose={finishRadeonGlobalModal}
+  >
+    <p class="modal-description">
+      수직 동기화, Enhanced Sync, Anti-Lag, Chill 설정이 Radeon GPU 전역에 적용되며
+      다른 게임에서도 유지됩니다. 최대 프레임 제한은 변경하지 않습니다.
+    </p>
+    <div class="modal-actions">
+      <button
+        class="secondary"
+        disabled={Boolean(radeonGlobalAction)}
+        onclick={() => closeRadeonGlobalModal("cancel")}
+      >
+        취소
+      </button>
+      <button
+        class="monochrome"
+        disabled={Boolean(radeonGlobalAction)}
+        onclick={() => closeRadeonGlobalModal("continue")}
+      >
+        계속하기
+      </button>
     </div>
   </Modal>
 {/if}
@@ -1457,3 +2012,5 @@
     </div>
   </Modal>
 {/if}
+
+<UpdatePreviewModal />

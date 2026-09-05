@@ -8,6 +8,8 @@
 
   const width = 640
   const height = 290
+  const timelineCueSeconds = 17.5
+  const startupPlaybackCueSeconds = 18.5
   const track = [1800, 2100, 2350, 2700, 2850, 3900, 4150, 4400, 4700, 4950]
   let canvas
   let context
@@ -32,6 +34,7 @@
   let active = true
   let mode = "startup"
   let startedAt = 0
+  let playbackVolumeStartedAt = 0
   let circles = []
   let pointerX = 0
   let pointerY = 0
@@ -67,7 +70,7 @@
 
   function currentTimelineElapsed() {
     return audio && !audio.paused
-      ? Math.max(0, (audio.currentTime - 17.5) * 1000)
+      ? Math.max(0, (audio.currentTime - timelineCueSeconds) * 1000)
       : Date.now() - startedAt
   }
 
@@ -305,7 +308,8 @@
     const audioPlaying = Boolean(audio && !audio.paused)
     if (audioPlaying) {
       const fadeOut = track.at(-1) - timelineElapsed + 1000
-      audio.volume = Math.max(0, Math.min(1, timelineElapsed / 2000, fadeOut / 2000)) * 0.3
+      const fadeIn = (Date.now() - playbackVolumeStartedAt) / 2000
+      audio.volume = Math.max(0, Math.min(1, fadeIn, fadeOut / 2000)) * 0.2
     }
 
     const pointerMoving = Math.abs(pointerX - smoothX) > 0.1
@@ -327,7 +331,7 @@
     if (
       event.target instanceof Element
       && event.target.closest(
-        ".boost-text-area, .optimization-summary, .character-guide-link, .dxvk-update-link",
+        ".boost-text-area, .optimization-summary, .character-guide-link, .dxvk-update-link, .creator-credit, .creator-view",
       )
     ) return
     const bounds = canvas?.getBoundingClientRect()
@@ -453,7 +457,12 @@
       animationStarted = true
       onplaybackstart()
       circles = createCircles()
-      startedAt = Date.now() - Math.max(0, (nextAudio.currentTime - 17.5) * 1000)
+      const initialTimelineElapsed = Math.max(
+        0,
+        (nextAudio.currentTime - timelineCueSeconds) * 1000,
+      )
+      startedAt = Date.now() - initialTimelineElapsed
+      playbackVolumeStartedAt = Date.now()
       const finalStartupWaveEnd = Math.max(
         6200,
         ...circles.map(circle => circle.time + (circle.duration ?? circle.size * 8)),
@@ -464,15 +473,15 @@
       requestDraw()
       hideTimer = window.setTimeout(() => {
         onstartupcomplete()
-      }, 2500)
+      }, Math.max(0, 2500 - initialTimelineElapsed))
       audioStopTimer = window.setTimeout(() => {
         nextAudio.pause()
-      }, 6200)
+      }, Math.max(0, 6200 - initialTimelineElapsed))
     }
 
     const playFromCue = () => {
       if (currentPlaybackId !== playbackId) return
-      nextAudio.currentTime = 17.5
+      nextAudio.currentTime = startupPlaybackCueSeconds
       nextAudio.addEventListener("playing", startAnimation, { once: true })
       void nextAudio.play().catch(error => {
         console.warn("게임 시작 음악을 재생하지 못했습니다", error)

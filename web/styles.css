@@ -547,21 +547,70 @@ footer {
   color: #f0a44b;
 }
 
+.app-version {
+  position: fixed;
+  z-index: 95;
+  bottom: 10px;
+  left: 14px;
+  color: #999;
+  font-size: 9px;
+  line-height: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transition: color 300ms ease;
+}
+
+.app-version.paused {
+  color: #aaa;
+}
+
+.creator-prompt {
+  position: fixed;
+  z-index: 96;
+  right: 14px;
+  bottom: 34px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  color: #fff;
+  background: #1b76ff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.06));
+}
+
+.creator-prompt::after {
+  position: absolute;
+  right: 18px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  background: #1b76ff;
+  content: "";
+  transform: rotate(45deg);
+}
+
 .creator-credit {
   position: fixed;
   z-index: 95;
   right: 14px;
   bottom: 10px;
+  padding: 0;
+  border: 0;
   color: #777;
+  background: transparent;
   font-size: 11px;
   line-height: 14px;
   opacity: 0;
-  pointer-events: none;
+  cursor: pointer;
   transform: translateX(12px);
   transition:
     color 450ms ease,
     opacity 450ms 150ms ease-out,
     transform 450ms 150ms ease-out;
+  -webkit-app-region: no-drag;
 }
 
 .creator-credit.entered {
@@ -569,8 +618,613 @@ footer {
   transform: translateX(0);
 }
 
-.boost-home.paused .creator-credit {
+.creator-credit:hover:not(:disabled) {
+  color: #222;
+}
+
+.creator-credit.paused {
   color: #aaa;
+}
+
+.creator-credit.paused:hover:not(:disabled) {
+  color: #fff;
+}
+
+.creator-credit:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.creator-credit.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-12px);
+}
+
+.creator-view {
+  position: fixed;
+  z-index: 94;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  padding: 52px 38px 26px;
+  color: #202020;
+  background: transparent;
+  transform: translateY(100%);
+}
+
+.creator-view.open {
+  transform: translateY(0);
+}
+
+.boost-home.creator-open {
+  transform: translateY(-100%);
+}
+
+.boost-home.creator-opening {
+  animation: creator-home-out 780ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.boost-home.creator-closing {
+  animation: creator-home-in 780ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.creator-view.opening {
+  animation: creator-view-in 780ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.creator-view.closing {
+  animation: creator-view-out 780ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.creator-return {
+  position: fixed;
+  z-index: 301;
+  top: 9px;
+  left: 50%;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #444;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transform: translateX(-50%);
+  transition:
+    color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease;
+  -webkit-app-region: no-drag;
+}
+
+.creator-return:hover:not(:disabled) {
+  color: #111;
+  background: #fff;
+  transform: translateX(-50%) translateY(2px);
+}
+
+.creator-return svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.creator-tabs {
+  display: flex;
+  min-width: 0;
+  padding: 10px 11px 10px 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.creator-tabs button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  color: #777;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.creator-tabs button:hover:not(:disabled) {
+  color: #222;
+  transform: translateX(3px);
+}
+
+.creator-tabs button.active {
+  color: #111;
+  font-weight: 800;
+}
+
+.creator-tabs button::before {
+  display: inline-block;
+  width: 0;
+  margin-right: 0;
+  overflow: hidden;
+  content: "—";
+  opacity: 0;
+  white-space: nowrap;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition:
+    width 240ms ease,
+    margin-right 240ms ease,
+    opacity 180ms ease,
+    transform 240ms ease;
+}
+
+.creator-tabs button.active::before {
+  width: 13px;
+  margin-right: 7px;
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.creator-tabs button:last-child {
+  margin-top: auto;
+}
+
+.creator-content {
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  direction: rtl;
+  background:
+    linear-gradient(
+      to right,
+      transparent 1px,
+      rgba(20, 20, 20, 0.14) 1px,
+      rgba(20, 20, 20, 0.14) 2px,
+      transparent 2px
+    )
+    left top / 3px 100% no-repeat;
+}
+
+.creator-content::-webkit-scrollbar {
+  width: 3px;
+}
+
+.creator-content::-webkit-scrollbar-track {
+  background:
+    linear-gradient(
+      to right,
+      transparent 1px,
+      rgba(20, 20, 20, 0.14) 1px,
+      rgba(20, 20, 20, 0.14) 2px,
+      transparent 2px
+    );
+}
+
+.creator-content::-webkit-scrollbar-thumb {
+  border-radius: 2px;
+  background: rgba(20, 20, 20, 0.32);
+}
+
+.creator-content-inner {
+  min-height: 100%;
+  padding: 12px 0 12px 30px;
+  direction: ltr;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.creator-content-inner.tab-leaving {
+  pointer-events: none;
+  animation: creator-tab-out-left 180ms ease-in both;
+}
+
+.creator-content-inner.tab-entering {
+  pointer-events: none;
+  animation: creator-tab-in-right 220ms ease-out both;
+}
+
+.creator-content p {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.creator-channel-card {
+  display: grid;
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px 12px 10px 10px;
+  grid-template-columns: 58px minmax(150px, max-content) 30px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(20, 20, 20, 0.12);
+  border-radius: 8px;
+  color: #202020;
+  background: rgba(255, 255, 255, 0.72);
+  text-align: left;
+  cursor: pointer;
+}
+
+.creator-channel-card:hover {
+  border-color: rgba(20, 20, 20, 0.3);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.creator-channel-card > img {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.creator-channel-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.creator-channel-copy strong {
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.creator-channel-copy span,
+.creator-channel-copy small {
+  overflow: hidden;
+  color: #666;
+  font-size: 10px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.creator-channel-card > .youtube-logo {
+  width: 30px;
+  height: 30px;
+  fill: #ff0033;
+}
+
+.introduce-markdown {
+  width: min(100%, 390px);
+  margin-top: 16px;
+}
+
+.introduce-markdown h1,
+.introduce-markdown h2,
+.introduce-markdown h3 {
+  margin: 0 0 8px;
+  color: inherit;
+  line-height: 1.45;
+}
+
+.introduce-markdown h1 {
+  font-size: 16px;
+}
+
+.introduce-markdown h2 {
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.introduce-markdown h3 {
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.introduce-markdown ul {
+  margin: 0 0 12px;
+  padding-left: 17px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.introduce-markdown .markdown-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 10px 0 14px;
+  border: 1px solid rgba(20, 20, 20, 0.12);
+  border-radius: 6px;
+}
+
+.donation-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.donation-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(20, 20, 20, 0.12);
+  border-radius: 8px;
+  color: #202020;
+  background: rgba(255, 255, 255, 0.72);
+  text-align: left;
+}
+
+button.donation-card {
+  cursor: pointer;
+}
+
+button.donation-card:hover {
+  border-color: rgba(20, 20, 20, 0.3);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.donation-card header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 0;
+}
+
+.donation-card header > img {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.direct-donation-card header > img {
+  border-radius: 0;
+  object-fit: contain;
+}
+
+.direct-donation-card {
+  border-color: #ffca10;
+  animation: direct-donation-highlight 2200ms ease-in-out infinite;
+}
+
+.donation-card header > div {
+  min-width: 0;
+  text-align: center;
+}
+
+button.direct-donation-card:hover {
+  border-color: #e8b600;
+}
+
+.donation-card h2 {
+  margin: 1px 0 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donation-card small {
+  color: #777;
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.donation-card p {
+  margin: 10px 0 0;
+  color: #666;
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.version-history article {
+  margin: 0 0 18px;
+}
+
+.version-history article:last-child {
+  margin-bottom: 0;
+}
+
+.version-history h2 {
+  margin: 0 0 7px;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.version-history ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.version-history li {
+  position: relative;
+  margin: 0 0 4px;
+  padding-left: 11px;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.version-history li::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  content: "·";
+}
+
+.developer-tools {
+  max-width: 390px;
+}
+
+.developer-tool-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+}
+
+.developer-tools h2 {
+  margin: 0 0 5px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.developer-tools p {
+  margin: 0;
+  color: #666;
+}
+
+.developer-tools button {
+  justify-self: end;
+  min-width: 104px;
+  height: 31px;
+  padding: 0 13px;
+  border: 1px solid #222;
+  border-radius: 3px;
+  color: #fff;
+  background: #222;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.developer-tools button:hover:not(:disabled) {
+  color: #111;
+  background: transparent;
+}
+
+.developer-tools button:disabled {
+  border-color: #ccc;
+  color: #999;
+  background: transparent;
+}
+
+.developer-tool-status {
+  color: #888;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.creator-view.paused {
+  color: #eee;
+}
+
+.creator-view.paused .creator-content {
+  background:
+    linear-gradient(
+      to right,
+      transparent 1px,
+      rgba(255, 255, 255, 0.18) 1px,
+      rgba(255, 255, 255, 0.18) 2px,
+      transparent 2px
+    )
+    left top / 3px 100% no-repeat;
+}
+
+.creator-view button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.creator-view.paused .creator-return {
+  color: #ddd;
+  background: rgba(20, 20, 20, 0.82);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.creator-view.paused .creator-return:hover:not(:disabled) {
+  color: #fff;
+  background: #242424;
+}
+
+.creator-view.paused .creator-content::-webkit-scrollbar-track {
+  background:
+    linear-gradient(
+      to right,
+      transparent 1px,
+      rgba(255, 255, 255, 0.18) 1px,
+      rgba(255, 255, 255, 0.18) 2px,
+      transparent 2px
+    );
+}
+
+.creator-view.paused .creator-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.36);
+}
+
+.creator-view.paused .creator-channel-card {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #eee;
+  background: rgba(20, 20, 20, 0.72);
+}
+
+.creator-view.paused .creator-channel-card:hover {
+  border-color: rgba(255, 255, 255, 0.36);
+  background: rgba(20, 20, 20, 0.92);
+}
+
+.creator-view.paused .creator-channel-copy span,
+.creator-view.paused .creator-channel-copy small {
+  color: #aaa;
+}
+
+.creator-view.paused .markdown-image {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.creator-view.paused .donation-card {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #eee;
+  background: rgba(20, 20, 20, 0.72);
+}
+
+.creator-view.paused .direct-donation-card {
+  border-color: #ffca10;
+}
+
+.creator-view.paused button.donation-card:hover {
+  border-color: rgba(255, 255, 255, 0.36);
+  background: rgba(20, 20, 20, 0.92);
+}
+
+.creator-view.paused .donation-card small,
+.creator-view.paused .donation-card p {
+  color: #aaa;
+}
+
+.creator-view.paused .developer-tools p,
+.creator-view.paused .developer-tool-status {
+  color: #999;
+}
+
+.creator-view.paused .developer-tools button {
+  border-color: #eee;
+  color: #111;
+  background: #eee;
+}
+
+.creator-view.paused .developer-tools button:hover:not(:disabled) {
+  color: #fff;
+  background: transparent;
+}
+
+.creator-view.paused .developer-tools button:disabled {
+  border-color: #555;
+  color: #777;
+  background: transparent;
+}
+
+.creator-view.paused .creator-tabs button {
+  color: #999;
+}
+
+.creator-view.paused .creator-tabs button:hover:not(:disabled),
+.creator-view.paused .creator-tabs button.active {
+  color: #fff;
 }
 
 .optimization-modal-grid {
@@ -1015,6 +1669,15 @@ footer {
   -webkit-app-region: drag;
 }
 
+.window-drag.creator-active {
+  right: calc(50% + 24px);
+}
+
+.creator-window-drag-right {
+  right: 52px;
+  left: calc(50% + 24px);
+}
+
 .window-controls {
   position: fixed;
   z-index: 300;
@@ -1285,6 +1948,81 @@ footer {
   to {
     opacity: 1;
     transform: translate(-50%, 0);
+  }
+}
+
+@keyframes creator-home-out {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes creator-home-in {
+  from {
+    transform: translateY(-100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes creator-view-in {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes creator-tab-out-left {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+
+@keyframes creator-tab-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes direct-donation-highlight {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 100px rgba(255, 202, 16, 0.02);
+  }
+
+  50% {
+    box-shadow: inset 0 0 0 100px rgba(255, 202, 16, 0.11);
+  }
+}
+
+@keyframes creator-view-out {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(100%);
   }
 }
 

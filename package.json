@@ -1,7 +1,7 @@
 {
   "name": "nogirem",
   "productName": "마비노기 렘 부스터",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "main": "electron/main.mjs",
@@ -9,6 +9,7 @@
     "app": "electron .",
     "app:dev": "concurrently --kill-others-on-fail \"vite\" \"wait-on tcp:5173 && electron . --dev\"",
     "app:build": "vite build",
+    "native:radeon": "node scripts/build-radeon-helper.mjs",
     "package:win": "node scripts/package-win.mjs",
     "start": "node src/index.mjs --apply",
     "start:quiet": "node src/index.mjs --apply --quiet",
@@ -28,6 +29,8 @@
     "muo:status:json": "node src/muo-status.mjs --json",
     "nvidia:status": "node src/index.mjs --nvidia-status",
     "nvidia:apply": "node src/index.mjs --nvidia-apply",
+    "graphics:status": "node src/index.mjs --graphics-status",
+    "graphics:apply": "node src/index.mjs --graphics-apply",
     "fast-ping:status": "node src/index.mjs --fast-ping-status",
     "fast-ping:apply": "node src/index.mjs --apply --fast-ping-status",
     "fast-ping:restart": "node src/index.mjs --apply --fast-ping-restart",
@@ -74,6 +77,7 @@
       "!dist/doc_minimize/introduce.png",
       "electron/**/*",
       "src/**/*",
+      "native/radeon-helper/bin/radeon-helper.exe",
       "assets/**/*",
       "config.json",
       "icon.ico",
@@ -81,6 +85,9 @@
       "dxvk-guide.html",
       "public/doc_dxvk/**/*",
       "package.json"
+    ],
+    "asarUnpack": [
+      "native/radeon-helper/bin/radeon-helper.exe"
     ],
     "win": {
       "icon": "icon.ico",
@@ -97,6 +104,7 @@
     "nsis": {
       "oneClick": true,
       "runAfterFinish": true,
+      "include": "build/installer.nsh",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "마비노기 렘 부스터"

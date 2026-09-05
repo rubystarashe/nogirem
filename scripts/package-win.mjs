@@ -26,6 +26,7 @@ function run(command, arguments_) {
   })
 }
 
+await run("npm", ["run", "native:radeon"])
 await run("npm", ["run", "app:build"])
 await run("npx", [
   "electron-builder",

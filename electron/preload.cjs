@@ -2,12 +2,14 @@ const { contextBridge, ipcRenderer } = require("electron")
 
 contextBridge.exposeInMainWorld("nogirem", {
   getStatus: () => ipcRenderer.invoke("optimization:get-status"),
+  refreshGraphics: () => ipcRenderer.invoke("optimization:refresh-graphics"),
   refreshNvidia: () => ipcRenderer.invoke("optimization:refresh-nvidia"),
   refreshNetwork: () => ipcRenderer.invoke("optimization:refresh-network"),
   refreshAffinity: () => ipcRenderer.invoke("optimization:refresh-affinity"),
   getAffinityRuntime: () => ipcRenderer.invoke("optimization:get-affinity-runtime"),
   refreshMemory: () => ipcRenderer.invoke("optimization:refresh-memory"),
   getMemoryRuntime: () => ipcRenderer.invoke("optimization:get-memory-runtime"),
+  optimizeGraphics: () => ipcRenderer.invoke("optimization:optimize-graphics"),
   optimizeNvidia: () => ipcRenderer.invoke("optimization:optimize-nvidia"),
   optimizeNetwork: () => ipcRenderer.invoke("optimization:optimize-network"),
   setAffinityEnabled: options => {
@@ -20,6 +22,7 @@ contextBridge.exposeInMainWorld("nogirem", {
   setFrameBoostEnabled: options => {
     return ipcRenderer.invoke("optimization:set-frame-boost-enabled", options)
   },
+  runCpuReorder: () => ipcRenderer.invoke("optimization:run-cpu-reorder"),
   resetFrameBoost: () => ipcRenderer.invoke("optimization:reset-frame-boost"),
   onCloseRequested: callback => {
     const listener = () => callback()
@@ -37,5 +40,10 @@ contextBridge.exposeInMainWorld("nogirem", {
   openCharacterGuide: () => ipcRenderer.invoke("application:open-character-guide"),
   openDxvkManager: () => ipcRenderer.invoke("application:open-dxvk-manager"),
   openDxvkGuide: () => ipcRenderer.invoke("application:open-dxvk-guide"),
+  getCreatorChannel: () => ipcRenderer.invoke("application:get-creator-channel"),
+  getCreatorPromptDismissed: () => ipcRenderer.invoke("application:get-creator-prompt-dismissed"),
+  dismissCreatorPrompt: () => ipcRenderer.invoke("application:dismiss-creator-prompt"),
+  openCreatorChannel: () => ipcRenderer.invoke("application:open-creator-channel"),
+  openDirectDonation: () => ipcRenderer.invoke("application:open-direct-donation"),
   confirmClose: action => ipcRenderer.invoke("application:confirm-close", action),
 })
