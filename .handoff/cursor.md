@@ -1,12 +1,15 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 00:42
+Last Updated: 2026-09-06 00:47
 
 ## Current Objective
-실시간 부스트는 마비노기 실행 중에만 프로세스 affinity를 제한하고 게임 종료 시 원래 상태로 복원한다.
+Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노기는 P-core 절반, 백그라운드는 나머지 P-core와 모든 E-core를 사용하게 한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
+- Affinity는 `GetSystemCpuSetInformation`의 `EfficiencyClass`, `CoreIndex`, 논리 프로세서 번호를 사용해 실제 코어 토폴로지를 판정한다.
+- 마비노기는 P-core 물리 코어의 절반을 사용하며 홀수이면 게임 측을 올림한다. 백그라운드는 나머지 P-core와 모든 E-core를 사용한다.
+- P/E 구분이 없는 CPU도 물리 코어 단위로 절반을 나누고 SMT sibling 전체를 같은 마스크에 유지한다.
 - affinity 기능은 `src/affinity.mjs`, 메모리 기능은 `src/memory.mjs`로 분리했다.
 - 구문 검사, `npm run self-test`, `npm run memory:status`가 통과했다.
 - `npm run nvidia:status`로 NVIDIA GPU와 마비노기 3D 프로필을 읽기 전용 조회할 수 있다.
@@ -118,6 +121,9 @@ Last Updated: 2026-09-06 00:42
 
 ## Architecture / Important Decisions
 - affinity 모듈이 CPU 마스크 계산, 프로세스 탐색, 적용·복구, 상태 저장을 소유한다.
+- 가장 높은 `EfficiencyClass`를 P-core 계층으로 취급하고 그보다 낮은 계층은 모두 백그라운드 마스크에 포함한다.
+- CPU 재정렬은 두 P-core 절반만 교환하며 E-core는 항상 백그라운드 쪽에 유지한다.
+- Windows CPU Set 조회가 실패하거나 현재 affinity 그룹과 일치하지 않으면 기존 논리 CPU 절반 마스크로 대체한다.
 - 마비노기 적용은 `applyToGameProcesses`, 다른 프로그램 적용은 `applyToBackgroundProcesses`로 구분한다.
 - memory 모듈이 NT 메모리 조회, standby 정리, 임계치와 타이머 상태를 소유한다.
 - 진입점은 두 모듈의 생명주기와 종료 시 복구 순서만 조정한다.
@@ -222,7 +228,6 @@ Last Updated: 2026-09-06 00:42
 - 논리 CPU는 4~52개의 짝수여야 한다.
 - 개발자 CPU 재정렬 기능은 4~52개의 짝수 논리 CPU와 기본 절반 분할 모드에서 허용한다.
 - 코드 주석은 한국어로 작성하고 줄 끝 세미콜론은 사용하지 않는다.
-- 사용자 명시 지시: Git 커밋을 생성하지 않는다.
 
 ## Pending Tasks
 1. Radeon 전용 장비에서 전역 설정 확인 모달, 실제 적용과 AMD Software 반영을 수동 검증한다.
@@ -237,6 +242,7 @@ Last Updated: 2026-09-06 00:42
 10. `실시간 부스트중` 문구를 눌러 대형 파동과 일시정지·재개 상태 전환을 확인한다.
 11. 마비노기 실행·실시간 부스트 상태에서 CPU 재정렬의 3초 역전과 정상 복귀를 수동 확인한다.
 12. 0.0.2 설치본에서 `v0.0.3`의 실제 자동 다운로드와 설치를 수동 검증한다.
+13. Intel 하이브리드 CPU에서 실제 P/E 코어 번호와 적용 마스크를 수동 검증한다.
 
 ## Known Issues
 - `runtime-state.json`을 직접 덮어써 동시 읽기 시 일시적으로 불완전한 JSON이 노출될 수 있다.
@@ -268,6 +274,7 @@ Last Updated: 2026-09-06 00:42
 - 시작 음악은 Electron의 미디어 자동재생 정책이나 오디오 장치 상태에 따라 재생이 거부될 수 있다.
 - 프레임리스 창에는 시스템 최소화 버튼이 없으며 현재 커스텀 UI는 닫기만 제공한다.
 - 앱 자동 업데이트는 패키징된 앱에서만 동작하며 GitHub Release에 설치 파일·blockmap·`latest.yml` 세 자산이 모두 있어야 한다.
+- Affinity는 기존 단일 프로세서 그룹과 최대 52개 논리 CPU 제한을 유지하므로 다중 프로세서 그룹 시스템은 지원하지 않는다.
 
 ## Key Files
 - `src/index.mjs`: CLI와 전체 실행 흐름
@@ -809,6 +816,8 @@ Last Updated: 2026-09-06 00:42
 - 메인 프로세스는 공용 경로 상태를 500ms마다 확인하며 새 경로 발견 시 DXVK 상태와 NVIDIA/Radeon 그래픽 상태를 즉시 재조회한다. 그래픽 결과는 제한된 IPC 이벤트로 현재 UI에도 반영한다.
 - 다음 앱 시작은 저장된 실제 경로를 초기 DXVK·그래픽 확인 전부터 재사용한다. 폴더명 의존 판별은 사용자 요청에 따라 유지했다. 전체 테스트 45개, 프로덕션 웹 빌드, Electron·preload 구문 검사와 린트가 통과했다.
 - Electron Affinity helper의 `restoreOnGameExit`를 활성화했다. 마비노기 종료 감지 시 앱이 변경한 게임·백그라운드 프로세스 affinity를 원래 마스크로 복원하고, 다시 게임을 감지하면 새 원본을 기록해 부스트를 재적용한다. NIC RSS와 영구 그래픽·네트워크 설정은 이 흐름에서 변경하지 않는다.
+- 논리 CPU 번호 절반 분할을 Windows CPU Set 기반 물리 코어 배분으로 교체했다. P-core 절반과 SMT sibling은 게임에, 나머지 P-core와 모든 E-core는 백그라운드에 배정하며 홀수 P-core는 게임 측을 올림한다.
+- CPU 재정렬도 E-core를 게임에 넘기지 않고 P-core 그룹끼리만 교환한다. 토폴로지 단위 테스트를 추가해 전체 테스트 48개, 프로덕션 웹 빌드, 구문 검사와 린트가 통과했다.
 - 첫 소개 탭 이름을 `안녕하세요`로 바꾸고 메뉴와 구분선 사이 여백을 절반으로 줄였다. 구분선을 항상 보이는 3px 가상 스크롤 트랙으로 전환해 긴 본문의 위치가 반투명 thumb로 표시되도록 했으며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - `VERSION_HISTORY.md`를 추가하고 `0.0.2`, `0.0.1` 최초 기록을 작성했다. 소개 화면은 이 파일을 raw import로 불러와 버전 제목과 변경 목록으로 안전하게 렌더링하며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - 소개 메뉴와 가상 스크롤 구분선 사이의 실제 간격을 줄이기 위해 좌측 그리드 열을 168px에서 132px로 축소했다. 프로덕션 웹 빌드와 편집기 린트가 통과했다.
@@ -827,4 +836,4 @@ Last Updated: 2026-09-06 00:42
 - `roundedCorners: false`로 Windows 11 창 모서리를 직각으로 고정했다.
 
 ## Next Recommended Step
-0.0.3 설치본을 실행해 v0.1.0 다운로드 모달, 진행률, 설치와 재실행 후 버전 표시를 확인한다.
+Intel 하이브리드 CPU에서 helper 상태의 P/E 개수와 게임·백그라운드 CPU 범위를 확인한 뒤 실제 마비노기 실행 중 affinity를 검증한다.

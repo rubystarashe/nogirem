@@ -505,8 +505,22 @@ async function runAffinityHelper() {
       characterSimplification,
       includeNic,
       nicManaged,
-      backgroundCpuRange: `0-${half - 1}`,
-      gameCpuRange: `${half}-${logicalCpuCount - 1}`,
+      backgroundCpuRange: affinity?.getCpuAllocation().backgroundCpuRange
+        ?? helperAffinity?.backgroundCpuRange
+        ?? `0-${half - 1}`,
+      gameCpuRange: affinity?.getCpuAllocation().gameCpuRange
+        ?? helperAffinity?.gameCpuRange
+        ?? `${half}-${logicalCpuCount - 1}`,
+      cpuTopology: affinity?.getCpuAllocation() ?? (
+        helperAffinity
+          ? {
+              source: helperAffinity.source,
+              hybrid: helperAffinity.hybrid,
+              performanceCoreCount: helperAffinity.performanceCoreCount,
+              efficiencyCoreCount: helperAffinity.efficiencyCoreCount,
+            }
+          : null
+      ),
       helperPid: process.pid,
       helperAffinity,
       nicStatus,

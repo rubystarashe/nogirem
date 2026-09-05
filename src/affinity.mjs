@@ -12,6 +12,7 @@ open({ library: "kernel32", path: "kernel32.dll" })
 
 const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 const PROCESS_SET_INFORMATION = 0x0200
+const ERROR_INSUFFICIENT_BUFFER = 122
 
 function nativeCall(funcName, retType, paramsType, paramsValue) {
   return load({ library: "kernel32", funcName, retType, paramsType, paramsValue })
@@ -100,6 +101,96 @@ function setAffinity(pid, mask) {
 
 const normalizePath = value => value?.replaceAll("/", "\\").toLowerCase() ?? ""
 
+function maskFromCpuIndexes(cpuIndexes) {
+  return cpuIndexes.reduce((mask, cpuIndex) => mask | (1n << BigInt(cpuIndex)), 0n)
+}
+
+function formatCpuIndexes(cpuIndexes) {
+  if (!cpuIndexes.length) return "없음"
+  const ranges = []
+  let start = cpuIndexes[0]
+  let end = start
+  for (const cpuIndex of cpuIndexes.slice(1)) {
+    if (cpuIndex === end + 1) {
+      end = cpuIndex
+      continue
+    }
+    ranges.push(start === end ? `${start}` : `${start}-${end}`)
+    start = cpuIndex
+    end = cpuIndex
+  }
+  ranges.push(start === end ? `${start}` : `${start}-${end}`)
+  return ranges.join(",")
+}
+
+export function buildCpuTopologyMasks(cpuSets, logicalCpuCount) {
+  if (logicalCpuCount < 4 || logicalCpuCount > 52 || logicalCpuCount % 2) {
+    throw new Error(`Unsupported logical CPU count: ${logicalCpuCount}; expected an even count from 4 to 52.`)
+  }
+  const processors = cpuSets
+    .filter(cpuSet => cpuSet.group === 0)
+    .sort((left, right) => left.logicalProcessorIndex - right.logicalProcessorIndex)
+  const indexes = processors.map(cpuSet => cpuSet.logicalProcessorIndex)
+  if (
+    processors.length !== logicalCpuCount
+    || new Set(indexes).size !== logicalCpuCount
+    || indexes.some((cpuIndex, index) => cpuIndex !== index)
+  ) {
+    throw new Error("CPU Set topology does not match the process affinity group.")
+  }
+
+  const physicalCores = new Map()
+  for (const processor of processors) {
+    const key = `${processor.group}:${processor.coreIndex}`
+    const core = physicalCores.get(key) ?? {
+      efficiencyClass: processor.efficiencyClass,
+      cpuIndexes: [],
+    }
+    if (core.efficiencyClass !== processor.efficiencyClass) {
+      throw new Error(`Inconsistent efficiency class for physical core ${key}.`)
+    }
+    core.cpuIndexes.push(processor.logicalProcessorIndex)
+    physicalCores.set(key, core)
+  }
+
+  const cores = [...physicalCores.values()]
+    .map(core => ({ ...core, cpuIndexes: core.cpuIndexes.sort((left, right) => left - right) }))
+    .sort((left, right) => left.cpuIndexes[0] - right.cpuIndexes[0])
+  const performanceClass = Math.max(...cores.map(core => core.efficiencyClass))
+  const performanceCores = cores.filter(core => core.efficiencyClass === performanceClass)
+  const efficiencyCores = cores.filter(core => core.efficiencyClass < performanceClass)
+  const gameCoreCount = Math.ceil(performanceCores.length / 2)
+  const gameCores = performanceCores.slice(-gameCoreCount)
+  const backgroundPerformanceCores = performanceCores.slice(0, -gameCoreCount)
+  const alternateGameCores = backgroundPerformanceCores
+  const alternateBackgroundCores = [...gameCores, ...efficiencyCores]
+  const gameCpuIndexes = gameCores.flatMap(core => core.cpuIndexes).sort((left, right) => left - right)
+  const backgroundCpuIndexes = [...backgroundPerformanceCores, ...efficiencyCores]
+    .flatMap(core => core.cpuIndexes)
+    .sort((left, right) => left - right)
+  const alternateGameCpuIndexes = alternateGameCores
+    .flatMap(core => core.cpuIndexes)
+    .sort((left, right) => left - right)
+  const alternateBackgroundCpuIndexes = alternateBackgroundCores
+    .flatMap(core => core.cpuIndexes)
+    .sort((left, right) => left - right)
+
+  return {
+    source: "windows-cpu-sets",
+    allMask: maskFromCpuIndexes(indexes),
+    gameMask: maskFromCpuIndexes(gameCpuIndexes),
+    backgroundMask: maskFromCpuIndexes(backgroundCpuIndexes),
+    alternateGameMask: maskFromCpuIndexes(alternateGameCpuIndexes),
+    alternateBackgroundMask: maskFromCpuIndexes(alternateBackgroundCpuIndexes),
+    lastPerformanceCoreMask: maskFromCpuIndexes(performanceCores.at(-1).cpuIndexes),
+    gameCpuIndexes,
+    backgroundCpuIndexes,
+    performanceCoreCount: performanceCores.length,
+    efficiencyCoreCount: efficiencyCores.length,
+    hybrid: efficiencyCores.length > 0,
+  }
+}
+
 export function buildCpuHalfMasks(logicalCpuCount) {
   if (logicalCpuCount < 4 || logicalCpuCount > 52 || logicalCpuCount % 2) {
     throw new Error(`Unsupported logical CPU count: ${logicalCpuCount}; expected an even count from 4 to 52.`)
@@ -115,16 +206,101 @@ export function buildCpuHalfMasks(logicalCpuCount) {
   }
 }
 
-export function pinCurrentProcessToBackgroundCpus() {
-  const logicalCpuCount = cpus().length
+function queryWindowsCpuSets() {
+  const returnedLength = createPointer({ paramsType: [DataType.U32], paramsValue: [0] })
+  const currentProcess = nativeCall("GetCurrentProcess", DataType.External, [], [])
+  try {
+    const initialBuffer = Buffer.alloc(1)
+    const initialResult = nativeCall(
+      "GetSystemCpuSetInformation",
+      DataType.Boolean,
+      [DataType.U8Array, DataType.U32, DataType.External, DataType.External, DataType.U32],
+      [initialBuffer, 0, returnedLength[0], currentProcess, 0],
+    )
+    const requiredLength = Number(readPointer(returnedLength, DataType.U32))
+    if (!initialResult && lastError() !== ERROR_INSUFFICIENT_BUFFER) {
+      throw new Error(`GetSystemCpuSetInformation size query failed (Win32 ${lastError()})`)
+    }
+    if (!requiredLength) throw new Error("GetSystemCpuSetInformation returned no CPU Sets.")
+
+    const buffer = Buffer.alloc(requiredLength)
+    const ok = nativeCall(
+      "GetSystemCpuSetInformation",
+      DataType.Boolean,
+      [DataType.U8Array, DataType.U32, DataType.External, DataType.External, DataType.U32],
+      [buffer, buffer.length, returnedLength[0], currentProcess, 0],
+    )
+    if (!ok) throw new Error(`GetSystemCpuSetInformation failed (Win32 ${lastError()})`)
+
+    const cpuSets = []
+    const validLength = Number(readPointer(returnedLength, DataType.U32))
+    for (let offset = 0; offset + 8 <= validLength;) {
+      const size = buffer.readUInt32LE(offset)
+      const type = buffer.readUInt32LE(offset + 4)
+      if (size < 8 || offset + size > validLength) {
+        throw new Error("GetSystemCpuSetInformation returned malformed data.")
+      }
+      if (type === 0 && size >= 32) {
+        cpuSets.push({
+          id: buffer.readUInt32LE(offset + 8),
+          group: buffer.readUInt16LE(offset + 12),
+          logicalProcessorIndex: buffer.readUInt8(offset + 14),
+          coreIndex: buffer.readUInt8(offset + 15),
+          efficiencyClass: buffer.readUInt8(offset + 18),
+        })
+      }
+      offset += size
+    }
+    return cpuSets
+  } finally {
+    freePointer({
+      paramsType: [DataType.U32],
+      paramsValue: returnedLength,
+      pointerType: PointerType.RsPointer,
+    })
+  }
+}
+
+export function resolveCpuAllocation(logicalCpuCount = cpus().length) {
   if (process.platform !== "win32" || process.arch !== "x64") {
     throw new Error("Windows x64 only.")
   }
-  const { half: backgroundCpuCount, lowerHalfMask: backgroundMask } = buildCpuHalfMasks(logicalCpuCount)
+  try {
+    return buildCpuTopologyMasks(queryWindowsCpuSets(), logicalCpuCount)
+  } catch {
+    const { allMask, lowerHalfMask, upperHalfMask } = buildCpuHalfMasks(logicalCpuCount)
+    const half = logicalCpuCount / 2
+    return {
+      source: "logical-half-fallback",
+      allMask,
+      gameMask: upperHalfMask,
+      backgroundMask: lowerHalfMask,
+      alternateGameMask: lowerHalfMask,
+      alternateBackgroundMask: upperHalfMask,
+      lastPerformanceCoreMask: 3n << BigInt(logicalCpuCount - 2),
+      gameCpuIndexes: Array.from({ length: half }, (_, index) => index + half),
+      backgroundCpuIndexes: Array.from({ length: half }, (_, index) => index),
+      performanceCoreCount: null,
+      efficiencyCoreCount: null,
+      hybrid: null,
+    }
+  }
+}
+
+export function pinCurrentProcessToBackgroundCpus() {
+  const logicalCpuCount = cpus().length
+  const allocation = resolveCpuAllocation(logicalCpuCount)
+  const { backgroundMask } = allocation
   setAffinity(process.pid, backgroundMask)
   return {
     mask: `0x${backgroundMask.toString(16)}`,
-    cpuRange: `0-${backgroundCpuCount - 1}`,
+    cpuRange: formatCpuIndexes(allocation.backgroundCpuIndexes),
+    source: allocation.source,
+    hybrid: allocation.hybrid,
+    performanceCoreCount: allocation.performanceCoreCount,
+    efficiencyCoreCount: allocation.efficiencyCoreCount,
+    backgroundCpuRange: formatCpuIndexes(allocation.backgroundCpuIndexes),
+    gameCpuRange: formatCpuIndexes(allocation.gameCpuIndexes),
   }
 }
 
@@ -140,22 +316,18 @@ export async function createAffinityManager({
   const logicalCpuCount = cpus().length
 
   if (process.platform !== "win32" || process.arch !== "x64") throw new Error("Windows x64 only.")
-  const {
-    half,
-    allMask,
-    lowerHalfMask,
-    upperHalfMask,
-  } = buildCpuHalfMasks(logicalCpuCount)
+  const allocation = resolveCpuAllocation(logicalCpuCount)
+  const { allMask } = allocation
   const gameMask = passiveMode
     ? null
-    : (lastCoreMode ? 3n << BigInt(logicalCpuCount - 2) : upperHalfMask)
-  const backgroundMask = passiveMode ? upperHalfMask : allMask ^ gameMask
+    : (lastCoreMode ? allocation.lastPerformanceCoreMask : allocation.gameMask)
+  const backgroundMask = passiveMode ? allocation.gameMask : allMask ^ gameMask
   const modeName = passiveMode ? "passive" : (lastCoreMode ? "last-core" : "half")
   const allocationDescription = passiveMode
-    ? `game affinity unchanged, background CPUs ${half}-${logicalCpuCount - 1}`
+    ? `game affinity unchanged, background CPUs ${formatCpuIndexes(allocation.gameCpuIndexes)}`
     : (lastCoreMode
       ? `background CPUs 0-${logicalCpuCount - 3}, game CPUs ${logicalCpuCount - 2}-${logicalCpuCount - 1}`
-      : `background CPUs 0-${half - 1}, game CPUs ${half}-${logicalCpuCount - 1}`)
+      : `background CPUs ${formatCpuIndexes(allocation.backgroundCpuIndexes)}, game P-core CPUs ${formatCpuIndexes(allocation.gameCpuIndexes)}`)
   const configuredGamePath = normalizePath(config.gameExecutable)
   const gameExecutableName = String(
     config.gameExecutableName ?? basename(config.gameExecutable ?? "Client.exe"),
@@ -304,8 +476,14 @@ export async function createAffinityManager({
     await applyToGameProcesses(temporaryGames)
     await applyToBackgroundProcesses(temporaryProcesses)
     const temporaryBackground = temporaryProcesses.filter(isEligibleBackground)
-    const temporaryGameResult = forceAffinity(temporaryGames, lowerHalfMask)
-    const temporaryBackgroundResult = forceAffinity(temporaryBackground, upperHalfMask)
+    if (!allocation.alternateGameMask) {
+      throw new Error("CPU 재정렬에 사용할 대체 P-core 그룹이 없습니다")
+    }
+    const temporaryGameResult = forceAffinity(temporaryGames, allocation.alternateGameMask)
+    const temporaryBackgroundResult = forceAffinity(
+      temporaryBackground,
+      allocation.alternateBackgroundMask,
+    )
 
     let finalGameResult = { changedCount: 0, alreadyCount: 0, skippedCount: 0 }
     let finalBackgroundResult = { changedCount: 0, alreadyCount: 0, skippedCount: 0 }
@@ -316,10 +494,10 @@ export async function createAffinityManager({
       const finalGames = finalProcesses.filter(isGame)
       await applyToGameProcesses(finalGames)
       await applyToBackgroundProcesses(finalProcesses)
-      finalGameResult = forceAffinity(finalGames, upperHalfMask)
+      finalGameResult = forceAffinity(finalGames, allocation.gameMask)
       finalBackgroundResult = forceAffinity(
         finalProcesses.filter(isEligibleBackground),
-        lowerHalfMask,
+        allocation.backgroundMask,
       )
       gameActive = finalGames.length > 0
     }
@@ -488,6 +666,14 @@ export async function createAffinityManager({
     isGameActive: () => gameActive,
     getLatestGameStartTime: () => latestGameStartTime,
     getLatestGameExecutablePath: () => latestGameExecutablePath,
+    getCpuAllocation: () => ({
+      source: allocation.source,
+      hybrid: allocation.hybrid,
+      performanceCoreCount: allocation.performanceCoreCount,
+      efficiencyCoreCount: allocation.efficiencyCoreCount,
+      backgroundCpuRange: formatCpuIndexes(allocation.backgroundCpuIndexes),
+      gameCpuRange: formatCpuIndexes(allocation.gameCpuIndexes),
+    }),
     performCpuReorder,
     printStartupSummary,
     recover,

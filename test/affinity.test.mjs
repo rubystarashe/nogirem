@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { buildCpuHalfMasks } from "../src/affinity.mjs"
+import { buildCpuHalfMasks, buildCpuTopologyMasks } from "../src/affinity.mjs"
 
 test("CPU 절반 마스크를 논리 CPU 수에 맞게 동적으로 계산한다", () => {
   assert.deepEqual(buildCpuHalfMasks(4), {
@@ -33,4 +33,75 @@ test("지원하지 않는 논리 CPU 수는 마스크를 만들지 않는다", (
   assert.throws(() => buildCpuHalfMasks(2), /Unsupported logical CPU count/)
   assert.throws(() => buildCpuHalfMasks(7), /Unsupported logical CPU count/)
   assert.throws(() => buildCpuHalfMasks(54), /Unsupported logical CPU count/)
+})
+
+test("동일 성능 코어는 물리 코어와 SMT 스레드를 함께 절반으로 나눈다", () => {
+  const cpuSets = Array.from({ length: 8 }, (_, logicalProcessorIndex) => ({
+    group: 0,
+    logicalProcessorIndex,
+    coreIndex: Math.floor(logicalProcessorIndex / 2),
+    efficiencyClass: 0,
+  }))
+
+  assert.deepEqual(buildCpuTopologyMasks(cpuSets, 8), {
+    source: "windows-cpu-sets",
+    allMask: 0xffn,
+    gameMask: 0xf0n,
+    backgroundMask: 0x0fn,
+    alternateGameMask: 0x0fn,
+    alternateBackgroundMask: 0xf0n,
+    lastPerformanceCoreMask: 0xc0n,
+    gameCpuIndexes: [4, 5, 6, 7],
+    backgroundCpuIndexes: [0, 1, 2, 3],
+    performanceCoreCount: 4,
+    efficiencyCoreCount: 0,
+    hybrid: false,
+  })
+})
+
+test("하이브리드 CPU는 P-core 절반만 게임에 주고 나머지 P/E-core를 백그라운드에 준다", () => {
+  const performanceSets = Array.from({ length: 12 }, (_, logicalProcessorIndex) => ({
+    group: 0,
+    logicalProcessorIndex,
+    coreIndex: Math.floor(logicalProcessorIndex / 2),
+    efficiencyClass: 8,
+  }))
+  const efficiencySets = Array.from({ length: 8 }, (_, index) => ({
+    group: 0,
+    logicalProcessorIndex: index + 12,
+    coreIndex: index + 6,
+    efficiencyClass: 0,
+  }))
+
+  const allocation = buildCpuTopologyMasks([...performanceSets, ...efficiencySets], 20)
+
+  assert.equal(allocation.gameMask, 0x0fc0n)
+  assert.equal(allocation.backgroundMask, 0xff03fn)
+  assert.equal(allocation.alternateGameMask, 0x003fn)
+  assert.equal(allocation.alternateBackgroundMask, 0xfffc0n)
+  assert.deepEqual(allocation.gameCpuIndexes, [6, 7, 8, 9, 10, 11])
+  assert.deepEqual(allocation.backgroundCpuIndexes, [0, 1, 2, 3, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19])
+  assert.equal(allocation.performanceCoreCount, 6)
+  assert.equal(allocation.efficiencyCoreCount, 8)
+  assert.equal(allocation.hybrid, true)
+})
+
+test("P-core 수가 홀수면 게임 몫을 올림하고 SMT 스레드를 분리하지 않는다", () => {
+  const performanceSets = Array.from({ length: 10 }, (_, logicalProcessorIndex) => ({
+    group: 0,
+    logicalProcessorIndex,
+    coreIndex: Math.floor(logicalProcessorIndex / 2),
+    efficiencyClass: 4,
+  }))
+  const efficiencySets = Array.from({ length: 4 }, (_, index) => ({
+    group: 0,
+    logicalProcessorIndex: index + 10,
+    coreIndex: index + 5,
+    efficiencyClass: 0,
+  }))
+
+  const allocation = buildCpuTopologyMasks([...performanceSets, ...efficiencySets], 14)
+
+  assert.deepEqual(allocation.gameCpuIndexes, [4, 5, 6, 7, 8, 9])
+  assert.deepEqual(allocation.backgroundCpuIndexes, [0, 1, 2, 3, 10, 11, 12, 13])
 })
