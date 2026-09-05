@@ -353,6 +353,7 @@ export async function createAffinityManager({
     ? null
     : (lastCoreMode ? allocation.lastPerformanceCoreMask : allocation.gameMask)
   const backgroundMask = passiveMode ? allocation.gameMask : allMask ^ gameMask
+  const latencyMask = allocation.alternateGameMask || backgroundMask
   const modeName = passiveMode ? "passive" : (lastCoreMode ? "last-core" : "half")
   const allocationDescription = passiveMode
     ? `game affinity unchanged, background CPUs ${formatCpuIndexes(allocation.gameCpuIndexes)}`
@@ -366,6 +367,11 @@ export async function createAffinityManager({
   const gameDirectoryName = String(config.gameDirectoryName ?? "Mabinogi").toLowerCase()
   const excludeNames = new Set(config.excludeNames.map(value => value.toLowerCase()))
   const excludePatterns = config.excludeNamePatterns.map(value => new RegExp(value, "i"))
+  const latencyNames = new Set(
+    (config.latencySensitiveNames ?? []).map(value => value.toLowerCase()),
+  )
+  const latencyPatterns = (config.latencySensitiveNamePatterns ?? [])
+    .map(value => new RegExp(value, "i"))
   const changed = new Map()
   const handled = new Set()
   let gameActive = false
@@ -401,7 +407,7 @@ export async function createAffinityManager({
   runningProcessNames = new Set(initialProcesses.map(processInfo => processInfo.name.toLowerCase()))
   const currentSessionId = initialProcesses.find(processInfo => processInfo.pid === process.pid)?.sessionId
 
-  function isEligibleBackground(processInfo) {
+  function isEligibleManagedProcess(processInfo) {
     const name = processInfo.name.toLowerCase()
     const path = normalizePath(processInfo.path)
     if (processInfo.pid <= 4 || processInfo.pid === process.pid || processInfo.sessionId !== currentSessionId) {
@@ -410,6 +416,16 @@ export async function createAffinityManager({
     if (!path || path.startsWith("c:\\windows\\")) return false
     if (excludeNames.has(name) || excludePatterns.some(pattern => pattern.test(name))) return false
     return !isGame(processInfo)
+  }
+
+  function isLatencySensitive(processInfo) {
+    if (!isEligibleManagedProcess(processInfo)) return false
+    const name = processInfo.name.toLowerCase()
+    return latencyNames.has(name) || latencyPatterns.some(pattern => pattern.test(name))
+  }
+
+  function isEligibleBackground(processInfo) {
+    return isEligibleManagedProcess(processInfo) && !isLatencySensitive(processInfo)
   }
 
   async function saveState() {
@@ -463,6 +479,13 @@ export async function createAffinityManager({
     }
   }
 
+  async function applyToLatencySensitiveProcesses(processes) {
+    const latencyProcesses = processes.filter(isLatencySensitive)
+    for (const latencyProcess of latencyProcesses) {
+      await applyTo(latencyProcess, latencyMask, "latency")
+    }
+  }
+
   async function applyToBackgroundProcesses(processes) {
     const backgroundProcesses = processes.filter(isEligibleBackground)
     for (const backgroundProcess of backgroundProcesses) {
@@ -505,8 +528,10 @@ export async function createAffinityManager({
     if (!temporaryGames.length) throw new Error("실행 중인 마비노기를 찾을 수 없습니다")
 
     await applyToGameProcesses(temporaryGames)
+    await applyToLatencySensitiveProcesses(temporaryProcesses)
     await applyToBackgroundProcesses(temporaryProcesses)
     const temporaryBackground = temporaryProcesses.filter(isEligibleBackground)
+    const temporaryLatency = temporaryProcesses.filter(isLatencySensitive)
     if (!allocation.alternateGameMask) {
       throw new Error("CPU 재정렬에 사용할 대체 P-core 그룹이 없습니다")
     }
@@ -515,6 +540,7 @@ export async function createAffinityManager({
       temporaryBackground,
       allocation.alternateBackgroundMask,
     )
+    const temporaryLatencyResult = forceAffinity(temporaryLatency, allocation.gameMask)
 
     let finalGameResult = { changedCount: 0, alreadyCount: 0, skippedCount: 0 }
     let finalBackgroundResult = { changedCount: 0, alreadyCount: 0, skippedCount: 0 }
@@ -524,12 +550,14 @@ export async function createAffinityManager({
       const finalProcesses = await listProcesses()
       const finalGames = finalProcesses.filter(isGame)
       await applyToGameProcesses(finalGames)
+      await applyToLatencySensitiveProcesses(finalProcesses)
       await applyToBackgroundProcesses(finalProcesses)
       finalGameResult = forceAffinity(finalGames, allocation.gameMask)
       finalBackgroundResult = forceAffinity(
         finalProcesses.filter(isEligibleBackground),
         allocation.backgroundMask,
       )
+      forceAffinity(finalProcesses.filter(isLatencySensitive), latencyMask)
       gameActive = finalGames.length > 0
     }
 
@@ -538,6 +566,7 @@ export async function createAffinityManager({
       temporary: {
         game: temporaryGameResult,
         background: temporaryBackgroundResult,
+        latency: temporaryLatencyResult,
       },
       final: {
         game: finalGameResult,
@@ -663,6 +692,7 @@ export async function createAffinityManager({
       gameActive = true
     }
     await applyToGameProcesses(games)
+    await applyToLatencySensitiveProcesses(processes)
     await applyToBackgroundProcesses(processes)
     return null
   }

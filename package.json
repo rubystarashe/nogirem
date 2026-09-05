@@ -1,7 +1,7 @@
 {
   "name": "nogirem",
   "productName": "마비노기 렘 부스터",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "repository": {
     "type": "git",

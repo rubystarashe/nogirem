@@ -395,7 +395,7 @@ footer {
 }
 
 .boost-home.waiting > img:not(.canvas-logo-hidden) {
-  opacity: 0.4;
+  opacity: 0.3;
 }
 
 .boost-home img.canvas-logo-hidden {
@@ -735,6 +735,8 @@ footer {
 }
 
 .creator-tabs button {
+  display: flex;
+  align-items: center;
   min-height: 34px;
   padding: 0 10px;
   border: 0;
@@ -762,10 +764,15 @@ footer {
 
 .creator-tabs button::before {
   display: inline-block;
+  position: relative;
+  top: 2px;
+  height: 2px;
+  flex: 0 0 auto;
   width: 0;
   margin-right: 0;
   overflow: hidden;
-  content: "—";
+  content: "";
+  background: currentColor;
   opacity: 0;
   white-space: nowrap;
   transform: scaleX(0);
@@ -1125,6 +1132,229 @@ button.direct-donation-card:hover {
   border-color: #ccc;
   color: #999;
   background: transparent;
+}
+
+.developer-tool-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.developer-tools .developer-tool-actions button {
+  min-width: 72px;
+}
+
+.developer-tools .developer-tool-secondary {
+  border-color: #aaa;
+  color: #555;
+  background: transparent;
+}
+
+.turbo-key-picker {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  gap: 6px;
+  height: 100%;
+  min-height: 0;
+}
+
+.turbo-key-picker-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #d8dddf;
+  font-size: 10px;
+}
+
+.turbo-key-picker-summary p {
+  margin: 0;
+}
+
+.turbo-keyboard {
+  align-self: start;
+  width: 100%;
+  min-height: 0;
+  padding: 5px 2px;
+  overflow: hidden;
+  border: 1px solid #343a3d;
+  border-radius: 7px;
+  background: #101214;
+}
+
+.turbo-keyboard-function-row {
+  display: flex;
+  gap: 2px;
+  width: 542px;
+  height: 22px;
+  margin: 0 auto 7px;
+}
+
+.turbo-keyboard-body {
+  display: grid;
+  grid-template-columns: 358px 70px 94px;
+  gap: 10px;
+  width: 542px;
+  margin: 0 auto;
+}
+
+.turbo-keyboard-main {
+  display: grid;
+  grid-template-rows: repeat(5, 22px);
+  gap: 2px;
+}
+
+.turbo-keyboard-row {
+  display: flex;
+  justify-content: flex-start;
+  gap: 2px;
+  width: 358px;
+  min-height: 0;
+}
+
+.turbo-keyboard-navigation {
+  display: grid;
+  grid-template: repeat(5, 22px) / repeat(3, 22px);
+  gap: 2px;
+}
+
+.turbo-keyboard-numpad {
+  display: grid;
+  grid-template: repeat(5, 22px) / repeat(4, 22px);
+  gap: 2px;
+}
+
+.turbo-keyboard-navigation .turbo-keycap,
+.turbo-keyboard-numpad .turbo-keycap {
+  align-self: stretch;
+  width: auto;
+  height: auto;
+}
+
+.turbo-keycap,
+.turbo-key-spacer {
+  flex: 0 0 calc(var(--key-units) * 22px);
+  width: calc(var(--key-units) * 22px);
+}
+
+.turbo-keycap {
+  align-self: center;
+  height: 22px;
+  min-height: 0;
+  padding: 0 1px;
+  overflow: hidden;
+  border: 1px solid #555d61;
+  border-radius: 3px;
+  color: #c7cdd0;
+  background: #24282a;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  text-overflow: clip;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.turbo-keycap.group-start {
+  margin-left: 4px;
+}
+
+.turbo-keycap:hover:not(:disabled) {
+  border-color: #8d979c;
+  color: #fff;
+  background: #303638;
+}
+
+.turbo-keycap.selected {
+  border-color: #68c994;
+  color: #0c1b13;
+  background: #68c994;
+}
+
+.turbo-keycap:disabled {
+  border-color: #2d3234;
+  color: #596064;
+  background: #171a1b;
+  cursor: default;
+}
+
+.turbo-key-picker-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.turbo-key-picker-buttons {
+  display: flex;
+  gap: 7px;
+}
+
+.turbo-key-picker-actions button {
+  min-width: 94px;
+  height: 27px;
+  padding: 0 12px;
+  border: 1px solid #f1f3f4;
+  color: #101214;
+  background: #f1f3f4;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.turbo-key-picker-actions button:hover:not(:disabled) {
+  color: #f1f3f4;
+  background: transparent;
+}
+
+.turbo-key-picker-actions button.reset {
+  border-color: #9f6262;
+  color: #dfa0a0;
+  background: transparent;
+}
+
+.turbo-key-picker-actions button.reset:hover:not(:disabled) {
+  border-color: #a94747;
+  color: #fff;
+  background: #a94747;
+}
+
+.turbo-key-picker-actions button:disabled {
+  border-color: #4c5356;
+  color: #737c80;
+  background: transparent;
+  cursor: default;
+}
+
+.turbo-key-interval {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: auto;
+  color: #aeb5b9;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.turbo-key-interval select {
+  height: 27px;
+  padding: 0 22px 0 8px;
+  border: 1px solid #596165;
+  border-radius: 3px;
+  color: #f1f3f4;
+  background: #191c1e;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.turbo-key-interval select:disabled {
+  color: #737c80;
+  cursor: default;
+}
+
+.turbo-key-picker button:focus-visible {
+  outline: none;
 }
 
 .developer-tool-status {
@@ -1960,7 +2190,7 @@ button.direct-donation-card:hover {
 @keyframes waiting-guide-blink {
   0%,
   100% {
-    opacity: 0.35;
+    opacity: 0.6;
   }
 
   50% {

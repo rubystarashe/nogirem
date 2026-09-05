@@ -34,8 +34,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     UnhookWindowsHookEx, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
-const REPEAT_HZ: u32 = 30;
-const REPEAT_INTERVAL: Duration = Duration::from_micros(33_333);
+const DEFAULT_REPEAT_INTERVAL_MS: u64 = 1;
+const REPEAT_INTERVAL_OPTIONS_MS: [u64; 6] = [1, 3, 5, 10, 20, 30];
 const INJECTION_MARKER: usize = 0x4e4f_4749_5245_4d54;
 const SYNCHRONIZE_ACCESS: u32 = 0x0010_0000;
 
@@ -67,6 +67,8 @@ struct SharedState {
     state: Mutex<TurboState>,
     changed: Condvar,
     stopping: AtomicBool,
+    allowed_keys: HashSet<u32>,
+    repeat_interval: Duration,
 }
 
 #[derive(Serialize)]
@@ -75,6 +77,7 @@ struct Status {
     running: bool,
     pid: u32,
     repeat_hz: u32,
+    interval_ms: u64,
     game_only: bool,
     updated_at: u128,
     error: Option<String>,
@@ -137,12 +140,12 @@ fn cancel_turbo(state: &mut TurboState) {
     state.blocked_keys.clear();
 }
 
-fn next_repeat_deadline(previous: Instant, now: Instant) -> Instant {
-    let candidate = previous + REPEAT_INTERVAL;
+fn next_repeat_deadline(previous: Instant, now: Instant, repeat_interval: Duration) -> Instant {
+    let candidate = previous + repeat_interval;
     if candidate > now {
         candidate
     } else {
-        now + REPEAT_INTERVAL
+        now + repeat_interval
     }
 }
 
@@ -162,17 +165,58 @@ fn keyboard_repeat_delay() -> Duration {
     Duration::from_millis((u64::from(value.min(3)) + 1) * 250)
 }
 
-fn use_all_available_cpus() -> Result<(), String> {
+fn parse_affinity_mask(value: &str) -> Result<usize, String> {
+    let digits = value
+        .strip_prefix("0x")
+        .or_else(|| value.strip_prefix("0X"))
+        .unwrap_or(value);
+    let mask = usize::from_str_radix(digits, 16)
+        .map_err(|_| "터보 키 CPU 마스크가 올바르지 않습니다".to_owned())?;
+    if mask == 0 {
+        return Err("터보 키 CPU 마스크는 0일 수 없습니다".to_owned());
+    }
+    Ok(mask)
+}
+
+fn parse_selected_keys(value: &str) -> Result<HashSet<u32>, String> {
+    if value.is_empty() {
+        return Ok(HashSet::new());
+    }
+    value
+        .split(',')
+        .map(|item| {
+            let key = item
+                .parse::<u32>()
+                .map_err(|_| "터보 키 선택 목록이 올바르지 않습니다".to_owned())?;
+            if key == 0 || key > u8::MAX.into() || is_modifier(key) || is_excluded_key(key) {
+                return Err("터보 키 선택 목록에 지원하지 않는 키가 있습니다".to_owned());
+            }
+            Ok(key)
+        })
+        .collect()
+}
+
+fn parse_repeat_interval_ms(value: &str) -> Result<u64, String> {
+    let interval = value
+        .parse::<u64>()
+        .map_err(|_| "터보 키 입력 간격이 올바르지 않습니다".to_owned())?;
+    if !REPEAT_INTERVAL_OPTIONS_MS.contains(&interval) {
+        return Err("지원하지 않는 터보 키 입력 간격입니다".to_owned());
+    }
+    Ok(interval)
+}
+
+fn apply_cpu_affinity(mask: usize) -> Result<(), String> {
     let process = unsafe { GetCurrentProcess() };
-    let mut process_mask = 0usize;
+    let mut current_mask = 0usize;
     let mut system_mask = 0usize;
-    let read = unsafe { GetProcessAffinityMask(process, &mut process_mask, &mut system_mask) };
-    if read == 0 || system_mask == 0 {
+    let read = unsafe { GetProcessAffinityMask(process, &mut current_mask, &mut system_mask) };
+    if read == 0 || system_mask == 0 || mask & system_mask != mask {
         return Err("터보 키 CPU 범위를 확인하지 못했습니다".to_owned());
     }
-    let applied = unsafe { SetProcessAffinityMask(process, system_mask) };
+    let applied = unsafe { SetProcessAffinityMask(process, mask) };
     if applied == 0 {
-        return Err("터보 키 CPU 범위를 복구하지 못했습니다".to_owned());
+        return Err("터보 키 CPU 범위를 설정하지 못했습니다".to_owned());
     }
     Ok(())
 }
@@ -343,6 +387,15 @@ unsafe extern "system" fn keyboard_hook(code: i32, w_param: WPARAM, l_param: LPA
                     cancel_turbo(&mut state);
                     shared.changed.notify_all();
                 }
+            } else if !shared.allowed_keys.contains(&event.vkCode) {
+                if pressed {
+                    let mut state = shared
+                        .state
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner());
+                    cancel_turbo(&mut state);
+                    shared.changed.notify_all();
+                }
             } else {
                 let key = KeySpec {
                     vk_code: event.vkCode,
@@ -429,7 +482,7 @@ fn repeat_loop(shared: Arc<SharedState>) {
             continue;
         }
         if let Some(active) = state.active.as_mut() {
-            active.repeat_at = next_repeat_deadline(active.repeat_at, now);
+            active.repeat_at = next_repeat_deadline(active.repeat_at, now, shared.repeat_interval);
         }
         drop(state);
         send_key_pulse(key);
@@ -447,11 +500,17 @@ fn now_millis() -> u128 {
         .as_millis()
 }
 
-fn write_status(path: &Path, running: bool, error: Option<String>) -> Result<(), String> {
+fn write_status(
+    path: &Path,
+    running: bool,
+    interval_ms: u64,
+    error: Option<String>,
+) -> Result<(), String> {
     let status = Status {
         running,
         pid: std::process::id(),
-        repeat_hz: REPEAT_HZ,
+        repeat_hz: (1000 / interval_ms) as u32,
+        interval_ms,
         game_only: true,
         updated_at: now_millis(),
         error,
@@ -515,8 +574,17 @@ fn run() -> Result<(), String> {
     let parent_pid = argument("parent-pid")
         .and_then(|value| value.parse::<u32>().ok())
         .ok_or_else(|| "parent-pid 인자가 필요합니다".to_owned())?;
-    write_status(&status_path, false, None)?;
-    use_all_available_cpus()?;
+    let affinity_mask = argument("affinity-mask")
+        .ok_or_else(|| "affinity-mask 인자가 필요합니다".to_owned())
+        .and_then(|value| parse_affinity_mask(&value))?;
+    let selected_keys = argument("keys")
+        .ok_or_else(|| "keys 인자가 필요합니다".to_owned())
+        .and_then(|value| parse_selected_keys(&value))?;
+    let interval_ms = argument("interval-ms")
+        .ok_or_else(|| "interval-ms 인자가 필요합니다".to_owned())
+        .and_then(|value| parse_repeat_interval_ms(&value))?;
+    write_status(&status_path, false, interval_ms, None)?;
+    apply_cpu_affinity(affinity_mask)?;
     let mutex_name: Vec<u16> = "Local\\NogiremTurboKey\0".encode_utf16().collect();
     let mutex = unsafe { CreateMutexW(null(), 0, mutex_name.as_ptr()) };
     if mutex.is_null() {
@@ -533,6 +601,8 @@ fn run() -> Result<(), String> {
         state: Mutex::new(TurboState::default()),
         changed: Condvar::new(),
         stopping: AtomicBool::new(false),
+        allowed_keys: selected_keys,
+        repeat_interval: Duration::from_millis(interval_ms),
     });
     SHARED
         .set(shared.clone())
@@ -552,7 +622,7 @@ fn run() -> Result<(), String> {
     }
 
     let _ = fs::remove_file(&control_path);
-    let mut runtime_error = write_status(&status_path, true, None).err();
+    let mut runtime_error = write_status(&status_path, true, interval_ms, None).err();
     let mut message: MSG = unsafe { zeroed() };
     let mut next_status = Instant::now() + Duration::from_secs(1);
     while runtime_error.is_none() {
@@ -573,7 +643,7 @@ fn run() -> Result<(), String> {
             break;
         }
         if Instant::now() >= next_status {
-            runtime_error = write_status(&status_path, true, None).err();
+            runtime_error = write_status(&status_path, true, interval_ms, None).err();
             next_status = Instant::now() + Duration::from_secs(1);
         }
         thread::sleep(Duration::from_millis(5));
@@ -592,7 +662,7 @@ fn run() -> Result<(), String> {
         UnhookWindowsHookEx(hook);
     }
     let _ = repeat_thread.join();
-    let final_status = write_status(&status_path, false, runtime_error.clone());
+    let final_status = write_status(&status_path, false, interval_ms, runtime_error.clone());
     unsafe {
         CloseHandle(mutex);
     }
@@ -605,7 +675,10 @@ fn run() -> Result<(), String> {
 fn main() {
     if let Err(error) = run() {
         if let Some(path) = argument("status-path").map(PathBuf::from) {
-            let _ = write_status(&path, false, Some(error));
+            let interval_ms = argument("interval-ms")
+                .and_then(|value| parse_repeat_interval_ms(&value).ok())
+                .unwrap_or(DEFAULT_REPEAT_INTERVAL_MS);
+            let _ = write_status(&path, false, interval_ms, Some(error));
         }
         std::process::exit(1);
     }
@@ -637,12 +710,39 @@ mod tests {
 
     #[test]
     fn late_repeat_does_not_catch_up_in_a_burst() {
-        assert_eq!(REPEAT_HZ, 30);
-        assert_eq!(REPEAT_INTERVAL, Duration::from_micros(33_333));
+        let repeat_interval = Duration::from_millis(DEFAULT_REPEAT_INTERVAL_MS);
         let previous = Instant::now();
         let late = previous + Duration::from_millis(200);
-        let next = next_repeat_deadline(previous, late);
-        assert!(next >= late + REPEAT_INTERVAL);
+        let next = next_repeat_deadline(previous, late, repeat_interval);
+        assert!(next >= late + repeat_interval);
+    }
+
+    #[test]
+    fn affinity_mask_accepts_hex_and_rejects_zero() {
+        assert_eq!(parse_affinity_mask("0xff").unwrap(), 0xff);
+        assert_eq!(parse_affinity_mask("FF").unwrap(), 0xff);
+        assert!(parse_affinity_mask("0").is_err());
+        assert!(parse_affinity_mask("invalid").is_err());
+    }
+
+    #[test]
+    fn selected_keys_are_parsed_and_modifiers_are_rejected() {
+        assert_eq!(parse_selected_keys("49,112,123").unwrap().len(), 3);
+        assert!(parse_selected_keys("").unwrap().is_empty());
+        assert!(parse_selected_keys("16").is_err());
+        assert!(parse_selected_keys("invalid").is_err());
+    }
+
+    #[test]
+    fn repeat_interval_accepts_only_supported_options() {
+        for interval in REPEAT_INTERVAL_OPTIONS_MS {
+            assert_eq!(
+                parse_repeat_interval_ms(&interval.to_string()).unwrap(),
+                interval
+            );
+        }
+        assert!(parse_repeat_interval_ms("2").is_err());
+        assert!(parse_repeat_interval_ms("invalid").is_err());
     }
 
     #[test]
@@ -651,6 +751,8 @@ mod tests {
             state: Mutex::new(TurboState::default()),
             changed: Condvar::new(),
             stopping: AtomicBool::new(false),
+            allowed_keys: HashSet::new(),
+            repeat_interval: Duration::from_millis(DEFAULT_REPEAT_INTERVAL_MS),
         };
         let first = KeySpec {
             vk_code: '1' as u32,
@@ -674,6 +776,8 @@ mod tests {
             state: Mutex::new(TurboState::default()),
             changed: Condvar::new(),
             stopping: AtomicBool::new(false),
+            allowed_keys: HashSet::new(),
+            repeat_interval: Duration::from_millis(DEFAULT_REPEAT_INTERVAL_MS),
         };
         let key = KeySpec {
             vk_code: '1' as u32,
@@ -699,6 +803,8 @@ mod tests {
             state: Mutex::new(TurboState::default()),
             changed: Condvar::new(),
             stopping: AtomicBool::new(false),
+            allowed_keys: HashSet::new(),
+            repeat_interval: Duration::from_millis(DEFAULT_REPEAT_INTERVAL_MS),
         };
         let first = KeySpec {
             vk_code: 'A' as u32,
@@ -724,6 +830,8 @@ mod tests {
             state: Mutex::new(TurboState::default()),
             changed: Condvar::new(),
             stopping: AtomicBool::new(false),
+            allowed_keys: HashSet::new(),
+            repeat_interval: Duration::from_millis(DEFAULT_REPEAT_INTERVAL_MS),
         };
         press_key(
             &shared,

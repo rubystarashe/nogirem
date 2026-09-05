@@ -33,6 +33,12 @@ import { getLatestMuoStatus } from "../src/muo-status.mjs"
 import { advanceDownloadProgress } from "../src/update-progress.mjs"
 import { getYouTubeChannelProfile } from "../src/youtube-channel.mjs"
 import { assessExitConfirmation } from "../src/exit-confirmation.mjs"
+import { resolveCpuAllocation } from "../src/affinity.mjs"
+import {
+  defaultTurboKeyCodes,
+  normalizeTurboKeyCodes,
+  normalizeTurboKeyIntervalMs,
+} from "../src/turbo-key-settings.mjs"
 
 const { autoUpdater } = updaterPackage
 const execFileAsync = promisify(execFile)
@@ -1214,6 +1220,7 @@ async function getTurboKeySetting() {
   ])
   const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 3000
   const enabled = Boolean(settings?.enabled)
+  const intervalMs = normalizeTurboKeyIntervalMs(settings?.intervalMs)
   const running = Boolean(
     turboKeyProcess
     && turboKeyProcess.exitCode === null
@@ -1223,7 +1230,9 @@ async function getTurboKeySetting() {
   return {
     enabled,
     running,
-    repeatHz: 30,
+    keys: normalizeTurboKeyCodes(settings?.keys),
+    intervalMs,
+    repeatHz: Math.round(1000 / intervalMs),
     gameOnly: true,
     reason: status?.error
       ?? (enabled && !running ? "터보 키 프로세스가 실행 중이 아닙니다" : null),
@@ -1256,7 +1265,10 @@ function waitForTurboKeyProcessExit(child, timeoutMs) {
   })
 }
 
-async function launchTurboKeyHelper() {
+async function launchTurboKeyHelper(
+  keys = defaultTurboKeyCodes,
+  intervalMs = normalizeTurboKeyIntervalMs(),
+) {
   if (turboKeyProcess && turboKeyProcess.exitCode === null) {
     return getTurboKeySetting()
   }
@@ -1270,10 +1282,15 @@ async function launchTurboKeyHelper() {
     unlink(paths.statusPath).catch(() => {}),
     unlink(paths.controlPath).catch(() => {}),
   ])
+  const allocation = resolveCpuAllocation(cpus().length)
+  const latencyMask = allocation.alternateGameMask || allocation.backgroundMask
   const child = spawn(executablePath, [
     `--status-path=${paths.statusPath}`,
     `--control-path=${paths.controlPath}`,
     `--parent-pid=${process.pid}`,
+    `--affinity-mask=0x${latencyMask.toString(16)}`,
+    `--keys=${normalizeTurboKeyCodes(keys).join(",")}`,
+    `--interval-ms=${normalizeTurboKeyIntervalMs(intervalMs)}`,
   ], {
     windowsHide: true,
     stdio: "ignore",
@@ -1327,13 +1344,19 @@ async function stopTurboKeyHelper() {
   return getTurboKeySetting()
 }
 
-async function setTurboKeySetting(enabled) {
+async function setTurboKeySetting(setting) {
   const paths = getTurboKeyPaths()
+  const enabled = Boolean(setting?.enabled)
+  const keys = normalizeTurboKeyCodes(setting?.keys)
+  const intervalMs = normalizeTurboKeyIntervalMs(setting?.intervalMs)
   if (enabled) {
-    await launchTurboKeyHelper()
+    await stopTurboKeyHelper()
+    await launchTurboKeyHelper(keys, intervalMs)
     try {
       await writeJsonAtomic(paths.settingsPath, {
         enabled: true,
+        keys,
+        intervalMs,
         updatedAt: Date.now(),
       })
     } catch (error) {
@@ -1344,6 +1367,8 @@ async function setTurboKeySetting(enabled) {
     await stopTurboKeyHelper()
     await writeJsonAtomic(paths.settingsPath, {
       enabled: false,
+      keys,
+      intervalMs,
       updatedAt: Date.now(),
     })
   }
@@ -1353,7 +1378,10 @@ async function setTurboKeySetting(enabled) {
 async function ensureTurboKeyStarted() {
   const settings = await readJson(getTurboKeyPaths().settingsPath)
   if (!settings?.enabled) return
-  await launchTurboKeyHelper()
+  await launchTurboKeyHelper(
+    normalizeTurboKeyCodes(settings.keys),
+    normalizeTurboKeyIntervalMs(settings.intervalMs),
+  )
 }
 
 async function launchMemoryHelper({ purgeOnStart = false } = {}) {
@@ -2105,12 +2133,21 @@ function registerIpc() {
     }
     return getTurboKeySetting()
   })
-  ipcMain.handle("application:set-turbo-key-setting", (event, enabled) => {
+  ipcMain.handle("application:set-turbo-key-setting", (event, setting) => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 터보 키 설정 변경 요청입니다")
     }
-    if (typeof enabled !== "boolean") throw new Error("터보 키 설정 값이 올바르지 않습니다")
-    return setTurboKeySetting(enabled)
+    if (
+      !setting
+      || typeof setting !== "object"
+      || typeof setting.enabled !== "boolean"
+      || !Array.isArray(setting.keys)
+      || !Number.isInteger(setting.intervalMs)
+      || normalizeTurboKeyIntervalMs(setting.intervalMs) !== setting.intervalMs
+    ) {
+      throw new Error("터보 키 설정 값이 올바르지 않습니다")
+    }
+    return setTurboKeySetting(setting)
   })
   ipcMain.handle("application:get-visual-activity", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false

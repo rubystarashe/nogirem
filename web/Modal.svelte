@@ -35,11 +35,17 @@
   onDestroy(() => window.clearTimeout(closeTimer))
 </script>
 
-<div class="modal-backdrop" class:closing class:large={variant === "large"}>
+<div
+  class="modal-backdrop"
+  class:closing
+  class:large={variant === "large"}
+  class:fullscreen={variant === "fullscreen"}
+>
   <div
     class="modal-sheet"
     class:closing
     class:large={variant === "large"}
+    class:fullscreen={variant === "fullscreen"}
     role="dialog"
     aria-modal="true"
     aria-label={title}
@@ -95,6 +101,11 @@
     -webkit-app-region: drag;
   }
 
+  .modal-backdrop.fullscreen {
+    align-items: stretch;
+    background: #191c1e;
+  }
+
   .modal-sheet {
     position: relative;
     width: 100%;
@@ -142,6 +153,33 @@
     padding: 16px 20px 19px;
     border-radius: 14px 14px 0 0;
     -webkit-app-region: no-drag;
+  }
+
+  .modal-sheet.fullscreen {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    padding: 12px 12px 10px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .modal-sheet.fullscreen h2 {
+    margin-bottom: 8px;
+    font-size: 1.2rem;
+  }
+
+  .modal-sheet.fullscreen .modal-content {
+    min-height: 0;
+  }
+
+  .modal-sheet.fullscreen .modal-close {
+    top: 10px;
+    right: 10px;
   }
 
   .modal-sheet.large .modal-eyebrow {

@@ -5,11 +5,118 @@
   import introduceMarkdown from "../INTRODUCE.md?raw"
   import operationMarkdown from "../OPERATION.md?raw"
   import versionHistoryMarkdown from "../VERSION_HISTORY.md?raw"
+  import {
+    defaultTurboKeyCodes,
+    defaultTurboKeyIntervalMs,
+    turboKeyIntervalOptions,
+  } from "../src/turbo-key-settings.mjs"
   import creatorChannelAvatarUrl from "./creator-channel-avatar.jpg"
   import directDonationLogoUrl from "./direct-donation-logo.svg"
   import GameWave from "./GameWave.svelte"
   import Modal from "./Modal.svelte"
   import UpdatePreviewModal from "./UpdatePreviewModal.svelte"
+
+  const keyboardRows = [
+    [
+      { label: "Esc", code: 27 }, { spacer: 0.5 },
+      ...Array.from({ length: 12 }, (_, index) => ({
+        label: `F${index + 1}`,
+        code: 112 + index,
+        groupStart: [0, 4, 8].includes(index),
+      })),
+      { spacer: 0.5 },
+      { label: "Prt", disabled: true }, { label: "Scr", disabled: true }, { label: "Pause", disabled: true },
+    ],
+    [
+      { label: "`", code: 192 },
+      ...["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].map(label => ({
+        label,
+        code: label === "0" ? 48 : 48 + Number(label),
+      })),
+      { label: "-", code: 189 }, { label: "=", code: 187 }, { label: "Back", code: 8, units: 2 },
+      { spacer: 0.5 },
+      { label: "Ins", code: 45 }, { label: "Home", code: 36 }, { label: "PgUp", code: 33 },
+      { spacer: 0.5 },
+      { label: "Num", disabled: true }, { label: "/", code: 111 }, { label: "*", code: 106 }, { label: "-", code: 109 },
+    ],
+    [
+      { label: "Tab", code: 9, units: 1.5 },
+      ...Array.from("QWERTYUIOP").map(label => ({ label, code: label.charCodeAt(0) })),
+      { label: "[", code: 219 }, { label: "]", code: 221 }, { label: "\\", code: 220, units: 1.5 },
+      { spacer: 0.5 },
+      { label: "Del", code: 46 }, { label: "End", code: 35 }, { label: "PgDn", code: 34 },
+      { spacer: 0.5 },
+      { label: "7", code: 103 }, { label: "8", code: 104 }, { label: "9", code: 105 }, { label: "+", code: 107 },
+    ],
+    [
+      { label: "Caps", disabled: true, units: 1.8 },
+      ...Array.from("ASDFGHJKL").map(label => ({ label, code: label.charCodeAt(0) })),
+      { label: ";", code: 186 }, { label: "'", code: 222 }, { label: "Enter", code: 13, units: 2.2 },
+      { spacer: 4 },
+      { label: "4", code: 100 }, { label: "5", code: 101 }, { label: "6", code: 102 }, { label: "+", code: 107 },
+    ],
+    [
+      { label: "Shift", disabled: true, units: 2.3 },
+      ...Array.from("ZXCVBNM").map(label => ({ label, code: label.charCodeAt(0) })),
+      { label: ",", code: 188 }, { label: ".", code: 190 }, { label: "/", code: 191 },
+      { label: "Shift", disabled: true, units: 2.7 },
+      { spacer: 1.5 },
+      { label: "↑", code: 38 },
+      { spacer: 1.5 },
+      { label: "1", code: 97 }, { label: "2", code: 98 }, { label: "3", code: 99 }, { label: "Enter", code: 13 },
+    ],
+    [
+      { label: "Ctrl", disabled: true, units: 1.4 }, { label: "Win", disabled: true, units: 1.3 },
+      { label: "Alt", disabled: true, units: 1.3 }, { label: "Space", code: 32, units: 6.2 },
+      { label: "Alt", disabled: true, units: 1.3 }, { label: "Win", disabled: true, units: 1.3 },
+      { label: "Menu", disabled: true, units: 1.3 }, { label: "Ctrl", disabled: true, units: 1.4 },
+      { spacer: 0.5 },
+      { label: "←", code: 37 }, { label: "↓", code: 40 }, { label: "→", code: 39 },
+      { spacer: 0.5 },
+      { label: "0", code: 96, units: 2 }, { label: ".", code: 110 }, { label: "Enter", code: 13 },
+    ],
+  ]
+  const functionKeyboardRow = keyboardRows[0]
+  const mainKeyboardRows = keyboardRows.slice(1).map(row => {
+    const spacerIndex = row.findIndex(key => key.spacer)
+    return spacerIndex < 0 ? row : row.slice(0, spacerIndex)
+  })
+  const navigationKeys = [
+    { label: "Ins", code: 45, row: 1, column: 1 },
+    { label: "Home", code: 36, row: 1, column: 2 },
+    { label: "PgUp", code: 33, row: 1, column: 3 },
+    { label: "Del", code: 46, row: 2, column: 1 },
+    { label: "End", code: 35, row: 2, column: 2 },
+    { label: "PgDn", code: 34, row: 2, column: 3 },
+    { label: "↑", code: 38, row: 4, column: 2 },
+    { label: "←", code: 37, row: 5, column: 1 },
+    { label: "↓", code: 40, row: 5, column: 2 },
+    { label: "→", code: 39, row: 5, column: 3 },
+  ]
+  const numpadKeys = [
+    { label: "Num", disabled: true, row: 1, column: 1 },
+    { label: "/", code: 111, row: 1, column: 2 },
+    { label: "*", code: 106, row: 1, column: 3 },
+    { label: "-", code: 109, row: 1, column: 4 },
+    { label: "7", code: 103, row: 2, column: 1 },
+    { label: "8", code: 104, row: 2, column: 2 },
+    { label: "9", code: 105, row: 2, column: 3 },
+    { label: "+", code: 107, row: 2, column: 4, rowSpan: 2 },
+    { label: "4", code: 100, row: 3, column: 1 },
+    { label: "5", code: 101, row: 3, column: 2 },
+    { label: "6", code: 102, row: 3, column: 3 },
+    { label: "1", code: 97, row: 4, column: 1 },
+    { label: "2", code: 98, row: 4, column: 2 },
+    { label: "3", code: 99, row: 4, column: 3 },
+    { label: "Enter", code: 13, row: 4, column: 4, rowSpan: 2 },
+    { label: "0", code: 96, row: 5, column: 1, columnSpan: 2 },
+    { label: ".", code: 110, row: 5, column: 3 },
+  ]
+  const selectableKeyboardCodes = new Set(
+    [...functionKeyboardRow, ...mainKeyboardRows.flat(), ...navigationKeys, ...numpadKeys]
+      .filter(key => key.code && !key.disabled)
+      .map(key => key.code),
+  )
 
   let services = {
     graphics: { loading: true, data: null, error: null },
@@ -34,6 +141,12 @@
   let turboKeySettingLoaded = false
   let turboKeyAction = null
   let turboKeyNotice = ""
+  let turboKeyCodes = []
+  let turboKeyDraftCodes = []
+  let turboKeyIntervalMs = defaultTurboKeyIntervalMs
+  let turboKeyDraftIntervalMs = defaultTurboKeyIntervalMs
+  let turboKeyModalVisible = false
+  let turboKeyModalCloseSignal = 0
   let closeModalVisible = false
   let optimizationModalVisible = false
   let conflictModalVisible = false
@@ -507,16 +620,73 @@
     turboKeyAction = "saving"
     turboKeyNotice = ""
     try {
-      const state = await window.nogirem.setTurboKeySetting(!turboKeyEnabled)
+      const state = await window.nogirem.setTurboKeySetting({
+        enabled: !turboKeyEnabled,
+        keys: turboKeyCodes,
+        intervalMs: turboKeyIntervalMs,
+      })
       turboKeyEnabled = Boolean(state.enabled)
       turboKeyRunning = Boolean(state.running)
-      turboKeyNotice = turboKeyEnabled
-        ? "마비노기가 전면에 있을 때 마지막으로 누른 키를 반복합니다"
-        : "터보 키를 사용하지 않습니다"
+      turboKeyCodes = state.keys
+      turboKeyIntervalMs = state.intervalMs
     } catch (error) {
       turboKeyNotice = messageOf(error)
     } finally {
       turboKeyAction = null
+    }
+  }
+
+  function openTurboKeySettings() {
+    if (!turboKeySettingLoaded || turboKeyAction) return
+    turboKeyDraftCodes = [...turboKeyCodes]
+    turboKeyDraftIntervalMs = turboKeyIntervalMs
+    turboKeyModalVisible = true
+  }
+
+  function toggleTurboKeyCode(code) {
+    if (turboKeyAction) return
+    turboKeyDraftCodes = turboKeyDraftCodes.includes(code)
+      ? turboKeyDraftCodes.filter(value => value !== code)
+      : [...turboKeyDraftCodes, code]
+  }
+
+  function resetTurboKeyCodes() {
+    if (turboKeyAction) return
+    turboKeyDraftCodes = [...defaultTurboKeyCodes]
+    turboKeyDraftIntervalMs = defaultTurboKeyIntervalMs
+  }
+
+  function handleTurboKeyPickerInput(event) {
+    if (!turboKeyModalVisible || turboKeyAction) return
+    const code = Number(event.keyCode)
+    if (!selectableKeyboardCodes.has(code)) return
+    event.preventDefault()
+    event.stopPropagation()
+    if (event.repeat) return
+    toggleTurboKeyCode(code)
+  }
+
+  async function saveTurboKeyCodes() {
+    if (turboKeyAction) return
+    turboKeyAction = "keys"
+    turboKeyNotice = ""
+    let saved = false
+    try {
+      const state = await window.nogirem.setTurboKeySetting({
+        enabled: turboKeyEnabled,
+        keys: turboKeyDraftCodes,
+        intervalMs: turboKeyDraftIntervalMs,
+      })
+      turboKeyEnabled = Boolean(state.enabled)
+      turboKeyRunning = Boolean(state.running)
+      turboKeyCodes = state.keys
+      turboKeyIntervalMs = state.intervalMs
+      saved = true
+    } catch (error) {
+      turboKeyNotice = messageOf(error)
+    } finally {
+      turboKeyAction = null
+      if (saved) turboKeyModalCloseSignal++
     }
   }
 
@@ -526,6 +696,8 @@
       const state = await window.nogirem.getTurboKeySetting()
       turboKeyEnabled = Boolean(state.enabled)
       turboKeyRunning = Boolean(state.running)
+      turboKeyCodes = state.keys
+      turboKeyIntervalMs = state.intervalMs
       if (state.reason) turboKeyNotice = state.reason
     } catch {
     }
@@ -944,6 +1116,7 @@
 
   onMount(() => {
     document.addEventListener("visibilitychange", syncPageVisibility)
+    window.addEventListener("keydown", handleTurboKeyPickerInput, true)
     const removeGraphicsStatusListener = window.nogirem.onGraphicsStatusChanged(status => {
       updateService("graphics", { loading: false, data: status, error: null })
     })
@@ -989,6 +1162,8 @@
       .then(state => {
         turboKeyEnabled = Boolean(state.enabled)
         turboKeyRunning = Boolean(state.running)
+        turboKeyCodes = state.keys
+        turboKeyIntervalMs = state.intervalMs
         if (state.reason) turboKeyNotice = state.reason
       })
       .catch(error => {
@@ -1029,6 +1204,7 @@
       window.clearTimeout(spinnerFinishTimer)
       stopCreatorScroll()
       document.removeEventListener("visibilitychange", syncPageVisibility)
+      window.removeEventListener("keydown", handleTurboKeyPickerInput, true)
       removeGraphicsStatusListener()
       removeVisualActivityListener()
       removeUpdateStateListener()
@@ -1595,24 +1771,30 @@
                   <div class="developer-tool-row">
                     <div>
                       <h2>터보 키</h2>
-                      <p>마비노기에서 마지막으로 누른 키를 대기 후 초당 30회 반복합니다</p>
+                      <p>키를 누르고 있으면 해당 키를 반복해서 연타합니다</p>
                     </div>
-                    <button
-                      class:active={turboKeyEnabled}
-                      disabled={!turboKeySettingLoaded || turboKeyAction}
-                      aria-pressed={turboKeyEnabled}
-                      onclick={toggleTurboKey}
-                    >
-                      {turboKeyAction === "saving"
-                        ? "저장 중…"
-                        : (turboKeyEnabled
-                          ? (turboKeyRunning ? "사용 중" : "실행 오류")
-                          : "사용 안 함")}
-                    </button>
+                    <div class="developer-tool-actions">
+                      <button
+                        class="developer-tool-secondary"
+                        disabled={!turboKeySettingLoaded || turboKeyAction}
+                        onclick={openTurboKeySettings}
+                      >
+                        키 설정
+                      </button>
+                      <button
+                        class:active={turboKeyEnabled}
+                        disabled={!turboKeySettingLoaded || turboKeyAction}
+                        aria-pressed={turboKeyEnabled}
+                        onclick={toggleTurboKey}
+                      >
+                        {turboKeyAction === "saving"
+                          ? "저장 중…"
+                          : (turboKeyEnabled
+                            ? (turboKeyRunning ? "사용 중" : "실행 오류")
+                            : "사용 안 함")}
+                      </button>
+                    </div>
                   </div>
-                  <span class="developer-tool-status">
-                    반복 입력 도구는 게임 운영정책에 따라 이용 제한 대상이 될 수 있습니다
-                  </span>
                   {#if turboKeyNotice}
                     <span class="developer-tool-status">{turboKeyNotice}</span>
                   {/if}
@@ -1985,6 +2167,117 @@
   onstartuphidden={handleStartupHidden}
   onstartuplogomaskchange={active => startupLogoMaskActive = active}
 />
+
+{#if turboKeyModalVisible}
+  <Modal
+    title="터보 키 적용 대상 설정"
+    variant="fullscreen"
+    closeSignal={turboKeyModalCloseSignal}
+    closeDisabled={turboKeyAction === "keys"}
+    onclose={() => turboKeyModalVisible = false}
+  >
+    <div class="turbo-key-picker">
+      <div class="turbo-key-picker-summary">
+        <p>화면의 키를 클릭하거나 실제 키보드 키를 눌러 선택 또는 해제하세요</p>
+      </div>
+      <div class="turbo-keyboard" aria-label="터보 키 선택용 키보드">
+        <div class="turbo-keyboard-function-row">
+          {#each functionKeyboardRow as key}
+            {#if key.spacer}
+              <span
+                class="turbo-key-spacer"
+                style={`--key-units: ${key.spacer}`}
+                aria-hidden="true"
+              ></span>
+            {:else}
+              <button
+                class="turbo-keycap"
+                class:group-start={key.groupStart}
+                class:selected={key.code && turboKeyDraftCodes.includes(key.code)}
+                style={`--key-units: ${key.units ?? 1}`}
+                disabled={key.disabled}
+                aria-pressed={key.code ? turboKeyDraftCodes.includes(key.code) : undefined}
+                onclick={() => key.code && toggleTurboKeyCode(key.code)}
+              >
+                {key.label}
+              </button>
+            {/if}
+          {/each}
+        </div>
+        <div class="turbo-keyboard-body">
+          <div class="turbo-keyboard-main">
+            {#each mainKeyboardRows as row}
+              <div class="turbo-keyboard-row">
+                {#each row as key}
+                  <button
+                    class="turbo-keycap"
+                    class:selected={key.code && turboKeyDraftCodes.includes(key.code)}
+                    style={`--key-units: ${key.units ?? 1}`}
+                    disabled={key.disabled}
+                    aria-pressed={key.code ? turboKeyDraftCodes.includes(key.code) : undefined}
+                    onclick={() => key.code && toggleTurboKeyCode(key.code)}
+                  >
+                    {key.label}
+                  </button>
+                {/each}
+              </div>
+            {/each}
+          </div>
+          <div class="turbo-keyboard-navigation">
+            {#each navigationKeys as key}
+              <button
+                class="turbo-keycap"
+                class:selected={turboKeyDraftCodes.includes(key.code)}
+                style={`grid-row: ${key.row}; grid-column: ${key.column}`}
+                aria-pressed={turboKeyDraftCodes.includes(key.code)}
+                onclick={() => toggleTurboKeyCode(key.code)}
+              >
+                {key.label}
+              </button>
+            {/each}
+          </div>
+          <div class="turbo-keyboard-numpad">
+            {#each numpadKeys as key}
+              <button
+                class="turbo-keycap"
+                class:selected={key.code && turboKeyDraftCodes.includes(key.code)}
+                style={`grid-row: ${key.row} / span ${key.rowSpan ?? 1}; grid-column: ${key.column} / span ${key.columnSpan ?? 1}`}
+                disabled={key.disabled}
+                aria-pressed={key.code ? turboKeyDraftCodes.includes(key.code) : undefined}
+                onclick={() => key.code && toggleTurboKeyCode(key.code)}
+              >
+                {key.label}
+              </button>
+            {/each}
+          </div>
+        </div>
+      </div>
+      <div class="turbo-key-picker-actions">
+        <label class="turbo-key-interval">
+          <span>입력 간격</span>
+          <select bind:value={turboKeyDraftIntervalMs}>
+            {#each turboKeyIntervalOptions as interval}
+              <option value={interval}>{interval} ms</option>
+            {/each}
+          </select>
+        </label>
+        <div class="turbo-key-picker-buttons">
+          <button
+            class="reset"
+            onclick={resetTurboKeyCodes}
+          >
+            초기화
+          </button>
+          <button
+            onclick={saveTurboKeyCodes}
+          >
+            설정 완료
+          </button>
+        </div>
+      </div>
+    </div>
+  </Modal>
+{/if}
 
 {#if conflictModalVisible}
   <Modal
