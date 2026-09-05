@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-05 16:34
+Last Updated: 2026-09-05 16:43
 
 ## Current Objective
-0.0.3 버전을 패키징해 GitHub 정식 Release로 배포한다.
+배포된 0.0.3 GitHub 정식 Release와 0.0.2 설치본의 자동 업데이트를 검증한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -33,6 +33,7 @@ Last Updated: 2026-09-05 16:34
 - `npm run package:win`은 현재 `package.json` 버전을 로컬 패키징하고, `npm run release:github`은 같은 결과물을 GitHub 정식 Release로 게시한다.
 - GitHub CLI 2.100.0으로 `rubystarashe` 계정에 로그인했으며 `rubystarashe/nogirem` 저장소의 ADMIN 권한과 `repo` 토큰 범위를 확인했다. 배포 명령은 별도 환경 변수 없이 이 로그인 토큰을 자동 사용한다.
 - 앱과 잠금 파일의 버전 문자열을 0.0.3으로 맞췄으며 `VERSION_HISTORY.md`에도 0.0.3 자동 업데이트 기록이 준비되어 있다.
+- 0.0.3 Windows x64 NSIS 설치 파일을 패키징하고 GitHub 정식 Release `v0.0.3`으로 게시했다. 설치 파일, blockmap과 latest.yml 세 자산이 모두 업로드되어 있다.
 - 중앙 상단 아래 화살표를 누르면 소개 화면이 내려가고 기존 홈이 위에서 복귀한다.
 - 소개 화면에서는 창 드래그 영역을 좌우로 분리해 중앙 상단 복귀 버튼 전체가 클릭된다.
 - `[류트@렘] 제작` 표시는 소개 화면에서도 우측 하단에 유지되며 다시 누르면 기존 화면으로 복귀한다.
@@ -229,7 +230,7 @@ Last Updated: 2026-09-05 16:34
 9. 앱 실행 중 `npm run app`을 다시 실행해 새 창 없이 기존 창이 포커스되는지 확인한다.
 10. `실시간 부스트중` 문구를 눌러 대형 파동과 일시정지·재개 상태 전환을 확인한다.
 11. 마비노기 실행·실시간 부스트 상태에서 CPU 재정렬의 3초 역전과 정상 복귀를 수동 확인한다.
-12. GitHub Release에 더 높은 버전의 `latest.yml`, `nogirem-setup-<version>.exe`, `.blockmap`을 올려 실제 자동 다운로드와 설치를 검증한다.
+12. 0.0.2 설치본에서 `v0.0.3`의 실제 자동 다운로드와 설치를 수동 검증한다.
 
 ## Known Issues
 - `runtime-state.json`을 직접 덮어써 동시 읽기 시 일시적으로 불완전한 JSON이 노출될 수 있다.
@@ -769,6 +770,8 @@ Last Updated: 2026-09-05 16:34
 - 현재 `package.json` 버전을 빌드하고 GitHub Release에 곧바로 게시하는 `npm run release:github` 명령을 추가했다. `GH_TOKEN` 또는 `GITHUB_TOKEN`을 요구하며 기존 임시 폴더 패키징과 동일한 설치 파일·blockmap·latest.yml을 게시한다.
 - GitHub CLI를 설치하고 브라우저 장치 인증으로 `rubystarashe` 로그인을 완료했다. 배포 스크립트는 `GH_TOKEN`, `GITHUB_TOKEN`, GitHub CLI 로그인 토큰 순으로 인증을 선택하며 토큰을 파일이나 출력에 노출하지 않는다.
 - CLI 테스트 도구 중심이던 `README.md`를 현재 Electron 데스크톱 앱 기준으로 전면 개편했다. `INTRODUCE.md`의 제작 목적과 `OPERATION.md`의 비변조 원칙을 바탕으로 사용자 기능, 안전한 작동 방식, 설치·사용, 주의사항, 앱 내 문서, 개발·패키징·GitHub 배포 절차를 정리했다.
+- `package.json`과 lockfile 버전을 0.0.3으로 올리고 커밋 `550f85a`를 GitHub master에 푸시했다. Node.js LTS 24.19.0을 복구 설치한 뒤 `npm run release:github`로 Windows x64 설치 파일을 빌드·게시했다.
+- GitHub 정식 Release `v0.0.3`은 `latest.yml`, `nogirem-setup-0.0.3.exe` 91,373,950바이트, `.blockmap` 96,560바이트를 포함한다. Release와 세 자산의 공개 업로드 상태를 GitHub API로 확인했다.
 - 첫 소개 탭 이름을 `안녕하세요`로 바꾸고 메뉴와 구분선 사이 여백을 절반으로 줄였다. 구분선을 항상 보이는 3px 가상 스크롤 트랙으로 전환해 긴 본문의 위치가 반투명 thumb로 표시되도록 했으며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - `VERSION_HISTORY.md`를 추가하고 `0.0.2`, `0.0.1` 최초 기록을 작성했다. 소개 화면은 이 파일을 raw import로 불러와 버전 제목과 변경 목록으로 안전하게 렌더링하며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - 소개 메뉴와 가상 스크롤 구분선 사이의 실제 간격을 줄이기 위해 좌측 그리드 열을 168px에서 132px로 축소했다. 프로덕션 웹 빌드와 편집기 린트가 통과했다.
@@ -787,4 +790,4 @@ Last Updated: 2026-09-05 16:34
 - `roundedCorners: false`로 Windows 11 창 모서리를 직각으로 고정했다.
 
 ## Next Recommended Step
-버전을 0.0.3 이상으로 올려 GitHub Release에 `latest.yml`, 같은 이름의 설치 파일과 blockmap을 게시한 뒤 0.0.2 설치본에서 실제 자동 업데이트를 검증한다.
+0.0.2 설치본을 실행해 v0.0.3 다운로드 모달, 진행률, `새 버전 설치`와 설치 후 버전 표시를 확인한다.
