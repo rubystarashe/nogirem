@@ -29,6 +29,14 @@
 </div>
 
 <style>
+  @font-face {
+    font-family: "NEXON Lv2 Gothic";
+    src: url("./nexon-lv2-gothic.woff") format("woff");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
   .update-preview-overlay {
     position: fixed;
     z-index: 500;
@@ -98,7 +106,9 @@
     display: block;
     margin: 0 15px 0 0;
     color: #fff;
+    font-family: "NEXON Lv2 Gothic", sans-serif;
     font-size: 80px;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
     line-height: 1;
     text-align: right;

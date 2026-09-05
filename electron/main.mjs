@@ -253,11 +253,11 @@ async function dismissCreatorPrompt() {
   return true
 }
 
-async function detectMabinogiRenderer(gameActive, gameStartTime) {
+async function detectMabinogiRenderer(gameActive, gameStartTime, gameExecutablePath) {
   if (!gameActive) return { mode: "not-running", version: null }
   const startedAt = Date.parse(gameStartTime)
   if (!Number.isFinite(startedAt)) return { mode: "detecting", version: null }
-  const logPath = join(dirname(config.gameExecutable), "Client_d3d9.log")
+  const logPath = join(dirname(gameExecutablePath), "Client_d3d9.log")
   try {
     const [content, logStat] = await Promise.all([
       readFile(logPath, "utf8"),
@@ -431,6 +431,8 @@ async function runAffinityHelper() {
   let recordedChangeCount = 0
   let exitAction = "keep"
   let cpuReorder = null
+  let gameExecutablePath = (await readJson(statusPath))?.gameExecutablePath
+    ?? config.gameExecutable
   const logicalCpuCount = cpus().length
   const half = logicalCpuCount / 2
 
@@ -454,13 +456,20 @@ async function runAffinityHelper() {
 
   const writeStatus = async values => {
     const gameActive = affinity?.isGameActive() ?? false
+    gameExecutablePath = affinity?.getLatestGameExecutablePath()
+      ?? gameExecutablePath
     const [renderer, characterSimplification] = await Promise.all([
-      detectMabinogiRenderer(gameActive, affinity?.getLatestGameStartTime()),
+      detectMabinogiRenderer(
+        gameActive,
+        affinity?.getLatestGameStartTime(),
+        gameExecutablePath,
+      ),
       getCharacterSimplificationStatus(),
     ])
     return writeJsonAtomic(statusPath, {
       running: !stopping,
       gameActive,
+      gameExecutablePath,
       renderer,
       characterSimplification,
       includeNic,
@@ -770,12 +779,12 @@ if (affinityHelperMode) {
 
 async function checkGraphics() {
   const { checkGraphics: checkGraphicsStatus } = await import("../src/graphics.mjs")
-  return checkGraphicsStatus(config.gameExecutable)
+  return checkGraphicsStatus(await resolveMabinogiExecutablePath())
 }
 
 async function optimizeGraphics() {
   const { applyGraphicsGoals } = await import("../src/graphics.mjs")
-  return applyGraphicsGoals(config.gameExecutable)
+  return applyGraphicsGoals(await resolveMabinogiExecutablePath())
 }
 
 async function checkNetwork() {
@@ -882,6 +891,23 @@ function getAffinityPaths() {
   }
 }
 
+function isMabinogiExecutablePath(value) {
+  if (typeof value !== "string" || !value.trim()) return false
+  const normalized = value.replaceAll("/", "\\")
+  const executableName = String(config.gameExecutableName ?? "Client.exe")
+  return normalized.split("\\").at(-1)?.toLowerCase() === executableName.toLowerCase()
+    && existsSync(normalized)
+}
+
+async function resolveMabinogiExecutablePath() {
+  const { statusPath } = getAffinityPaths()
+  const status = await readJson(statusPath)
+  if (isMabinogiExecutablePath(status?.gameExecutablePath)) {
+    return status.gameExecutablePath
+  }
+  return config.gameExecutable
+}
+
 async function readAffinityRuntimeStatus() {
   const { statusPath } = getAffinityPaths()
   const status = await readJson(statusPath)
@@ -892,6 +918,9 @@ async function readAffinityRuntimeStatus() {
   return {
     running: Boolean(status?.running && fresh),
     gameActive: Boolean(status?.gameActive && fresh),
+    gameExecutablePath: isMabinogiExecutablePath(status?.gameExecutablePath)
+      ? status.gameExecutablePath
+      : config.gameExecutable,
     includeNic: Boolean(status?.includeNic),
     nicManaged: Boolean(status?.nicManaged),
     backgroundCpuRange: status?.backgroundCpuRange ?? `0-${half - 1}`,
@@ -1407,8 +1436,8 @@ function getDxvkDirectory() {
   return join(app.getPath("appData"), "마비노기 렘 부스터", "vulkan")
 }
 
-function getDxvkTargetPath() {
-  return join(dirname(config.gameExecutable), "d3d9_dxvk.dll")
+async function getDxvkTargetPath() {
+  return join(dirname(await resolveMabinogiExecutablePath()), "d3d9_dxvk.dll")
 }
 
 function getDxvkLatestCachePath() {
@@ -1482,7 +1511,7 @@ async function getCachedDxvkReleases() {
 
 async function evaluateDxvkRuntimeStatus(latest) {
   const installed = await getInstalledDxvk(getDxvkDirectory())
-  const deployment = await getDxvkDeploymentStatus(installed, getDxvkTargetPath())
+  const deployment = await getDxvkDeploymentStatus(installed, await getDxvkTargetPath())
   const latestApplied = Boolean(
     installed.installed
     && installed.integrity
@@ -1557,7 +1586,7 @@ function scheduleDxvkRuntimeRefresh() {
 
 async function getDxvkManagerStatus({ checkLatest = false } = {}) {
   const installed = await getInstalledDxvk(getDxvkDirectory())
-  const deployment = await getDxvkDeploymentStatus(installed, getDxvkTargetPath())
+  const deployment = await getDxvkDeploymentStatus(installed, await getDxvkTargetPath())
   const releases = checkLatest ? await getCachedDxvkReleases() : []
   const latest = releases[0] ?? null
   return {
@@ -1588,7 +1617,10 @@ async function updateDxvk(version) {
       globalThis.fetch,
       releases,
     )
-    const deployment = await applyInstalledDxvk(getDxvkDirectory(), getDxvkTargetPath())
+    const deployment = await applyInstalledDxvk(
+      getDxvkDirectory(),
+      await getDxvkTargetPath(),
+    )
     return { ...result, deployment }
   })()
   try {

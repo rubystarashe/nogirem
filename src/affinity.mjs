@@ -167,6 +167,7 @@ export async function createAffinityManager({
   const handled = new Set()
   let gameActive = false
   let latestGameStartTime = null
+  let latestGameExecutablePath = null
   let runningProcessNames = new Set()
 
   const isGame = processInfo => {
@@ -440,6 +441,10 @@ export async function createAffinityManager({
       .filter(Boolean)
       .sort()
       .at(-1) ?? null
+    latestGameExecutablePath = games
+      .filter(game => game.path)
+      .sort((left, right) => String(left.startTime ?? "").localeCompare(String(right.startTime ?? "")))
+      .at(-1)?.path ?? latestGameExecutablePath
     if (!gameActive) {
       console.log(
         quiet
@@ -482,6 +487,7 @@ export async function createAffinityManager({
     hasAppliedChanges: () => changed.size > 0,
     isGameActive: () => gameActive,
     getLatestGameStartTime: () => latestGameStartTime,
+    getLatestGameExecutablePath: () => latestGameExecutablePath,
     performCpuReorder,
     printStartupSummary,
     recover,
