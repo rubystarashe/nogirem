@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld("nogirem", {
     return () => ipcRenderer.removeListener("application:visual-activity-changed", listener)
   },
   getUpdateState: () => ipcRenderer.invoke("application:get-update-state"),
+  checkUpdate: () => ipcRenderer.invoke("application:check-update"),
   installUpdate: () => ipcRenderer.invoke("application:install-update"),
   onUpdateStateChanged: callback => {
     const listener = (_event, state) => callback(state)

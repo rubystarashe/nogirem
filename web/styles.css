@@ -552,12 +552,20 @@ footer {
   z-index: 95;
   bottom: 10px;
   left: 14px;
+  padding: 0;
+  border: 0;
   color: #999;
+  background: transparent;
+  font-family: inherit;
   font-size: 9px;
   line-height: 12px;
   font-variant-numeric: tabular-nums;
-  pointer-events: none;
+  cursor: pointer;
   transition: color 300ms ease;
+}
+
+.app-version:hover {
+  color: #666;
 }
 
 .app-version.paused {

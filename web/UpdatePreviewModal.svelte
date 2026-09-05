@@ -15,7 +15,7 @@
 
     {#if !downloaded}
       <div class="update-progress" aria-live="polite">
-        <span>{Math.floor(visibleProgress)}</span>
+        <span>{Math.floor(visibleProgress)}%</span>
         <div class="update-progress-track">
           <div class="update-progress-value" style={`width: ${visibleProgress}%`}></div>
         </div>

@@ -875,6 +875,10 @@
     }
   }
 
+  function checkApplicationUpdate() {
+    void window.nogirem.checkUpdate().catch(() => {})
+  }
+
   onMount(() => {
     document.addEventListener("visibilitychange", syncPageVisibility)
     const removeVisualActivityListener = window.nogirem.onVisualActivityChanged(
@@ -960,7 +964,15 @@
   </button>
 </div>
 
-<span class="app-version" class:paused={visualPaused}>{packageInfo.version}</span>
+<button
+  type="button"
+  class="app-version"
+  class:paused={visualPaused}
+  aria-label="최신 업데이트 확인"
+  onclick={checkApplicationUpdate}
+>
+  {packageInfo.version}
+</button>
 
 {#if interfaceVisible
   && !settingsVisible

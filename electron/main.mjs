@@ -1679,6 +1679,12 @@ function registerIpc() {
     }
     return applicationUpdateState
   })
+  ipcMain.handle("application:check-update", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 업데이트 확인 요청입니다")
+    }
+    return checkForApplicationUpdate()
+  })
   ipcMain.handle("application:install-update", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 업데이트 설치 요청입니다")
@@ -2159,6 +2165,7 @@ function beginPrimaryWindowReveal() {
       primaryWindowRevealFrameTimer = setTimeout(revealFrame, 16)
     } else {
       primaryWindowRevealFrameTimer = null
+      focusPrimaryWindow()
     }
   }
   revealFrame()
