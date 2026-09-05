@@ -76,9 +76,9 @@
 
   .update-progress > span {
     display: block;
-    margin: 0 10px 20px 0;
+    margin: 0 15px 40px 0;
     color: #fff;
-    font-size: 50px;
+    font-size: 80px;
     font-variant-numeric: tabular-nums;
     line-height: 1;
     text-align: right;
