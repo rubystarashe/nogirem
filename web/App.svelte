@@ -1595,7 +1595,7 @@
                   <div class="developer-tool-row">
                     <div>
                       <h2>터보 키</h2>
-                      <p>마비노기에서 마지막으로 누른 키를 대기 후 초당 50회 반복합니다</p>
+                      <p>마비노기에서 마지막으로 누른 키를 대기 후 초당 30회 반복합니다</p>
                     </div>
                     <button
                       class:active={turboKeyEnabled}

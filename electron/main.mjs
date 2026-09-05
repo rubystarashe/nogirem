@@ -1223,7 +1223,7 @@ async function getTurboKeySetting() {
   return {
     enabled,
     running,
-    repeatHz: 50,
+    repeatHz: 30,
     gameOnly: true,
     reason: status?.error
       ?? (enabled && !running ? "터보 키 프로세스가 실행 중이 아닙니다" : null),
