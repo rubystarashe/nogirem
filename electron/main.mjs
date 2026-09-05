@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, unlinkSync } from "node:fs"
 import { copyFile, mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises"
 import { cpus, tmpdir } from "node:os"
 import { dirname, join } from "node:path"
@@ -96,6 +96,7 @@ const dxvkReleaseCacheDurationMs = 6 * 60 * 1000
 const instanceDirectory = join(app.getPath("userData"), "instance")
 const primaryInstancePath = join(instanceDirectory, "primary.json")
 const focusRequestPath = join(instanceDirectory, "focus-request.json")
+const focusAcknowledgementPath = join(instanceDirectory, "focus-acknowledgement.json")
 const installerCloseRequestPath = join(instanceDirectory, "installer-close-request")
 
 function serializeError(error) {
@@ -316,16 +317,6 @@ async function readJson(path) {
   }
 }
 
-async function isProcessRunning(pid) {
-  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return false
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return error?.code === "EPERM"
-  }
-}
-
 async function fileModifiedAt(path) {
   try {
     return (await stat(path)).mtimeMs
@@ -336,17 +327,32 @@ async function fileModifiedAt(path) {
 }
 
 async function requestPrimaryWindowFocus() {
-  await writeJsonAtomic(focusRequestPath, {
+  const request = {
+    requestId: randomUUID(),
     requestedAt: Date.now(),
     requesterPid: process.pid,
-  })
+  }
+  await writeJsonAtomic(focusRequestPath, request)
+  return request
 }
 
 async function focusRunningPrimaryInstance() {
   const primary = await readJson(primaryInstancePath)
-  if (!await isProcessRunning(primary?.pid)) return false
-  await requestPrimaryWindowFocus()
-  return true
+  if (!Number.isInteger(primary?.pid) || primary.pid <= 0) return false
+  const request = await requestPrimaryWindowFocus()
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    await delay(100)
+    const acknowledgement = await readJson(focusAcknowledgementPath)
+    if (acknowledgement?.requestId === request.requestId) return true
+  }
+  const latestPrimary = await readJson(primaryInstancePath)
+  if (
+    latestPrimary?.pid === primary.pid
+    && latestPrimary?.startedAt === primary.startedAt
+  ) {
+    await unlink(primaryInstancePath).catch(() => {})
+  }
+  return false
 }
 
 async function startFocusRequestMonitor() {
@@ -376,6 +382,11 @@ async function startFocusRequestMonitor() {
       if ((request?.requestedAt ?? 0) > lastFocusRequestAt) {
         lastFocusRequestAt = request.requestedAt
         focusPrimaryWindow()
+        await writeJsonAtomic(focusAcknowledgementPath, {
+          requestId: request.requestId,
+          acknowledgedAt: Date.now(),
+          primaryPid: process.pid,
+        })
       }
     } catch (error) {
       console.error("기존 창 포커스 요청 확인 실패", error)
@@ -2339,11 +2350,10 @@ async function startApplication() {
     dxvkRuntimeRefreshTimer = null
     clearInterval(focusRequestMonitor)
     focusRequestMonitor = null
-    void readJson(primaryInstancePath)
-      .then(primary => {
-        if (primary?.pid === process.pid) return unlink(primaryInstancePath).catch(() => {})
-        return null
-      })
-      .catch(() => {})
+    try {
+      unlinkSync(primaryInstancePath)
+    } catch (error) {
+      if (error?.code !== "ENOENT") console.error("인스턴스 기록 삭제 실패", error)
+    }
   })
 }
