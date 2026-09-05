@@ -25,6 +25,8 @@
     "taskhostw.exe", "wininit.exe", "winlogon.exe", "wmiprvse.exe"
   ],
   "excludeNamePatterns": [
-    "^svchost\\.exe$", "anti.*cheat", "blackcipher", "nexon.*security"
+    "^svchost\\.exe$", "anti.*cheat", "blackcipher", "nexon.*security",
+    "^(lghub|logi).*\\.exe$", "^(razer|rz).*\\.exe$",
+    "^(wootility|wooting).*\\.exe$", "^steelseries.*\\.exe$"
   ]
 }
