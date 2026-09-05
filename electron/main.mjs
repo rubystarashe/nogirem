@@ -611,21 +611,30 @@ if (affinityHelperMode) {
   await runOptimizationHelper(optimizeNetworkDirect)
   app.exit(process.exitCode ?? 0)
 } else {
-  const primaryInstance = app.requestSingleInstanceLock()
-  if (!primaryInstance) {
-    void requestPrimaryWindowFocus()
-      .catch(error => console.error("기존 창 포커스 요청 실패", error))
-      .finally(() => app.exit(0))
+  if (!(await isAdministrator())) {
+    if (await focusRunningPrimaryInstance()) {
+      app.exit(0)
+    } else {
+      await relaunchAsAdministrator()
+      app.exit(0)
+    }
   } else {
-    app.on("second-instance", focusPrimaryWindow)
-    void startApplication().catch(error => {
-      console.error(error)
-      dialog.showErrorBox(
-        "마비노기 렘 부스터 시작 실패",
-        error?.message ?? String(error),
-      )
-      app.exit(1)
-    })
+    const primaryInstance = app.requestSingleInstanceLock()
+    if (!primaryInstance) {
+      void requestPrimaryWindowFocus()
+        .catch(error => console.error("기존 창 포커스 요청 실패", error))
+        .finally(() => app.exit(0))
+    } else {
+      app.on("second-instance", focusPrimaryWindow)
+      void startApplication().catch(error => {
+        console.error(error)
+        dialog.showErrorBox(
+          "마비노기 렘 부스터 시작 실패",
+          error?.message ?? String(error),
+        )
+        app.exit(1)
+      })
+    }
   }
 }
 
@@ -2144,19 +2153,6 @@ function createWindow() {
 }
 
 async function startApplication() {
-  if (!(await isAdministrator())) {
-    if (await focusRunningPrimaryInstance()) {
-      app.releaseSingleInstanceLock()
-      await delay(300)
-      app.exit(0)
-      return
-    }
-    app.releaseSingleInstanceLock()
-    await relaunchAsAdministrator()
-    app.exit(0)
-    return
-  }
-
   registerIpc()
   await app.whenReady()
   await loadCachedDxvkReleases().catch(() => {})
