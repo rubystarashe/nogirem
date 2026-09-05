@@ -182,12 +182,13 @@ CPU 0~7, 프로세서 그룹 0의 `ClosestStatic` 프로필로 설정합니다.
 GitHub 토큰으로 패키징과 Release 배포를 한 번에 수행할 수도 있습니다.
 
 ```powershell
-$env:GH_TOKEN = "GitHub 토큰"
+gh auth login
 npm run release:github
 ```
 
-`GITHUB_TOKEN` 환경 변수도 사용할 수 있습니다. 토큰에는 해당 저장소의
-Contents 쓰기 권한이 필요합니다.
+배포 스크립트는 GitHub CLI의 로그인 토큰을 자동으로 사용합니다. 자동화 환경에서는
+`GH_TOKEN` 또는 `GITHUB_TOKEN` 환경 변수도 사용할 수 있으며, 인증에는 해당
+저장소의 Contents 쓰기 권한이 필요합니다.
 
 패키징된 앱은 시작 3초 후와 실행 중 4시간마다 최신 정식 Release를 확인합니다.
 새 버전은 자동 다운로드되며 완료 후 화면의 `새 버전 설치` 버튼으로 설치합니다.

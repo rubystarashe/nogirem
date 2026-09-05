@@ -1,4 +1,5 @@
-import { spawn } from "node:child_process"
+import { execFileSync, spawn } from "node:child_process"
+import { existsSync } from "node:fs"
 import { copyFile, mkdir, readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
@@ -11,11 +12,36 @@ const releaseOutput = join(root, "release")
 const installerName = `nogirem-setup-${packageInfo.version}.exe`
 const publishRequested = process.argv.includes("--publish")
 
+function readGithubCliToken() {
+  const commands = ["gh"]
+  if (process.platform === "win32") {
+    const programFiles = process.env.ProgramFiles ?? "C:\\Program Files"
+    const installedCommand = join(programFiles, "GitHub CLI", "gh.exe")
+    if (existsSync(installedCommand)) commands.unshift(installedCommand)
+  }
+  for (const command of commands) {
+    try {
+      const token = execFileSync(command, ["auth", "token"], {
+        encoding: "utf8",
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim()
+      if (token) return token
+    } catch {
+    }
+  }
+  return null
+}
+
 if (publishRequested && !process.env.GH_TOKEN) {
   if (process.env.GITHUB_TOKEN) {
     process.env.GH_TOKEN = process.env.GITHUB_TOKEN
   } else {
-    throw new Error("GitHub 배포에는 GH_TOKEN 또는 GITHUB_TOKEN 환경 변수가 필요합니다")
+    const githubCliToken = readGithubCliToken()
+    if (!githubCliToken) {
+      throw new Error("GitHub CLI에서 gh auth login을 완료하거나 GH_TOKEN을 설정해야 합니다")
+    }
+    process.env.GH_TOKEN = githubCliToken
   }
 }
 
