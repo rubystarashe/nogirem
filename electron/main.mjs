@@ -30,6 +30,7 @@ import {
   installDxvkVersion,
 } from "../src/dxvk.mjs"
 import { getLatestMuoStatus } from "../src/muo-status.mjs"
+import { advanceDownloadProgress } from "../src/update-progress.mjs"
 import { getYouTubeChannelProfile } from "../src/youtube-channel.mjs"
 
 const { autoUpdater } = updaterPackage
@@ -155,7 +156,10 @@ function configureApplicationUpdater() {
     })
   })
   autoUpdater.on("download-progress", progress => {
-    const percent = Math.max(0, Math.min(100, Number(progress?.percent) || 0))
+    const previousPercent = applicationUpdateState.phase === "downloading"
+      ? applicationUpdateState.percent
+      : 0
+    const percent = advanceDownloadProgress(previousPercent, progress?.percent)
     setApplicationUpdateState({
       phase: "downloading",
       percent,
