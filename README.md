@@ -179,6 +179,16 @@ CPU 0~7, 프로세서 그룹 0의 `ClosestStatic` 프로필로 설정합니다.
 `release/nogirem-setup-<version>.exe.blockmap` 세 파일을
 `rubystarashe/nogirem`의 새 GitHub 정식 Release에 모두 첨부합니다.
 
+GitHub 토큰으로 패키징과 Release 배포를 한 번에 수행할 수도 있습니다.
+
+```powershell
+$env:GH_TOKEN = "GitHub 토큰"
+npm run release:github
+```
+
+`GITHUB_TOKEN` 환경 변수도 사용할 수 있습니다. 토큰에는 해당 저장소의
+Contents 쓰기 권한이 필요합니다.
+
 패키징된 앱은 시작 3초 후와 실행 중 4시간마다 최신 정식 Release를 확인합니다.
 새 버전은 자동 다운로드되며 완료 후 화면의 `새 버전 설치` 버튼으로 설치합니다.
 개발 모드에서는 자동 업데이트를 확인하지 않습니다.

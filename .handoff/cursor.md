@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-05 16:03
+Last Updated: 2026-09-05 16:12
 
 ## Current Objective
 GitHub Releases 기반 앱 자동 업데이트를 실제 다운로드·설치 흐름에 연결한다.
@@ -30,6 +30,7 @@ GitHub Releases 기반 앱 자동 업데이트를 실제 다운로드·설치 �
 - 이전의 숨은 1초 진행 상태는 음악 시작 cue와 연출 타임라인을 1초 앞으로 옮겨 보존하며, 볼륨은 실제 재생 시작 즉시 0%에서 2초 동안 최대 20%까지 상승한다.
 - GitHub `rubystarashe/nogirem` 정식 Release를 앱 시작 3초 후와 4시간마다 확인하고, 새 버전이 있을 때만 다운로드 오버레이로 화면과 입력을 가린다.
 - 실제 다운로드 진행률을 모달의 숫자와 막대에 반영하고 다운로드 완료 시 `새 버전 설치` 버튼을 표시한다. 설치 요청 시 Affinity·메모리 helper를 정상 종료한 뒤 NSIS 업데이트를 실행한다.
+- `npm run package:win`은 현재 `package.json` 버전을 로컬 패키징하고, `npm run release:github`은 같은 결과물을 GitHub 정식 Release로 게시한다.
 - 중앙 상단 아래 화살표를 누르면 소개 화면이 내려가고 기존 홈이 위에서 복귀한다.
 - 소개 화면에서는 창 드래그 영역을 좌우로 분리해 중앙 상단 복귀 버튼 전체가 클릭된다.
 - `[류트@렘] 제작` 표시는 소개 화면에서도 우측 하단에 유지되며 다시 누르면 기존 화면으로 복귀한다.
@@ -289,6 +290,7 @@ GitHub Releases 기반 앱 자동 업데이트를 실제 다운로드·설치 �
 - `web/direct-donation-logo.svg`: 후원 / 기부 탭의 곧장기부 공식 벡터 심볼
 - `src/youtube-channel.mjs`: YouTube 공개 채널 정보 파싱, 프로필 이미지 데이터화와 24시간 캐시
 - `test/youtube-channel.test.mjs`: 채널 공개 정보 파싱과 일 단위 캐시 회귀 테스트
+- `scripts/package-win.mjs`: 현재 버전의 NSIS·blockmap·latest.yml 생성과 선택적 GitHub Release 게시
 - `public/main1.png`, `public/ost.mp3`: chicken에서 가져온 파동 배경과 최초 시작 음악
 - `public/logo3.png`: 시작 화면과 홈에서 사용하는 검은색 마비노기 심볼
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
@@ -762,6 +764,7 @@ GitHub Releases 기반 앱 자동 업데이트를 실제 다운로드·설치 �
 - 디자인 검토용 가상 업데이트 진행과 상시 모달을 제거하고 `electron-updater`를 GitHub `rubystarashe/nogirem` 정식 Release에 연결했다. 패키징 앱은 시작 3초 후와 4시간마다 업데이트를 확인하고 실제 다운로드 진행률·완료 상태를 제한된 preload IPC로 UI에 전달한다.
 - 업데이트 설치 요청은 helper를 정상 종료한 뒤 `quitAndInstall`을 실행한다. 패키징 결과에는 GitHub Release용 `latest.yml`, `nogirem-setup-<version>.exe`, `.blockmap`을 함께 복사하며 설치 파일명과 메타데이터 URL이 일치하도록 고정했다.
 - 자동 테스트 40개, Electron 구문 검사, 프로덕션 웹 빌드, 편집기 린트와 Windows NSIS 패키징이 통과했다. 생성된 `app-update.yml`은 GitHub owner `rubystarashe`, repo `nogirem`, provider `github`를 정확히 포함한다.
+- 현재 `package.json` 버전을 빌드하고 GitHub Release에 곧바로 게시하는 `npm run release:github` 명령을 추가했다. `GH_TOKEN` 또는 `GITHUB_TOKEN`을 요구하며 기존 임시 폴더 패키징과 동일한 설치 파일·blockmap·latest.yml을 게시한다.
 - 첫 소개 탭 이름을 `안녕하세요`로 바꾸고 메뉴와 구분선 사이 여백을 절반으로 줄였다. 구분선을 항상 보이는 3px 가상 스크롤 트랙으로 전환해 긴 본문의 위치가 반투명 thumb로 표시되도록 했으며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - `VERSION_HISTORY.md`를 추가하고 `0.0.2`, `0.0.1` 최초 기록을 작성했다. 소개 화면은 이 파일을 raw import로 불러와 버전 제목과 변경 목록으로 안전하게 렌더링하며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - 소개 메뉴와 가상 스크롤 구분선 사이의 실제 간격을 줄이기 위해 좌측 그리드 열을 168px에서 132px로 축소했다. 프로덕션 웹 빌드와 편집기 린트가 통과했다.

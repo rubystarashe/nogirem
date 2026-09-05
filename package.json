@@ -15,6 +15,7 @@
     "app:build": "vite build",
     "native:radeon": "node scripts/build-radeon-helper.mjs",
     "package:win": "node scripts/package-win.mjs",
+    "release:github": "node scripts/package-win.mjs --publish",
     "start": "node src/index.mjs --apply",
     "start:quiet": "node src/index.mjs --apply --quiet",
     "start:last-core": "node src/index.mjs --apply --last-core",

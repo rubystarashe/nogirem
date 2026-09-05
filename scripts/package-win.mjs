@@ -9,6 +9,15 @@ const packageInfo = JSON.parse(await readFile(join(root, "package.json"), "utf8"
 const temporaryOutput = join(tmpdir(), "nogirem-builder-output")
 const releaseOutput = join(root, "release")
 const installerName = `nogirem-setup-${packageInfo.version}.exe`
+const publishRequested = process.argv.includes("--publish")
+
+if (publishRequested && !process.env.GH_TOKEN) {
+  if (process.env.GITHUB_TOKEN) {
+    process.env.GH_TOKEN = process.env.GITHUB_TOKEN
+  } else {
+    throw new Error("GitHub 배포에는 GH_TOKEN 또는 GITHUB_TOKEN 환경 변수가 필요합니다")
+  }
+}
 
 function run(command, arguments_) {
   return new Promise((resolve, reject) => {
@@ -28,13 +37,15 @@ function run(command, arguments_) {
 
 await run("npm", ["run", "native:radeon"])
 await run("npm", ["run", "app:build"])
-await run("npx", [
+const builderArguments = [
   "electron-builder",
   "--win",
   "nsis",
   "--x64",
   `--config.directories.output=${temporaryOutput}`,
-])
+]
+if (publishRequested) builderArguments.push("--publish", "always")
+await run("npx", builderArguments)
 await mkdir(releaseOutput, { recursive: true })
 await Promise.all([
   copyFile(
