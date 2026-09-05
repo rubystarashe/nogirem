@@ -394,7 +394,7 @@ footer {
   -webkit-user-drag: none;
 }
 
-.boost-home.waiting > img {
+.boost-home.waiting > img:not(.canvas-logo-hidden) {
   opacity: 0.4;
 }
 
