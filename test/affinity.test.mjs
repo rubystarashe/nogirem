@@ -171,7 +171,7 @@ test("입력 엔진과 무관한 장치 프로그램 UI와 부가 프로세스�
 
 test("적용 기록이 없으면 프로세스 조회 없이 종료 확인을 생략한다", async () => {
   const result = await hasLiveAppliedAffinityEntries([], {
-    processLister: () => {
+    processStartReader: () => {
       throw new Error("호출되면 안 됨")
     },
   })
@@ -185,17 +185,14 @@ test("PID와 시작 시각 및 현재 마스크가 모두 일치할 때만 적�
     startTime: "2026-09-05T17:00:00.000Z",
     appliedMask: "0xff",
   }]
-  const processLister = async () => [{
-    pid: 1234,
-    startTime: "2026-09-05T17:00:00.000Z",
-  }]
+  const processStartReader = () => Date.parse("2026-09-05T17:00:00.000Z")
 
   assert.equal(await hasLiveAppliedAffinityEntries(entries, {
-    processLister,
+    processStartReader,
     affinityReader: () => 0xffn,
   }), true)
   assert.equal(await hasLiveAppliedAffinityEntries(entries, {
-    processLister,
+    processStartReader,
     affinityReader: () => 0xffffn,
   }), false)
 })

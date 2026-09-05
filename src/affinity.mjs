@@ -62,17 +62,6 @@ function queryProcessPath(pid) {
   }
 }
 
-async function listProcessIdentities() {
-  const ps = `$ErrorActionPreference='SilentlyContinue'; Get-Process | ForEach-Object { [pscustomobject]@{ pid=$_.Id; startTime=if($_.StartTime){$_.StartTime.ToUniversalTime().ToString('O')}else{$null} } } | ConvertTo-Json -Compress`
-  const { stdout } = await execFileAsync(
-    "powershell.exe",
-    ["-NoProfile", "-NonInteractive", "-Command", ps],
-    { windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
-  )
-  const value = JSON.parse(stdout || "[]")
-  return Array.isArray(value) ? value : [value]
-}
-
 function getAffinity(pid) {
   const handle = openProcess(pid)
   if (!handle) throw new Error("OpenProcess failed")
@@ -90,6 +79,37 @@ function getAffinity(pid) {
   } finally {
     freePointer({ paramsType: [DataType.U64], paramsValue: processMask, pointerType: PointerType.RsPointer })
     freePointer({ paramsType: [DataType.U64], paramsValue: systemMask, pointerType: PointerType.RsPointer })
+    closeHandle(handle)
+  }
+}
+
+function getProcessStartTime(pid) {
+  const handle = openProcess(pid)
+  if (!handle) throw new Error("OpenProcess failed")
+  const pointers = Array.from({ length: 4 }, () => (
+    createPointer({ paramsType: [DataType.U64], paramsValue: [0] })
+  ))
+  try {
+    const ok = nativeCall(
+      "GetProcessTimes",
+      DataType.Boolean,
+      [
+        DataType.External,
+        DataType.External,
+        DataType.External,
+        DataType.External,
+        DataType.External,
+      ],
+      [handle, ...pointers.map(pointer => pointer[0])],
+    )
+    if (!ok) throw new Error("GetProcessTimes failed")
+    const windowsEpochOffset = 116444736000000000n
+    const creationTime = BigInt(readPointer(pointers[0], DataType.U64))
+    return Number((creationTime - windowsEpochOffset) / 10000n)
+  } finally {
+    for (const pointer of pointers) {
+      freePointer({ paramsType: [DataType.U64], paramsValue: pointer, pointerType: PointerType.RsPointer })
+    }
     closeHandle(handle)
   }
 }
@@ -697,16 +717,14 @@ export async function createAffinityManager({
 }
 
 export async function hasLiveAppliedAffinityEntries(entries = [], {
-  processLister = listProcessIdentities,
+  processStartReader = getProcessStartTime,
   affinityReader = getAffinity,
 } = {}) {
   const applicableEntries = entries.filter(entry => entry?.appliedMask)
   if (!applicableEntries.length) return false
-  const processes = await processLister()
-  const live = new Set(processes.map(processInfo => `${processInfo.pid}:${processInfo.startTime}`))
   for (const entry of applicableEntries) {
-    if (!live.has(`${entry.pid}:${entry.startTime}`)) continue
     try {
+      if (processStartReader(entry.pid) !== Date.parse(entry.startTime)) continue
       if (affinityReader(entry.pid) === BigInt(entry.appliedMask)) return true
     } catch {
     }

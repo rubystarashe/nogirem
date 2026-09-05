@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 02:09
+Last Updated: 2026-09-06 02:15
 
 ## Current Objective
-실제 적용 중인 프로세스 affinity가 없으면 부스트 대기 중에도 종료 확인 모달을 표시하지 않는다.
+종료 확인 필요 여부를 정확하고 즉시 판정한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -861,6 +861,8 @@ Last Updated: 2026-09-06 02:09
 - `roundedCorners: false`로 Windows 11 창 모서리를 직각으로 고정했다.
 
 - 종료 검사에서 모듈 범위에 없던 프로세스 조회 함수를 호출해 예외 fallback 모달이 표시되던 문제를 수정했다. 적용 기록이 비어 있으면 프로세스 조회 없이 즉시 미적용으로 판정하며 전체 테스트 55개가 통과했다.
+
+- 종료 시 실제 affinity 확인에서 약 1초가 걸리는 PowerShell 전체 프로세스 조회를 제거했다. `GetProcessTimes`와 `GetProcessAffinityMask`를 직접 호출해 PID 재사용 여부와 현재 마스크를 약 0.51ms에 검증한다.
 
 ## Next Recommended Step
 실행 중인 개발 앱을 재시작한 뒤 마비노기를 켜지 않은 부스트 대기 상태와 게임 실행·종료 후 복원 상태 모두에서 종료 확인 모달이 생략되는지 확인한다. 패키징은 사용자 요청 전까지 진행하지 않는다.
