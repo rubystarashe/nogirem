@@ -605,9 +605,6 @@
       const state = await window.nogirem.setStartupTraySetting(!startupTrayEnabled)
       startupTrayEnabled = Boolean(state.enabled)
       startupTraySupported = Boolean(state.supported)
-      startupTrayNotice = startupTrayEnabled
-        ? "Windows 로그인 시 트레이에서 자동 실행됩니다"
-        : "Windows 자동 실행을 사용하지 않습니다"
     } catch (error) {
       startupTrayNotice = messageOf(error)
     } finally {
