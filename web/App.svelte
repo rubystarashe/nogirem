@@ -2035,18 +2035,18 @@
     </p>
     <div class="modal-actions">
       <button
-        class="danger"
-        disabled={closeActionPending}
-        onclick={() => confirmClose("reset")}
-      >
-        {closeActionPending ? "종료 준비 중…" : "부스트 설정 복구 후 종료"}
-      </button>
-      <button
         class="secondary"
         disabled={closeActionPending}
         onclick={() => confirmClose("keep")}
       >
         적용 유지 후 종료
+      </button>
+      <button
+        class="primary"
+        disabled={closeActionPending}
+        onclick={() => confirmClose("reset")}
+      >
+        {closeActionPending ? "종료 준비 중…" : "부스트 설정 되돌린 후 종료"}
       </button>
     </div>
   </Modal>
