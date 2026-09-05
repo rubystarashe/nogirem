@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 03:11
+Last Updated: 2026-09-06 03:17
 
 ## Current Objective
-고급 기능에 마비노기 전용 Rust 터보 키를 안전하게 통합한다.
+마비노기 전용 Rust 터보 키의 반복 속도를 100Hz로 조정한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -11,7 +11,7 @@ Last Updated: 2026-09-06 03:11
 - 마비노기는 P-core 물리 코어의 절반을 사용하며 홀수이면 게임 측을 올림한다. 백그라운드는 나머지 P-core와 모든 E-core를 사용한다.
 - P/E 구분이 없는 CPU도 물리 코어 단위로 절반을 나누고 SMT sibling 전체를 같은 마스크에 유지한다.
 - 앱과 잠금 파일의 현재 버전 문자열은 0.2.0이며 `VERSION_HISTORY.md`에 0.1.4 이후 사용자 체감 변경을 기록했다.
-- 고급 기능에 기본 비활성화 상태의 터보 키 토글을 추가했다. 마비노기 `Client.exe`가 전면 창일 때만 Windows 키 반복 대기 후 마지막 일반 키 1개를 30Hz로 반복한다.
+- 고급 기능에 기본 비활성화 상태의 터보 키 토글을 추가했다. 마비노기 `Client.exe`가 전면 창일 때만 Windows 키 반복 대기 후 마지막 일반 키 1개를 100Hz로 반복한다.
 - 설치본의 고급 기능에서 `Windows 시작 시 트레이 실행`을 켜고 끌 수 있다.
 - 자동 실행은 현재 사용자 로그온 예약 작업과 `--startup-tray` 인자를 사용하며 시작 창·OST 없이 트레이와 프레임 부스트를 준비한다.
 - 0.2.0 Windows x64 원클릭 NSIS 설치 파일, blockmap과 `latest.yml`을 GitHub 정식 Release로 배포했다.
@@ -882,7 +882,7 @@ Last Updated: 2026-09-06 03:11
 - 시작 마지막 파형의 Canvas 로고가 원본 로고를 숨긴 동안 대기 불투명도 전환이 소진되던 문제를 수정했다. 원본 로고가 다시 표시되는 순간 70%에서 40%로 600ms 전환되며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - `부스트 대기중` 문구의 40% 불투명도 적용 조건을 원본 로고 표시 조건과 통일해 두 요소가 같은 시점에 600ms 전환되도록 했다. 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 
-- Rust helper에 Windows 키 반복 대기 시간, 마지막 키 30Hz pulse, modifier·포커스 안전 중단, 자체 주입 재귀 방지, 부모 종료 감시와 전체 CPU 마스크 복구를 구현했다. Rust 테스트 7개, Node 테스트 57개, clippy, 웹 빌드, helper 시작·정지·부모 종료와 CPU 마스크 복구 검증이 통과했다.
+- Rust helper에 Windows 키 반복 대기 시간, 마지막 키 100Hz pulse, modifier·포커스 안전 중단, 자체 주입 재귀 방지, 부모 종료 감시와 전체 CPU 마스크 복구를 구현했다. Rust 테스트 7개, Node 테스트 57개, clippy, 웹 빌드, helper 시작·정지·부모 종료와 CPU 마스크 복구 검증이 통과했다.
 - Electron IPC·AppData 설정·상태 polling·정상 종료·업데이트 종료·트레이 자동 시작에 helper를 연결하고 고급 기능 토글 및 운영정책 경고를 추가했다.
 - Cargo 빌드 스크립트, 고정 `x86_64-pc-windows-msvc` 1.98.1 도구 체인, electron-builder 포함·asarUnpack, 설치기 stop 요청과 Affinity 예외를 추가했다. 패키징과 배포는 진행하지 않았다.
 
