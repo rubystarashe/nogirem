@@ -38,7 +38,7 @@
 <div class="update-preview-overlay" role="dialog" aria-modal="true" aria-label="업데이트">
   <section class="update-preview-panel">
     <h2>
-      {progress < 100 ? "새 버전을 가져오고 있습니다" : "업데이트 다운로드 완료"}
+      {progress < 100 ? "새 버전을 가져오고 있습니다" : "새 버전 다운로드 완료됨"}
     </h2>
 
     {#if progress < 100}
@@ -49,7 +49,7 @@
         </div>
       </div>
     {:else}
-      <button type="button" onclick={() => {}}>업데이트 설치</button>
+      <button type="button" onclick={() => {}}>새 버전 설치</button>
     {/if}
   </section>
 </div>
@@ -87,17 +87,25 @@
     position: absolute;
     right: 20px;
     bottom: 20px;
-    min-width: 112px;
-    height: 32px;
-    padding: 0 15px;
+    min-width: 168px;
+    height: 48px;
+    padding: 0 23px;
     border: 1px solid #fff;
     border-radius: 0;
     color: #000;
     background: #fff;
-    font-size: 11px;
+    font-size: 16.5px;
     font-weight: 700;
     cursor: pointer;
     animation: install-button-in 220ms ease-out both;
+    transition:
+      color 180ms ease,
+      background-color 180ms ease;
+  }
+
+  button:hover {
+    color: #fff;
+    background-color: transparent;
   }
 
   .update-progress {
