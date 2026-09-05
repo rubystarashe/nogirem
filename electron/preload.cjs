@@ -35,6 +35,11 @@ contextBridge.exposeInMainWorld("nogirem", {
     return () => ipcRenderer.removeListener("application:close-requested", listener)
   },
   beginStartupReveal: () => ipcRenderer.invoke("application:begin-startup-reveal"),
+  getLaunchContext: () => ipcRenderer.invoke("application:get-launch-context"),
+  getStartupTraySetting: () => ipcRenderer.invoke("application:get-startup-tray-setting"),
+  setStartupTraySetting: enabled => {
+    return ipcRenderer.invoke("application:set-startup-tray-setting", enabled)
+  },
   getVisualActivity: () => ipcRenderer.invoke("application:get-visual-activity"),
   onVisualActivityChanged: callback => {
     const listener = (_event, active) => callback(Boolean(active))

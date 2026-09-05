@@ -1065,6 +1065,8 @@ button.direct-donation-card:hover {
 }
 
 .developer-tools {
+  display: grid;
+  gap: 12px;
   max-width: 390px;
 }
 
@@ -1103,6 +1105,15 @@ button.direct-donation-card:hover {
 .developer-tools button:hover:not(:disabled) {
   color: #111;
   background: transparent;
+}
+
+.developer-tools button.active {
+  border-color: #267c50;
+  background: #267c50;
+}
+
+.developer-tools button.active:hover:not(:disabled) {
+  color: #267c50;
 }
 
 .developer-tools button:disabled {
@@ -1217,6 +1228,17 @@ button.direct-donation-card:hover {
 
 .creator-view.paused .developer-tools button:hover:not(:disabled) {
   color: #fff;
+  background: transparent;
+}
+
+.creator-view.paused .developer-tools button.active {
+  border-color: #68c994;
+  color: #101214;
+  background: #68c994;
+}
+
+.creator-view.paused .developer-tools button.active:hover:not(:disabled) {
+  color: #68c994;
   background: transparent;
 }
 

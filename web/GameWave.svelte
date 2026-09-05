@@ -516,6 +516,30 @@
     if (imageReady) playStartup()
   }
 
+  export function skipStartup() {
+    if (mode !== "startup") return
+    playbackId += 1
+    startupAllowed = false
+    startupStopPending = false
+    window.clearTimeout(hideTimer)
+    window.clearTimeout(audioStopTimer)
+    window.clearTimeout(drawWakeTimer)
+    cancelAnimationFrame(animationFrame)
+    animationFrame = null
+    drawWakeTimer = null
+    audio?.pause()
+    circles = []
+    ambientBlockedUntil = 0
+    active = true
+    mode = "background"
+    if (startupLogoMaskActive) {
+      startupLogoMaskActive = false
+      onstartuplogomaskchange(false)
+    }
+    onstartuphidden()
+    requestDraw()
+  }
+
   export function finishStartup() {
     if (mode !== "startup") return
     if (!imageReady) startupStopPending = true
@@ -539,6 +563,7 @@
       imageReady = true
       if (startupStopPending) finishStartup()
       else if (startupAllowed) playStartup()
+      else if (mode === "background") requestDraw()
     }
     image.onerror = error => {
       console.warn("시작 배경 이미지를 불러오지 못했습니다", error)

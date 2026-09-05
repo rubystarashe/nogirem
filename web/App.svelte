@@ -24,6 +24,11 @@
   let frameBoostAction = null
   let cpuReorderAction = null
   let cpuReorderNotice = ""
+  let startupTrayEnabled = false
+  let startupTraySupported = false
+  let startupTraySettingLoaded = false
+  let startupTrayAction = null
+  let startupTrayNotice = ""
   let closeModalVisible = false
   let optimizationModalVisible = false
   let conflictModalVisible = false
@@ -474,6 +479,24 @@
     }
   }
 
+  async function toggleStartupTray() {
+    if (!startupTraySupported || startupTrayAction) return
+    startupTrayAction = "saving"
+    startupTrayNotice = ""
+    try {
+      const state = await window.nogirem.setStartupTraySetting(!startupTrayEnabled)
+      startupTrayEnabled = Boolean(state.enabled)
+      startupTraySupported = Boolean(state.supported)
+      startupTrayNotice = startupTrayEnabled
+        ? "Windows 로그인 시 트레이에서 자동 실행됩니다"
+        : "Windows 자동 실행을 사용하지 않습니다"
+    } catch (error) {
+      startupTrayNotice = messageOf(error)
+    } finally {
+      startupTrayAction = null
+    }
+  }
+
   function guideTextForStatus(statusText) {
     if (statusText === "실시간 부스트중") {
       return "마비노기를 위해 모든 프로세스를 최적화 하고 있습니다"
@@ -916,11 +939,30 @@
         creatorChannelProfile = profile
       })
       .catch(() => {})
-    void loadAll().finally(() => {
-      startupDataReady = true
-      gameWave?.allowStartup()
-      finishStartupWhenReady()
-    })
+    void window.nogirem.getStartupTraySetting()
+      .then(state => {
+        startupTrayEnabled = Boolean(state.enabled)
+        startupTraySupported = Boolean(state.supported)
+        if (state.reason) startupTrayNotice = state.reason
+      })
+      .catch(error => {
+        startupTrayNotice = messageOf(error)
+      })
+      .finally(() => {
+        startupTraySettingLoaded = true
+      })
+    void window.nogirem.getLaunchContext()
+      .catch(() => ({ startupTray: false }))
+      .then(launchContext => loadAll().finally(() => {
+        startupDataReady = true
+        if (launchContext.startupTray) {
+          startupAnimationFinished = true
+          gameWave?.skipStartup()
+        } else {
+          gameWave?.allowStartup()
+          finishStartupWhenReady()
+        }
+      }))
     const removeCloseListener = window.nogirem.onCloseRequested(() => {
       closeActionPending = false
       closeModalVisible = true
@@ -1475,6 +1517,25 @@
                 </div>
               {:else if creatorTab === "developer-tools"}
                 <div class="developer-tools">
+                  <div class="developer-tool-row">
+                    <div>
+                      <h2>Windows 시작 시 트레이 실행</h2>
+                      <p>로그인하면 창과 시작 음악 없이 백그라운드에서 실행합니다</p>
+                    </div>
+                    <button
+                      class:active={startupTrayEnabled}
+                      disabled={!startupTraySettingLoaded || !startupTraySupported || startupTrayAction}
+                      aria-pressed={startupTrayEnabled}
+                      onclick={toggleStartupTray}
+                    >
+                      {startupTrayAction === "saving"
+                        ? "저장 중…"
+                        : (startupTrayEnabled ? "사용 중" : "사용 안 함")}
+                    </button>
+                  </div>
+                  {#if startupTrayNotice}
+                    <span class="developer-tool-status">{startupTrayNotice}</span>
+                  {/if}
                   <div class="developer-tool-row">
                     <div>
                       <h2>CPU 재정렬</h2>

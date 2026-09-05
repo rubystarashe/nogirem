@@ -45,6 +45,8 @@ const pausedTrayIconPath = join(root, "icon-paused.png")
 const characterSimplificationFileName = "주변캐릭터간소화프레임제한해제.muo"
 const creatorChannelUrl = "https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zEBHg"
 const directDonationUrl = "https://thedirectdonation.org/"
+const startupTrayTaskName = "Mabinogi Rem Booster Startup"
+const startupTrayLaunch = process.argv.includes("--startup-tray")
 const conflictingProgramDefinitions = [
   {
     name: "ISLC",
@@ -335,20 +337,21 @@ async function fileModifiedAt(path) {
   }
 }
 
-async function requestPrimaryWindowFocus() {
+async function requestPrimaryWindowFocus(shouldFocus = true) {
   const request = {
     requestId: randomUUID(),
     requestedAt: Date.now(),
     requesterPid: process.pid,
+    shouldFocus,
   }
   await writeJsonAtomic(focusRequestPath, request)
   return request
 }
 
-async function focusRunningPrimaryInstance() {
+async function focusRunningPrimaryInstance(shouldFocus = true) {
   const primary = await readJson(primaryInstancePath)
   if (!Number.isInteger(primary?.pid) || primary.pid <= 0) return false
-  const request = await requestPrimaryWindowFocus()
+  const request = await requestPrimaryWindowFocus(shouldFocus)
   for (let attempt = 0; attempt < 12; attempt += 1) {
     await delay(100)
     const acknowledgement = await readJson(focusAcknowledgementPath)
@@ -390,7 +393,7 @@ async function startFocusRequestMonitor() {
       const request = await readJson(focusRequestPath)
       if ((request?.requestedAt ?? 0) > lastFocusRequestAt) {
         lastFocusRequestAt = request.requestedAt
-        focusPrimaryWindow()
+        if (request.shouldFocus !== false) focusPrimaryWindow()
         await writeJsonAtomic(focusAcknowledgementPath, {
           requestId: request.requestId,
           acknowledgedAt: Date.now(),
@@ -796,7 +799,7 @@ if (affinityHelperMode) {
   app.exit(process.exitCode ?? 0)
 } else {
   if (!(await isAdministrator())) {
-    if (await focusRunningPrimaryInstance()) {
+    if (await focusRunningPrimaryInstance(!startupTrayLaunch)) {
       app.exit(0)
     } else {
       await relaunchAsAdministrator()
@@ -805,9 +808,13 @@ if (affinityHelperMode) {
   } else {
     const primaryInstance = app.requestSingleInstanceLock()
     if (!primaryInstance) {
-      void requestPrimaryWindowFocus()
-        .catch(error => console.error("기존 창 포커스 요청 실패", error))
-        .finally(() => app.exit(0))
+      if (startupTrayLaunch) {
+        app.exit(0)
+      } else {
+        void requestPrimaryWindowFocus()
+          .catch(error => console.error("기존 창 포커스 요청 실패", error))
+          .finally(() => app.exit(0))
+      }
     } else {
       app.on("second-instance", focusPrimaryWindow)
       void startApplication().catch(error => {
@@ -1117,6 +1124,67 @@ async function relaunchAsAdministrator() {
   } catch {
     throw new Error("관리자 권한이 필요합니다. UAC 요청을 승인한 뒤 다시 실행하세요")
   }
+}
+
+async function getStartupTraySetting() {
+  if (!app.isPackaged) {
+    return {
+      supported: false,
+      enabled: false,
+      reason: "설치된 앱에서만 사용할 수 있습니다",
+    }
+  }
+  const script = [
+    `$task = Get-ScheduledTask -TaskName ${quotePowerShellLiteral(startupTrayTaskName)} -ErrorAction SilentlyContinue`,
+    "if ($null -eq $task) {",
+    "  [pscustomobject]@{ exists = $false; enabled = $false; matches = $false } | ConvertTo-Json -Compress",
+    "  exit 0",
+    "}",
+    "$action = @($task.Actions)[0]",
+    `[pscustomobject]@{ exists = $true; enabled = $task.State -ne 'Disabled'; matches = ($action.Execute -ieq ${quotePowerShellLiteral(process.execPath)} -and $action.Arguments -eq '--startup-tray') } | ConvertTo-Json -Compress`,
+  ].join("\n")
+  const { stdout } = await execFileAsync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", script],
+    { windowsHide: true, timeout: 15000 },
+  )
+  const state = JSON.parse(stdout.trim())
+  return {
+    supported: true,
+    enabled: Boolean(state.exists && state.enabled && state.matches),
+    reason: state.exists && !state.matches ? "등록된 실행 경로가 현재 설치 위치와 다릅니다" : null,
+  }
+}
+
+async function setStartupTraySetting(enabled) {
+  if (!app.isPackaged) throw new Error("설치된 앱에서만 사용할 수 있습니다")
+  const script = enabled
+    ? [
+        "$ErrorActionPreference = 'Stop'",
+        "$userId = [Security.Principal.WindowsIdentity]::GetCurrent().Name",
+        `$action = New-ScheduledTaskAction -Execute ${quotePowerShellLiteral(process.execPath)} -Argument '--startup-tray'`,
+        "$trigger = New-ScheduledTaskTrigger -AtLogOn -User $userId",
+        "$principal = New-ScheduledTaskPrincipal -UserId $userId -LogonType Interactive -RunLevel Highest",
+        "$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries",
+        `Register-ScheduledTask -TaskName ${quotePowerShellLiteral(startupTrayTaskName)} -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null`,
+      ].join("\n")
+    : [
+        "$ErrorActionPreference = 'Stop'",
+        `$task = Get-ScheduledTask -TaskName ${quotePowerShellLiteral(startupTrayTaskName)} -ErrorAction SilentlyContinue`,
+        "if ($null -ne $task) {",
+        `  Unregister-ScheduledTask -TaskName ${quotePowerShellLiteral(startupTrayTaskName)} -Confirm:$false`,
+        "}",
+      ].join("\n")
+  await execFileAsync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", script],
+    { windowsHide: true, timeout: 30000 },
+  )
+  const state = await getStartupTraySetting()
+  if (state.enabled !== Boolean(enabled)) {
+    throw new Error("Windows 시작 프로그램 설정을 확인하지 못했습니다")
+  }
+  return state
 }
 
 async function launchMemoryHelper({ purgeOnStart = false } = {}) {
@@ -1832,9 +1900,31 @@ function registerIpc() {
     return setMemoryEnabled(enabled)
   })
   ipcMain.handle("application:begin-startup-reveal", event => {
-    if (BrowserWindow.fromWebContents(event.sender) === primaryWindow) {
+    if (
+      !startupTrayLaunch
+      && BrowserWindow.fromWebContents(event.sender) === primaryWindow
+    ) {
       beginPrimaryWindowReveal()
     }
+  })
+  ipcMain.handle("application:get-launch-context", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 실행 상태 요청입니다")
+    }
+    return { startupTray: startupTrayLaunch }
+  })
+  ipcMain.handle("application:get-startup-tray-setting", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 시작 설정 요청입니다")
+    }
+    return getStartupTraySetting()
+  })
+  ipcMain.handle("application:set-startup-tray-setting", (event, enabled) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 시작 설정 변경 요청입니다")
+    }
+    if (typeof enabled !== "boolean") throw new Error("시작 설정 값이 올바르지 않습니다")
+    return setStartupTraySetting(enabled)
   })
   ipcMain.handle("application:get-visual-activity", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
@@ -2499,6 +2589,10 @@ function createWindow() {
     : window.loadFile(join(root, "dist", "index.html"))
   void loading
     .then(() => {
+      if (startupTrayLaunch) {
+        window.setOpacity(1)
+        window.setSkipTaskbar(true)
+      }
       if (primaryWindowFocusPending) focusPrimaryWindow()
     })
     .catch(error => showWindowLoadError(window, error))
@@ -2525,6 +2619,7 @@ async function startApplication() {
   frameBoostStartupPromise = ensureFrameBoostStarted().catch(error => {
     console.error("앱 시작 프레임 부스트 자동 실행 실패", error)
   })
+  if (startupTrayLaunch) ensureApplicationTray()
   createWindow()
   if (app.isPackaged) {
     applicationUpdateStartupTimer = setTimeout(() => {

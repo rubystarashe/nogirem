@@ -47,3 +47,9 @@
       Delete "$APPDATA\${PRODUCT_NAME}\instance\installer-close-request"
   ${endIf}
 !macroend
+
+!macro customUnInstall
+  nsExec::ExecToStack '"$SYSDIR\schtasks.exe" /Delete /TN "Mabinogi Rem Booster Startup" /F'
+  Pop $0
+  Pop $1
+!macroend

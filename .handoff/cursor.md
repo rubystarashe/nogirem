@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 00:54
+Last Updated: 2026-09-06 00:56
 
 ## Current Objective
-Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노기는 P-core 절반, 백그라운드는 나머지 P-core와 모든 E-core를 사용하게 한다.
+개발자 기능에서 Windows 로그인 시 앱을 창과 시작 음악 없이 트레이로 자동 실행할 수 있게 한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -11,6 +11,8 @@ Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노�
 - 마비노기는 P-core 물리 코어의 절반을 사용하며 홀수이면 게임 측을 올림한다. 백그라운드는 나머지 P-core와 모든 E-core를 사용한다.
 - P/E 구분이 없는 CPU도 물리 코어 단위로 절반을 나누고 SMT sibling 전체를 같은 마스크에 유지한다.
 - 앱과 잠금 파일의 현재 버전 문자열은 0.1.5이며 `VERSION_HISTORY.md`에 0.1.4 이후 사용자 체감 변경을 기록했다.
+- 설치본의 개발자 기능에서 `Windows 시작 시 트레이 실행`을 켜고 끌 수 있다.
+- 자동 실행은 현재 사용자 로그온 예약 작업과 `--startup-tray` 인자를 사용하며 시작 창·OST 없이 트레이와 프레임 부스트를 준비한다.
 - affinity 기능은 `src/affinity.mjs`, 메모리 기능은 `src/memory.mjs`로 분리했다.
 - 구문 검사, `npm run self-test`, `npm run memory:status`가 통과했다.
 - `npm run nvidia:status`로 NVIDIA GPU와 마비노기 3D 프로필을 읽기 전용 조회할 수 있다.
@@ -125,6 +127,10 @@ Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노�
 - 가장 높은 `EfficiencyClass`를 P-core 계층으로 취급하고 그보다 낮은 계층은 모두 백그라운드 마스크에 포함한다.
 - CPU 재정렬은 두 P-core 절반만 교환하며 E-core는 항상 백그라운드 쪽에 유지한다.
 - Windows CPU Set 조회가 실패하거나 현재 affinity 그룹과 일치하지 않으면 기존 논리 CPU 절반 마스크로 대체한다.
+- 관리자 manifest 앱의 일반 Run 키 자동 실행은 신뢰성이 낮아, Windows Task Scheduler의 현재 사용자 `AtLogOn`·`Highest`·`Interactive` 작업을 사용한다.
+- 개발 실행에서는 Electron 개발 런처가 자동 등록되지 않도록 시작 트레이 옵션을 지원하지 않는다.
+- 트레이 자동 실행 중에도 숨은 렌더러 창을 초기화해 사용자가 트레이에서 열거나 종료할 때 기존 UI·복구 흐름을 그대로 사용한다.
+- NSIS 제거 프로그램은 남은 자동 실행 예약 작업을 함께 삭제한다.
 - 마비노기 적용은 `applyToGameProcesses`, 다른 프로그램 적용은 `applyToBackgroundProcesses`로 구분한다.
 - memory 모듈이 NT 메모리 조회, standby 정리, 임계치와 타이머 상태를 소유한다.
 - 진입점은 두 모듈의 생명주기와 종료 시 복구 순서만 조정한다.
@@ -244,6 +250,7 @@ Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노�
 11. 마비노기 실행·실시간 부스트 상태에서 CPU 재정렬의 3초 역전과 정상 복귀를 수동 확인한다.
 12. 0.0.2 설치본에서 `v0.0.3`의 실제 자동 다운로드와 설치를 수동 검증한다.
 13. Intel 하이브리드 CPU에서 실제 P/E 코어 번호와 적용 마스크를 수동 검증한다.
+14. 0.1.5 설치본에서 시작 트레이 옵션 등록·재로그인·열기·해제를 수동 검증한다.
 
 ## Known Issues
 - `runtime-state.json`을 직접 덮어써 동시 읽기 시 일시적으로 불완전한 JSON이 노출될 수 있다.
@@ -276,6 +283,7 @@ Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노�
 - 프레임리스 창에는 시스템 최소화 버튼이 없으며 현재 커스텀 UI는 닫기만 제공한다.
 - 앱 자동 업데이트는 패키징된 앱에서만 동작하며 GitHub Release에 설치 파일·blockmap·`latest.yml` 세 자산이 모두 있어야 한다.
 - Affinity는 기존 단일 프로세서 그룹과 최대 52개 논리 CPU 제한을 유지하므로 다중 프로세서 그룹 시스템은 지원하지 않는다.
+- 시작 트레이 예약 작업의 실제 로그온 실행은 설치본과 Windows 재로그인이 필요해 자동 검증하지 않았다.
 
 ## Key Files
 - `src/index.mjs`: CLI와 전체 실행 흐름
@@ -820,6 +828,8 @@ Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노�
 - 논리 CPU 번호 절반 분할을 Windows CPU Set 기반 물리 코어 배분으로 교체했다. P-core 절반과 SMT sibling은 게임에, 나머지 P-core와 모든 E-core는 백그라운드에 배정하며 홀수 P-core는 게임 측을 올림한다.
 - CPU 재정렬도 E-core를 게임에 넘기지 않고 P-core 그룹끼리만 교환한다. 토폴로지 단위 테스트를 추가해 전체 테스트 48개, 프로덕션 웹 빌드, 구문 검사와 린트가 통과했다.
 - `package.json`과 lockfile 버전을 0.1.5로 올리고 P/E 코어 배분, 게임 종료 시 affinity 복원, 동적 게임 경로 감지와 업데이트 진행률 수정 내용을 버전 기록에 추가했다.
+- 개발자 기능에 Windows 시작 시 트레이 실행 옵션을 추가했다. 설치본은 최고 권한 로그온 예약 작업을 등록하며 자동 시작에서는 창·OST를 생략하고, 중복 실행 시 기존 창을 포커스하지 않는다. 앱 제거 시 예약 작업도 삭제한다.
+- 예약 작업 PowerShell 정의, Electron·preload 구문 검사, 전체 테스트 48개, 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - 첫 소개 탭 이름을 `안녕하세요`로 바꾸고 메뉴와 구분선 사이 여백을 절반으로 줄였다. 구분선을 항상 보이는 3px 가상 스크롤 트랙으로 전환해 긴 본문의 위치가 반투명 thumb로 표시되도록 했으며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - `VERSION_HISTORY.md`를 추가하고 `0.0.2`, `0.0.1` 최초 기록을 작성했다. 소개 화면은 이 파일을 raw import로 불러와 버전 제목과 변경 목록으로 안전하게 렌더링하며 프로덕션 웹 빌드와 편집기 린트가 통과했다.
 - 소개 메뉴와 가상 스크롤 구분선 사이의 실제 간격을 줄이기 위해 좌측 그리드 열을 168px에서 132px로 축소했다. 프로덕션 웹 빌드와 편집기 린트가 통과했다.
@@ -838,4 +848,4 @@ Windows CPU 토폴로지에서 P/E 코어와 SMT 관계를 식별해 마비노�
 - `roundedCorners: false`로 Windows 11 창 모서리를 직각으로 고정했다.
 
 ## Next Recommended Step
-Intel 하이브리드 CPU에서 helper 상태의 P/E 개수와 게임·백그라운드 CPU 범위를 확인한 뒤 0.1.5를 패키징·배포한다.
+0.1.5를 패키징한 뒤 설치본에서 시작 트레이 옵션을 켜고 Windows 재로그인 시 숨은 자동 실행과 트레이 복원을 확인한다.
