@@ -960,10 +960,10 @@
     onclick={minimizeApplicationToTray}
   >
     <svg class="control-icon-bg" width="25" height="25" aria-hidden="true">
-      <line x1="0" y1="18" x2="25" y2="18" stroke-width="2" />
+      <line x1="0" y1="24" x2="25" y2="24" stroke-width="2" />
     </svg>
     <svg width="25" height="25" aria-hidden="true">
-      <line class="control-line-one" x1="0" y1="18" x2="25" y2="18" stroke-width="2" />
+      <line class="control-line-one" x1="0" y1="24" x2="25" y2="24" stroke-width="2" />
     </svg>
   </button>
   <button

@@ -1707,6 +1707,10 @@ button.direct-donation-card:hover {
   -webkit-app-region: no-drag;
 }
 
+.window-minimize {
+  margin-right: 4px;
+}
+
 .window-control svg {
   position: absolute;
   top: 0;
