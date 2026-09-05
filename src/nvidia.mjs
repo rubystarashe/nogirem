@@ -10,6 +10,7 @@ import {
 const execFileAsync = promisify(execFile)
 
 const NVAPI_OK = 0
+const NVAPI_NO_IMPLEMENTATION = -3
 const NVAPI_EXECUTABLE_NOT_FOUND = -166
 const NVAPI_SETTING_NOT_FOUND = -160
 const APPLICATION_SIZE = 16396
@@ -114,6 +115,7 @@ const settingLocations = [
   "드라이버 기본값",
 ]
 const prototypeCache = new Map()
+const unsupportedSettingReasons = new Map()
 
 function makeVersion(size, version) {
   return size | (version << 16)
@@ -131,6 +133,11 @@ function requireFunction(queryInterface, id, prototype, fallbackId) {
   if (!pointer && fallbackId !== undefined) pointer = queryInterface(fallbackId)
   if (!pointer) throw new Error(`NVAPI 함수를 찾을 수 없습니다: 0x${id.toString(16)}`)
   return koffi.decode(pointer, prototype)
+}
+
+function optionalFunction(queryInterface, id, prototype) {
+  const pointer = queryInterface(id)
+  return pointer ? koffi.decode(pointer, prototype) : null
 }
 
 function getPrototype(signature) {
@@ -214,7 +221,7 @@ function openNvapi() {
       "int32_t __cdecl NvAPI_DRS_GetSetting(void *session, void *profile, uint32_t settingId, _Inout_ void *setting)",
     ),
   )
-  const getPrivateSetting = requireFunction(
+  const getPrivateSetting = optionalFunction(
     queryInterface,
     0xEA99498D,
     getPrototype(
@@ -223,11 +230,17 @@ function openNvapi() {
   )
   const setSetting = requireFunction(
     queryInterface,
+    0x577DD202,
+    getPrototype(
+      "int32_t __cdecl NvAPI_DRS_SetSetting(void *session, void *profile, _In_ void *setting)",
+    ),
+  )
+  const setPrivateSetting = optionalFunction(
+    queryInterface,
     0x8A2CF5F5,
     getPrototype(
-      "int32_t __cdecl NvAPI_DRS_SetSetting(void *session, void *profile, _In_ void *setting, uint32_t unknown1, uint32_t unknown2)",
+      "int32_t __cdecl NvAPI_DRS_SetSettingInternal(void *session, void *profile, _In_ void *setting, uint32_t unknown1, uint32_t unknown2)",
     ),
-    0x577DD202,
   )
   const saveSettings = requireFunction(
     queryInterface,
@@ -247,6 +260,7 @@ function openNvapi() {
     getSetting,
     getPrivateSetting,
     setSetting,
+    setPrivateSetting,
     saveSettings,
   }
 }
@@ -291,6 +305,31 @@ function readProfileName(api, session, profile) {
 }
 
 function readSetting(api, session, profile, definition) {
+  const unsupportedReason = unsupportedSettingReasons.get(definition.key)
+  if (unsupportedReason) {
+    return {
+      key: definition.key,
+      name: definition.name,
+      available: false,
+      value: null,
+      displayValue: "지원 안 함",
+      location: "현재 드라이버",
+      explicit: false,
+      reason: unsupportedReason,
+    }
+  }
+  if (definition.privateSetting && !api.getPrivateSetting) {
+    return {
+      key: definition.key,
+      name: definition.name,
+      available: false,
+      value: null,
+      displayValue: "지원 안 함",
+      location: "현재 드라이버",
+      explicit: false,
+      reason: "비공개 DRS 조회 API를 지원하지 않습니다",
+    }
+  }
   const setting = Buffer.alloc(SETTING_SIZE)
   setting.writeUInt32LE(makeVersion(SETTING_SIZE, 1), 0)
   const unknown = [0]
@@ -335,10 +374,11 @@ function writeSetting(api, session, profile, definition) {
   setting.writeUInt32LE(definition.id, SETTING_ID_OFFSET)
   setting.writeUInt32LE(0, SETTING_TYPE_OFFSET)
   setting.writeUInt32LE(definition.targetValue, CURRENT_VALUE_OFFSET)
-  checkStatus(
-    `${definition.name} 적용`,
-    api.setSetting(session, profile, setting, 0, 0),
-  )
+  if (definition.privateSetting) {
+    if (!api.setPrivateSetting) return NVAPI_NO_IMPLEMENTATION
+    return api.setPrivateSetting(session, profile, setting, 0, 0)
+  }
+  return api.setSetting(session, profile, setting)
 }
 
 function resolveVerticalSync(verticalSync, gameVerticalSync) {
@@ -413,7 +453,8 @@ function buildChecks(settings, gameVerticalSync) {
   }
 }
 
-function buildGoalStatus(checks) {
+function buildGoalStatus(checks, settings) {
+  const values = Object.fromEntries(settings.map(setting => [setting.key, setting]))
   const goals = {
     verticalSyncOff: checks.verticalSyncEnabled === false,
     maxFrameRate400: checks.maxFrameRate === 400,
@@ -421,9 +462,21 @@ function buildGoalStatus(checks) {
     preferMaximumPerformance: checks.preferMaximumPerformance === true,
     ultraLowLatency: checks.ultraLowLatency === true,
   }
+  const support = {
+    verticalSyncOff: values.verticalSync?.available !== false,
+    maxFrameRate400: values.maxFrameRate?.available !== false,
+    threadedOptimizationOn: values.threadedOptimization?.available !== false,
+    preferMaximumPerformance: values.powerManagement?.available !== false,
+    ultraLowLatency: [
+      values.lowLatencyCpl,
+      values.lowLatencyEnabled,
+      values.maxPreRenderedFrames,
+    ].every(setting => setting?.available !== false),
+  }
   return {
     ...goals,
-    allMet: Object.values(goals).every(Boolean),
+    allMet: Object.entries(goals).every(([key, met]) => support[key] === false || met),
+    support,
   }
 }
 
@@ -497,13 +550,53 @@ export async function checkNvidiaProfile(gameExecutable) {
       gameVerticalSync,
       settings,
       checks,
-      goals: buildGoalStatus(checks),
+      goals: buildGoalStatus(checks, settings),
       lowLatencyNote: "저지연 모드는 비공개 드라이버 상태값과 최대 사전 렌더링 프레임을 함께 조회합니다",
     }
   } finally {
     api.destroySession(session[0])
     api.unload()
   }
+}
+
+export function applyNvidiaSettingDefinitions(api, candidates, definitions = settingDefinitions) {
+  const unsupported = []
+  for (const definition of definitions) {
+    const session = [null]
+    checkStatus("DRS 세션 생성", api.createSession(session))
+    try {
+      checkStatus("DRS 설정 로드", api.loadSettings(session[0]))
+      const application = findApplicationProfile(api, session[0], candidates)
+      if (!application.found) {
+        throw new Error("마비노기 NVIDIA 프로그램 프로필을 찾지 못했습니다")
+      }
+
+      const setStatus = writeSetting(api, session[0], application.profile, definition)
+      if (setStatus === NVAPI_NO_IMPLEMENTATION) {
+        unsupported.push({
+          key: definition.key,
+          name: definition.name,
+          reason: "현재 드라이버에서 설정 API를 지원하지 않습니다",
+        })
+        continue
+      }
+      checkStatus(`${definition.name} 적용`, setStatus)
+
+      const saveStatus = api.saveSettings(session[0])
+      if (saveStatus === NVAPI_NO_IMPLEMENTATION) {
+        unsupported.push({
+          key: definition.key,
+          name: definition.name,
+          reason: "현재 드라이버에서 설정 저장을 지원하지 않습니다",
+        })
+        continue
+      }
+      checkStatus(`${definition.name} 저장`, saveStatus)
+    } finally {
+      api.destroySession(session[0])
+    }
+  }
+  return unsupported
 }
 
 export async function applyNvidiaProfileGoals(gameExecutable) {
@@ -515,26 +608,24 @@ export async function applyNvidiaProfileGoals(gameExecutable) {
   if (!gpus.length) throw new Error("NVIDIA GPU 또는 드라이버를 찾지 못했습니다")
 
   const api = openNvapi()
-  const session = [null]
   checkStatus("NVAPI 초기화", api.initialize())
-  checkStatus("DRS 세션 생성", api.createSession(session))
 
   try {
-    checkStatus("DRS 설정 로드", api.loadSettings(session[0]))
     const candidates = [...new Set([
       gameExecutable,
       basename(gameExecutable ?? "Client.exe"),
     ].filter(Boolean))]
-    const application = findApplicationProfile(api, session[0], candidates)
-    if (!application.found) {
-      throw new Error("마비노기 NVIDIA 프로그램 프로필을 찾지 못했습니다")
-    }
+    const unsupported = applyNvidiaSettingDefinitions(api, candidates)
+    const unsupportedKeys = new Set(unsupported.map(setting => setting.key))
     for (const definition of settingDefinitions) {
-      writeSetting(api, session[0], application.profile, definition)
+      if (unsupportedKeys.has(definition.key)) {
+        const setting = unsupported.find(value => value.key === definition.key)
+        unsupportedSettingReasons.set(definition.key, setting.reason)
+      } else {
+        unsupportedSettingReasons.delete(definition.key)
+      }
     }
-    checkStatus("DRS 설정 저장", api.saveSettings(session[0]))
   } finally {
-    api.destroySession(session[0])
     api.unload()
   }
 

@@ -10,7 +10,7 @@ function normalizeNvidiaStatus(status) {
   const goals = Object.entries(nvidiaGoalLabels).map(([key, label]) => ({
     key,
     label,
-    supported: true,
+    supported: status.goals?.support?.[key] !== false,
     met: status.goals?.[key] === true,
   }))
   return {
@@ -22,7 +22,7 @@ function normalizeNvidiaStatus(status) {
     scope: "application",
     scopeLabel: "마비노기 프로그램 프로필",
     goalsList: goals,
-    allMet: status.nvidia === true && goals.every(goal => goal.met),
+    allMet: status.nvidia === true && goals.every(goal => goal.supported === false || goal.met),
   }
 }
 
