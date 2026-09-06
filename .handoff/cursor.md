@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 14:48
+Last Updated: 2026-09-06 14:51
 
 ## Current Objective
 사용자 환경에서 실시간 부스트가 일시정지 상태를 벗어나지 못하고 강제 간소화가 경고로 표시되는 0.2.4 문제를 수정한다.
@@ -976,6 +976,8 @@ Last Updated: 2026-09-06 14:48
 - Affinity와 메모리 helper 중 하나만 실행된 부분 상태를 일시정지로 표시하면서 클릭 시 실행 중인 helper까지 끄던 토글 조건을 수정했다. 이제 두 helper가 모두 실행된 경우에만 중지하며, 하나라도 빠졌으면 활성화를 재시도한다.
 - Affinity helper 상태가 오래됐거나 중지된 경우 강제 간소화를 무조건 미적용으로 표시하지 않고 현재 최신 MUO를 직접 읽도록 변경했다.
 - `VERSION_HISTORY.md`에 두 수정 사항을 0.2.4 작업으로 기록했다. 관련 회귀 테스트 9개와 Svelte 프로덕션 빌드가 통과했다.
+- GitHub 정식 Release `v0.2.4`를 게시했다. 중복 생성된 Release를 단일 Release로 정리하고 installer, blockmap, `latest.yml`, 별도 터보 키 helper 네 자산과 변경 내용을 검증했다.
+- 0.2.4 installer는 93,096,965바이트이고 SHA-256은 `ef978b78c6f098d31c8dca694c762bd8f688912da3354c1053081d768cae75bd`다.
 
 ## Next Recommended Step
-문제가 발생한 사용자 환경에서 0.2.4 테스트 설치본으로 실시간 부스트 재활성화와 강제 간소화 표시를 확인한다.
+문제가 발생한 사용자 환경에서 공개 0.2.4 설치본으로 실시간 부스트 재활성화와 강제 간소화 표시를 확인한다.
