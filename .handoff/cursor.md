@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 13:02
+Last Updated: 2026-09-06 13:05
 
 ## Current Objective
 선택 다운로드형 터보 키와 시작 안정성 개선을 포함한 0.2.3 Windows 설치본을 검증하고 GitHub에 배포한다.
@@ -11,6 +11,7 @@ Last Updated: 2026-09-06 13:02
 - helper는 `%APPDATA%/마비노기 렘 부스터/turbo-key/bin`에 설치한다. GitHub SHA-256, 2MiB 제한, PE x64 형식과 설치 manifest 해시를 검증하며 누락·변조 시 자동 실행하지 않는다.
 - 개발 실행은 같은 동의 흐름 뒤 로컬 release helper를 AppData에 복사한다. 설치 후에도 터보 키는 자동 활성화하지 않는다.
 - GitHub 정식 Release `v0.2.2`에 `turbo-key-helper-win32-x64-v0.1.0.exe` 단일 자산을 추가 게시했다. 크기는 276,480바이트이고 GitHub SHA-256은 `0f1b6ab5da765d7d26be9203913b0c1dc9d21df2d1397da630eef9ac364a3ade`다.
+- GitHub 정식 Release `v0.2.3`을 게시했다. 단일 Release에 installer, blockmap, `latest.yml`, 별도 터보 키 helper 네 자산과 기능 중심 릴리스 노트가 있다.
 - 메인 창을 무거운 게임 경로·DXVK·간소화 파일 초기화보다 먼저 생성한다. 초기 작업은 창과 독립적으로 백그라운드에서 진행한다.
 - 렌더러가 정상 표시 요청을 보내지 못해도 8초 watchdog이 창을 강제 표시한다.
 - 시작 상태 조회는 OST·시작 화면 표시를 더 이상 차단하지 않는다. 배경 이미지 실패와 음악 metadata·재생 지연에도 각각 무음 시작 fallback이 동작한다.
@@ -273,7 +274,7 @@ Last Updated: 2026-09-06 13:02
 - 코드 주석은 한국어로 작성하고 줄 끝 세미콜론은 사용하지 않는다.
 
 ## Pending Tasks
-1. 로컬 최신 패키지에서 `v0.2.2`의 GitHub digest 조회·helper 다운로드·설치·재실행 유지까지 수동 검증한다.
+1. 0.2.3 설치본에서 GitHub digest 조회·helper 다운로드·설치·제거·재실행 유지까지 수동 검증한다.
 2. 미설치·설치 성공·파일 변조 상태에서 고급 기능의 조건부 버튼과 약관 모달 스크롤·오류 표시를 개발 앱에서 수동 확인한다.
 3. Radeon 전용 장비에서 전역 설정 확인 모달, 실제 적용과 AMD Software 반영을 수동 검증한다.
 4. 최신 앱을 재시작해 chicken과 같은 마비노기 로고, `노기렘 실행중`, OST·파동과 홈 전환 순서를 확인한다.
@@ -965,6 +966,7 @@ Last Updated: 2026-09-06 13:02
 - 기존 앱 설치 자산은 변경하지 않고 `v0.2.2` Release에 별도 터보 키 helper 실행 파일만 추가 게시했으며 GitHub digest와 업로드 상태를 확인했다.
 - 터보 키 운영정책 안내를 `OPERATION.md`에서 분리한 `TURBO_KEY_TERMS.md`로 관리하고 약관 모달이 해당 파일을 직접 파싱하도록 변경했다.
 - 별도 약관에 물리 HID 입력, 제조사 소프트웨어 매크로와 터보 키 `WH_KEYBOARD_LL`·`SendInput` 방식의 차이를 설명하고, 제한된 기능 범위와 실제 사용 방식에 따른 위험을 구분해 안내했다.
+- 0.2.3 배포 중 같은 태그의 Release 두 개에 자산이 갈라지는 게시 경쟁이 재발했다. 중복 Release를 제거하고 단일 Release에 네 자산을 통합했으며 installer SHA-256은 `c31bf681233cfa9c76d7cbc9290930f6b99966ffb1bacff6d2faa33ff29f761e`다.
 
 ## Next Recommended Step
-개발 앱에서 약관 모달을 열어 로컬 helper 설치와 조건부 버튼 전환을 확인한 뒤 다음 버전으로 배포해 실제 GitHub 다운로드를 검증한다.
+0.2.3 설치본에서 약관 모달 확인 후 실제 GitHub helper 다운로드, 키 설정·사용, 제거 버튼과 재다운로드를 검증한다.
