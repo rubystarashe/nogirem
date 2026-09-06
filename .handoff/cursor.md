@@ -1,11 +1,16 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 11:37
+Last Updated: 2026-09-06 11:54
 
 ## Current Objective
-배포된 0.2.2 설치본에서 렌더러 복구와 터보 키 반복 안정화를 최종 확인한다.
+일부 PC에서 시작 창이 나타나지 않는 경로를 제거하고 다음 설치본의 시작 안정성을 확인한다.
 
 ## Current Status
+- 메인 창을 무거운 게임 경로·DXVK·간소화 파일 초기화보다 먼저 생성한다. 초기 작업은 창과 독립적으로 백그라운드에서 진행한다.
+- 렌더러가 정상 표시 요청을 보내지 못해도 8초 watchdog이 창을 강제 표시한다.
+- 시작 상태 조회는 OST·시작 화면 표시를 더 이상 차단하지 않는다. 배경 이미지 실패와 음악 metadata·재생 지연에도 각각 무음 시작 fallback이 동작한다.
+- `electron/bootstrap.mjs`가 메인 모듈을 동적 로드하며 시작 단계와 최상위 오류를 `%APPDATA%/마비노기 렘 부스터/logs/startup.log`에 기록한다.
+- `OPERATION.md`의 터보 키 운영정책 안내에서 허용 여부를 단정하던 표현을 제거하고 반복 입력의 해석·제재 위험을 명확히 했다.
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
 - Affinity는 `GetSystemCpuSetInformation`의 `EfficiencyClass`, `CoreIndex`, 논리 프로세서 번호를 사용해 실제 코어 토폴로지를 판정한다.
 - 마비노기는 P-core 물리 코어의 절반을 사용하며 홀수이면 게임 측을 올림한다. 백그라운드는 나머지 P-core와 모든 E-core를 사용한다.
@@ -132,6 +137,9 @@ Last Updated: 2026-09-06 11:37
 - 프로덕션 빌드, Electron 구문 검사, 전체 테스트 20개와 편집기 린트가 통과했다.
 
 ## Architecture / Important Decisions
+- `package.json`의 Electron 진입점은 `electron/bootstrap.mjs`다. 부트스트랩은 오류 기록기를 먼저 설치한 뒤 `electron/main.mjs`를 동적 import해 모듈 평가 실패도 기록한다.
+- 창 생성·렌더러 로드는 초기 최적화 작업과 분리한다. 정상 경로는 OST 재생 시작 IPC에서 기존 fade-in을 사용하고, 해당 신호가 없으면 생성 후 8초에 같은 표시 함수를 강제 호출한다.
+- 최초 `loadAll()`은 시작 화면을 허용한 뒤 별도로 실행하므로 느린 시스템 조회가 있어도 UI가 먼저 나타나며 각 서비스는 기존 loading 상태를 유지한다.
 - `native/turbo-key` Rust helper가 `WH_KEYBOARD_LL`로 물리 키를 추적하고 `SendInput`으로 down/up pulse를 보낸다. 주입 이벤트와 Windows 자동 반복은 다시 처리하지 않는다.
 - Electron은 선택 키를 검증·정규화해 AppData 설정에 보존하고 helper의 `--keys` 시작 인자로 전달한다. Rust hook은 선택되지 않은 키를 통과시키고 활성 반복을 취소한다.
 - Shift/Ctrl/Alt/Win 및 잠금·시스템 키는 제외하며 modifier 입력, 게임 포커스 상실, 부모 앱 종료 시 즉시 반복을 중단한다.
@@ -268,6 +276,7 @@ Last Updated: 2026-09-06 11:37
 14. 0.1.5 설치본에서 시작 트레이 옵션 등록·재로그인·열기·해제를 수동 검증한다.
 15. 최신 메인 프로세스로 앱을 재시작하고 부스트 대기 상태에서 종료 확인 모달이 생략되는지 확인한다.
 16. 전체 키보드에서 선택 키 저장·기본 하이라이트를 확인하고, 마비노기 전면 창에서 선택 키만 반복되는지와 modifier·포커스 안전 중단을 수동 검증한다.
+17. 시작 이미지·OST 또는 초기 상태 IPC를 의도적으로 실패·지연시켜 1.5초 리소스 fallback과 8초 창 표시 watchdog, `startup.log` 기록을 설치본에서 확인한다.
 
 ## Known Issues
 - 터보 키의 hook·주입·종료·CPU 마스크 복구는 독립 helper로 검증했지만 실제 마비노기와 BlackCipher 환경에서의 입력 수용 여부는 수동 검증이 필요하다.
@@ -299,6 +308,7 @@ Last Updated: 2026-09-06 11:37
 - `audiodg.exe`를 CPU 0~7로 제한하면 오디오 드롭·지연이 발생할 가능성이 있다.
 - 고정 640×290 창에서는 기존 대시보드 전체 내용이 세로 스크롤로 표시된다.
 - 시작 음악은 Electron의 미디어 자동재생 정책이나 오디오 장치 상태에 따라 재생이 거부될 수 있다.
+- 시작 안정성 회귀는 정적 계약 테스트와 웹 빌드까지 통과했지만 실제 저사양·보안 프로그램 환경의 8초 강제 표시는 설치본 수동 검증이 필요하다.
 - 프레임리스 창에는 시스템 최소화 버튼이 없으며 현재 커스텀 UI는 닫기만 제공한다.
 - 앱 자동 업데이트는 패키징된 앱에서만 동작하며 GitHub Release에 설치 파일·blockmap·`latest.yml` 세 자산이 모두 있어야 한다.
 - Affinity는 기존 단일 프로세서 그룹과 최대 52개 논리 CPU 제한을 유지하므로 다중 프로세서 그룹 시스템은 지원하지 않는다.
@@ -322,6 +332,7 @@ Last Updated: 2026-09-06 11:37
 - `config.json`: 게임 판별, 제외 목록, 폴링 및 메모리 임계치
 - `runtime-state.json`: 실행 중 affinity 원본 상태
 - `electron/main.mjs`: 창 생성, 상태·적용 IPC, helper 생명주기와 GitHub Release 자동 업데이트
+- `electron/bootstrap.mjs`: 메인 모듈 동적 로드, 시작 단계·최상위 오류 파일 기록
 - `electron/preload.cjs`: 격리된 렌더러에 허용된 최적화·업데이트 API만 노출
 - `web/App.svelte`: 최적화 UI와 실제 앱 업데이트 상태 연결
 - `web/GameWave.svelte`: 게임 감지 전환 시 OST와 Canvas 파동 효과 재생
@@ -922,6 +933,8 @@ Last Updated: 2026-09-06 11:37
 - `npm run package:win`으로 0.2.2 Windows x64 NSIS 설치본을 생성했다. `nogirem-setup-0.2.2.exe`는 92,916,167바이트, SHA-256 `9049AE2819BB5A02819CFDCAD2252D3162D86E6F7F2DA5BEF4837C7CDCA4DDE8`이며 blockmap과 `latest.yml`의 버전·경로·크기를 확인했다. 배포는 진행하지 않았다.
 - `[류트@렘] 제작` 위 최초 안내 말풍선 문구를 `고급 기능은 여기`로 변경했으며, 이를 포함해 0.2.2를 다시 패키징하고 배포한다.
 - GitHub 정식 Release `v0.2.2`를 게시했다. 최초 병렬 게시에서 단일 자산 Release만 생성되는 경쟁 조건이 재발해 비게시 빌드로 installer·blockmap·`latest.yml`을 동일 빌드로 맞춘 뒤 Release를 재생성했다. 최종 설치 파일은 92,914,918바이트, SHA-256 `7D9CBFD6B019CE21D07A3267B4C2686C631CBA4381FE934D50C58747139A1735`이며 단일 Release의 세 자산과 릴리스 노트를 확인했다.
+- 창을 모든 무거운 초기화보다 먼저 만들고 8초 표시 watchdog, 이미지·음악 실패 fallback, 초기 상태 조회 비차단을 추가했다. 부트스트랩은 시작 단계와 최상위 오류를 AppData 로그에 남긴다.
+- `OPERATION.md`의 터보 키 안내를 운영정책상 허용을 보장하지 않는 정확한 위험 고지로 수정했다. Node 테스트 67개, 웹 빌드, 메인·부트스트랩 구문 검사와 편집기 린트가 통과했다.
 
 ## Next Recommended Step
-마비노기 전면 창에서 1ms 반복의 실제 전송률과 입력 간격 편차를 여러 사양의 PC에서 비교하고, 패키지 설치본에서 업데이트·렌더러 복구도 함께 검증한다.
+다음 설치본에서 초기 상태 IPC와 시작 리소스를 각각 지연시켜도 창이 8초 안에 나타나고 `startup.log`에 단계가 남는지 확인한다.

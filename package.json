@@ -8,7 +8,7 @@
     "url": "https://github.com/rubystarashe/nogirem.git"
   },
   "type": "module",
-  "main": "electron/main.mjs",
+  "main": "electron/bootstrap.mjs",
   "scripts": {
     "app": "electron .",
     "app:dev": "concurrently --kill-others-on-fail \"vite\" \"wait-on tcp:5173 && electron . --dev\"",

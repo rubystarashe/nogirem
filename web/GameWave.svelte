@@ -30,6 +30,7 @@
   let drawWakeTimer
   let hideTimer
   let audioStopTimer
+  let playbackFallbackTimer
   let ambientTimer
   let active = true
   let mode = "startup"
@@ -455,6 +456,8 @@
     const startAnimation = () => {
       if (animationStarted || currentPlaybackId !== playbackId) return
       animationStarted = true
+      window.clearTimeout(playbackFallbackTimer)
+      playbackFallbackTimer = null
       onplaybackstart()
       circles = createCircles()
       const initialTimelineElapsed = Math.max(
@@ -480,7 +483,7 @@
     }
 
     const playFromCue = () => {
-      if (currentPlaybackId !== playbackId) return
+      if (animationStarted || currentPlaybackId !== playbackId) return
       nextAudio.currentTime = startupPlaybackCueSeconds
       nextAudio.addEventListener("playing", startAnimation, { once: true })
       void nextAudio.play().catch(error => {
@@ -489,6 +492,11 @@
       })
     }
 
+    playbackFallbackTimer = window.setTimeout(() => {
+      console.warn("시작 음악 준비가 지연되어 무음으로 시작합니다")
+      startAnimation()
+    }, 1500)
+    nextAudio.addEventListener("error", startAnimation, { once: true })
     if (nextAudio.readyState >= HTMLMediaElement.HAVE_METADATA) playFromCue()
     else nextAudio.addEventListener("loadedmetadata", playFromCue, { once: true })
   }
@@ -498,6 +506,7 @@
     const currentPlaybackId = playbackId
     window.clearTimeout(hideTimer)
     window.clearTimeout(audioStopTimer)
+    window.clearTimeout(playbackFallbackTimer)
     window.clearTimeout(drawWakeTimer)
     cancelAnimationFrame(animationFrame)
     animationFrame = null
@@ -523,6 +532,7 @@
     startupStopPending = false
     window.clearTimeout(hideTimer)
     window.clearTimeout(audioStopTimer)
+    window.clearTimeout(playbackFallbackTimer)
     window.clearTimeout(drawWakeTimer)
     cancelAnimationFrame(animationFrame)
     animationFrame = null
@@ -567,6 +577,9 @@
     }
     image.onerror = error => {
       console.warn("시작 배경 이미지를 불러오지 못했습니다", error)
+      imageReady = true
+      if (startupStopPending) finishStartup()
+      else if (startupAllowed) playStartup()
     }
     image.src = "./main3-optimized.jpg"
     logoImage = new Image()
@@ -580,6 +593,7 @@
       playbackId += 1
       window.clearTimeout(hideTimer)
       window.clearTimeout(audioStopTimer)
+      window.clearTimeout(playbackFallbackTimer)
       window.clearTimeout(ambientTimer)
       window.clearTimeout(drawWakeTimer)
       cancelAnimationFrame(animationFrame)

@@ -1171,7 +1171,7 @@
       })
     void window.nogirem.getLaunchContext()
       .catch(() => ({ startupTray: false }))
-      .then(launchContext => loadAll().finally(() => {
+      .then(launchContext => {
         startupDataReady = true
         if (launchContext.startupTray) {
           startupAnimationFinished = true
@@ -1180,7 +1180,8 @@
           gameWave?.allowStartup()
           finishStartupWhenReady()
         }
-      }))
+        void loadAll()
+      })
     const removeCloseListener = window.nogirem.onCloseRequested(() => {
       closeActionPending = false
       closeModalVisible = true

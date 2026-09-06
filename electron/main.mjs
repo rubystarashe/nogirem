@@ -56,6 +56,11 @@ const startupTrayTaskName = "Mabinogi Rem Booster Startup"
 const startupTrayLaunch = process.argv.includes("--startup-tray")
 const applicationUpdateStallTimeoutMs = 45_000
 const primaryRendererUnresponsiveTimeoutMs = 5_000
+const primaryWindowRevealTimeoutMs = 8_000
+
+function writeStartupLog(message) {
+  globalThis.__nogiremWriteStartupLog?.("INFO", message)
+}
 const conflictingProgramDefinitions = [
   {
     name: "ISLC",
@@ -75,6 +80,7 @@ let primaryWindowFocusPending = false
 let primaryWindowFocusTimer = null
 let primaryVisualActivityTimer = null
 let primaryWindowRevealFrameTimer = null
+let primaryWindowRevealWatchdogTimer = null
 let primaryWindowRevealStarted = false
 let focusRequestMonitor = null
 let focusRequestReading = false
@@ -2697,7 +2703,10 @@ p{margin:0;color:#efaaa3;white-space:pre-wrap;overflow-wrap:anywhere}
 
 function beginPrimaryWindowReveal() {
   if (primaryWindowRevealStarted || !primaryWindow || primaryWindow.isDestroyed()) return
+  clearTimeout(primaryWindowRevealWatchdogTimer)
+  primaryWindowRevealWatchdogTimer = null
   primaryWindowRevealStarted = true
+  writeStartupLog("메인 창 표시 시작")
   const window = primaryWindow
   const startedAt = Date.now()
   window.setOpacity(0)
@@ -2876,6 +2885,17 @@ function createWindow() {
     },
   })
   disableProductionRefresh(window)
+  window.webContents.on("preload-error", (_event, preload, error) => {
+    console.error(`preload 로드 실패: ${preload}`, error)
+  })
+  window.webContents.on("did-fail-load", (_event, code, description, url, isMainFrame) => {
+    if (isMainFrame) console.error(`렌더러 문서 로드 실패 (${code}): ${url}`, description)
+  })
+  window.webContents.on("console-message", (_event, details) => {
+    if (details.level === "error") {
+      console.error(`렌더러 오류: ${details.message} (${details.sourceId}:${details.lineNumber})`)
+    }
+  })
   window.webContents.on("render-process-gone", (_event, details) => {
     console.error("렌더러 프로세스 종료", details)
     recoverPrimaryRenderer(window, `프로세스 종료 (${details.reason})`)
@@ -2889,6 +2909,15 @@ function createWindow() {
   })
   window.on("responsive", clearPrimaryRendererUnresponsiveTimer)
   primaryWindow = window
+  writeStartupLog("메인 창 생성 완료")
+  if (!startupTrayLaunch) {
+    clearTimeout(primaryWindowRevealWatchdogTimer)
+    primaryWindowRevealWatchdogTimer = setTimeout(() => {
+      primaryWindowRevealWatchdogTimer = null
+      writeStartupLog("창 표시 watchdog 실행")
+      beginPrimaryWindowReveal()
+    }, primaryWindowRevealTimeoutMs)
+  }
   for (const eventName of ["focus", "blur", "show", "hide", "minimize", "restore"]) {
     window.on(eventName, notifyPrimaryVisualActivity)
   }
@@ -2908,9 +2937,11 @@ function createWindow() {
     clearTimeout(primaryWindowFocusTimer)
     clearTimeout(primaryVisualActivityTimer)
     clearTimeout(primaryWindowRevealFrameTimer)
+    clearTimeout(primaryWindowRevealWatchdogTimer)
     primaryWindowFocusTimer = null
     primaryVisualActivityTimer = null
     primaryWindowRevealFrameTimer = null
+    primaryWindowRevealWatchdogTimer = null
     primaryRendererRecoveryResetTimer = null
     primaryRendererRecoveryMode = false
     primaryRendererRecoveryInProgress = false
@@ -2923,6 +2954,7 @@ function createWindow() {
     : window.loadFile(join(root, "dist", "index.html"))
   void loading
     .then(() => {
+      writeStartupLog("렌더러 문서 로드 완료")
       if (startupTrayLaunch) {
         window.setOpacity(1)
         window.setSkipTaskbar(true)
@@ -2934,30 +2966,45 @@ function createWindow() {
 }
 
 async function startApplication() {
+  writeStartupLog("Electron 초기화 시작")
   registerIpc()
   await app.whenReady()
+  writeStartupLog("Electron 준비 완료")
   configureApplicationUpdater()
-  await loadMabinogiExecutablePath()
-  await loadCachedDxvkReleases().catch(() => {})
-  await loadCachedDxvkRuntimeStatus().catch(error => {
-    dxvkRuntimeStatus = {
-      state: "checking",
-      latestVersion: null,
-      error: serializeError(error),
-    }
-  })
-  void refreshDxvkRuntimeStatus().finally(scheduleDxvkRuntimeRefresh)
-  await installCharacterSimplificationFile()
-  await startFocusRequestMonitor()
+  if (startupTrayLaunch) ensureApplicationTray()
+  createWindow()
+
+  void startFocusRequestMonitor()
+    .catch(error => console.error("포커스 요청 감시 시작 실패", error))
   startMabinogiPathStateMonitor()
   frameBoostStartupPromise = ensureFrameBoostStarted().catch(error => {
     console.error("앱 시작 프레임 부스트 자동 실행 실패", error)
+  }).then(() => {
+    writeStartupLog("프레임 부스트 초기화 처리 종료")
   })
-  await ensureTurboKeyStarted().catch(error => {
+  void ensureTurboKeyStarted().catch(error => {
     console.error("터보 키 자동 실행 실패", error)
+  }).then(() => {
+    writeStartupLog("터보 키 초기화 처리 종료")
   })
-  if (startupTrayLaunch) ensureApplicationTray()
-  createWindow()
+  void (async () => {
+    await loadMabinogiExecutablePath()
+      .catch(error => console.error("마비노기 경로 초기화 실패", error))
+    writeStartupLog("마비노기 경로 초기화 처리 종료")
+    await loadCachedDxvkReleases()
+      .catch(error => console.error("DXVK 릴리스 캐시 로드 실패", error))
+    await loadCachedDxvkRuntimeStatus().catch(error => {
+      dxvkRuntimeStatus = {
+        state: "checking",
+        latestVersion: null,
+        error: serializeError(error),
+      }
+    })
+    void refreshDxvkRuntimeStatus().finally(scheduleDxvkRuntimeRefresh)
+    await installCharacterSimplificationFile()
+      .catch(error => console.error("주변 캐릭터 간소화 파일 설치 실패", error))
+    writeStartupLog("백그라운드 초기화 완료")
+  })()
   if (app.isPackaged) {
     applicationUpdateStartupTimer = setTimeout(() => {
       applicationUpdateStartupTimer = null
@@ -2989,6 +3036,8 @@ async function startApplication() {
     clearPrimaryRendererUnresponsiveTimer()
     clearTimeout(primaryRendererRecoveryResetTimer)
     primaryRendererRecoveryResetTimer = null
+    clearTimeout(primaryWindowRevealWatchdogTimer)
+    primaryWindowRevealWatchdogTimer = null
     clearTimeout(dxvkRuntimeRefreshTimer)
     dxvkRuntimeRefreshTimer = null
     clearInterval(focusRequestMonitor)
