@@ -5,7 +5,34 @@ import {
   buildCpuHalfMasks,
   buildCpuTopologyMasks,
   hasLiveAppliedAffinityEntries,
+  matchesGameProcess,
 } from "../src/affinity.mjs"
+
+const gamePathConfig = {
+  gameExecutable: "C:\\Nexon\\Mabinogi\\Client.exe",
+  gameExecutableName: "Client.exe",
+  gameDirectoryNames: ["Mabinogi", "마비노기", "Nexon"],
+}
+
+test("영문·한글 마비노기 및 Nexon 폴더의 Client.exe를 게임으로 인식한다", () => {
+  for (const path of [
+    "C:\\Nexon\\Mabinogi\\Client.exe",
+    "D:\\마비노기\\Client.exe",
+    "D:\\Nexon\\Client.exe",
+  ]) {
+    assert.equal(matchesGameProcess({ name: "Client.exe", path }, gamePathConfig), true)
+  }
+})
+
+test("허용 폴더 밖의 같은 이름 실행 파일은 마비노기로 인식하지 않는다", () => {
+  assert.equal(
+    matchesGameProcess(
+      { name: "Client.exe", path: "D:\\OtherGame\\Client.exe" },
+      gamePathConfig,
+    ),
+    false,
+  )
+})
 
 test("CPU 절반 마스크를 논리 CPU 수에 맞게 동적으로 계산한다", () => {
   assert.deepEqual(buildCpuHalfMasks(4), {

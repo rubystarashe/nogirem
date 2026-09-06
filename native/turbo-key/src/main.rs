@@ -323,7 +323,12 @@ fn is_mabinogi_path(path: &Path) -> bool {
         .parent()
         .and_then(Path::file_name)
         .and_then(|value| value.to_str())
-        .is_some_and(|value| value.eq_ignore_ascii_case("Mabinogi"));
+        .is_some_and(|value| {
+            matches!(
+                value.to_lowercase().as_str(),
+                "mabinogi" | "마비노기" | "nexon"
+            )
+        });
     executable_matches && directory_matches
 }
 
@@ -814,8 +819,10 @@ mod tests {
     }
 
     #[test]
-    fn foreground_target_requires_client_in_mabinogi_directory() {
+    fn foreground_target_requires_client_in_supported_directory() {
         assert!(is_mabinogi_path(Path::new(r"D:\Games\Mabinogi\Client.exe")));
+        assert!(is_mabinogi_path(Path::new(r"D:\마비노기\Client.exe")));
+        assert!(is_mabinogi_path(Path::new(r"D:\Nexon\Client.exe")));
         assert!(!is_mabinogi_path(Path::new(r"D:\Games\Other\Client.exe")));
         assert!(!is_mabinogi_path(Path::new(
             r"D:\Games\Mabinogi\Launcher.exe"

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto"
 import { readFile, mkdir, rename, unlink, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 
-export const turboKeyHelperVersion = "0.1.1"
+export const turboKeyHelperVersion = "0.1.2"
 export const turboKeyHelperProtocolVersion = 1
 export const turboKeyHelperAssetName = `turbo-key-helper-win32-x64-v${turboKeyHelperVersion}.exe`
 

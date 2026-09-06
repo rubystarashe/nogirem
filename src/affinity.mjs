@@ -132,6 +132,26 @@ function setAffinity(pid, mask) {
 
 const normalizePath = value => value?.replaceAll("/", "\\").toLowerCase() ?? ""
 
+export function getGameDirectoryNames(config) {
+  const configuredNames = Array.isArray(config.gameDirectoryNames)
+    ? config.gameDirectoryNames
+    : [config.gameDirectoryName ?? "Mabinogi"]
+  return configuredNames
+    .map(value => String(value).trim().toLowerCase())
+    .filter(Boolean)
+}
+
+export function matchesGameProcess(processInfo, config) {
+  const path = normalizePath(processInfo?.path)
+  const executableName = String(
+    config.gameExecutableName ?? basename(config.gameExecutable ?? "Client.exe"),
+  ).toLowerCase()
+  if (!path || String(processInfo?.name).toLowerCase() !== executableName) return false
+  if (normalizePath(config.gameExecutable) === path) return true
+  const parentDirectoryName = path.split("\\").filter(Boolean).at(-2)
+  return getGameDirectoryNames(config).includes(parentDirectoryName)
+}
+
 function maskFromCpuIndexes(cpuIndexes) {
   return cpuIndexes.reduce((mask, cpuIndex) => mask | (1n << BigInt(cpuIndex)), 0n)
 }
@@ -360,11 +380,9 @@ export async function createAffinityManager({
     : (lastCoreMode
       ? `background CPUs 0-${logicalCpuCount - 3}, game CPUs ${logicalCpuCount - 2}-${logicalCpuCount - 1}`
       : `background CPUs ${formatCpuIndexes(allocation.backgroundCpuIndexes)}, game P-core CPUs ${formatCpuIndexes(allocation.gameCpuIndexes)}`)
-  const configuredGamePath = normalizePath(config.gameExecutable)
   const gameExecutableName = String(
     config.gameExecutableName ?? basename(config.gameExecutable ?? "Client.exe"),
   ).toLowerCase()
-  const gameDirectoryName = String(config.gameDirectoryName ?? "Mabinogi").toLowerCase()
   const excludeNames = new Set(config.excludeNames.map(value => value.toLowerCase()))
   const excludePatterns = config.excludeNamePatterns.map(value => new RegExp(value, "i"))
   const latencyNames = new Set(
@@ -379,12 +397,7 @@ export async function createAffinityManager({
   let latestGameExecutablePath = null
   let runningProcessNames = new Set()
 
-  const isGame = processInfo => {
-    const path = normalizePath(processInfo.path)
-    if (!path || processInfo.name.toLowerCase() !== gameExecutableName) return false
-    if (configuredGamePath && path === configuredGamePath) return true
-    return path.split("\\").includes(gameDirectoryName)
-  }
+  const isGame = processInfo => matchesGameProcess(processInfo, config)
 
   async function listProcesses() {
     const ps = `$ErrorActionPreference='SilentlyContinue'; Get-Process | ForEach-Object { [pscustomobject]@{ pid=$_.Id; name=($_.ProcessName+'.exe'); path=$_.Path; startTime=if($_.StartTime){$_.StartTime.ToUniversalTime().ToString('O')}else{$null}; sessionId=$_.SessionId } } | ConvertTo-Json -Compress`
@@ -703,7 +716,7 @@ export async function createAffinityManager({
       `mode=${modeName}, CPUs=${logicalCpuCount}, background=0x${backgroundMask.toString(16)}, game=${gameMask === null ? "unchanged" : `0x${gameMask.toString(16)}`}`,
     )
     console.log(
-      `game=auto ${gameExecutableName} under \\${config.gameDirectoryName ?? "Mabinogi"}\\ (fallback=${config.gameExecutable})`,
+      `game=auto ${gameExecutableName} under ${getGameDirectoryNames(config).join(", ")} (fallback=${config.gameExecutable})`,
     )
   }
 

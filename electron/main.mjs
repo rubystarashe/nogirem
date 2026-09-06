@@ -35,7 +35,7 @@ import { readRuntimeStatusJson as readRuntimeStatusJsonFile } from "../src/runti
 import { advanceDownloadProgress } from "../src/update-progress.mjs"
 import { getYouTubeChannelProfile } from "../src/youtube-channel.mjs"
 import { assessExitConfirmation } from "../src/exit-confirmation.mjs"
-import { resolveCpuAllocation } from "../src/affinity.mjs"
+import { getGameDirectoryNames, resolveCpuAllocation } from "../src/affinity.mjs"
 import {
   defaultTurboKeyCodes,
   normalizeTurboKeyCodes,
@@ -831,9 +831,10 @@ async function runAffinityHelper() {
 async function detectMabinogi() {
   const executableName = String(config.gameExecutableName ?? "Client.exe")
   const configuredPath = String(config.gameExecutable ?? "").replaceAll("/", "\\").toLowerCase()
-  const directoryName = String(config.gameDirectoryName ?? "Mabinogi").toLowerCase()
+  const directoryNames = getGameDirectoryNames(config)
   const script = `
 $ErrorActionPreference = "SilentlyContinue"
+$directoryNames = @(${directoryNames.map(quotePowerShellLiteral).join(", ")})
 $found = Get-Process | Where-Object {
   ($_.ProcessName + ".exe") -ieq ${quotePowerShellLiteral(executableName)}
 } | Where-Object {
@@ -841,8 +842,11 @@ $found = Get-Process | Where-Object {
     $false
   } else {
     $path = $_.Path.Replace("/", "\\").ToLowerInvariant()
+    $parentDirectoryName = [System.IO.Path]::GetFileName(
+      [System.IO.Path]::GetDirectoryName($path)
+    )
     $path -eq ${quotePowerShellLiteral(configuredPath)} -or
-      $path.Split("\\") -contains ${quotePowerShellLiteral(directoryName)}
+      $directoryNames -contains $parentDirectoryName
   }
 } | Select-Object -First 1
 [bool]$found
