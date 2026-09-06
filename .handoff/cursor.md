@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 14:51
+Last Updated: 2026-09-06 15:01
 
 ## Current Objective
-사용자 환경에서 실시간 부스트가 일시정지 상태를 벗어나지 못하고 강제 간소화가 경고로 표시되는 0.2.4 문제를 수정한다.
+사용자 환경에서 NUL 문자로 손상된 실시간 부스트 상태 파일 때문에 기능 전체가 조작되지 않는 0.2.5 문제를 자동 복구한다.
 
 ## Current Status
 - 터보 키 helper는 Electron 설치본과 `asarUnpack`에서 제외됐다. 패키징 시 `turbo-key-helper-win32-x64-v0.1.0.exe` 별도 자산을 `release`에 생성하며 GitHub 배포 시 같은 Release에 추가 업로드한다.
@@ -978,6 +978,11 @@ Last Updated: 2026-09-06 14:51
 - `VERSION_HISTORY.md`에 두 수정 사항을 0.2.4 작업으로 기록했다. 관련 회귀 테스트 9개와 Svelte 프로덕션 빌드가 통과했다.
 - GitHub 정식 Release `v0.2.4`를 게시했다. 중복 생성된 Release를 단일 Release로 정리하고 installer, blockmap, `latest.yml`, 별도 터보 키 helper 네 자산과 변경 내용을 검증했다.
 - 0.2.4 installer는 93,096,965바이트이고 SHA-256은 `ef978b78c6f098d31c8dca694c762bd8f688912da3354c1053081d768cae75bd`다.
+- 사용자 제공 `startup.log`와 두 `status.json`을 분석해 Affinity·Memory 상태 파일이 각각 NUL 문자로만 채워진 사실을 확인했다. 모든 상태 조회가 `JSON.parse`에서 실패해 자동 시작, 토글, 간소화 표시와 종료 처리까지 중단된 직접 원인이었다.
+- 런타임 상태 JSON이 NUL 또는 불완전 JSON으로 손상되면 오류를 기록하고 해당 상태 파일만 폐기한다. 이후 기존 시작 흐름이 helper를 다시 실행해 정상 상태 파일을 생성한다.
+- 일반 사용자 설정과 적용 복구 기록은 자동 폐기 대상에서 제외하고 Affinity·Memory·터보 키 런타임 상태 파일에만 복구 처리를 적용했다.
+- `VERSION_HISTORY.md`에 이 수정 사항을 0.2.5 작업으로 기록했다.
+- 정상 JSON, 588바이트 NUL 파일과 기록 중단 JSON을 검증하는 테스트를 추가했다. 관련 회귀 테스트 12개, Electron·복구 모듈 구문 검사와 Svelte 프로덕션 빌드가 통과했다.
 
 ## Next Recommended Step
-문제가 발생한 사용자 환경에서 공개 0.2.4 설치본으로 실시간 부스트 재활성화와 강제 간소화 표시를 확인한다.
+NUL 상태 파일을 둔 상태로 앱을 실행해 파일 자동 폐기, helper 재시작과 실시간 부스트 정상 전환을 확인한 뒤 0.2.5로 패키징한다.

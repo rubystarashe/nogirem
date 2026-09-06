@@ -30,6 +30,7 @@ import {
   installDxvkVersion,
 } from "../src/dxvk.mjs"
 import { getLatestMuoStatus } from "../src/muo-status.mjs"
+import { readRuntimeStatusJson as readRuntimeStatusJsonFile } from "../src/runtime-status.mjs"
 import { advanceDownloadProgress } from "../src/update-progress.mjs"
 import { getYouTubeChannelProfile } from "../src/youtube-channel.mjs"
 import { assessExitConfirmation } from "../src/exit-confirmation.mjs"
@@ -422,6 +423,12 @@ async function readJson(path) {
   }
 }
 
+async function readRuntimeStatusJson(path) {
+  return readRuntimeStatusJsonFile(path, error => {
+    console.error(`손상된 런타임 상태 파일을 제거합니다: ${path}`, error)
+  })
+}
+
 async function fileModifiedAt(path) {
   try {
     return (await stat(path)).mtimeMs
@@ -539,7 +546,7 @@ async function runAffinityHelper() {
   let exitAction = "keep"
   let cpuReorder = null
   const savedGameExecutablePath = (await readJson(gamePathStatePath))?.executablePath
-  const previousGameExecutablePath = (await readJson(statusPath))?.gameExecutablePath
+  const previousGameExecutablePath = (await readRuntimeStatusJson(statusPath))?.gameExecutablePath
   let persistedGameExecutablePath = savedGameExecutablePath
   let gameExecutablePath = [savedGameExecutablePath, previousGameExecutablePath]
     .find(value => typeof value === "string" && value.trim())
@@ -965,7 +972,7 @@ function getMemoryPaths() {
 
 async function readMemoryRuntimeStatus() {
   const { statusPath } = getMemoryPaths()
-  const status = await readJson(statusPath)
+  const status = await readRuntimeStatusJson(statusPath)
   const fresh = status?.updatedAt
     && Date.now() - status.updatedAt < Math.max(
       (config.memoryCleaner?.pollIntervalMs ?? 1000) * 4,
@@ -1115,7 +1122,7 @@ async function resolveMabinogiExecutablePath() {
     return activeMabinogiExecutablePath
   }
   const { statusPath } = getAffinityPaths()
-  const status = await readJson(statusPath)
+  const status = await readRuntimeStatusJson(statusPath)
   if (isMabinogiExecutablePath(status?.gameExecutablePath)) {
     activeMabinogiExecutablePath = status.gameExecutablePath
     return activeMabinogiExecutablePath
@@ -1125,7 +1132,7 @@ async function resolveMabinogiExecutablePath() {
 
 async function readAffinityRuntimeStatus() {
   const { statusPath } = getAffinityPaths()
-  const status = await readJson(statusPath)
+  const status = await readRuntimeStatusJson(statusPath)
   const fresh = status?.updatedAt
     && Date.now() - status.updatedAt < Math.max(config.pollIntervalMs * 4, 30000)
   const characterSimplification = fresh && status?.characterSimplification
@@ -1286,7 +1293,7 @@ async function getTurboKeySetting() {
   const paths = getTurboKeyPaths()
   const [settings, status, installation] = await Promise.all([
     readJson(paths.settingsPath),
-    readJson(paths.statusPath),
+    readRuntimeStatusJson(paths.statusPath),
     getTurboKeyHelperInstallation(paths.directory),
   ])
   const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 3000
@@ -1317,7 +1324,7 @@ async function waitForTurboKeyStatus(predicate, timeoutMs = 3000) {
   const deadline = Date.now() + timeoutMs
   const { statusPath } = getTurboKeyPaths()
   while (Date.now() < deadline) {
-    const status = await readJson(statusPath)
+    const status = await readRuntimeStatusJson(statusPath)
     if (predicate(status)) return status
     await delay(50)
   }
@@ -1530,7 +1537,7 @@ async function launchMemoryHelper({ purgeOnStart = false } = {}) {
   }
 
   for (let attempt = 0; attempt < 30; attempt++) {
-    const status = await readJson(paths.statusPath)
+    const status = await readRuntimeStatusJson(paths.statusPath)
     if (status?.error) throw new Error(status.error.message ?? "메모리 최적화 시작 실패")
     if (status?.running) return checkMemory()
     await delay(500)
@@ -1551,7 +1558,7 @@ async function stopMemoryHelper() {
 
   await writeJsonAtomic(paths.controlPath, { command: "stop", requestedAt: Date.now() })
   for (let attempt = 0; attempt < 30; attempt++) {
-    const status = await readJson(paths.statusPath)
+    const status = await readRuntimeStatusJson(paths.statusPath)
     if (status?.running === false) return checkMemory()
     await delay(500)
   }
@@ -1629,7 +1636,7 @@ async function launchAffinityHelper(includeNic, inheritedNicManaged = false) {
   }
 
   for (let attempt = 0; attempt < 450; attempt++) {
-    const status = await readJson(paths.statusPath)
+    const status = await readRuntimeStatusJson(paths.statusPath)
     if (status?.error) throw new Error(status.error.message ?? "Affinity 최적화 시작 실패")
     if (status?.running) {
       if (status.nicStatus) setNicStatusCache(status.nicStatus)
@@ -1662,7 +1669,7 @@ async function stopAffinityHelper({ reset = false } = {}) {
     requestedAt: Date.now(),
   })
   for (let attempt = 0; attempt < 450; attempt++) {
-    const status = await readJson(paths.statusPath)
+    const status = await readRuntimeStatusJson(paths.statusPath)
     if (status?.running === false) {
       if (status.nicStatus) setNicStatusCache(status.nicStatus)
       else if (current.nicManaged) invalidateNicStatusCache()
@@ -1742,7 +1749,7 @@ async function runCpuReorder() {
     })
 
     for (let attempt = 0; attempt < 100; attempt++) {
-      const status = await readJson(statusPath)
+      const status = await readRuntimeStatusJson(statusPath)
       if (status?.running === false) throw new Error("Affinity helper가 CPU 재정렬 중 종료되었습니다")
       if (status?.cpuReorder?.requestId === requestId) {
         if (status.cpuReorder.state === "completed") return readAffinityRuntimeStatus()
@@ -1802,7 +1809,7 @@ async function requestApplicationExitConfirmation() {
     const paths = getAffinityPaths()
     const [affinityState, affinityStatus, appliedMarker] = await Promise.all([
       readJson(paths.statePath),
-      readJson(paths.statusPath),
+      readRuntimeStatusJson(paths.statusPath),
       readJson(paths.appliedMarkerPath),
     ])
     const { hasLiveAppliedAffinityEntries } = await import("../src/affinity.mjs")
