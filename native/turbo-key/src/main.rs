@@ -103,6 +103,7 @@ struct TurboState {
     active: Option<ActiveKey>,
     modifiers: HashSet<u32>,
     pressed_keys: HashSet<KeySpec>,
+    pressed_order: Vec<KeySpec>,
     blocked_keys: HashSet<KeySpec>,
     generation: u64,
 }
@@ -182,6 +183,17 @@ fn cancel_active(state: &mut TurboState) {
 fn cancel_turbo(state: &mut TurboState) {
     cancel_active(state);
     state.blocked_keys.clear();
+}
+
+fn activate_key(state: &mut TurboState, key: KeySpec, repeat_at: Instant) {
+    state.generation = state.generation.wrapping_add(1);
+    let generation = state.generation;
+    state.active = Some(ActiveKey {
+        key,
+        repeat_at,
+        foreground_pid: None,
+        generation,
+    });
 }
 
 fn next_repeat_deadline(previous: Instant, now: Instant, repeat_interval: Duration) -> Instant {
@@ -405,19 +417,13 @@ fn press_key(shared: &SharedState, key: KeySpec) -> bool {
     if !state.pressed_keys.insert(key) {
         return state.blocked_keys.contains(&key);
     }
+    state.pressed_order.push(key);
     if !state.modifiers.is_empty() {
         cancel_turbo(&mut state);
         shared.changed.notify_all();
         return false;
     }
-    state.generation = state.generation.wrapping_add(1);
-    let generation = state.generation;
-    state.active = Some(ActiveKey {
-        key,
-        repeat_at: Instant::now() + keyboard_repeat_delay(),
-        foreground_pid: None,
-        generation,
-    });
+    activate_key(&mut state, key, Instant::now() + keyboard_repeat_delay());
     shared.changed.notify_all();
     false
 }
@@ -428,15 +434,25 @@ fn release_key(shared: &SharedState, key: KeySpec) {
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     state.pressed_keys.remove(&key);
+    state.pressed_order.retain(|pressed| *pressed != key);
     state.blocked_keys.remove(&key);
-    if state
+    let released_active = state
         .active
         .as_ref()
-        .is_some_and(|active| active.key == key)
-    {
-        cancel_turbo(&mut state);
+        .is_some_and(|active| active.key == key);
+    if released_active {
+        cancel_active(&mut state);
+        if state.modifiers.is_empty()
+            && let Some(previous) = state.pressed_order.last().copied()
+        {
+            activate_key(&mut state, previous, Instant::now());
+        }
         shared.changed.notify_all();
     }
+}
+
+fn is_configured_turbo_key(shared: &SharedState, vk_code: u32) -> bool {
+    !is_excluded_key(vk_code) && shared.allowed_keys.contains(&vk_code)
 }
 
 fn update_modifier(shared: &SharedState, vk_code: u32, pressed: bool) {
@@ -466,25 +482,7 @@ unsafe extern "system" fn keyboard_hook(code: i32, w_param: WPARAM, l_param: LPA
                 if pressed || released {
                     update_modifier(shared, event.vkCode, pressed);
                 }
-            } else if is_excluded_key(event.vkCode) {
-                if pressed {
-                    let mut state = shared
-                        .state
-                        .lock()
-                        .unwrap_or_else(|error| error.into_inner());
-                    cancel_turbo(&mut state);
-                    shared.changed.notify_all();
-                }
-            } else if !shared.allowed_keys.contains(&event.vkCode) {
-                if pressed {
-                    let mut state = shared
-                        .state
-                        .lock()
-                        .unwrap_or_else(|error| error.into_inner());
-                    cancel_turbo(&mut state);
-                    shared.changed.notify_all();
-                }
-            } else {
+            } else if is_configured_turbo_key(shared, event.vkCode) {
                 let key = KeySpec {
                     vk_code: event.vkCode,
                     scan_code: event.scanCode as u16,
@@ -834,10 +832,8 @@ mod tests {
 
     #[test]
     fn foreground_target_accepts_directory_with_mabinogi_launcher() {
-        let directory = std::env::temp_dir().join(format!(
-            "nogirem-mabinogi-path-test-{}",
-            std::process::id()
-        ));
+        let directory =
+            std::env::temp_dir().join(format!("nogirem-mabinogi-path-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&directory);
         std::fs::create_dir_all(&directory).unwrap();
         std::fs::write(directory.join("Mabinogi.exe"), []).unwrap();
@@ -913,6 +909,58 @@ mod tests {
         press_key(&shared, second);
         let state = shared.state.lock().unwrap();
         assert_eq!(state.active.as_ref().map(|active| active.key), Some(second));
+    }
+
+    #[test]
+    fn releasing_latest_key_resumes_previous_and_ignores_unconfigured_key() {
+        let first = KeySpec {
+            vk_code: '2' as u32,
+            scan_code: 3,
+            extended: false,
+        };
+        let second = KeySpec {
+            vk_code: '3' as u32,
+            scan_code: 4,
+            extended: false,
+        };
+        let unconfigured = KeySpec {
+            vk_code: '4' as u32,
+            scan_code: 5,
+            extended: false,
+        };
+        let shared = SharedState {
+            state: Mutex::new(TurboState::default()),
+            changed: Condvar::new(),
+            stopping: AtomicBool::new(false),
+            allowed_keys: HashSet::from([first.vk_code, second.vk_code]),
+            repeat_interval: Duration::from_millis(DEFAULT_REPEAT_INTERVAL_MS),
+        };
+
+        press_key(&shared, first);
+        shared.state.lock().unwrap().blocked_keys.insert(first);
+        press_key(&shared, second);
+        shared.state.lock().unwrap().blocked_keys.insert(second);
+        assert!(!is_configured_turbo_key(&shared, unconfigured.vk_code));
+
+        release_key(&shared, unconfigured);
+        assert_eq!(
+            shared
+                .state
+                .lock()
+                .unwrap()
+                .active
+                .as_ref()
+                .map(|active| active.key),
+            Some(second)
+        );
+        release_key(&shared, second);
+        release_key(&shared, unconfigured);
+
+        let state = shared.state.lock().unwrap();
+        assert_eq!(state.active.as_ref().map(|active| active.key), Some(first));
+        assert_eq!(state.pressed_order, vec![first]);
+        assert!(state.blocked_keys.contains(&first));
+        assert!(!state.blocked_keys.contains(&second));
     }
 
     #[test]
