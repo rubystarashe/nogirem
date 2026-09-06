@@ -18,6 +18,10 @@ const applicationView = await readFile(
   new URL("../web/App.svelte", import.meta.url),
   "utf8",
 )
+const applicationStyles = await readFile(
+  new URL("../web/styles.css", import.meta.url),
+  "utf8",
+)
 const gameWave = await readFile(
   new URL("../web/GameWave.svelte", import.meta.url),
   "utf8",
@@ -179,6 +183,14 @@ test("Esc는 최상위 모달과 문서 화면을 닫고 모든 보조 창에도
     /function closeWindowOnEscape\(window\)[\s\S]*input\.type !== "keyDown"[\s\S]*input\.key !== "Escape"[\s\S]*window\.close\(\)/,
   )
   assert.equal(electronMain.match(/closeWindowOnEscape\(window\)/g)?.length, 4)
+})
+
+test("키보드 입력 후 버튼에 포커스 외곽선을 표시하지 않는다", () => {
+  assert.match(
+    applicationStyles,
+    /button:focus-visible \{\s*outline: none;\s*\}/,
+  )
+  assert.doesNotMatch(applicationStyles, /button:focus-visible \{\s*outline: 2px solid/)
 })
 
 test("초기 상태 조회와 무관하게 창을 먼저 만들고 8초 안에 표시한다", () => {
