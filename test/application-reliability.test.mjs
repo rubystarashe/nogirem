@@ -60,6 +60,36 @@ test("렌더러 종료와 장기 무응답 상태를 자동 복구한다", () =>
   )
 })
 
+test("트레이 복귀 시 투명 보조 창의 입력 가로채기를 해제한다", () => {
+  assert.match(
+    electronMain,
+    /function hideInternalWindowsForTray\(\)[\s\S]*setIgnoreMouseEvents\(true\)[\s\S]*setAlwaysOnTop\(false\)[\s\S]*window\.hide\(\)/,
+  )
+  assert.match(
+    electronMain,
+    /function minimizePrimaryWindowToTray\(\)[\s\S]*hideInternalWindowsForTray\(\)[\s\S]*primaryWindow\.hide\(\)/,
+  )
+  assert.match(
+    electronMain,
+    /function focusPrimaryWindow\(\)[\s\S]*setFocusable\(true\)[\s\S]*setIgnoreMouseEvents\(false\)[\s\S]*webContents\.focus\(\)/,
+  )
+  assert.equal(
+    electronMain.match(/Window\.setIgnoreMouseEvents\(false\)/g)?.length,
+    4,
+  )
+})
+
+test("트레이 종료는 렌더러와 독립적인 네이티브 확인창을 사용한다", () => {
+  assert.match(
+    electronMain,
+    /label: "종료"[\s\S]*requestApplicationExitConfirmation\(\{ nativeDialog: true \}\)/,
+  )
+  assert.match(
+    electronMain,
+    /if \(nativeDialog\) \{[\s\S]*dialog\.showMessageBox\(primaryWindow,[\s\S]*result\.response === 0 \? "reset" : "keep"/,
+  )
+})
+
 test("초기 상태 조회와 무관하게 창을 먼저 만들고 8초 안에 표시한다", () => {
   const createWindowAt = electronMain.indexOf("createWindow()", electronMain.indexOf("async function startApplication"))
   const loadPathAt = electronMain.indexOf("loadMabinogiExecutablePath()", createWindowAt)

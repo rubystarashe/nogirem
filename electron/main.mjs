@@ -1904,11 +1904,11 @@ async function ensureFrameBoostStarted() {
   ])
 }
 
-async function requestApplicationExitConfirmation() {
+async function requestApplicationExitConfirmation({ nativeDialog = false } = {}) {
   if (!applicationExitInProgress && primaryWindow && !primaryWindow.isDestroyed()) {
     focusPrimaryWindow()
   }
-  if (closeRequestPending || applicationExitInProgress) return
+  if (applicationExitInProgress || (closeRequestPending && !nativeDialog)) return
   if (!primaryWindow || primaryWindow.isDestroyed() || primaryWindow.webContents.isDestroyed()) {
     await finishApplicationExit("keep")
     return
@@ -1943,6 +1943,28 @@ async function requestApplicationExitConfirmation() {
     }
   } catch (error) {
     console.error("종료 전 부스트 적용 기록 확인 실패", error)
+  }
+  if (nativeDialog) {
+    const result = await dialog.showMessageBox(primaryWindow, {
+      type: "question",
+      title: "프로그램 종료",
+      message: "프레임 부스트를 정지할까요?",
+      detail: "부스트를 유지한 채로 종료하면 마비노기 외 프로그램들의 성능이 제한될 수 있습니다.",
+      buttons: [
+        "부스트 설정 되돌린 후 종료",
+        "적용 유지 후 종료",
+        "취소",
+      ],
+      defaultId: 0,
+      cancelId: 2,
+      noLink: true,
+    })
+    if (result.response === 2) {
+      closeRequestPending = false
+      return
+    }
+    await finishApplicationExit(result.response === 0 ? "reset" : "keep")
+    return
   }
   primaryWindow.webContents.send("application:close-requested")
 }
@@ -2576,6 +2598,7 @@ function disableProductionRefresh(window) {
 function openDxvkManager() {
   if (dxvkManagerWindow && !dxvkManagerWindow.isDestroyed()) {
     if (dxvkManagerWindow.isMinimized()) dxvkManagerWindow.restore()
+    dxvkManagerWindow.setIgnoreMouseEvents(false)
     dxvkManagerWindow.show()
     dxvkManagerWindow.moveTop()
     dxvkManagerWindow.focus()
@@ -2664,6 +2687,7 @@ function openDxvkManager() {
 function openDxvkGuide() {
   if (dxvkGuideWindow && !dxvkGuideWindow.isDestroyed()) {
     if (dxvkGuideWindow.isMinimized()) dxvkGuideWindow.restore()
+    dxvkGuideWindow.setIgnoreMouseEvents(false)
     dxvkGuideWindow.setAlwaysOnTop(true, "screen-saver", 1)
     dxvkGuideWindow.show()
     dxvkGuideWindow.moveTop()
@@ -2754,6 +2778,7 @@ function openDxvkGuide() {
 function openCharacterSimplificationGuide() {
   if (characterGuideWindow && !characterGuideWindow.isDestroyed()) {
     if (characterGuideWindow.isMinimized()) characterGuideWindow.restore()
+    characterGuideWindow.setIgnoreMouseEvents(false)
     characterGuideWindow.setAlwaysOnTop(true, "screen-saver", 1)
     characterGuideWindow.show()
     characterGuideWindow.moveTop()
@@ -2904,13 +2929,33 @@ function beginPrimaryWindowReveal() {
   revealFrame()
 }
 
+function internalWindows() {
+  return [
+    characterGuideWindow,
+    dxvkManagerWindow,
+    dxvkGuideWindow,
+  ].filter(window => window && !window.isDestroyed())
+}
+
+function hideInternalWindowsForTray() {
+  for (const window of internalWindows()) {
+    window.setIgnoreMouseEvents(true)
+    window.setAlwaysOnTop(false)
+    window.hide()
+  }
+}
+
 function focusPrimaryWindow() {
   if (!primaryWindow || primaryWindow.isDestroyed()) {
     primaryWindowFocusPending = true
     return
   }
   primaryWindowFocusPending = false
+  const restoringFromTray = primaryWindowSkippedFromTaskbar
+  if (restoringFromTray) hideInternalWindowsForTray()
   if (primaryWindow.isMinimized()) primaryWindow.restore()
+  primaryWindow.setFocusable(true)
+  primaryWindow.setIgnoreMouseEvents(false)
   primaryWindow.setSkipTaskbar(false)
   primaryWindowSkippedFromTaskbar = false
   if (!primaryWindow.isVisible()) primaryWindow.show()
@@ -2919,6 +2964,7 @@ function focusPrimaryWindow() {
   if (!wasAlwaysOnTop) window.setAlwaysOnTop(true, "screen-saver")
   window.moveTop()
   primaryWindow.focus()
+  primaryWindow.webContents.focus()
   if (!wasAlwaysOnTop) {
     clearTimeout(primaryWindowFocusTimer)
     primaryWindowFocusTimer = setTimeout(() => {
@@ -2944,7 +2990,7 @@ function ensureApplicationTray() {
       label: "종료",
       click: () => {
         focusPrimaryWindow()
-        void requestApplicationExitConfirmation()
+        void requestApplicationExitConfirmation({ nativeDialog: true })
           .catch(error => console.error("트레이 종료 요청 처리 실패", error))
       },
     },
@@ -2962,6 +3008,7 @@ function updateApplicationTrayIcon() {
 function minimizePrimaryWindowToTray() {
   if (!primaryWindow || primaryWindow.isDestroyed()) return false
   ensureApplicationTray()
+  hideInternalWindowsForTray()
   primaryWindow.setSkipTaskbar(true)
   primaryWindowSkippedFromTaskbar = true
   primaryWindow.hide()

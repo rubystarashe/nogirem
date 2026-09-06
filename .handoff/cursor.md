@@ -1,11 +1,14 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 20:02
+Last Updated: 2026-09-06 20:13
 
 ## Current Objective
-설치 완료 후 시작 메뉴 바로가기 상태와 무관하게 앱을 정상 실행한다.
+0.2.7에서 트레이 복귀 후 창 입력 불가를 방지하고 렌더러와 독립된 종료 경로를 제공한다.
 
 ## Current Status
+- 앱 버전은 0.2.7이다. 트레이 최소화 시 투명 보조 창을 숨기고 입력·always-on-top을 해제하며, 복귀 시 메인 창의 focusable·마우스 입력·웹 콘텐츠 포커스를 강제로 복원한다.
+- 트레이 종료는 렌더러 모달 대신 Windows 네이티브 확인창을 사용해 메인 UI를 클릭할 수 없는 상황에서도 설정 복원·유지·취소를 선택할 수 있다.
+- 0.2.7 Windows 설치본 패키징을 완료했으며 아직 배포하지 않았다.
 - NSIS `customInstall`에서 `$launchLink`를 `$INSTDIR\${APP_EXECUTABLE_FILENAME}`으로 강제해 설치 완료 자동 실행이 시작 메뉴 `.lnk`에 의존하지 않는다.
 - 앱과 터보 키는 지정 폴더의 `Client.exe`뿐 아니라 같은 디렉토리에 `Mabinogi.exe`가 있는 `Client.exe`도 게임으로 인식한다. 터보 키 helper는 자동 교체를 위해 0.1.3으로 올렸다.
 - GitHub 정식 Release `v0.2.6`을 Mabinogi.exe 동봉 fallback 수정본으로 다시 대치했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.3 네 자산을 검증했다.
@@ -1016,6 +1019,9 @@ Last Updated: 2026-09-06 20:02
 - 터보 키 helper를 0.1.3으로 올렸으며 Node 테스트 93개, Rust 테스트 12개와 release 빌드가 통과했다.
 - 기존 `v0.2.6` Release를 Mabinogi.exe 동봉 fallback 수정본으로 다시 대치하고 helper 0.1.2 자산을 0.1.3으로 교체했다. installer는 93,206,469바이트, SHA-256은 `00145d996758eebab6a39d44ee5877e6535b0af2209554f1a508ba9b069f14ce`다.
 - 설치 완료 시 electron-builder가 선택한 시작 메뉴 바로가기 대신 설치된 EXE를 직접 실행하도록 NSIS launch link를 재지정했다. Node 테스트 94개와 실제 NSIS 패키징이 통과했다.
+- 트레이 진입 시 DXVK 관리·DXVK 안내·캐릭터 안내 창을 명시적으로 숨기고 투명 창의 입력 가로채기와 always-on-top을 해제한다. 기존 보조 창을 다시 열 때만 입력을 복원한다.
+- 메인 창 복귀 시 `setFocusable(true)`, `setIgnoreMouseEvents(false)`, `webContents.focus()`를 적용하고 트레이 종료에는 네이티브 확인창을 사용한다. Node 테스트 96개와 NSIS 패키징이 통과했다.
+- 0.2.7 installer는 93,232,291바이트이고 SHA-256은 `94af590c015c34154ae7f1da94affa804085969603891c6a6f0ba7b137cfaa17`다.
 
 ## Next Recommended Step
-직접 EXE 실행 수정본을 배포한 뒤 시작 메뉴 바로가기가 없거나 사용자 프로필이 분리된 Windows 환경에서 설치 완료 자동 실행을 확인한다.
+0.2.7 설치본에서 보조 창을 연 상태로 트레이 최소화·복귀 및 네이티브 종료 선택을 수동 검증한 뒤 배포한다.
