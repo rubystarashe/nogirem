@@ -34,6 +34,21 @@ test("허용 폴더 밖의 같은 이름 실행 파일은 마비노기로 인식
   )
 })
 
+test("허용 폴더가 아니어도 같은 디렉토리에 Mabinogi.exe가 있으면 게임으로 인식한다", () => {
+  let checkedPath
+  const matched = matchesGameProcess(
+    { name: "Client.exe", path: "D:\\CustomGame\\Client.exe" },
+    gamePathConfig,
+    path => {
+      checkedPath = path
+      return true
+    },
+  )
+
+  assert.equal(matched, true)
+  assert.equal(checkedPath, "D:\\CustomGame\\Mabinogi.exe")
+})
+
 test("CPU 절반 마스크를 논리 CPU 수에 맞게 동적으로 계산한다", () => {
   assert.deepEqual(buildCpuHalfMasks(4), {
     half: 2,

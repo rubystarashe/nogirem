@@ -329,7 +329,10 @@ fn is_mabinogi_path(path: &Path) -> bool {
                 "mabinogi" | "마비노기" | "nexon"
             )
         });
-    executable_matches && directory_matches
+    let launcher_exists = path
+        .parent()
+        .is_some_and(|parent| parent.join("Mabinogi.exe").is_file());
+    executable_matches && (directory_matches || launcher_exists)
 }
 
 fn foreground_process_id() -> Option<u32> {
@@ -827,6 +830,21 @@ mod tests {
         assert!(!is_mabinogi_path(Path::new(
             r"D:\Games\Mabinogi\Launcher.exe"
         )));
+    }
+
+    #[test]
+    fn foreground_target_accepts_directory_with_mabinogi_launcher() {
+        let directory = std::env::temp_dir().join(format!(
+            "nogirem-mabinogi-path-test-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(directory.join("Mabinogi.exe"), []).unwrap();
+
+        assert!(is_mabinogi_path(&directory.join("Client.exe")));
+
+        std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

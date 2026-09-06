@@ -845,8 +845,13 @@ $found = Get-Process | Where-Object {
     $parentDirectoryName = [System.IO.Path]::GetFileName(
       [System.IO.Path]::GetDirectoryName($path)
     )
+    $mabinogiLauncherPath = [System.IO.Path]::Combine(
+      [System.IO.Path]::GetDirectoryName($_.Path),
+      "Mabinogi.exe"
+    )
     $path -eq ${quotePowerShellLiteral(configuredPath)} -or
-      $directoryNames -contains $parentDirectoryName
+      $directoryNames -contains $parentDirectoryName -or
+      (Test-Path -LiteralPath $mabinogiLauncherPath -PathType Leaf)
   }
 } | Select-Object -First 1
 [bool]$found

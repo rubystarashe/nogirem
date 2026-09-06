@@ -1,8 +1,9 @@
 import { execFile } from "node:child_process"
+import { existsSync } from "node:fs"
 import { promisify } from "node:util"
 import { cpus } from "node:os"
 import { readFile, writeFile, unlink } from "node:fs/promises"
-import { basename } from "node:path"
+import { basename, dirname, join } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { DataType, PointerType, createPointer, freePointer, load, open, restorePointer } from "ffi-rs"
 
@@ -141,7 +142,7 @@ export function getGameDirectoryNames(config) {
     .filter(Boolean)
 }
 
-export function matchesGameProcess(processInfo, config) {
+export function matchesGameProcess(processInfo, config, fileExists = existsSync) {
   const path = normalizePath(processInfo?.path)
   const executableName = String(
     config.gameExecutableName ?? basename(config.gameExecutable ?? "Client.exe"),
@@ -149,7 +150,8 @@ export function matchesGameProcess(processInfo, config) {
   if (!path || String(processInfo?.name).toLowerCase() !== executableName) return false
   if (normalizePath(config.gameExecutable) === path) return true
   const parentDirectoryName = path.split("\\").filter(Boolean).at(-2)
-  return getGameDirectoryNames(config).includes(parentDirectoryName)
+  if (getGameDirectoryNames(config).includes(parentDirectoryName)) return true
+  return fileExists(join(dirname(String(processInfo.path)), "Mabinogi.exe"))
 }
 
 function maskFromCpuIndexes(cpuIndexes) {

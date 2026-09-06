@@ -157,7 +157,7 @@ test("기존 동의를 유지한 채 구버전 터보 키 helper를 시작 시 �
     readFile(new URL("../src/turbo-key-installer.mjs", import.meta.url), "utf8"),
   ])
 
-  assert.match(installerSource, /turboKeyHelperVersion = "0\.1\.2"/)
+  assert.match(installerSource, /turboKeyHelperVersion = "0\.1\.3"/)
   assert.match(
     installerSource,
     /const updateRequired = manifest\.helperVersion !== turboKeyHelperVersion/,
