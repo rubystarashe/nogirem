@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 13:05
+Last Updated: 2026-09-06 13:17
 
 ## Current Objective
 선택 다운로드형 터보 키와 시작 안정성 개선을 포함한 0.2.3 Windows 설치본을 검증하고 GitHub에 배포한다.
@@ -967,6 +967,8 @@ Last Updated: 2026-09-06 13:05
 - 터보 키 운영정책 안내를 `OPERATION.md`에서 분리한 `TURBO_KEY_TERMS.md`로 관리하고 약관 모달이 해당 파일을 직접 파싱하도록 변경했다.
 - 별도 약관에 물리 HID 입력, 제조사 소프트웨어 매크로와 터보 키 `WH_KEYBOARD_LL`·`SendInput` 방식의 차이를 설명하고, 제한된 기능 범위와 실제 사용 방식에 따른 위험을 구분해 안내했다.
 - 0.2.3 배포 중 같은 태그의 Release 두 개에 자산이 갈라지는 게시 경쟁이 재발했다. 중복 Release를 제거하고 단일 Release에 네 자산을 통합했으며 installer SHA-256은 `c31bf681233cfa9c76d7cbc9290930f6b99966ffb1bacff6d2faa33ff29f761e`다.
+- 약관 모달 링크 글자 크기를 본문과 동일하게 맞추고, 전역 `header`의 38px 하단 margin이 약관 헤더에 적용되던 문제를 제거했다. 같은 0.2.3 Release 자산을 교체 배포한다.
+- 수정된 0.2.3을 다시 패키징해 기존 단일 Release의 네 자산을 덮어썼다. 최종 installer는 93,112,236바이트이고 SHA-256은 `bcb975cbc3d516e00b4479e6e8d92cc9c1c0d7688c33539fa86cc21082f0e358`다.
 
 ## Next Recommended Step
 0.2.3 설치본에서 약관 모달 확인 후 실제 GitHub helper 다운로드, 키 설정·사용, 제거 버튼과 재다운로드를 검증한다.

@@ -137,6 +137,7 @@
   header {
     position: relative;
     min-height: 48px;
+    margin: 0;
     padding: 14px 52px 10px 18px;
     border-bottom: 1px solid #343a3d;
   }
@@ -171,7 +172,7 @@
 
   .terms-scroll {
     min-height: 0;
-    padding: 16px 20px 18px;
+    padding: 8px 20px 18px;
     overflow-y: auto;
     overscroll-behavior: contain;
   }

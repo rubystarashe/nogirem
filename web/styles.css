@@ -1380,8 +1380,8 @@ button.direct-donation-card:hover {
 
 .turbo-terms-content {
   width: min(760px, 100%);
-  margin: 0 auto;
-  padding: 4px 6px 24px;
+  margin: 0 auto !important;
+  padding: 0 6px 24px;
 }
 
 .turbo-terms-content h1,
@@ -1391,7 +1391,7 @@ button.direct-donation-card:hover {
 }
 
 .turbo-terms-content .markdown-link {
-  font-size: 14px;
+  font-size: inherit;
 }
 
 .turbo-terms-footer {
