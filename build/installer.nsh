@@ -53,6 +53,10 @@
   ${endIf}
 !macroend
 
+!macro customInstall
+  StrCpy $launchLink "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+!macroend
+
 !macro customUnInstall
   nsExec::ExecToStack '"$SYSDIR\schtasks.exe" /Delete /TN "Mabinogi Rem Booster Startup" /F'
   Pop $0

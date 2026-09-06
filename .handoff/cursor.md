@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 17:35
+Last Updated: 2026-09-06 20:02
 
 ## Current Objective
-비표준 마비노기 설치 경로의 `Client.exe`를 앱과 터보 키에서 정확히 탐지한다.
+설치 완료 후 시작 메뉴 바로가기 상태와 무관하게 앱을 정상 실행한다.
 
 ## Current Status
+- NSIS `customInstall`에서 `$launchLink`를 `$INSTDIR\${APP_EXECUTABLE_FILENAME}`으로 강제해 설치 완료 자동 실행이 시작 메뉴 `.lnk`에 의존하지 않는다.
 - 앱과 터보 키는 지정 폴더의 `Client.exe`뿐 아니라 같은 디렉토리에 `Mabinogi.exe`가 있는 `Client.exe`도 게임으로 인식한다. 터보 키 helper는 자동 교체를 위해 0.1.3으로 올렸다.
 - GitHub 정식 Release `v0.2.6`을 Mabinogi.exe 동봉 fallback 수정본으로 다시 대치했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.3 네 자산을 검증했다.
 - 앱 버전은 0.2.6이다. 상태 JSON 교체는 `EPERM`·`EBUSY` 등을 지연 재시도한 뒤 기존 파일 삭제·교체로 복구하며, Affinity·메모리 helper는 일시적 기록 실패 후에도 계속 실행한다.
@@ -1014,6 +1015,7 @@ Last Updated: 2026-09-06 17:35
 - 허용 폴더명이 아닌 위치에서도 `Client.exe`와 같은 디렉토리에 `Mabinogi.exe`가 있으면 앱·메모리 helper·터보 키가 마비노기로 판정하도록 fallback을 추가했다.
 - 터보 키 helper를 0.1.3으로 올렸으며 Node 테스트 93개, Rust 테스트 12개와 release 빌드가 통과했다.
 - 기존 `v0.2.6` Release를 Mabinogi.exe 동봉 fallback 수정본으로 다시 대치하고 helper 0.1.2 자산을 0.1.3으로 교체했다. installer는 93,206,469바이트, SHA-256은 `00145d996758eebab6a39d44ee5877e6535b0af2209554f1a508ba9b069f14ce`다.
+- 설치 완료 시 electron-builder가 선택한 시작 메뉴 바로가기 대신 설치된 EXE를 직접 실행하도록 NSIS launch link를 재지정했다. Node 테스트 94개와 실제 NSIS 패키징이 통과했다.
 
 ## Next Recommended Step
-영향받은 사용자에게 최신 0.2.6 대치 설치본 수동 재설치를 안내하고 비표준 경로의 실제 Client.exe 탐지를 확인한다.
+직접 EXE 실행 수정본을 배포한 뒤 시작 메뉴 바로가기가 없거나 사용자 프로필이 분리된 Windows 환경에서 설치 완료 자동 실행을 확인한다.
