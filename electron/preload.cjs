@@ -67,6 +67,7 @@ contextBridge.exposeInMainWorld("nogirem", {
   openDxvkGuide: () => ipcRenderer.invoke("application:open-dxvk-guide"),
   getCreatorChannel: () => ipcRenderer.invoke("application:get-creator-channel"),
   getCreatorPromptDismissed: () => ipcRenderer.invoke("application:get-creator-prompt-dismissed"),
+  recordCreatorPromptDisplay: () => ipcRenderer.invoke("application:record-creator-prompt-display"),
   dismissCreatorPrompt: () => ipcRenderer.invoke("application:dismiss-creator-prompt"),
   openCreatorChannel: () => ipcRenderer.invoke("application:open-creator-channel"),
   openDirectDonation: () => ipcRenderer.invoke("application:open-direct-donation"),

@@ -139,6 +139,7 @@ let activeMabinogiExecutablePath = config.gameExecutable
 let gamePathStateMonitor = null
 let gamePathStateReading = false
 let creatorChannelProfilePromise = null
+let creatorPromptDisplayPromise = null
 let turboKeyProcess = null
 let turboKeyInstallationCache = null
 const internalWindowsClosedForTray = new WeakSet()
@@ -364,13 +365,29 @@ function creatorPromptStatePath() {
 
 async function readCreatorPromptDismissed() {
   const state = await readJson(creatorPromptStatePath())
-  return state?.dismissed === true
+  return Math.max(0, Number(state?.displayCount) || 0) >= 3
+}
+
+async function recordCreatorPromptDisplay() {
+  creatorPromptDisplayPromise ??= (async () => {
+    const state = await readJson(creatorPromptStatePath())
+    const displayCount = Math.max(0, Number(state?.displayCount) || 0)
+    if (displayCount >= 3) return false
+    await writeJsonAtomic(creatorPromptStatePath(), {
+      displayCount: displayCount + 1,
+      lastDisplayedAt: new Date().toISOString(),
+      lastDismissedAt: state?.lastDismissedAt ?? state?.dismissedAt ?? null,
+    })
+    return true
+  })()
+  return creatorPromptDisplayPromise
 }
 
 async function dismissCreatorPrompt() {
+  await creatorPromptDisplayPromise
   await writeJsonAtomic(creatorPromptStatePath(), {
-    dismissed: true,
-    dismissedAt: new Date().toISOString(),
+    ...(await readJson(creatorPromptStatePath())),
+    lastDismissedAt: new Date().toISOString(),
   })
   return true
 }
@@ -2485,6 +2502,10 @@ function registerIpc() {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return true
     return readCreatorPromptDismissed()
   })
+  ipcMain.handle("application:record-creator-prompt-display", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
+    return recordCreatorPromptDisplay()
+  })
   ipcMain.handle("application:dismiss-creator-prompt", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
     return dismissCreatorPrompt()
@@ -2616,6 +2637,14 @@ function disableProductionRefresh(window) {
   })
 }
 
+function closeWindowOnEscape(window) {
+  window.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown" || input.key !== "Escape" || input.isAutoRepeat) return
+    event.preventDefault()
+    window.close()
+  })
+}
+
 function openDxvkManager() {
   if (dxvkManagerWindow && !dxvkManagerWindow.isDestroyed()) {
     if (dxvkManagerWindow.isMinimized()) dxvkManagerWindow.restore()
@@ -2649,6 +2678,7 @@ function openDxvkManager() {
     },
   })
   disableProductionRefresh(window)
+  closeWindowOnEscape(window)
   dxvkManagerWindow = window
   observeInternalWindowVisualActivity(window)
   window.webContents.setWindowOpenHandler(({ url }) => {
@@ -2742,6 +2772,7 @@ function openDxvkGuide() {
     },
   })
   disableProductionRefresh(window)
+  closeWindowOnEscape(window)
   dxvkGuideWindow = window
   observeInternalWindowVisualActivity(window)
   let opacityTimer = null
@@ -2833,6 +2864,7 @@ function openCharacterSimplificationGuide() {
     },
   })
   disableProductionRefresh(window)
+  closeWindowOnEscape(window)
   characterGuideWindow = window
   observeInternalWindowVisualActivity(window)
   let opacityTimer = null

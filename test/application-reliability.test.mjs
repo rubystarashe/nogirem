@@ -146,6 +146,41 @@ test("종료 모달은 업데이트 레이어보다 위에서 입력을 받는�
   )
 })
 
+test("고급 기능 안내 말풍선은 실제 화면 노출을 최대 세 번 기록한다", () => {
+  assert.match(
+    electronMain,
+    /async function readCreatorPromptDismissed\(\)[\s\S]*displayCount[\s\S]*>= 3/,
+  )
+  assert.match(
+    electronMain,
+    /async function recordCreatorPromptDisplay\(\)[\s\S]*displayCount: displayCount \+ 1/,
+  )
+  assert.match(
+    electronPreload,
+    /recordCreatorPromptDisplay: \(\) => ipcRenderer\.invoke\("application:record-creator-prompt-display"\)/,
+  )
+  assert.match(
+    applicationView,
+    /\$: creatorPromptVisible =[\s\S]*pageVisible[\s\S]*recordCreatorPromptDisplay\(\)/,
+  )
+})
+
+test("Esc는 최상위 모달과 문서 화면을 닫고 모든 보조 창에도 적용된다", () => {
+  assert.match(
+    applicationView,
+    /function closeTopLayerWithEscape\(\)[\s\S]*closeModalVisible[\s\S]*networkReconnectModalVisible[\s\S]*radeonGlobalModalVisible[\s\S]*turboTermsModalVisible[\s\S]*turboKeyModalVisible[\s\S]*conflictModalVisible[\s\S]*optimizationModalVisible[\s\S]*creatorViewPhase === "open"/,
+  )
+  assert.match(
+    applicationView,
+    /event\.key === "Escape" && closeTopLayerWithEscape\(\)[\s\S]*event\.stopImmediatePropagation\(\)/,
+  )
+  assert.match(
+    electronMain,
+    /function closeWindowOnEscape\(window\)[\s\S]*input\.type !== "keyDown"[\s\S]*input\.key !== "Escape"[\s\S]*window\.close\(\)/,
+  )
+  assert.equal(electronMain.match(/closeWindowOnEscape\(window\)/g)?.length, 4)
+})
+
 test("초기 상태 조회와 무관하게 창을 먼저 만들고 8초 안에 표시한다", () => {
   const createWindowAt = electronMain.indexOf("createWindow()", electronMain.indexOf("async function startApplication"))
   const loadPathAt = electronMain.indexOf("loadMabinogiExecutablePath()", createWindowAt)

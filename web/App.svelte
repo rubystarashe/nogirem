@@ -156,7 +156,9 @@
   let turboTermsModalCloseSignal = 0
   let turboInstallAction = null
   let closeModalVisible = false
+  let closeModalCloseSignal = 0
   let optimizationModalVisible = false
+  let optimizationModalCloseSignal = 0
   let conflictModalVisible = false
   let networkReconnectModalVisible = false
   let networkReconnectCloseSignal = 0
@@ -207,6 +209,7 @@
   let creatorNavigationReady = false
   let creatorPromptStateLoaded = false
   let creatorPromptDismissed = false
+  let creatorPromptDisplayRecorded = false
   let creatorViewPhase = "home"
   let creatorTab = "developer"
   let pendingCreatorTab = null
@@ -231,6 +234,20 @@
   const operationBlocks = parseIntroduceMarkdown(operationMarkdown)
   const turboTermsBlocks = parseIntroduceMarkdown(turboKeyTermsMarkdown)
   const versionHistoryEntries = parseVersionHistory(versionHistoryMarkdown)
+
+  $: creatorPromptVisible = interfaceVisible
+    && !settingsVisible
+    && startupIdentityPhase === "done"
+    && creatorNavigationReady
+    && creatorPromptStateLoaded
+    && !creatorPromptDismissed
+    && creatorViewPhase === "home"
+    && pageVisible
+
+  $: if (creatorPromptVisible && !creatorPromptDisplayRecorded) {
+    creatorPromptDisplayRecorded = true
+    void window.nogirem.recordCreatorPromptDisplay().catch(() => {})
+  }
 
   function decodeMarkdownText(text) {
     return text.replace(/\\([\\`*_[\]{}()#+\-.!])/g, "$1")
@@ -746,6 +763,40 @@
     toggleTurboKeyCode(code)
   }
 
+  function closeTopLayerWithEscape() {
+    if (closeModalVisible) {
+      if (!closeActionPending) closeModalCloseSignal++
+    } else if (networkReconnectModalVisible) {
+      if (!networkReconnectAction) closeNetworkReconnectModal("cancel")
+    } else if (radeonGlobalModalVisible) {
+      if (!radeonGlobalAction) closeRadeonGlobalModal("cancel")
+    } else if (turboTermsModalVisible) {
+      if (!turboInstallAction) turboTermsModalCloseSignal++
+    } else if (turboKeyModalVisible) {
+      if (turboKeyAction !== "keys") turboKeyModalCloseSignal++
+    } else if (conflictModalVisible) {
+      conflictModalCloseSignal++
+    } else if (optimizationModalVisible) {
+      optimizationModalCloseSignal++
+    } else if (creatorViewPhase === "open") {
+      closeCreatorView()
+    } else if (settingsVisible) {
+      settingsVisible = false
+    } else {
+      return false
+    }
+    return true
+  }
+
+  function handleApplicationKeydown(event) {
+    if (event.key === "Escape" && closeTopLayerWithEscape()) {
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      return
+    }
+    handleTurboKeyPickerInput(event)
+  }
+
   async function saveTurboKeyCodes() {
     if (turboKeyAction) return
     turboKeyAction = "keys"
@@ -1195,7 +1246,7 @@
 
   onMount(() => {
     document.addEventListener("visibilitychange", syncPageVisibility)
-    window.addEventListener("keydown", handleTurboKeyPickerInput, true)
+    window.addEventListener("keydown", handleApplicationKeydown, true)
     const removeGraphicsStatusListener = window.nogirem.onGraphicsStatusChanged(status => {
       updateService("graphics", { loading: false, data: status, error: null })
     })
@@ -1280,7 +1331,7 @@
       window.clearTimeout(spinnerFinishTimer)
       stopCreatorScroll()
       document.removeEventListener("visibilitychange", syncPageVisibility)
-      window.removeEventListener("keydown", handleTurboKeyPickerInput, true)
+      window.removeEventListener("keydown", handleApplicationKeydown, true)
       removeGraphicsStatusListener()
       removeVisualActivityListener()
       removeUpdateStateListener()
@@ -1340,14 +1391,7 @@
   {packageInfo.version}
 </button>
 
-{#if interfaceVisible
-  && !settingsVisible
-  && startupIdentityPhase === "done"
-  && creatorNavigationReady
-  && creatorPromptStateLoaded
-  && !creatorPromptDismissed
-  && creatorViewPhase === "home"
-}
+{#if creatorPromptVisible}
   <span
     class="creator-prompt"
     in:fly={{ y: 5, duration: 280 }}
@@ -2409,6 +2453,7 @@
     title="최적화 상태"
     variant="large"
     hideTitle={true}
+    closeSignal={optimizationModalCloseSignal}
     onclose={() => optimizationModalVisible = false}
   >
     <div class="optimization-modal-grid">
@@ -2595,6 +2640,7 @@
   <Modal
     eyebrow="프로그램 종료"
     title="프레임 부스트를 정지할까요?"
+    closeSignal={closeModalCloseSignal}
     closeDisabled={closeActionPending}
     onclose={() => confirmClose("cancel")}
   >

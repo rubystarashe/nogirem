@@ -1,11 +1,14 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-07 00:25
+Last Updated: 2026-09-07 00:36
 
 ## Current Objective
-개발 모드에서 AppData 복사본이 아닌 로컬 빌드 터보 키 helper를 직접 실행한다.
+고급 기능 안내 말풍선을 최대 3회 표시하고 전체 화면·모달·보조 창에 Esc 닫기를 적용한다.
 
 ## Current Status
+- 고급 기능 위치 안내 말풍선은 hover가 아니라 실제 화면 노출 횟수를 사용자 데이터에 저장하며 최대 3회 표시한다. 과거의 단일 `dismissed` 값은 새 횟수에 포함하지 않는다.
+- 메인 화면 Esc는 현재 가장 위의 종료·확인·약관·설정·경고·최적화 모달 하나를 취소하고, 문서·고급 기능 화면에서는 홈으로 돌아간다.
+- Vulkan 업데이트 관리, DXVK 설정 안내와 주변 캐릭터 간소화 보조 창은 Electron 입력 단계에서 Esc로 닫힌다.
 - 개발 실행은 `native/turbo-key/bin/turbo-key-helper.exe`의 PE 형식과 크기를 확인한 뒤 해당 파일을 직접 실행한다. 로컬 재빌드 결과를 AppData 재설치 없이 바로 테스트할 수 있다.
 - 정식 설치본은 기존처럼 GitHub Release 자산을 다운로드하고 AppData 설치본의 manifest와 SHA-256을 검증해 실행한다.
 - 앱 버전과 사용자·상세 변경 기록을 0.2.9로 갱신하고 Windows x64 설치본을 패키징했다. 사용자 요청에 따라 배포하지 않았다.
@@ -1057,6 +1060,8 @@ Last Updated: 2026-09-07 00:25
 - 터보 키 helper에 설정 키 입력 순서 스택을 추가해 최신 키 해제 시 직전 키 반복을 복원하고, 설정되지 않은 일반 키가 반복을 취소하지 않도록 변경했다. helper 버전은 0.1.4이며 Rust 테스트 13개, clippy, release 빌드와 Node 테스트 99개가 통과했다.
 - 앱 버전과 변경 기록을 0.2.9로 올리고 Windows 설치본을 패키징했다. installer는 93,330,908바이트이고 SHA-256은 `A7CB853A420469CBB0EDF431719A4A794F217A1E080D966D6DED8B5455CBF84D`이며 GitHub에는 배포하지 않았다.
 - 개발 모드의 터보 키 설치 판정을 로컬 빌드 helper 직접 참조로 분리했다. 실제 로컬 helper 인식, Node 테스트 101개와 Svelte 프로덕션 빌드가 통과했다.
+- 말풍선 3회 노출 기록과 Esc 최상위 화면 닫기를 추가했다. Node 테스트 103개, 구문 검사와 Svelte 프로덕션 빌드가 통과했다.
+- 기존 로컬 0.2.9 installer는 이번 말풍선·Esc 변경 전에 생성됐으므로 배포 전 다시 패키징해야 한다.
 
 ## Next Recommended Step
-`npm run native:turbo-key`로 helper를 재빌드한 뒤 개발 앱에서 재설치 없이 변경 동작이 반영되는지 확인한다.
+개발 앱에서 말풍선 3회 제한과 각 모달·보조 창의 Esc 우선순위를 확인한 뒤 0.2.9를 다시 패키징한다.
