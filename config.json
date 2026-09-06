@@ -27,7 +27,8 @@
     "taskhostw.exe", "wininit.exe", "winlogon.exe", "wmiprvse.exe"
   ],
   "excludeNamePatterns": [
-    "^svchost\\.exe$", "anti.*cheat", "blackcipher", "nexon.*security"
+    "^svchost\\.exe$", "anti.*cheat", "blackcipher", "nexon.*security", "^turbo-helper-\\d+\\.exe$"
+
   ],
   "latencySensitiveNames": [
     "glorious core.exe", "icue.exe", "lghub_agent.exe", "logioptionsplus_agent.exe",
