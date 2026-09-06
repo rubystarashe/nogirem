@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 22:50
+Last Updated: 2026-09-06 22:54
 
 ## Current Objective
-트레이 복귀 후 입력 불가와 외부 창 최소화 현상을 창 수명주기 수준에서 차단하고 진단 상태를 기록한다.
+트레이 복귀 수명주기 수정본으로 기존 0.2.8 GitHub Release 자산을 대치한다.
 
 ## Current Status
 - 앱 버전은 0.2.8이다. 트레이 최소화 시 투명 보조 창을 숨기고 입력·always-on-top을 해제하며, 복귀 시 메인 창의 focusable·마우스 입력·웹 콘텐츠 포커스를 복원한다.
@@ -1044,7 +1044,9 @@ Last Updated: 2026-09-06 22:50
 - 0.2.8 최초 자동 게시에서 installer와 blockmap이 동시에 Release 생성을 시도해 `422 already_exists`가 발생했다. 로컬 자산을 다시 생성한 뒤 단일 Release에 네 자산을 수동 업로드해 복구했다.
 - GitHub 정식 Release `v0.2.8`은 installer, blockmap, `latest.yml`, 터보 키 helper 0.1.3과 기능 중심 변경 내용을 포함한다. 최종 installer는 93,333,436바이트이고 SHA-256은 `8ffac79dd842d17910660500313d164287439646f8d35225479e3ca71acf4557`이다.
 - 같은 소스의 0.2.8 installer를 로컬에서 다시 패키징했다. 크기는 93,333,609바이트이고 SHA-256은 `d94d5b88ad663029a1181c1a3b7ed96db4c2b091572755015af5fb0fcd690b7c`이며 GitHub Release 자산은 변경하지 않았다.
-- 0.2.8 현장 재현이 계속되어 트레이 진입 시 보조 창 완전 종료, 메인 창 `setEnabled(true)`, 복귀 시 단일 `show()`, 창 상태 진단 로그를 추가했다. Node 테스트 99개와 Svelte 프로덕션 빌드가 통과했으며 기존 로컬·GitHub 설치본에는 포함되지 않았다.
+- 0.2.8 현장 재현이 계속되어 트레이 진입 시 보조 창 완전 종료, 메인 창 `setEnabled(true)`, 복귀 시 단일 `show()`, 창 상태 진단 로그를 추가했다. Node 테스트 99개와 Svelte 프로덕션 빌드가 통과했다.
+- 기존 GitHub Release `v0.2.8`의 installer, blockmap, `latest.yml`, 터보 키 helper 자산을 최신 수정본으로 대치했다. installer는 93,333,893바이트이고 SHA-256은 `1e7cec62fe0ca401e301cfe3a660d52ec0a27128b12ebee27a15188f346ce3d9`이다.
+- 동일 버전 자산 대치이므로 이미 0.2.8을 설치한 사용자는 자동 업데이트가 다시 실행되지 않으며 최신 수정본을 수동 재설치해야 한다.
 
 ## Next Recommended Step
-최신 트레이 복귀 수명주기 수정본을 패키징해 affected PC에서 재현 여부를 확인하고, 계속 발생하면 새 진단 로그의 `트레이 복귀` 항목을 분석한다.
+affected PC에 최신 0.2.8을 수동 재설치해 재현 여부를 확인하고, 계속 발생하면 새 `startup.log`의 `트레이 복귀` 창 상태를 분석한다.
