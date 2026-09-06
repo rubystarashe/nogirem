@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 20:35
+Last Updated: 2026-09-06 20:38
 
 ## Current Objective
 트레이 종료 시 메인 창 표시 여부에 맞는 종료 선택 화면을 제공한다.
@@ -10,7 +10,7 @@ Last Updated: 2026-09-06 20:35
 - 트레이 종료 시 메인 창이 보이면 창을 포커스하고 앱 종료 화면을 표시하며, 트레이에 숨겨져 있으면 창을 복원하지 않고 독립된 Windows 네이티브 확인창만 표시한다.
 - 업데이트 레이어는 비대화형 영역에서 포인터 입력을 가로채지 않으며 일반 모달은 업데이트보다 높은 레이어에서 표시된다. 종료 모달이 열리면 업데이트 레이어를 숨긴다.
 - `VERSION_HISTORY.md`는 앱에 표시할 간결한 사용자용 기록으로 정리하고 기존 기술 내용은 `VERSION_HISTORY_DETAIL.md`로 분리해 보존했다.
-- 상태별 트레이 종료 동작까지 포함한 최신 0.2.7 Windows 설치본 패키징을 완료했으며 아직 배포하지 않았다.
+- 상태별 트레이 종료 동작까지 포함한 0.2.7을 GitHub 정식 Release로 배포했다.
 - NSIS `customInstall`에서 `$launchLink`를 `$INSTDIR\${APP_EXECUTABLE_FILENAME}`으로 강제해 설치 완료 자동 실행이 시작 메뉴 `.lnk`에 의존하지 않는다.
 - 앱과 터보 키는 지정 폴더의 `Client.exe`뿐 아니라 같은 디렉토리에 `Mabinogi.exe`가 있는 `Client.exe`도 게임으로 인식한다. 터보 키 helper는 자동 교체를 위해 0.1.3으로 올렸다.
 - GitHub 정식 Release `v0.2.6`을 Mabinogi.exe 동봉 fallback 수정본으로 다시 대치했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.3 네 자산을 검증했다.
@@ -1024,9 +1024,10 @@ Last Updated: 2026-09-06 20:35
 - 설치 완료 시 electron-builder가 선택한 시작 메뉴 바로가기 대신 설치된 EXE를 직접 실행하도록 NSIS launch link를 재지정했다. Node 테스트 94개와 실제 NSIS 패키징이 통과했다.
 - 트레이 진입 시 DXVK 관리·DXVK 안내·캐릭터 안내 창을 명시적으로 숨기고 투명 창의 입력 가로채기와 always-on-top을 해제한다. 기존 보조 창을 다시 열 때만 입력을 복원한다.
 - 메인 창 복귀 시 `setFocusable(true)`, `setIgnoreMouseEvents(false)`, `webContents.focus()`를 적용하고 트레이 종료에는 네이티브 확인창을 사용한다. 업데이트 레이어 입력 충돌 회귀 테스트를 추가해 Node 테스트 97개와 NSIS 패키징이 통과했다.
-- 상태별 트레이 종료 동작을 포함해 0.2.7 installer를 다시 패키징했다. 최종 크기는 93,290,687바이트이고 SHA-256은 `6b5aec5de1a6c15b3f4a4915519dc2112579d4e55399dfb75eddf0d60d3da13c`이다.
+- 상태별 트레이 종료 동작을 포함해 0.2.7 installer를 배포용으로 다시 패키징했다. 최종 크기는 93,290,687바이트이고 SHA-256은 `909daa3ef5af6118f676e243f5fad4ed1d8f7922970d5693c318faf3e0f91fdc`이다.
 - 기존 버전 변경 기록을 `VERSION_HISTORY_DETAIL.md`로 보존하고 앱에 표시되는 `VERSION_HISTORY.md`는 증상과 결과 중심으로 압축했다.
 - 트레이 종료 경로가 `primaryWindow.isVisible()`과 트레이 숨김 상태를 확인하도록 변경했다. 보이는 창은 기존 앱 종료 화면을 사용하고 숨은 창은 독립 메시지박스를 사용하며 Node 테스트 97개와 Svelte 프로덕션 빌드가 통과했다.
+- GitHub 정식 Release `v0.2.7`을 게시했다. 병렬 게시로 나뉜 중복 Release를 정리하고 단일 Release에 installer, blockmap, `latest.yml`, 터보 키 helper 0.1.3 자산과 변경 내용을 확인했다.
 
 ## Next Recommended Step
-0.2.7 설치본에서 두 가지 트레이 종료 경로를 수동 검증하고, 사용자 요청 시 배포한다.
+배포된 0.2.7 설치본에서 메인 창 표시·트레이 숨김 상태의 종료 경로와 설치 후 직접 실행을 확인한다.
