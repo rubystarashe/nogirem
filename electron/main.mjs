@@ -1909,9 +1909,6 @@ async function ensureFrameBoostStarted() {
 }
 
 async function requestApplicationExitConfirmation({ nativeDialog = false } = {}) {
-  if (!nativeDialog && !applicationExitInProgress && primaryWindow && !primaryWindow.isDestroyed()) {
-    focusPrimaryWindow()
-  }
   if (applicationExitInProgress || (closeRequestPending && !nativeDialog)) return
   if (!primaryWindow || primaryWindow.isDestroyed() || primaryWindow.webContents.isDestroyed()) {
     await finishApplicationExit("keep")
@@ -3000,6 +2997,7 @@ async function requestApplicationExitFromTray() {
     && primaryWindow.isVisible()
     && !primaryWindowSkippedFromTaskbar,
   )
+  if (mainWindowVisible) focusPrimaryWindow()
   return requestApplicationExitConfirmation({ nativeDialog: !mainWindowVisible })
 }
 

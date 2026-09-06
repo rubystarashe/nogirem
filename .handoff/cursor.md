@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 21:34
+Last Updated: 2026-09-06 21:39
 
 ## Current Objective
 트레이 복귀 포커스 경합과 일부 PC의 Chromium 샌드박스 실행 실패를 자동 복구한다.
@@ -11,6 +11,7 @@ Last Updated: 2026-09-06 21:34
 - 트레이 복귀는 메뉴가 닫힌 뒤 `restore → show → focus` 순서로 처리하고, 일반 포커스 실패 시 150ms 뒤 한 번만 재시도한다. `screen-saver` 최상단 설정과 `moveTop()`은 제거했다.
 - 정식 설치본에서 Chromium 렌더러가 `launch-failed`, `exitCode 18`로 생성되지 않으면 `--sandbox-fallback` 인자를 붙여 한 번 재실행하며, 이 재실행에서만 `no-sandbox`를 적용한다.
 - 위 호환성 수정까지 포함한 0.2.7 Windows 설치본을 다시 패키징했으며 GitHub Release에는 아직 대치하지 않았다.
+- 앱 내부 닫기 버튼은 창 복귀용 포커스 처리를 호출하지 않도록 분리했다. 기존 패키지에는 이 최신 수정이 포함되지 않았다.
 - 업데이트 레이어는 비대화형 영역에서 포인터 입력을 가로채지 않으며 일반 모달은 업데이트보다 높은 레이어에서 표시된다. 종료 모달이 열리면 업데이트 레이어를 숨긴다.
 - `VERSION_HISTORY.md`는 앱에 표시할 간결한 사용자용 기록으로 정리하고 기존 기술 내용은 `VERSION_HISTORY_DETAIL.md`로 분리해 보존했다.
 - 상태별 트레이 종료 동작까지 포함한 0.2.7을 GitHub 정식 Release로 배포했다.
@@ -1033,6 +1034,7 @@ Last Updated: 2026-09-06 21:34
 - GitHub 정식 Release `v0.2.7`을 게시했다. 병렬 게시로 나뉜 중복 Release를 정리하고 단일 Release에 installer, blockmap, `latest.yml`, 터보 키 helper 0.1.3 자산과 변경 내용을 확인했다.
 - 트레이 복귀의 강제 최상단·`moveTop()`을 제거하고 메뉴 종료 후 단계적 복원과 단일 포커스 재시도를 추가했다. `exitCode 18`에는 해당 실행에서만 Chromium 샌드박스를 해제하는 자동 재실행 fallback을 추가했으며 Node 테스트 98개와 Svelte 프로덕션 빌드가 통과했다.
 - 호환성 수정본 0.2.7 installer는 93,263,297바이트이고 SHA-256은 `86db4609c674605c15ce0051d9c4691af14e3b61ef7d677ee76b452234961fe7`이다.
+- 앱 내부 종료 요청의 불필요한 재포커스를 제거하고 트레이의 보이는 창 종료 경로에서만 포커스를 호출하도록 이동했다. 관련 회귀 테스트 14개와 Svelte 프로덕션 빌드가 통과했다.
 
 ## Next Recommended Step
-패키징한 0.2.7에서 트레이 복귀와 `exitCode 18` affected PC의 자동 재실행을 검증한 뒤 사용자 요청 시 Release를 대치한다.
+앱 내부 종료 포커스 수정까지 포함해 0.2.7을 다시 패키징하고 수동 검증한 뒤 사용자 요청 시 Release를 대치한다.

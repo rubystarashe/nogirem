@@ -107,7 +107,15 @@ test("트레이 종료는 메인 창 표시 여부에 맞는 종료 선택창을
   )
   assert.match(
     electronMain,
-    /if \(!nativeDialog && !applicationExitInProgress[\s\S]*if \(nativeDialog\) \{[\s\S]*dialog\.showMessageBox\(\{[\s\S]*result\.response === 0 \? "reset" : "keep"/,
+    /if \(mainWindowVisible\) focusPrimaryWindow\(\)[\s\S]*nativeDialog: !mainWindowVisible/,
+  )
+  assert.match(
+    electronMain,
+    /if \(nativeDialog\) \{[\s\S]*dialog\.showMessageBox\(\{[\s\S]*result\.response === 0 \? "reset" : "keep"/,
+  )
+  assert.doesNotMatch(
+    electronMain,
+    /function requestApplicationExitConfirmation[\s\S]{0,300}focusPrimaryWindow\(\)/,
   )
 })
 
