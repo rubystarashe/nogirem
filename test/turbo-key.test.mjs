@@ -150,3 +150,24 @@ test("터보 키 설치 무결성은 매초 다시 계산하지 않고 실행 �
     /getCachedTurboKeyInstallation\([\s\S]*\{ refresh: true \}[\s\S]*\)/,
   )
 })
+
+test("기존 동의를 유지한 채 구버전 터보 키 helper를 시작 시 자동 교체한다", async () => {
+  const [electronMain, installerSource] = await Promise.all([
+    readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../src/turbo-key-installer.mjs", import.meta.url), "utf8"),
+  ])
+
+  assert.match(installerSource, /turboKeyHelperVersion = "0\.1\.1"/)
+  assert.match(
+    installerSource,
+    /const updateRequired = manifest\.helperVersion !== turboKeyHelperVersion/,
+  )
+  assert.match(
+    electronMain,
+    /async function updateTurboKeyHelperIfNeeded\(installation\)[\s\S]*installation\.acceptedAt[\s\S]*installTurboKeyHelper/,
+  )
+  assert.match(
+    electronMain,
+    /async function ensureTurboKeyStarted\(\)[\s\S]*updateTurboKeyHelperIfNeeded\(installation\)[\s\S]*if \(!settings\?\.enabled\) return/,
+  )
+})

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto"
 import { readFile, mkdir, rename, unlink, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 
-export const turboKeyHelperVersion = "0.1.0"
+export const turboKeyHelperVersion = "0.1.1"
 export const turboKeyHelperProtocolVersion = 1
 export const turboKeyHelperAssetName = `turbo-key-helper-win32-x64-v${turboKeyHelperVersion}.exe`
 
@@ -60,14 +60,14 @@ export async function getTurboKeyHelperInstallation(directory) {
   const manifest = await readJson(paths.manifestPath)
   if (
     !manifest
-    || manifest.helperVersion !== turboKeyHelperVersion
-    || manifest.protocolVersion !== turboKeyHelperProtocolVersion
     || !/^[a-f0-9]{64}$/i.test(manifest.sha256 ?? "")
   ) {
     return {
       installed: false,
+      updateRequired: false,
       executablePath: paths.executablePath,
       helperVersion: turboKeyHelperVersion,
+      installedVersion: manifest?.helperVersion ?? null,
       reason: null,
     }
   }
@@ -79,22 +79,28 @@ export async function getTurboKeyHelperInstallation(directory) {
     if (actualSha256 !== manifest.sha256.toLowerCase()) {
       throw new Error("터보 키 실행 파일의 무결성 검증에 실패했습니다")
     }
+    const updateRequired = manifest.helperVersion !== turboKeyHelperVersion
+      || manifest.protocolVersion !== turboKeyHelperProtocolVersion
     return {
-      installed: true,
+      installed: !updateRequired,
+      updateRequired,
       executablePath: paths.executablePath,
-      helperVersion: manifest.helperVersion,
+      helperVersion: turboKeyHelperVersion,
+      installedVersion: manifest.helperVersion,
       protocolVersion: manifest.protocolVersion,
       sha256: actualSha256,
       installedAt: manifest.installedAt,
       acceptedAt: manifest.acceptedAt,
       source: manifest.source,
-      reason: null,
+      reason: updateRequired ? "터보 키 업데이트가 필요합니다" : null,
     }
   } catch (error) {
     return {
       installed: false,
+      updateRequired: false,
       executablePath: paths.executablePath,
       helperVersion: turboKeyHelperVersion,
+      installedVersion: manifest.helperVersion ?? null,
       reason: error?.code === "ENOENT"
         ? null
         : (error?.message ?? String(error)),

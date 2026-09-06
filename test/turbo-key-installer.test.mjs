@@ -87,6 +87,46 @@ test("정식 GitHub Release의 고정 자산과 SHA-256만 설치한다", async 
   }
 })
 
+test("무결성이 정상인 구버전 helper는 자동 교체 대상으로 판정한다", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "nogirem-turbo-upgrade-"))
+  const sourcePath = join(directory, "source.exe")
+  const manifestPath = join(directory, "current.json")
+  try {
+    await writeFile(sourcePath, createX64Executable())
+    await installTurboKeyHelper({
+      directory,
+      appVersion: "0.2.4",
+      localSourcePath: sourcePath,
+      acceptedAt: 1234,
+    })
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
+    await writeFile(manifestPath, JSON.stringify({
+      ...manifest,
+      helperVersion: "0.1.0",
+    }), "utf8")
+
+    const outdated = await getTurboKeyHelperInstallation(directory)
+    assert.equal(outdated.installed, false)
+    assert.equal(outdated.updateRequired, true)
+    assert.equal(outdated.installedVersion, "0.1.0")
+    assert.equal(outdated.acceptedAt, 1234)
+    assert.match(outdated.reason, /업데이트가 필요/)
+
+    const updated = await installTurboKeyHelper({
+      directory,
+      appVersion: "0.2.5",
+      localSourcePath: sourcePath,
+      acceptedAt: outdated.acceptedAt,
+    })
+    assert.equal(updated.installed, true)
+    assert.equal(updated.updateRequired, false)
+    assert.equal(updated.installedVersion, updated.helperVersion)
+    assert.equal(updated.acceptedAt, 1234)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
 test("설치된 터보 키 helper와 manifest를 함께 제거한다", async () => {
   const directory = await mkdtemp(join(tmpdir(), "nogirem-turbo-remove-"))
   const sourcePath = join(directory, "source.exe")

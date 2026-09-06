@@ -1309,6 +1309,7 @@ async function getTurboKeySetting() {
   )
   return {
     installed: installation.installed,
+    updateRequired: Boolean(installation.updateRequired),
     helperVersion: turboKeyHelperVersion,
     enabled,
     running,
@@ -1326,6 +1327,20 @@ async function getCachedTurboKeyInstallation(directory, { refresh = false } = {}
   if (refresh || !turboKeyInstallationCache) {
     turboKeyInstallationCache = await getTurboKeyHelperInstallation(directory)
   }
+  return turboKeyInstallationCache
+}
+
+async function updateTurboKeyHelperIfNeeded(installation) {
+  if (!installation?.updateRequired || !installation.acceptedAt) return installation
+  const paths = getTurboKeyPaths()
+  turboKeyInstallationCache = await installTurboKeyHelper({
+    directory: paths.directory,
+    appVersion: app.getVersion(),
+    acceptedAt: installation.acceptedAt,
+    localSourcePath: app.isPackaged
+      ? null
+      : join(root, "native", "turbo-key", "bin", "turbo-key-helper.exe"),
+  })
   return turboKeyInstallationCache
 }
 
@@ -1506,11 +1521,12 @@ async function uninstallTurboKeyHelper() {
 
 async function ensureTurboKeyStarted() {
   const settings = await readJson(getTurboKeyPaths().settingsPath)
-  if (!settings?.enabled) return
-  const installation = await getCachedTurboKeyInstallation(
+  let installation = await getCachedTurboKeyInstallation(
     getTurboKeyPaths().directory,
     { refresh: true },
   )
+  installation = await updateTurboKeyHelperIfNeeded(installation)
+  if (!settings?.enabled) return
   if (!installation.installed) return
   await launchTurboKeyHelper(
     normalizeTurboKeyCodes(settings.keys),

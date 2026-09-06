@@ -1,12 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 15:24
+Last Updated: 2026-09-06 15:31
 
 ## Current Objective
 0.2.5에서 손상된 런타임 상태를 복구하고 PC방 특수 네트워크와 NVIDIA `NVAPI -1` 저장 실패를 부분 지원한다.
 
 ## Current Status
-- 터보 키 helper는 Electron 설치본과 `asarUnpack`에서 제외됐다. 패키징 시 `turbo-key-helper-win32-x64-v0.1.0.exe` 별도 자산을 `release`에 생성하며 GitHub 배포 시 같은 Release에 추가 업로드한다.
+- 터보 키 helper는 Electron 설치본과 `asarUnpack`에서 제외됐다. 패키징 시 `turbo-key-helper-win32-x64-v0.1.1.exe` 별도 자산을 `release`에 생성하며 GitHub 배포 시 같은 Release에 추가 업로드한다.
 - 고급 기능은 helper 미설치 시 `다운로드`만 표시한다. 전체 화면 약관 모달에서 별도 `TURBO_KEY_TERMS.md`를 확인한 뒤 다운로드하며, 성공 후에는 `키 설정`·사용 버튼 아래 작은 적색 `터보키 제거하기`를 표시한다.
 - helper는 `%APPDATA%/마비노기 렘 부스터/turbo-key/bin`에 설치한다. GitHub SHA-256, 2MiB 제한, PE x64 형식과 설치 manifest 해시를 검증하며 누락·변조 시 자동 실행하지 않는다.
 - 개발 실행은 같은 동의 흐름 뒤 로컬 release helper를 AppData에 복사한다. 설치 후에도 터보 키는 자동 활성화하지 않는다.
@@ -992,6 +992,9 @@ Last Updated: 2026-09-06 15:24
 - hook 메시지 스레드는 `THREAD_PRIORITY_ABOVE_NORMAL`로 낮추고 실제 입력 반복 스레드만 `THREAD_PRIORITY_HIGHEST`와 게임 외 P-core ideal processor를 유지한다.
 - UI의 1초 상태 동기화마다 276KB helper EXE를 다시 읽고 SHA-256을 계산하던 흐름을 설치 상태 캐시로 변경했다. 무결성은 최초 상태 확인과 helper 실행 직전에 강제로 다시 검증하며 다운로드·제거 시 캐시를 갱신한다.
 - 수정된 Rust helper release 빌드와 Rust 단위 테스트 11개가 통과했다.
+- 유휴 부하 개선 helper 버전을 0.1.1로 올렸다. 기존 helper의 PE 형식과 manifest SHA-256이 정상인 경우 `updateRequired`로 판정하고, 앱 시작 시 기존 약관 동의 시각과 키 설정·활성화 상태를 유지한 채 현재 앱 Release의 0.1.1 자산으로 자동 교체한다.
+- helper 자동 교체는 활성화 여부와 무관하게 앱 시작 시 수행한다. 교체 후 이전에 사용 중이던 사용자는 새 helper를 즉시 다시 실행하며, 미사용 상태는 그대로 유지한다.
+- 구버전 감지·동의 보존·자동 교체 연결 회귀 테스트를 포함한 Node 테스트 16개와 helper 0.1.1 release 빌드, Svelte 프로덕션 빌드가 통과했다.
 
 ## Next Recommended Step
-터보 키 사용 전후의 유휴 CPU·디스크 활동과 실제 반복 입력 반응을 확인한 뒤 0.2.5로 패키징한다.
+0.1.0 helper manifest를 가진 설치 환경에서 0.2.5 시작 시 0.1.1 자동 교체와 기존 활성화 상태 복원을 확인한 뒤 패키징한다.
