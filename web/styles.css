@@ -1353,6 +1353,12 @@ button.direct-donation-card:hover {
   cursor: default;
 }
 
+.turbo-key-interval-hint {
+  color: #7f888c;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .turbo-key-picker button:focus-visible {
   outline: none;
 }

@@ -1,16 +1,16 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 11:16
+Last Updated: 2026-09-06 11:25
 
 ## Current Objective
-PC 성능과 스케줄러 상태에 따른 Rust 터보 키 반복 속도 편차를 줄인다.
+렌더러 자동 복구와 터보 키 반복 안정화를 포함한 0.2.2 Windows 설치본을 패키징한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
 - Affinity는 `GetSystemCpuSetInformation`의 `EfficiencyClass`, `CoreIndex`, 논리 프로세서 번호를 사용해 실제 코어 토폴로지를 판정한다.
 - 마비노기는 P-core 물리 코어의 절반을 사용하며 홀수이면 게임 측을 올림한다. 백그라운드는 나머지 P-core와 모든 E-core를 사용한다.
 - P/E 구분이 없는 CPU도 물리 코어 단위로 절반을 나누고 SMT sibling 전체를 같은 마스크에 유지한다.
-- 앱과 잠금 파일의 현재 버전 문자열은 0.2.1이며 `VERSION_HISTORY.md`에 터보 키와 CPU 배치 변경을 기록했다.
+- 앱과 잠금 파일의 현재 버전 문자열은 0.2.2이며 `VERSION_HISTORY.md`에 렌더러 복구와 터보 키 반복 안정화를 기록했다.
 - 고급 기능에 기본 비활성화 상태의 터보 키 토글을 추가했다. 마비노기 `Client.exe`가 전면 창일 때만 Windows 키 반복 대기 후 마지막 일반 키 1개를 선택한 1·3·5·10·20·30ms 간격으로 반복한다.
 - 터보 키 `키 설정`에서 전체 키보드 레이아웃의 허용 키를 선택해 저장할 수 있다. 기본 선택은 없으며 modifier·잠금·시스템 키는 선택할 수 없다.
 - 터보 키 설정은 640×290 창 전체를 사용하는 고정 화면이며 스크롤 없이 키보드·초기화·설정 완료 버튼을 표시한다. 화면 키 클릭과 실제 키 입력 모두 선택 상태를 토글한다.
@@ -918,6 +918,7 @@ PC 성능과 스케줄러 상태에 따른 Rust 터보 키 반복 속도 편차�
 - 터보 키 반복 대기를 Windows 고해상도 waitable timer로 교체하고 지원하지 않는 환경에서는 일반 waitable timer와 기존 대기를 순차 fallback한다. 프로세스는 `ABOVE_NORMAL`, hook·반복 스레드는 `HIGHEST` 우선도를 사용하며 반복 스레드는 게임 외 P-core 마스크의 첫 CPU를 Ideal Processor로 선호한다.
 - 키를 활성화할 때만 마비노기 `Client.exe` 경로를 검증하고 PID를 캐시한다. 반복 중에는 `GetForegroundWindow`의 PID만 비교해 매 입력마다 실행하던 `OpenProcess`·경로 조회를 제거했다. Windows 키보드 반복 시작 지연은 기존 사용자 설정을 유지한다.
 - 최종 helper에서 `AboveNormal` 우선도와 `0xff` Affinity 적용을 실동작 확인했다. Node 테스트 64개, Rust 테스트 11개, Clippy와 release helper 빌드가 통과했으며 아직 패키징·배포하지 않았다.
+- 터보 키 입력 간격 selector 오른쪽에 `저사양 PC에서는 입력 간격을 늘리세요` 안내를 추가했다. 버전 문자열과 변경 기록을 0.2.2로 올렸으며 패키징을 진행한다.
 
 ## Next Recommended Step
 마비노기 전면 창에서 1ms 반복의 실제 전송률과 입력 간격 편차를 여러 사양의 PC에서 비교하고, 패키지 설치본에서 업데이트·렌더러 복구도 함께 검증한다.

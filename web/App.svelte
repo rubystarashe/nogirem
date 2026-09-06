@@ -2257,6 +2257,7 @@
               <option value={interval}>{interval} ms</option>
             {/each}
           </select>
+          <span class="turbo-key-interval-hint">저사양 PC에서는 입력 간격을 늘리세요</span>
         </label>
         <div class="turbo-key-picker-buttons">
           <button
