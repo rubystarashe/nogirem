@@ -127,6 +127,7 @@ let gamePathStateMonitor = null
 let gamePathStateReading = false
 let creatorChannelProfilePromise = null
 let turboKeyProcess = null
+let turboKeyInstallationCache = null
 let primaryRendererRecoveryMode = false
 let primaryRendererRecoveryInProgress = false
 let primaryRendererUnresponsiveTimer = null
@@ -1295,9 +1296,9 @@ async function getTurboKeySetting() {
   const [settings, status, installation] = await Promise.all([
     readJson(paths.settingsPath),
     readRuntimeStatusJson(paths.statusPath),
-    getTurboKeyHelperInstallation(paths.directory),
+    getCachedTurboKeyInstallation(paths.directory),
   ])
-  const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 3000
+  const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 5000
   const enabled = Boolean(settings?.enabled && installation.installed)
   const intervalMs = normalizeTurboKeyIntervalMs(settings?.intervalMs)
   const running = Boolean(
@@ -1319,6 +1320,13 @@ async function getTurboKeySetting() {
       ?? (statusFresh ? status?.error : null)
       ?? (enabled && !running ? "터보 키 프로세스가 실행 중이 아닙니다" : null),
   }
+}
+
+async function getCachedTurboKeyInstallation(directory, { refresh = false } = {}) {
+  if (refresh || !turboKeyInstallationCache) {
+    turboKeyInstallationCache = await getTurboKeyHelperInstallation(directory)
+  }
+  return turboKeyInstallationCache
 }
 
 async function waitForTurboKeyStatus(predicate, timeoutMs = 3000) {
@@ -1354,7 +1362,10 @@ async function launchTurboKeyHelper(
   if (turboKeyProcess && turboKeyProcess.exitCode === null) {
     return getTurboKeySetting()
   }
-  const installation = await getTurboKeyHelperInstallation(getTurboKeyPaths().directory)
+  const installation = await getCachedTurboKeyInstallation(
+    getTurboKeyPaths().directory,
+    { refresh: true },
+  )
   if (!installation.installed) {
     throw new Error(installation.reason ?? "터보 키를 먼저 다운로드하세요")
   }
@@ -1461,7 +1472,7 @@ async function setTurboKeySetting(setting) {
 async function downloadTurboKeyHelper() {
   await stopTurboKeyHelper()
   const paths = getTurboKeyPaths()
-  await installTurboKeyHelper({
+  turboKeyInstallationCache = await installTurboKeyHelper({
     directory: paths.directory,
     appVersion: app.getVersion(),
     acceptedAt: Date.now(),
@@ -1489,14 +1500,17 @@ async function uninstallTurboKeyHelper() {
     intervalMs: normalizeTurboKeyIntervalMs(settings?.intervalMs),
     updatedAt: Date.now(),
   })
-  await removeTurboKeyHelper(paths.directory)
+  turboKeyInstallationCache = await removeTurboKeyHelper(paths.directory)
   return getTurboKeySetting()
 }
 
 async function ensureTurboKeyStarted() {
   const settings = await readJson(getTurboKeyPaths().settingsPath)
   if (!settings?.enabled) return
-  const installation = await getTurboKeyHelperInstallation(getTurboKeyPaths().directory)
+  const installation = await getCachedTurboKeyInstallation(
+    getTurboKeyPaths().directory,
+    { refresh: true },
+  )
   if (!installation.installed) return
   await launchTurboKeyHelper(
     normalizeTurboKeyCodes(settings.keys),

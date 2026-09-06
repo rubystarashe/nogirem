@@ -119,7 +119,34 @@ test("터보 키 helper는 정밀 타이머와 우선 스케줄링을 사용한�
 
   assert.match(helperSource, /CREATE_WAITABLE_TIMER_HIGH_RESOLUTION/)
   assert.match(helperSource, /SetPriorityClass\(GetCurrentProcess\(\), ABOVE_NORMAL_PRIORITY_CLASS\)/)
-  assert.match(helperSource, /SetThreadPriority\(thread, THREAD_PRIORITY_HIGHEST\)/)
+  assert.match(
+    helperSource,
+    /apply_current_thread_priority\(Some\(ideal_processor\), THREAD_PRIORITY_HIGHEST\)/,
+  )
   assert.match(helperSource, /SetThreadIdealProcessor\(thread, processor\)/)
   assert.match(helperSource, /is_process_foreground\(foreground_pid\)/)
+  assert.match(helperSource, /MsgWaitForMultipleObjectsEx/)
+  assert.match(helperSource, /HEALTH_CHECK_INTERVAL_MS: u32 = 250/)
+  assert.match(
+    helperSource,
+    /apply_current_thread_priority\(None, THREAD_PRIORITY_ABOVE_NORMAL\)/,
+  )
+  assert.doesNotMatch(helperSource, /thread::sleep\(Duration::from_millis\(5\)\)/)
+})
+
+test("터보 키 설치 무결성은 매초 다시 계산하지 않고 실행 전에 갱신한다", async () => {
+  const electronMain = await readFile(
+    new URL("../electron/main.mjs", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(electronMain, /let turboKeyInstallationCache = null/)
+  assert.match(
+    electronMain,
+    /getCachedTurboKeyInstallation\(paths\.directory\)/,
+  )
+  assert.match(
+    electronMain,
+    /getCachedTurboKeyInstallation\([\s\S]*\{ refresh: true \}[\s\S]*\)/,
+  )
 })

@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 15:16
+Last Updated: 2026-09-06 15:24
 
 ## Current Objective
 0.2.5에서 손상된 런타임 상태를 복구하고 PC방 특수 네트워크와 NVIDIA `NVAPI -1` 저장 실패를 부분 지원한다.
@@ -988,6 +988,10 @@ Last Updated: 2026-09-06 15:16
 - NVIDIA 부분 실패는 그래픽 최적화 전체 IPC 오류로 바꾸지 않는다. 목표별 `적용 실패`와 상세 오류를 표시하며 성공한 목표는 완료 상태를 유지한다.
 - 네트워크·NVIDIA·그래픽·런타임 안정성 회귀 테스트 33개와 관련 모듈 구문 검사, Svelte 프로덕션 빌드가 통과했다.
 - 고급 기능의 비활성 토글 문구를 `사용 안 함`에서 `사용하기`로 변경했다. 터보 키를 켤 때 적용 대상 설정 모달을 먼저 열고 설정 완료 시 활성화하며, `키 설정` 버튼은 터보 키 사용 중에만 표시한다.
+- 터보 키 helper의 유휴 5ms 폴링을 `MsgWaitForMultipleObjectsEx` 기반 메시지 대기로 교체했다. 키보드 이벤트에는 즉시 깨어나되 제어 파일과 부모 프로세스 확인은 최대 250ms마다, 상태 기록은 2초마다 수행한다.
+- hook 메시지 스레드는 `THREAD_PRIORITY_ABOVE_NORMAL`로 낮추고 실제 입력 반복 스레드만 `THREAD_PRIORITY_HIGHEST`와 게임 외 P-core ideal processor를 유지한다.
+- UI의 1초 상태 동기화마다 276KB helper EXE를 다시 읽고 SHA-256을 계산하던 흐름을 설치 상태 캐시로 변경했다. 무결성은 최초 상태 확인과 helper 실행 직전에 강제로 다시 검증하며 다운로드·제거 시 캐시를 갱신한다.
+- 수정된 Rust helper release 빌드와 Rust 단위 테스트 11개가 통과했다.
 
 ## Next Recommended Step
-터보 키 최초 활성화 설정 흐름과 특수 네트워크·`NVAPI -1` 부분 실패 UI를 확인한 뒤 0.2.5로 패키징한다.
+터보 키 사용 전후의 유휴 CPU·디스크 활동과 실제 반복 입력 반응을 확인한 뒤 0.2.5로 패키징한다.

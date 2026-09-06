@@ -22,7 +22,7 @@ use windows_sys::Win32::System::Threading::{
     CreateWaitableTimerExW, GetCurrentProcess, GetCurrentThread, GetProcessAffinityMask, INFINITE,
     OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW, SetPriorityClass,
     SetProcessAffinityMask, SetThreadIdealProcessor, SetThreadPriority, SetWaitableTimerEx,
-    THREAD_PRIORITY_HIGHEST, TIMER_ALL_ACCESS, WaitForSingleObject,
+    THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST, TIMER_ALL_ACCESS, WaitForSingleObject,
 };
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY,
@@ -32,15 +32,17 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetForegroundWindow, GetWindowThreadProcessId, HC_ACTION,
-    KBDLLHOOKSTRUCT, LLKHF_EXTENDED, LLKHF_INJECTED, MSG, PM_REMOVE, PeekMessageW,
-    SPI_GETKEYBOARDDELAY, SetWindowsHookExW, SystemParametersInfoW, TranslateMessage,
-    UnhookWindowsHookEx, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    KBDLLHOOKSTRUCT, LLKHF_EXTENDED, LLKHF_INJECTED, MSG, MWMO_INPUTAVAILABLE,
+    MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT, SPI_GETKEYBOARDDELAY,
+    SetWindowsHookExW, SystemParametersInfoW, TranslateMessage, UnhookWindowsHookEx,
+    WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 const DEFAULT_REPEAT_INTERVAL_MS: u64 = 1;
 const REPEAT_INTERVAL_OPTIONS_MS: [u64; 6] = [1, 3, 5, 10, 20, 30];
 const INJECTION_MARKER: usize = 0x4e4f_4749_5245_4d54;
 const SYNCHRONIZE_ACCESS: u32 = 0x0010_0000;
+const HEALTH_CHECK_INTERVAL_MS: u32 = 250;
 
 struct PrecisionTimer {
     handle: *mut c_void,
@@ -260,9 +262,12 @@ fn apply_process_priority() -> Result<(), String> {
     Ok(())
 }
 
-fn apply_current_thread_priority(ideal_processor: Option<u32>) -> Result<(), String> {
+fn apply_current_thread_priority(
+    ideal_processor: Option<u32>,
+    priority: i32,
+) -> Result<(), String> {
     let thread = unsafe { GetCurrentThread() };
-    let prioritized = unsafe { SetThreadPriority(thread, THREAD_PRIORITY_HIGHEST) };
+    let prioritized = unsafe { SetThreadPriority(thread, priority) };
     if prioritized == 0 {
         return Err("터보 키 스레드 우선도를 설정하지 못했습니다".to_owned());
     }
@@ -491,7 +496,7 @@ unsafe extern "system" fn keyboard_hook(code: i32, w_param: WPARAM, l_param: LPA
 }
 
 fn repeat_loop(shared: Arc<SharedState>, ideal_processor: u32) {
-    let _ = apply_current_thread_priority(Some(ideal_processor));
+    let _ = apply_current_thread_priority(Some(ideal_processor), THREAD_PRIORITY_HIGHEST);
     let precision_timer = PrecisionTimer::new();
     let mut state = shared
         .state
@@ -679,7 +684,7 @@ fn run() -> Result<(), String> {
     write_status(&status_path, false, interval_ms, None)?;
     apply_cpu_affinity(affinity_mask)?;
     apply_process_priority()?;
-    apply_current_thread_priority(None)?;
+    apply_current_thread_priority(None, THREAD_PRIORITY_ABOVE_NORMAL)?;
     let ideal_processor = ideal_processor_from_mask(affinity_mask);
     let mutex_name: Vec<u16> = "Local\\NogiremTurboKey\0".encode_utf16().collect();
     let mutex = unsafe { CreateMutexW(null(), 0, mutex_name.as_ptr()) };
@@ -720,7 +725,8 @@ fn run() -> Result<(), String> {
     let _ = fs::remove_file(&control_path);
     let mut runtime_error = write_status(&status_path, true, interval_ms, None).err();
     let mut message: MSG = unsafe { zeroed() };
-    let mut next_status = Instant::now() + Duration::from_secs(1);
+    let mut next_health_check = Instant::now();
+    let mut next_status = Instant::now() + Duration::from_secs(2);
     while runtime_error.is_none() {
         while unsafe { PeekMessageW(&mut message, null_mut(), 0, 0, PM_REMOVE) } != 0 {
             if message.message == WM_QUIT {
@@ -732,17 +738,29 @@ fn run() -> Result<(), String> {
                 DispatchMessageW(&message);
             }
         }
-        if shared.stopping.load(Ordering::Acquire)
-            || should_stop(&control_path)
-            || !parent_is_alive(parent_pid)
-        {
+        if shared.stopping.load(Ordering::Acquire) {
             break;
         }
-        if Instant::now() >= next_status {
-            runtime_error = write_status(&status_path, true, interval_ms, None).err();
-            next_status = Instant::now() + Duration::from_secs(1);
+        let now = Instant::now();
+        if now >= next_health_check {
+            if should_stop(&control_path) || !parent_is_alive(parent_pid) {
+                break;
+            }
+            next_health_check = now + Duration::from_millis(HEALTH_CHECK_INTERVAL_MS as u64);
         }
-        thread::sleep(Duration::from_millis(5));
+        if now >= next_status {
+            runtime_error = write_status(&status_path, true, interval_ms, None).err();
+            next_status = now + Duration::from_secs(2);
+        }
+        unsafe {
+            MsgWaitForMultipleObjectsEx(
+                0,
+                null(),
+                HEALTH_CHECK_INTERVAL_MS,
+                QS_ALLINPUT,
+                MWMO_INPUTAVAILABLE,
+            );
+        }
     }
 
     shared.stopping.store(true, Ordering::Release);
