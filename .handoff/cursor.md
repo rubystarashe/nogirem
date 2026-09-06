@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 21:55
+Last Updated: 2026-09-06 22:41
 
 ## Current Objective
-0.2.8 호환성·포커스 수정본을 GitHub Release로 배포한다.
+최신 0.2.8 Windows 설치본을 로컬에 준비한다.
 
 ## Current Status
 - 앱 버전은 0.2.8이다. 트레이 최소화 시 투명 보조 창을 숨기고 입력·always-on-top을 해제하며, 복귀 시 메인 창의 focusable·마우스 입력·웹 콘텐츠 포커스를 복원한다.
@@ -11,9 +11,9 @@ Last Updated: 2026-09-06 21:55
 - 트레이 복귀는 메뉴가 닫힌 뒤 `restore → show → focus` 순서로 처리하고, 일반 포커스 실패 시 150ms 뒤 한 번만 재시도한다. `screen-saver` 최상단 설정과 `moveTop()`은 제거했다.
 - 정식 설치본에서 Chromium 렌더러가 `launch-failed`, `exitCode 18`로 생성되지 않으면 `--sandbox-fallback` 인자를 붙여 한 번 재실행하며, 이 재실행에서만 `no-sandbox`를 적용한다.
 - 0.2.7 배포 이후 변경을 `VERSION_HISTORY.md`와 `VERSION_HISTORY_DETAIL.md`의 0.2.8 항목으로 분리하고 0.2.8 GitHub 정식 Release를 배포했다.
-- 앱 내부 닫기 버튼은 창 복귀용 포커스 처리를 호출하지 않도록 분리했으며 이 최신 수정까지 포함해 0.2.7을 다시 패키징했다.
+- 앱 내부 닫기 버튼은 창 복귀용 포커스 처리를 호출하지 않도록 분리했으며 0.2.8 설치본에 포함됐다.
 - 최초 `focus()` 직후 성공 여부와 관계없이 150ms 뒤 상태를 다시 확인해 포커스를 빼앗긴 경우 한 번 복구한다.
-- 일반 실행과 시작 트레이 실행 모두 Electron 준비 직후 트레이 아이콘을 생성한다. 이 두 최신 수정은 기존 패키지에 포함되지 않았다.
+- 일반 실행과 시작 트레이 실행 모두 Electron 준비 직후 트레이 아이콘을 생성하며 0.2.8 설치본에 포함됐다.
 - 업데이트 레이어는 비대화형 영역에서 포인터 입력을 가로채지 않으며 일반 모달은 업데이트보다 높은 레이어에서 표시된다. 종료 모달이 열리면 업데이트 레이어를 숨긴다.
 - `VERSION_HISTORY.md`는 앱에 표시할 간결한 사용자용 기록으로 정리하고 기존 기술 내용은 `VERSION_HISTORY_DETAIL.md`로 분리해 보존했다.
 - 상태별 트레이 종료 동작까지 포함한 0.2.7을 GitHub 정식 Release로 배포했다.
@@ -1041,6 +1041,7 @@ Last Updated: 2026-09-06 21:55
 - 앱·잠금 파일 버전을 0.2.8로 올리고 전체 Node 테스트 98개와 Windows 패키징을 통과했다. installer는 93,333,439바이트이고 SHA-256은 `6c00e994f9975518a935dbc54a9ea01d7659f809c94879807a01dacebb65bc89`이다.
 - 0.2.8 최초 자동 게시에서 installer와 blockmap이 동시에 Release 생성을 시도해 `422 already_exists`가 발생했다. 로컬 자산을 다시 생성한 뒤 단일 Release에 네 자산을 수동 업로드해 복구했다.
 - GitHub 정식 Release `v0.2.8`은 installer, blockmap, `latest.yml`, 터보 키 helper 0.1.3과 기능 중심 변경 내용을 포함한다. 최종 installer는 93,333,436바이트이고 SHA-256은 `8ffac79dd842d17910660500313d164287439646f8d35225479e3ca71acf4557`이다.
+- 같은 소스의 0.2.8 installer를 로컬에서 다시 패키징했다. 크기는 93,333,609바이트이고 SHA-256은 `d94d5b88ad663029a1181c1a3b7ed96db4c2b091572755015af5fb0fcd690b7c`이며 GitHub Release 자산은 변경하지 않았다.
 
 ## Next Recommended Step
-배포된 0.2.8 설치본에서 트레이 복귀, 최초 포커스, 즉시 트레이 생성과 `exitCode 18` 자동 fallback을 affected PC에서 검증한다.
+로컬 0.2.8 설치본에서 트레이 복귀, 최초 포커스, 즉시 트레이 생성과 `exitCode 18` 자동 fallback을 affected PC에서 검증한다.
