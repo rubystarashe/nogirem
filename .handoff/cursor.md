@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 16:46
+Last Updated: 2026-09-06 16:58
 
 ## Current Objective
 0.2.6에서 Windows 파일 잠금으로 실시간 부스트 helper가 반복 종료되는 문제를 방지한다.
 
 ## Current Status
+- GitHub 정식 Release `v0.2.6` 배포를 완료했다. 중복 생성된 Release를 하나로 합쳐 installer, blockmap, `latest.yml`, 터보 키 helper 0.1.1 네 자산을 검증했다.
 - 앱 버전은 0.2.6이다. 상태 JSON 교체는 `EPERM`·`EBUSY` 등을 지연 재시도한 뒤 기존 파일 삭제·교체로 복구하며, Affinity·메모리 helper는 일시적 기록 실패 후에도 계속 실행한다.
 - Affinity·메모리 helper마다 PID 기반 단일 실행 잠금을 사용해 동일한 상태 파일과 CPU 설정의 중복 처리를 막는다.
 - 터보 키 helper는 Electron 설치본과 `asarUnpack`에서 제외됐다. 패키징 시 `turbo-key-helper-win32-x64-v0.1.1.exe` 별도 자산을 `release`에 생성하며 GitHub 배포 시 같은 Release에 추가 업로드한다.
@@ -1003,6 +1004,8 @@ Last Updated: 2026-09-06 16:46
 - 0.2.5 installer는 93,151,762바이트이고 SHA-256은 `fa8e172cc2226bedc0544429a734e842b88c5904440482ffac32f464780bebb7`다. helper 0.1.1 SHA-256은 `477f53db297b0e9a724cf63ba7afe40616b8e7c9800c5fa69d8ed388652d0283`다.
 - 0.2.6에서 상태 JSON 원자적 교체에 Windows 잠금 재시도와 삭제 후 대체 fallback을 추가했다. 일시적 상태·적용 기록 실패는 다음 주기에 재시도하며 helper를 종료하지 않는다.
 - Affinity·메모리 helper에 PID 잠금 파일을 추가해 중복 프로세스의 상태 파일 및 CPU 설정 경합을 방지했다. 관련 Node 테스트 90개가 통과했다.
+- GitHub 정식 Release `v0.2.6`을 게시했다. installer는 93,179,042바이트, SHA-256은 `eadf732f16b0b62eebff86d2a08881707f1eebb4ee21c59f4498f735a8dbdb0a`다.
+- 병렬 게시로 생성된 중복 Release를 정리하고 단일 Release의 installer, blockmap, `latest.yml`, 터보 키 helper 네 자산과 digest를 확인했다.
 
 ## Next Recommended Step
-보안 프로그램이나 별도 프로세스로 Affinity `status.json`을 잠근 설치 환경에서 0.2.6 helper의 생존과 상태 복구를 수동 확인한다.
+0.2.5 설치본의 자동 업데이트로 0.2.6 설치와 재실행을 확인하고, 실제 파일 잠금 환경에서 Affinity helper의 생존과 상태 복구를 수동 검증한다.
