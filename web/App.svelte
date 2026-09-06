@@ -151,6 +151,7 @@
   let turboKeyDraftIntervalMs = defaultTurboKeyIntervalMs
   let turboKeyModalVisible = false
   let turboKeyModalCloseSignal = 0
+  let turboKeyEnableAfterSettings = false
   let turboTermsModalVisible = false
   let turboTermsModalCloseSignal = 0
   let turboInstallAction = null
@@ -686,11 +687,18 @@
 
   async function toggleTurboKey() {
     if (!turboKeySettingLoaded || !turboKeyInstalled || turboKeyAction) return
+    if (!turboKeyEnabled) {
+      turboKeyEnableAfterSettings = true
+      turboKeyDraftCodes = [...turboKeyCodes]
+      turboKeyDraftIntervalMs = turboKeyIntervalMs
+      turboKeyModalVisible = true
+      return
+    }
     turboKeyAction = "saving"
     turboKeyNotice = ""
     try {
       const state = await window.nogirem.setTurboKeySetting({
-        enabled: !turboKeyEnabled,
+        enabled: false,
         keys: turboKeyCodes,
         intervalMs: turboKeyIntervalMs,
       })
@@ -704,9 +712,15 @@
 
   function openTurboKeySettings() {
     if (!turboKeySettingLoaded || !turboKeyInstalled || turboKeyAction) return
+    turboKeyEnableAfterSettings = false
     turboKeyDraftCodes = [...turboKeyCodes]
     turboKeyDraftIntervalMs = turboKeyIntervalMs
     turboKeyModalVisible = true
+  }
+
+  function closeTurboKeySettings() {
+    turboKeyModalVisible = false
+    turboKeyEnableAfterSettings = false
   }
 
   function toggleTurboKeyCode(code) {
@@ -739,12 +753,13 @@
     let saved = false
     try {
       const state = await window.nogirem.setTurboKeySetting({
-        enabled: turboKeyEnabled,
+        enabled: turboKeyEnableAfterSettings || turboKeyEnabled,
         keys: turboKeyDraftCodes,
         intervalMs: turboKeyDraftIntervalMs,
       })
       applyTurboKeyState(state)
       saved = true
+      turboKeyEnableAfterSettings = false
     } catch (error) {
       turboKeyNotice = messageOf(error)
     } finally {
@@ -1773,7 +1788,7 @@
                     >
                       {startupTrayAction === "saving"
                         ? "저장 중…"
-                        : (startupTrayEnabled ? "사용 중" : "사용 안 함")}
+                        : (startupTrayEnabled ? "사용 중" : "사용하기")}
                     </button>
                   </div>
                   {#if startupTrayNotice}
@@ -1794,13 +1809,15 @@
                       {#if turboKeyInstalled}
                         <div class="turbo-key-installed-actions">
                           <div class="turbo-key-primary-actions">
-                            <button
-                              class="developer-tool-secondary"
-                              disabled={turboKeyAction}
-                              onclick={openTurboKeySettings}
-                            >
-                              키 설정
-                            </button>
+                            {#if turboKeyEnabled}
+                              <button
+                                class="developer-tool-secondary"
+                                disabled={turboKeyAction}
+                                onclick={openTurboKeySettings}
+                              >
+                                키 설정
+                              </button>
+                            {/if}
                             <button
                               class:active={turboKeyEnabled}
                               disabled={turboKeyAction}
@@ -1811,7 +1828,7 @@
                                 ? "저장 중…"
                                 : (turboKeyEnabled
                                   ? (turboKeyRunning ? "사용 중" : "실행 오류")
-                                  : "사용 안 함")}
+                                  : "사용하기")}
                             </button>
                           </div>
                           <button
@@ -2255,7 +2272,7 @@
     variant="fullscreen"
     closeSignal={turboKeyModalCloseSignal}
     closeDisabled={turboKeyAction === "keys"}
-    onclose={() => turboKeyModalVisible = false}
+    onclose={closeTurboKeySettings}
   >
     <div class="turbo-key-picker">
       <div class="turbo-key-picker-summary">

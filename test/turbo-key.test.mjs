@@ -89,6 +89,28 @@ test("미설치 helper는 자동 실행하지 않고 제한된 다운로드 IPC�
   assert.match(electronPreload, /removeTurboKeyHelper:[\s\S]*application:remove-turbo-key-helper/)
 })
 
+test("터보 키를 사용하기 전에 설정 모달을 열고 사용 중일 때만 키 설정을 표시한다", async () => {
+  const applicationView = await readFile(
+    new URL("../web/App.svelte", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(
+    applicationView,
+    /async function toggleTurboKey\(\)[\s\S]*if \(!turboKeyEnabled\) \{[\s\S]*turboKeyEnableAfterSettings = true[\s\S]*turboKeyModalVisible = true[\s\S]*return/,
+  )
+  assert.match(
+    applicationView,
+    /enabled: turboKeyEnableAfterSettings \|\| turboKeyEnabled/,
+  )
+  assert.match(
+    applicationView,
+    /\{#if turboKeyEnabled\}[\s\S]*openTurboKeySettings[\s\S]*키 설정[\s\S]*\{\/if\}/,
+  )
+  assert.doesNotMatch(applicationView, /사용 안 함/)
+  assert.match(applicationView, /turboKeyEnabled[\s\S]*"사용하기"/)
+})
+
 test("터보 키 helper는 정밀 타이머와 우선 스케줄링을 사용한다", async () => {
   const helperSource = await readFile(
     new URL("../native/turbo-key/src/main.rs", import.meta.url),
