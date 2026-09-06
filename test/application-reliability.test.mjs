@@ -53,6 +53,11 @@ test("렌더러 종료와 장기 무응답 상태를 자동 복구한다", () =>
     /window\.on\("unresponsive"[\s\S]*primaryRendererUnresponsiveTimeoutMs/,
   )
   assert.match(electronMain, /window\.webContents\.reload\(\)/)
+  assert.doesNotMatch(electronMain, /\.isSkipTaskbar\(\)/)
+  assert.match(
+    electronMain,
+    /primaryWindowSkippedFromTaskbar[\s\S]*window\.setSkipTaskbar\(primaryWindowSkippedFromTaskbar\)/,
+  )
 })
 
 test("초기 상태 조회와 무관하게 창을 먼저 만들고 8초 안에 표시한다", () => {
@@ -99,6 +104,11 @@ test("부트스트랩이 시작 오류를 파일에 기록한다", () => {
 })
 
 test("마비노기 운영정책 링크는 허용된 주소만 시스템 브라우저로 연다", () => {
+  const policyUrlAt = applicationView.indexOf("const operationPolicyUrl")
+  const operationParseAt = applicationView.indexOf("const operationBlocks")
+
+  assert.ok(policyUrlAt >= 0)
+  assert.ok(operationParseAt > policyUrlAt)
   assert.match(
     operationDocument,
     /\[마비노기 '권장하지 않는 플레이 방식 안내'\]\(https:\/\/mabinogi\.nexon\.com\/page\/archive\/guide_view\.asp\?id=4889849&num=7&playtarget=1\)/,

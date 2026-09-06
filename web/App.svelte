@@ -218,10 +218,10 @@
     { id: "history", label: "버전 변경 기록", content: [] },
     { id: "developer-tools", label: "고급 기능", content: [] },
   ]
+  const operationPolicyUrl = "https://mabinogi.nexon.com/page/archive/guide_view.asp?id=4889849&num=7&playtarget=1"
   const introduceBlocks = parseIntroduceMarkdown(introduceMarkdown)
   const operationBlocks = parseIntroduceMarkdown(operationMarkdown)
   const versionHistoryEntries = parseVersionHistory(versionHistoryMarkdown)
-  const operationPolicyUrl = "https://mabinogi.nexon.com/page/archive/guide_view.asp?id=4889849&num=7&playtarget=1"
 
   function decodeMarkdownText(text) {
     return text.replace(/\\([\\`*_[\]{}()#+\-.!])/g, "$1")

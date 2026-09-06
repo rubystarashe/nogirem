@@ -80,6 +80,7 @@ let applicationExitInProgress = false
 let primaryWindowFocusPending = false
 let primaryWindowFocusTimer = null
 let primaryVisualActivityTimer = null
+let primaryWindowSkippedFromTaskbar = false
 let primaryWindowRevealFrameTimer = null
 let primaryWindowRevealWatchdogTimer = null
 let primaryWindowRevealStarted = false
@@ -2739,6 +2740,7 @@ function focusPrimaryWindow() {
   primaryWindowFocusPending = false
   if (primaryWindow.isMinimized()) primaryWindow.restore()
   primaryWindow.setSkipTaskbar(false)
+  primaryWindowSkippedFromTaskbar = false
   if (!primaryWindow.isVisible()) primaryWindow.show()
   const window = primaryWindow
   const wasAlwaysOnTop = window.isAlwaysOnTop()
@@ -2789,6 +2791,7 @@ function minimizePrimaryWindowToTray() {
   if (!primaryWindow || primaryWindow.isDestroyed()) return false
   ensureApplicationTray()
   primaryWindow.setSkipTaskbar(true)
+  primaryWindowSkippedFromTaskbar = true
   primaryWindow.hide()
   notifyPrimaryVisualActivity()
   return true
@@ -2851,15 +2854,13 @@ function recoverPrimaryRenderer(window, reason) {
   primaryRendererRecoveryResetTimer = null
   primaryRendererRecoveryMode = true
   primaryRendererRecoveryInProgress = true
-  const wasVisible = window.isVisible()
-  const wasSkippedFromTaskbar = window.isSkipTaskbar()
   console.error(`렌더러 자동 복구 시작: ${reason}`)
 
   window.webContents.once("did-finish-load", () => {
     if (primaryWindow !== window || window.isDestroyed()) return
     primaryRendererRecoveryInProgress = false
-    if (!wasVisible) window.hide()
-    window.setSkipTaskbar(wasSkippedFromTaskbar)
+    if (primaryWindowSkippedFromTaskbar) window.hide()
+    window.setSkipTaskbar(primaryWindowSkippedFromTaskbar)
     primaryRendererRecoveryResetTimer = setTimeout(() => {
       primaryRendererRecoveryMode = false
       primaryRendererRecoveryResetTimer = null
@@ -2914,6 +2915,7 @@ function createWindow() {
   })
   window.on("responsive", clearPrimaryRendererUnresponsiveTimer)
   primaryWindow = window
+  primaryWindowSkippedFromTaskbar = false
   writeStartupLog("메인 창 생성 완료")
   if (!startupTrayLaunch) {
     clearTimeout(primaryWindowRevealWatchdogTimer)
@@ -2951,6 +2953,7 @@ function createWindow() {
     primaryRendererRecoveryMode = false
     primaryRendererRecoveryInProgress = false
     primaryWindowRevealStarted = false
+    primaryWindowSkippedFromTaskbar = false
     if (primaryWindow === window) primaryWindow = null
   })
 
@@ -2963,6 +2966,7 @@ function createWindow() {
       if (startupTrayLaunch) {
         window.setOpacity(1)
         window.setSkipTaskbar(true)
+        primaryWindowSkippedFromTaskbar = true
       }
       if (primaryWindowFocusPending) focusPrimaryWindow()
     })
