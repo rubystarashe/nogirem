@@ -15,7 +15,7 @@ test("터보 키 기본값은 선택된 키가 없는 상태다", () => {
 })
 
 test("터보 키 선택값은 지원 키만 중복 없이 정규화한다", () => {
-  assert.deepEqual(normalizeTurboKeyCodes([112, 49, 112, 16, -1, "65"]), [49, 112])
+  assert.deepEqual(normalizeTurboKeyCodes([112, 49, 112, 27, 16, -1, "65"]), [49, 112])
   assert.deepEqual(normalizeTurboKeyCodes(null), defaultTurboKeyCodes)
 })
 
@@ -111,6 +111,18 @@ test("터보 키를 사용하기 전에 설정 모달을 열고 사용 중일 �
   assert.match(applicationView, /turboKeyEnabled[\s\S]*"사용하기"/)
 })
 
+test("Esc는 터보 키에서 제외하고 키캡 hover 색상을 사용하지 않는다", async () => {
+  const [applicationView, applicationStyles, helperSource] = await Promise.all([
+    readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
+    readFile(new URL("../web/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../native/turbo-key/src/main.rs", import.meta.url), "utf8"),
+  ])
+
+  assert.match(applicationView, /\{ label: "Esc", disabled: true \}/)
+  assert.doesNotMatch(applicationStyles, /\.turbo-keycap:hover/)
+  assert.match(helperSource, /is_excluded_key[\s\S]*VK_ESCAPE/)
+})
+
 test("터보 키 helper는 정밀 타이머와 우선 스케줄링을 사용한다", async () => {
   const helperSource = await readFile(
     new URL("../native/turbo-key/src/main.rs", import.meta.url),
@@ -177,7 +189,7 @@ test("기존 동의를 유지한 채 구버전 터보 키 helper를 시작 시 �
     readFile(new URL("../src/turbo-key-installer.mjs", import.meta.url), "utf8"),
   ])
 
-  assert.match(installerSource, /turboKeyHelperVersion = "0\.1\.4"/)
+  assert.match(installerSource, /turboKeyHelperVersion = "0\.1\.5"/)
   assert.match(
     installerSource,
     /const updateRequired = manifest\.helperVersion !== turboKeyHelperVersion/,

@@ -26,7 +26,7 @@ use windows_sys::Win32::System::Threading::{
 };
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY,
-    KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, SendInput, VIRTUAL_KEY, VK_CAPITAL, VK_CONTROL,
+    KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, SendInput, VIRTUAL_KEY, VK_CAPITAL, VK_CONTROL, VK_ESCAPE,
     VK_LCONTROL, VK_LMENU, VK_LSHIFT, VK_LWIN, VK_MENU, VK_NUMLOCK, VK_PAUSE, VK_PRINT,
     VK_RCONTROL, VK_RMENU, VK_RSHIFT, VK_RWIN, VK_SCROLL, VK_SHIFT, VK_SNAPSHOT,
 };
@@ -155,6 +155,7 @@ fn is_excluded_key(vk_code: u32) -> bool {
         VK_PAUSE,
         VK_PRINT,
         VK_SNAPSHOT,
+        VK_ESCAPE,
     ]
     .contains(&(vk_code as VIRTUAL_KEY))
 }
@@ -816,6 +817,7 @@ mod tests {
         assert!(is_modifier(VK_RWIN as u32));
         assert!(is_excluded_key(VK_CAPITAL as u32));
         assert!(is_excluded_key(VK_NUMLOCK as u32));
+        assert!(is_excluded_key(VK_ESCAPE as u32));
         assert!(!is_excluded_key('1' as u32));
     }
 

@@ -21,7 +21,7 @@
 
   const keyboardRows = [
     [
-      { label: "Esc", code: 27 }, { spacer: 0.5 },
+      { label: "Esc", disabled: true }, { spacer: 0.5 },
       ...Array.from({ length: 12 }, (_, index) => ({
         label: `F${index + 1}`,
         code: 112 + index,

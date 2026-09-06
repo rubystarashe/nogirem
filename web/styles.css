@@ -1309,12 +1309,6 @@ button.direct-donation-card:hover {
   margin-left: 4px;
 }
 
-.turbo-keycap:hover:not(:disabled) {
-  border-color: #8d979c;
-  color: #fff;
-  background: #303638;
-}
-
 .turbo-keycap.selected {
   border-color: #68c994;
   color: #0c1b13;
