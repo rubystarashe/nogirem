@@ -1,14 +1,16 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 22:41
+Last Updated: 2026-09-06 22:50
 
 ## Current Objective
-최신 0.2.8 Windows 설치본을 로컬에 준비한다.
+트레이 복귀 후 입력 불가와 외부 창 최소화 현상을 창 수명주기 수준에서 차단하고 진단 상태를 기록한다.
 
 ## Current Status
 - 앱 버전은 0.2.8이다. 트레이 최소화 시 투명 보조 창을 숨기고 입력·always-on-top을 해제하며, 복귀 시 메인 창의 focusable·마우스 입력·웹 콘텐츠 포커스를 복원한다.
 - 트레이 종료 시 메인 창이 보이면 창을 포커스하고 앱 종료 화면을 표시하며, 트레이에 숨겨져 있으면 창을 복원하지 않고 독립된 Windows 네이티브 확인창만 표시한다.
-- 트레이 복귀는 메뉴가 닫힌 뒤 `restore → show → focus` 순서로 처리하고, 일반 포커스 실패 시 150ms 뒤 한 번만 재시도한다. `screen-saver` 최상단 설정과 `moveTop()`은 제거했다.
+- 트레이 복귀는 메뉴가 닫힌 뒤 메인 창을 활성화하고 `show()` 한 번만 호출한다. 트레이 복귀 경로에서는 `focus()`와 `webContents.focus()` 재시도를 수행하지 않는다.
+- 트레이 진입 시 투명 보조 창은 숨기지 않고 완전히 종료하며, 종료 이벤트가 메인 창을 다시 복원하지 않도록 WeakSet으로 구분한다.
+- 트레이 복귀 직후와 250ms 뒤 모든 BrowserWindow의 표시·포커스·활성화·최상단·위치 상태를 `startup.log`에 기록한다.
 - 정식 설치본에서 Chromium 렌더러가 `launch-failed`, `exitCode 18`로 생성되지 않으면 `--sandbox-fallback` 인자를 붙여 한 번 재실행하며, 이 재실행에서만 `no-sandbox`를 적용한다.
 - 0.2.7 배포 이후 변경을 `VERSION_HISTORY.md`와 `VERSION_HISTORY_DETAIL.md`의 0.2.8 항목으로 분리하고 0.2.8 GitHub 정식 Release를 배포했다.
 - 앱 내부 닫기 버튼은 창 복귀용 포커스 처리를 호출하지 않도록 분리했으며 0.2.8 설치본에 포함됐다.
@@ -1042,6 +1044,7 @@ Last Updated: 2026-09-06 22:41
 - 0.2.8 최초 자동 게시에서 installer와 blockmap이 동시에 Release 생성을 시도해 `422 already_exists`가 발생했다. 로컬 자산을 다시 생성한 뒤 단일 Release에 네 자산을 수동 업로드해 복구했다.
 - GitHub 정식 Release `v0.2.8`은 installer, blockmap, `latest.yml`, 터보 키 helper 0.1.3과 기능 중심 변경 내용을 포함한다. 최종 installer는 93,333,436바이트이고 SHA-256은 `8ffac79dd842d17910660500313d164287439646f8d35225479e3ca71acf4557`이다.
 - 같은 소스의 0.2.8 installer를 로컬에서 다시 패키징했다. 크기는 93,333,609바이트이고 SHA-256은 `d94d5b88ad663029a1181c1a3b7ed96db4c2b091572755015af5fb0fcd690b7c`이며 GitHub Release 자산은 변경하지 않았다.
+- 0.2.8 현장 재현이 계속되어 트레이 진입 시 보조 창 완전 종료, 메인 창 `setEnabled(true)`, 복귀 시 단일 `show()`, 창 상태 진단 로그를 추가했다. Node 테스트 99개와 Svelte 프로덕션 빌드가 통과했으며 기존 로컬·GitHub 설치본에는 포함되지 않았다.
 
 ## Next Recommended Step
-로컬 0.2.8 설치본에서 트레이 복귀, 최초 포커스, 즉시 트레이 생성과 `exitCode 18` 자동 fallback을 affected PC에서 검증한다.
+최신 트레이 복귀 수명주기 수정본을 패키징해 affected PC에서 재현 여부를 확인하고, 계속 발생하면 새 진단 로그의 `트레이 복귀` 항목을 분석한다.

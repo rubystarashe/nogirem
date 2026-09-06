@@ -68,34 +68,46 @@ test("렌더러 종료와 장기 무응답 상태를 자동 복구한다", () =>
   )
 })
 
-test("트레이 복귀는 메뉴 종료 후 일반 포커스를 적용하고 한 번만 재시도한다", () => {
+test("트레이 진입은 보조 창을 종료하고 복귀는 메인 창을 한 번만 표시한다", () => {
+  const focusStart = electronMain.indexOf("function focusPrimaryWindow()")
+  const focusEnd = electronMain.indexOf("function focusPrimaryWindowAfterTrayMenu()", focusStart)
+  const focusSource = electronMain.slice(focusStart, focusEnd)
+  const restoreStart = focusSource.indexOf("if (restoringFromTray) {")
+  const restoreEnd = focusSource.indexOf("\n  if (!window.isVisible())", restoreStart)
+  const restoreSource = focusSource.slice(restoreStart, restoreEnd)
+
+  assert.match(
+    electronMain,
+    /function closeInternalWindowsForTray\(\)[\s\S]*internalWindowsClosedForTray\.add\(window\)[\s\S]*window\.destroy\(\)/,
+  )
+  assert.match(
+    electronMain,
+    /function minimizePrimaryWindowToTray\(\)[\s\S]*closeInternalWindowsForTray\(\)[\s\S]*primaryWindow\.hide\(\)/,
+  )
+  assert.match(focusSource, /setEnabled\(true\)[\s\S]*setFocusable\(true\)[\s\S]*setIgnoreMouseEvents\(false\)/)
+  assert.match(restoreSource, /window\.show\(\)[\s\S]*writeWindowDiagnostics\("트레이 복귀 직후 창 상태"\)[\s\S]*return/)
+  assert.doesNotMatch(restoreSource, /window\.focus\(\)|webContents\.focus\(\)/)
+  assert.equal(
+    electronMain.match(/internalWindowsClosedForTray\.delete\(window\)/g)?.length,
+    3,
+  )
+  assert.match(
+    electronMain,
+    /function focusPrimaryWindowAfterTrayMenu\(\)[\s\S]*trayMenuCloseDelayMs[\s\S]*label: "열기"[\s\S]*focusPrimaryWindowAfterTrayMenu/,
+  )
+})
+
+test("일반 창 포커스는 지연 후 상태를 확인하고 한 번만 재시도한다", () => {
   const focusStart = electronMain.indexOf("function focusPrimaryWindow()")
   const focusEnd = electronMain.indexOf("function focusPrimaryWindowAfterTrayMenu()", focusStart)
   const focusSource = electronMain.slice(focusStart, focusEnd)
 
-  assert.match(
-    electronMain,
-    /function hideInternalWindowsForTray\(\)[\s\S]*setIgnoreMouseEvents\(true\)[\s\S]*setAlwaysOnTop\(false\)[\s\S]*window\.hide\(\)/,
-  )
-  assert.match(
-    electronMain,
-    /function minimizePrimaryWindowToTray\(\)[\s\S]*hideInternalWindowsForTray\(\)[\s\S]*primaryWindow\.hide\(\)/,
-  )
-  assert.ok(focusSource.indexOf("restore()") < focusSource.indexOf("show()"))
   assert.match(focusSource, /const applyFocus = \(\) =>[\s\S]*window\.focus\(\)[\s\S]*window\.webContents\.focus\(\)/)
   assert.match(
     focusSource,
     /primaryWindowFocusTimer = setTimeout\([\s\S]*applyFocus\(\)[\s\S]*if \(!window\.isFocused\(\)\) applyFocus\(\)[\s\S]*primaryWindowFocusRetryDelayMs/,
   )
   assert.doesNotMatch(focusSource, /screen-saver|moveTop\(\)/)
-  assert.match(
-    electronMain,
-    /function focusPrimaryWindowAfterTrayMenu\(\)[\s\S]*trayMenuCloseDelayMs[\s\S]*label: "열기"[\s\S]*focusPrimaryWindowAfterTrayMenu/,
-  )
-  assert.equal(
-    electronMain.match(/Window\.setIgnoreMouseEvents\(false\)/g)?.length,
-    4,
-  )
 })
 
 test("트레이 종료는 메인 창 표시 여부에 맞는 종료 선택창을 사용한다", () => {

@@ -90,6 +90,7 @@ let applicationExitInProgress = false
 let primaryWindowFocusPending = false
 let primaryWindowFocusTimer = null
 let primaryWindowTrayRestoreTimer = null
+let primaryWindowDiagnosticsTimer = null
 let primaryVisualActivityTimer = null
 let primaryWindowSkippedFromTaskbar = false
 let primaryWindowRevealFrameTimer = null
@@ -132,6 +133,7 @@ let gamePathStateReading = false
 let creatorChannelProfilePromise = null
 let turboKeyProcess = null
 let turboKeyInstallationCache = null
+const internalWindowsClosedForTray = new WeakSet()
 let primaryRendererRecoveryMode = false
 let primaryRendererRecoveryInProgress = false
 let sandboxCompatibilityRelaunching = false
@@ -2670,9 +2672,10 @@ function openDxvkManager() {
     animateOpacity(window.getOpacity(), 0, 300, () => window.destroy())
   })
   window.on("closed", () => {
+    const closedForTray = internalWindowsClosedForTray.delete(window)
     clearInterval(opacityTimer)
     if (dxvkManagerWindow === window) dxvkManagerWindow = null
-    if (!applicationExitInProgress) focusPrimaryWindow()
+    if (!applicationExitInProgress && !closedForTray) focusPrimaryWindow()
   })
   const builtManagerPath = join(root, "dist", "dxvk-manager.html")
   const loading = process.argv.includes("--dev")
@@ -2760,10 +2763,11 @@ function openDxvkGuide() {
     animateOpacity(window.getOpacity(), 0, 300, () => window.destroy())
   })
   window.on("closed", () => {
+    const closedForTray = internalWindowsClosedForTray.delete(window)
     clearInterval(opacityTimer)
     if (dxvkGuideDrag?.window === window) dxvkGuideDrag = null
     if (dxvkGuideWindow === window) dxvkGuideWindow = null
-    if (!applicationExitInProgress) focusPrimaryWindow()
+    if (!applicationExitInProgress && !closedForTray) focusPrimaryWindow()
   })
   const builtGuidePath = join(root, "dist", "dxvk-guide.html")
   const loading = process.argv.includes("--dev")
@@ -2848,10 +2852,11 @@ function openCharacterSimplificationGuide() {
     animateOpacity(window.getOpacity(), 0, 300, () => window.destroy())
   })
   window.on("closed", () => {
+    const closedForTray = internalWindowsClosedForTray.delete(window)
     clearInterval(opacityTimer)
     if (characterGuideDrag?.window === window) characterGuideDrag = null
     if (characterGuideWindow === window) characterGuideWindow = null
-    if (!applicationExitInProgress) focusPrimaryWindow()
+    if (!applicationExitInProgress && !closedForTray) focusPrimaryWindow()
   })
   const builtGuidePath = join(root, "dist", "character-guide.html")
   const loading = process.argv.includes("--dev")
@@ -2938,12 +2943,27 @@ function internalWindows() {
   ].filter(window => window && !window.isDestroyed())
 }
 
-function hideInternalWindowsForTray() {
+function closeInternalWindowsForTray() {
   for (const window of internalWindows()) {
+    internalWindowsClosedForTray.add(window)
     window.setIgnoreMouseEvents(true)
     window.setAlwaysOnTop(false)
-    window.hide()
+    window.destroy()
   }
+}
+
+function writeWindowDiagnostics(context) {
+  const windows = BrowserWindow.getAllWindows().map(window => ({
+    title: window.getTitle(),
+    visible: window.isVisible(),
+    focused: window.isFocused(),
+    minimized: window.isMinimized(),
+    enabled: typeof window.isEnabled === "function" ? window.isEnabled() : null,
+    focusable: typeof window.isFocusable === "function" ? window.isFocusable() : null,
+    alwaysOnTop: window.isAlwaysOnTop(),
+    bounds: window.getBounds(),
+  }))
+  writeStartupLog(`${context}: ${JSON.stringify(windows)}`)
 }
 
 function focusPrimaryWindow() {
@@ -2953,17 +2973,31 @@ function focusPrimaryWindow() {
   }
   primaryWindowFocusPending = false
   const restoringFromTray = primaryWindowSkippedFromTaskbar
-  if (restoringFromTray) hideInternalWindowsForTray()
+  if (restoringFromTray) closeInternalWindowsForTray()
   if (primaryWindow.isMinimized()) primaryWindow.restore()
+  primaryWindow.setEnabled(true)
   primaryWindow.setFocusable(true)
   primaryWindow.setIgnoreMouseEvents(false)
   primaryWindow.setAlwaysOnTop(false)
   primaryWindow.setSkipTaskbar(false)
   primaryWindowSkippedFromTaskbar = false
-  if (!primaryWindow.isVisible()) primaryWindow.show()
   const window = primaryWindow
   clearTimeout(primaryWindowFocusTimer)
+  clearTimeout(primaryWindowDiagnosticsTimer)
 
+  if (restoringFromTray) {
+    window.show()
+    writeWindowDiagnostics("트레이 복귀 직후 창 상태")
+    primaryWindowDiagnosticsTimer = setTimeout(() => {
+      primaryWindowDiagnosticsTimer = null
+      if (primaryWindow === window && !window.isDestroyed()) {
+        writeWindowDiagnostics("트레이 복귀 250ms 후 창 상태")
+      }
+    }, 250)
+    return
+  }
+
+  if (!window.isVisible()) window.show()
   const applyFocus = () => {
     if (primaryWindow !== window || window.isDestroyed()) return
     window.focus()
@@ -3030,10 +3064,12 @@ function minimizePrimaryWindowToTray() {
   if (!primaryWindow || primaryWindow.isDestroyed()) return false
   clearTimeout(primaryWindowFocusTimer)
   clearTimeout(primaryWindowTrayRestoreTimer)
+  clearTimeout(primaryWindowDiagnosticsTimer)
   primaryWindowFocusTimer = null
   primaryWindowTrayRestoreTimer = null
+  primaryWindowDiagnosticsTimer = null
   ensureApplicationTray()
-  hideInternalWindowsForTray()
+  closeInternalWindowsForTray()
   primaryWindow.setSkipTaskbar(true)
   primaryWindowSkippedFromTaskbar = true
   primaryWindow.hide()
@@ -3206,11 +3242,13 @@ function createWindow() {
     clearTimeout(primaryRendererRecoveryResetTimer)
     clearTimeout(primaryWindowFocusTimer)
     clearTimeout(primaryWindowTrayRestoreTimer)
+    clearTimeout(primaryWindowDiagnosticsTimer)
     clearTimeout(primaryVisualActivityTimer)
     clearTimeout(primaryWindowRevealFrameTimer)
     clearTimeout(primaryWindowRevealWatchdogTimer)
     primaryWindowFocusTimer = null
     primaryWindowTrayRestoreTimer = null
+    primaryWindowDiagnosticsTimer = null
     primaryVisualActivityTimer = null
     primaryWindowRevealFrameTimer = null
     primaryWindowRevealWatchdogTimer = null
