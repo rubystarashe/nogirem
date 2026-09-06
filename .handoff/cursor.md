@@ -1,11 +1,13 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-07 00:51
+Last Updated: 2026-09-07 00:57
 
 ## Current Objective
-Esc를 터보 키 적용 대상에서 제외하고 키캡 hover가 선택 색상을 덮지 않도록 한다.
+최신 변경과 터보 키 helper 0.1.5를 포함한 0.2.9를 GitHub에 배포한다.
 
 ## Current Status
+- GitHub 정식 Release `v0.2.9`를 게시했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.5 네 자산이 모두 업로드됐다.
+- `v0.2.9` 태그는 기능 변경 최종 커밋 `73f8e6071bb87aa0007e64acd06bc5877804d5dd`를 가리킨다.
 - Esc는 터보 키 선택 UI에서 비활성화되고 저장 설정 정규화에서 제거되며 Rust helper도 직접 거부한다.
 - 터보 키 키캡의 hover 색상은 삭제해 선택된 키의 초록색 상태가 포인터 위치와 관계없이 유지된다.
 - 전역 `button:focus-visible`의 초록색 outline을 제거해 Esc 등 키보드 입력 후 최적화 요약 버튼에 강조 테두리가 표시되지 않는다.
@@ -15,7 +17,7 @@ Esc를 터보 키 적용 대상에서 제외하고 키캡 hover가 선택 색상
 - 개발 실행은 `native/turbo-key/bin/turbo-key-helper.exe`의 PE 형식과 크기를 확인한 뒤 해당 파일을 직접 실행한다. 로컬 재빌드 결과를 AppData 재설치 없이 바로 테스트할 수 있다.
 - 정식 설치본은 기존처럼 GitHub Release 자산을 다운로드하고 AppData 설치본의 manifest와 SHA-256을 검증해 실행한다.
 - 앱 버전과 사용자·상세 변경 기록을 0.2.9로 갱신하고 Windows x64 설치본을 패키징했다. 사용자 요청에 따라 배포하지 않았다.
-- 로컬 자산은 `nogirem-setup-0.2.9.exe`, blockmap, `latest.yml`, `turbo-key-helper-win32-x64-v0.1.4.exe`이며 `latest.yml`의 버전과 파일명이 0.2.9로 일치한다.
+- 로컬 자산은 `nogirem-setup-0.2.9.exe`, blockmap, `latest.yml`, `turbo-key-helper-win32-x64-v0.1.5.exe`이며 `latest.yml`의 버전과 파일명이 0.2.9로 일치한다.
 - 터보 키 helper 0.1.5는 눌린 설정 키 순서를 유지하고 Esc를 허용하지 않는다. `2 → 3`을 누르면 3을 반복하고 3을 떼면 계속 누르고 있던 2를 즉시 다시 반복한다.
 - 설정되지 않은 일반 키의 누름·해제는 현재 터보 키 반복 순서와 활성 키에 영향을 주지 않는다. modifier 입력의 안전 중단 동작은 유지한다.
 - 앱 버전은 0.2.9이다. 트레이 최소화 시 투명 보조 창을 숨기고 입력·always-on-top을 해제하며, 복귀 시 메인 창의 focusable·마우스 입력·웹 콘텐츠 포커스를 복원한다.
@@ -1067,6 +1069,8 @@ Esc를 터보 키 적용 대상에서 제외하고 키캡 hover가 선택 색상
 - 기존 로컬 0.2.9 installer는 이번 말풍선·Esc 변경 전에 생성됐으므로 배포 전 다시 패키징해야 한다.
 - 키보드로 모달을 닫은 뒤 버튼에 남던 초록색 `focus-visible` 외곽선을 제거했다. 관련 회귀 테스트 18개와 Svelte 프로덕션 빌드가 통과했다.
 - Esc 적용 제외와 키캡 hover 제거를 반영하고 helper 자동 교체 버전을 0.1.5로 올렸다. Rust 테스트 13개, clippy, helper release 빌드, Node 테스트 105개와 Svelte 빌드가 통과했다.
+- 0.2.9 자동 게시에서 installer와 blockmap의 병렬 Release 생성으로 `422 already_exists`가 발생했다. 단일 Release에 최신 네 자산을 `--clobber`로 정리하고 정식 릴리스 노트를 게시했다.
+- 최종 0.2.9 installer는 93,469,213바이트이고 SHA-256은 `7758D27A1F8D8A41744FFD2ED17AA519E4C48DA8DCECE6BA57541B8F7A32BAB0`이다. helper 0.1.5 SHA-256은 `D75A5FB357CCAF2BE9416F298C785C0A998E6AF25871602A109D733D59A2039B`이며 GitHub digest와 일치한다.
 
 ## Next Recommended Step
-개발 앱의 터보 키 설정에서 Esc 비활성화와 선택 키 색상 유지를 확인한 뒤 helper 0.1.5를 포함해 0.2.9를 다시 패키징한다.
+기존 설치본에서 0.2.9 자동 업데이트와 동의가 유지된 터보 키 helper의 0.1.5 자동 교체를 확인한다.
