@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 20:21
+Last Updated: 2026-09-06 20:25
 
 ## Current Objective
 사용자에게 표시하는 버전 변경 기록을 증상과 결과 중심으로 간결하게 유지한다.
@@ -10,7 +10,7 @@ Last Updated: 2026-09-06 20:21
 - 트레이 종료는 렌더러 모달 대신 Windows 네이티브 확인창을 사용해 메인 UI를 클릭할 수 없는 상황에서도 설정 복원·유지·취소를 선택할 수 있다.
 - 업데이트 레이어는 비대화형 영역에서 포인터 입력을 가로채지 않으며 일반 모달은 업데이트보다 높은 레이어에서 표시된다. 종료 모달이 열리면 업데이트 레이어를 숨긴다.
 - `VERSION_HISTORY.md`는 앱에 표시할 간결한 사용자용 기록으로 정리하고 기존 기술 내용은 `VERSION_HISTORY_DETAIL.md`로 분리해 보존했다.
-- 0.2.7 Windows 설치본 패키징을 완료했으며 아직 배포하지 않았다.
+- 간결한 앱 내 변경 기록까지 포함한 0.2.7 Windows 설치본 패키징을 완료했으며 아직 배포하지 않았다.
 - NSIS `customInstall`에서 `$launchLink`를 `$INSTDIR\${APP_EXECUTABLE_FILENAME}`으로 강제해 설치 완료 자동 실행이 시작 메뉴 `.lnk`에 의존하지 않는다.
 - 앱과 터보 키는 지정 폴더의 `Client.exe`뿐 아니라 같은 디렉토리에 `Mabinogi.exe`가 있는 `Client.exe`도 게임으로 인식한다. 터보 키 helper는 자동 교체를 위해 0.1.3으로 올렸다.
 - GitHub 정식 Release `v0.2.6`을 Mabinogi.exe 동봉 fallback 수정본으로 다시 대치했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.3 네 자산을 검증했다.
@@ -1024,8 +1024,8 @@ Last Updated: 2026-09-06 20:21
 - 설치 완료 시 electron-builder가 선택한 시작 메뉴 바로가기 대신 설치된 EXE를 직접 실행하도록 NSIS launch link를 재지정했다. Node 테스트 94개와 실제 NSIS 패키징이 통과했다.
 - 트레이 진입 시 DXVK 관리·DXVK 안내·캐릭터 안내 창을 명시적으로 숨기고 투명 창의 입력 가로채기와 always-on-top을 해제한다. 기존 보조 창을 다시 열 때만 입력을 복원한다.
 - 메인 창 복귀 시 `setFocusable(true)`, `setIgnoreMouseEvents(false)`, `webContents.focus()`를 적용하고 트레이 종료에는 네이티브 확인창을 사용한다. 업데이트 레이어 입력 충돌 회귀 테스트를 추가해 Node 테스트 97개와 NSIS 패키징이 통과했다.
-- 0.2.7 installer는 93,245,967바이트이고 SHA-256은 `51a9596d0b1be6cff4bea61522039eea7ac0849dfdd796086092cfedf0c4965b`다.
+- 변경 기록 분리 후 0.2.7 installer를 다시 패키징했다. 최종 크기는 93,250,396바이트이고 SHA-256은 `283551dd61f255aef73cbd06baae69ad503b641ea5119b735efb876f3212b167`이다.
 - 기존 버전 변경 기록을 `VERSION_HISTORY_DETAIL.md`로 보존하고 앱에 표시되는 `VERSION_HISTORY.md`는 증상과 결과 중심으로 압축했다.
 
 ## Next Recommended Step
-문서 변경을 포함해 0.2.7을 다시 패키징한 뒤 트레이 최소화·복귀와 네이티브 종료 선택을 수동 검증하고 배포한다.
+0.2.7 설치본에서 트레이 최소화·복귀와 네이티브 종료 선택을 수동 검증한 뒤 사용자 요청 시 배포한다.
