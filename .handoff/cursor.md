@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 15:37
+Last Updated: 2026-09-06 15:42
 
 ## Current Objective
 0.2.5에서 손상된 런타임 상태를 복구하고 PC방 특수 네트워크와 NVIDIA `NVAPI -1` 저장 실패를 부분 지원한다.
@@ -995,6 +995,8 @@ Last Updated: 2026-09-06 15:37
 - 유휴 부하 개선 helper 버전을 0.1.1로 올렸다. 기존 helper의 PE 형식과 manifest SHA-256이 정상인 경우 `updateRequired`로 판정하고, 앱 시작 시 기존 약관 동의 시각과 키 설정·활성화 상태를 유지한 채 현재 앱 Release의 0.1.1 자산으로 자동 교체한다.
 - helper 자동 교체는 활성화 여부와 무관하게 앱 시작 시 수행한다. 교체 후 이전에 사용 중이던 사용자는 새 helper를 즉시 다시 실행하며, 미사용 상태는 그대로 유지한다.
 - 구버전 감지·동의 보존·자동 교체 연결 회귀 테스트를 포함한 Node 테스트 16개와 helper 0.1.1 release 빌드, Svelte 프로덕션 빌드가 통과했다.
+- GitHub 정식 Release `v0.2.5`를 게시했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.1 네 자산과 기능 중심 변경 내용을 검증했다.
+- 0.2.5 installer는 93,151,762바이트이고 SHA-256은 `fa8e172cc2226bedc0544429a734e842b88c5904440482ffac32f464780bebb7`다. helper 0.1.1 SHA-256은 `477f53db297b0e9a724cf63ba7afe40616b8e7c9800c5fa69d8ed388652d0283`다.
 
 ## Next Recommended Step
-0.1.0 helper manifest를 가진 설치 환경에서 0.2.5 시작 시 0.1.1 자동 교체와 기존 활성화 상태 복원을 확인한 뒤 패키징한다.
+0.1.0 helper manifest를 가진 실제 설치 환경에서 공개 0.2.5 시작 시 0.1.1 자동 교체와 기존 활성화 상태 복원을 확인한다.
