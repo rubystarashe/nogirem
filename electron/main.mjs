@@ -2964,20 +2964,17 @@ function focusPrimaryWindow() {
   const window = primaryWindow
   clearTimeout(primaryWindowFocusTimer)
 
-  const applyFocus = allowRetry => {
+  const applyFocus = () => {
     if (primaryWindow !== window || window.isDestroyed()) return
     window.focus()
     window.webContents.focus()
-    if (allowRetry && !window.isFocused()) {
-      primaryWindowFocusTimer = setTimeout(() => {
-        primaryWindowFocusTimer = null
-        applyFocus(false)
-      }, primaryWindowFocusRetryDelayMs)
-    }
   }
   primaryWindowFocusTimer = setTimeout(() => {
-    primaryWindowFocusTimer = null
-    applyFocus(true)
+    applyFocus()
+    primaryWindowFocusTimer = setTimeout(() => {
+      primaryWindowFocusTimer = null
+      if (!window.isFocused()) applyFocus()
+    }, primaryWindowFocusRetryDelayMs)
   }, 0)
 }
 
@@ -3248,7 +3245,7 @@ async function startApplication() {
   await app.whenReady()
   writeStartupLog("Electron 준비 완료")
   configureApplicationUpdater()
-  if (startupTrayLaunch) ensureApplicationTray()
+  ensureApplicationTray()
   createWindow()
 
   void startFocusRequestMonitor()

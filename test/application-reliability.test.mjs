@@ -82,9 +82,11 @@ test("트레이 복귀는 메뉴 종료 후 일반 포커스를 적용하고 한
     /function minimizePrimaryWindowToTray\(\)[\s\S]*hideInternalWindowsForTray\(\)[\s\S]*primaryWindow\.hide\(\)/,
   )
   assert.ok(focusSource.indexOf("restore()") < focusSource.indexOf("show()"))
-  assert.match(focusSource, /const applyFocus = allowRetry =>[\s\S]*window\.focus\(\)[\s\S]*window\.webContents\.focus\(\)/)
-  assert.match(focusSource, /primaryWindowFocusTimer = setTimeout\([\s\S]*applyFocus\(true\)/)
-  assert.match(focusSource, /!window\.isFocused\(\)[\s\S]*primaryWindowFocusRetryDelayMs/)
+  assert.match(focusSource, /const applyFocus = \(\) =>[\s\S]*window\.focus\(\)[\s\S]*window\.webContents\.focus\(\)/)
+  assert.match(
+    focusSource,
+    /primaryWindowFocusTimer = setTimeout\([\s\S]*applyFocus\(\)[\s\S]*if \(!window\.isFocused\(\)\) applyFocus\(\)[\s\S]*primaryWindowFocusRetryDelayMs/,
+  )
   assert.doesNotMatch(focusSource, /screen-saver|moveTop\(\)/)
   assert.match(
     electronMain,
@@ -138,6 +140,11 @@ test("초기 상태 조회와 무관하게 창을 먼저 만들고 8초 안에 �
 
   assert.ok(createWindowAt >= 0)
   assert.ok(loadPathAt > createWindowAt)
+  assert.match(
+    electronMain,
+    /async function startApplication\(\)[\s\S]*configureApplicationUpdater\(\)[\s\S]*ensureApplicationTray\(\)[\s\S]*createWindow\(\)/,
+  )
+  assert.doesNotMatch(electronMain, /if \(startupTrayLaunch\) ensureApplicationTray\(\)/)
   assert.match(electronMain, /const primaryWindowRevealTimeoutMs = 8_000/)
   assert.match(
     electronMain,
