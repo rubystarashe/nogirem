@@ -221,6 +221,7 @@
   const introduceBlocks = parseIntroduceMarkdown(introduceMarkdown)
   const operationBlocks = parseIntroduceMarkdown(operationMarkdown)
   const versionHistoryEntries = parseVersionHistory(versionHistoryMarkdown)
+  const operationPolicyUrl = "https://mabinogi.nexon.com/page/archive/guide_view.asp?id=4889849&num=7&playtarget=1"
 
   function decodeMarkdownText(text) {
     return text.replace(/\\([\\`*_[\]{}()#+\-.!])/g, "$1")
@@ -248,8 +249,17 @@
       const headingMatch = line.match(/^(#{1,3})\s+(.+)$/)
       const listMatch = line.match(/^[-*]\s+(.+)$/)
       const imageMatch = line.match(/^!\[([^\]]*)\]\((\.\/doc_operation\/[^)\s]+)\)$/)
+      const linkMatch = line.match(/^\[([^\]]+)\]\((https:\/\/[^)\s]+)\)$/)
 
-      if (imageMatch) {
+      if (linkMatch?.[2] === operationPolicyUrl) {
+        flushParagraph()
+        flushList()
+        blocks.push({
+          type: "link",
+          text: decodeMarkdownText(linkMatch[1]),
+          href: linkMatch[2],
+        })
+      } else if (imageMatch) {
         flushParagraph()
         flushList()
         blocks.push({
@@ -1666,6 +1676,17 @@
                           alt={block.alt}
                           draggable="false"
                         />
+                      {:else if block.type === "link"}
+                        <a
+                          href={block.href}
+                          class="markdown-link"
+                          onclick={event => {
+                            event.preventDefault()
+                            void window.nogirem.openOperationPolicy()
+                          }}
+                        >
+                          {block.text}
+                        </a>
                       {:else}
                         <p>{block.text}</p>
                       {/if}
@@ -1696,6 +1717,17 @@
                         alt={block.alt}
                         draggable="false"
                       />
+                    {:else if block.type === "link"}
+                      <a
+                        href={block.href}
+                        class="markdown-link"
+                        onclick={event => {
+                          event.preventDefault()
+                          void window.nogirem.openOperationPolicy()
+                        }}
+                      >
+                        {block.text}
+                      </a>
                     {:else}
                       <p>{block.text}</p>
                     {/if}

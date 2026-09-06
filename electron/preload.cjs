@@ -68,5 +68,6 @@ contextBridge.exposeInMainWorld("nogirem", {
   dismissCreatorPrompt: () => ipcRenderer.invoke("application:dismiss-creator-prompt"),
   openCreatorChannel: () => ipcRenderer.invoke("application:open-creator-channel"),
   openDirectDonation: () => ipcRenderer.invoke("application:open-direct-donation"),
+  openOperationPolicy: () => ipcRenderer.invoke("application:open-operation-policy"),
   confirmClose: action => ipcRenderer.invoke("application:confirm-close", action),
 })

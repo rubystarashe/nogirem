@@ -947,6 +947,21 @@ footer {
   line-height: 1.65;
 }
 
+.introduce-markdown .markdown-link {
+  display: inline-block;
+  margin: 0 0 12px;
+  color: #376da8;
+  font-size: 12px;
+  line-height: 1.65;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.introduce-markdown .markdown-link:hover {
+  color: #1b76ff;
+}
+
 .introduce-markdown .markdown-image {
   display: block;
   width: 100%;
@@ -1434,6 +1449,10 @@ button.direct-donation-card:hover {
 
 .creator-view.paused .markdown-image {
   border-color: rgba(255, 255, 255, 0.18);
+}
+
+.creator-view.paused .markdown-link {
+  color: #8bbcff;
 }
 
 .creator-view.paused .donation-card {

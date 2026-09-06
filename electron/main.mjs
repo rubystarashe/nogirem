@@ -52,6 +52,7 @@ const pausedTrayIconPath = join(root, "icon-paused.png")
 const characterSimplificationFileName = "주변캐릭터간소화프레임제한해제.muo"
 const creatorChannelUrl = "https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zEBHg"
 const directDonationUrl = "https://thedirectdonation.org/"
+const operationPolicyUrl = "https://mabinogi.nexon.com/page/archive/guide_view.asp?id=4889849&num=7&playtarget=1"
 const startupTrayTaskName = "Mabinogi Rem Booster Startup"
 const startupTrayLaunch = process.argv.includes("--startup-tray")
 const applicationUpdateStallTimeoutMs = 45_000
@@ -2275,6 +2276,10 @@ function registerIpc() {
   ipcMain.handle("application:open-direct-donation", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
     return shell.openExternal(directDonationUrl).then(() => true)
+  })
+  ipcMain.handle("application:open-operation-policy", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
+    return shell.openExternal(operationPolicyUrl).then(() => true)
   })
   ipcMain.handle("dxvk-guide:request-close", event => {
     const window = BrowserWindow.fromWebContents(event.sender)
