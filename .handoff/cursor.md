@@ -1,13 +1,13 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 17:31
+Last Updated: 2026-09-06 17:35
 
 ## Current Objective
 비표준 마비노기 설치 경로의 `Client.exe`를 앱과 터보 키에서 정확히 탐지한다.
 
 ## Current Status
 - 앱과 터보 키는 지정 폴더의 `Client.exe`뿐 아니라 같은 디렉토리에 `Mabinogi.exe`가 있는 `Client.exe`도 게임으로 인식한다. 터보 키 helper는 자동 교체를 위해 0.1.3으로 올렸다.
-- GitHub 정식 Release `v0.2.6`을 경로 수정본으로 대치했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.2 네 자산을 검증했다.
+- GitHub 정식 Release `v0.2.6`을 Mabinogi.exe 동봉 fallback 수정본으로 다시 대치했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.3 네 자산을 검증했다.
 - 앱 버전은 0.2.6이다. 상태 JSON 교체는 `EPERM`·`EBUSY` 등을 지연 재시도한 뒤 기존 파일 삭제·교체로 복구하며, Affinity·메모리 helper는 일시적 기록 실패 후에도 계속 실행한다.
 - Affinity·메모리 helper마다 PID 기반 단일 실행 잠금을 사용해 동일한 상태 파일과 CPU 설정의 중복 처리를 막는다.
 - 터보 키 helper는 Electron 설치본과 `asarUnpack`에서 제외됐다. 패키징 시 `turbo-key-helper-win32-x64-v0.1.3.exe` 별도 자산을 `release`에 생성하며 GitHub 배포 시 같은 Release에 추가 업로드한다.
@@ -1012,7 +1012,8 @@ Last Updated: 2026-09-06 17:31
 - 기존 `v0.2.6` Release의 installer, blockmap, `latest.yml`을 경로 수정본으로 대치하고 helper 0.1.1을 0.1.2 자산으로 교체했다. 새 installer는 93,189,288바이트, SHA-256은 `cdbb05f03b9bca9368876dce7507784783378a0426bb110e8e57ebbde2fabd3c`다.
 - 동일 버전 대치이므로 이미 0.2.6을 설치한 사용자는 자동 업데이트가 재실행되지 않으며 수정본 수동 재설치가 필요하다는 안내를 Release 본문에 추가했다.
 - 허용 폴더명이 아닌 위치에서도 `Client.exe`와 같은 디렉토리에 `Mabinogi.exe`가 있으면 앱·메모리 helper·터보 키가 마비노기로 판정하도록 fallback을 추가했다.
-- 터보 키 helper를 0.1.3으로 올렸으며 Node 테스트 93개, Rust 테스트 12개와 release 빌드가 통과했다. 이 변경은 아직 공개 Release에 배포하지 않았다.
+- 터보 키 helper를 0.1.3으로 올렸으며 Node 테스트 93개, Rust 테스트 12개와 release 빌드가 통과했다.
+- 기존 `v0.2.6` Release를 Mabinogi.exe 동봉 fallback 수정본으로 다시 대치하고 helper 0.1.2 자산을 0.1.3으로 교체했다. installer는 93,206,469바이트, SHA-256은 `00145d996758eebab6a39d44ee5877e6535b0af2209554f1a508ba9b069f14ce`다.
 
 ## Next Recommended Step
-다음 배포에서 Mabinogi.exe 동봉 fallback과 터보 키 helper 0.1.3을 포함하고 비표준 설치 PC에서 실제 탐지를 확인한다.
+영향받은 사용자에게 최신 0.2.6 대치 설치본 수동 재설치를 안내하고 비표준 경로의 실제 Client.exe 탐지를 확인한다.
