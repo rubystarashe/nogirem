@@ -66,6 +66,8 @@ const startupTrayLaunch = process.argv.includes("--startup-tray")
 const applicationUpdateStallTimeoutMs = 45_000
 const primaryRendererUnresponsiveTimeoutMs = 5_000
 const primaryWindowRevealTimeoutMs = 8_000
+const trayMenuCloseDelayMs = 75
+const primaryWindowFocusRetryDelayMs = 150
 
 function writeStartupLog(message) {
   globalThis.__nogiremWriteStartupLog?.("INFO", message)
@@ -87,6 +89,7 @@ let closeRequestPending = false
 let applicationExitInProgress = false
 let primaryWindowFocusPending = false
 let primaryWindowFocusTimer = null
+let primaryWindowTrayRestoreTimer = null
 let primaryVisualActivityTimer = null
 let primaryWindowSkippedFromTaskbar = false
 let primaryWindowRevealFrameTimer = null
@@ -131,6 +134,7 @@ let turboKeyProcess = null
 let turboKeyInstallationCache = null
 let primaryRendererRecoveryMode = false
 let primaryRendererRecoveryInProgress = false
+let sandboxCompatibilityRelaunching = false
 let primaryRendererUnresponsiveTimer = null
 let primaryRendererRecoveryResetTimer = null
 const dxvkReleaseCacheDurationMs = 6 * 60 * 1000
@@ -2956,27 +2960,40 @@ function focusPrimaryWindow() {
   if (primaryWindow.isMinimized()) primaryWindow.restore()
   primaryWindow.setFocusable(true)
   primaryWindow.setIgnoreMouseEvents(false)
+  primaryWindow.setAlwaysOnTop(false)
   primaryWindow.setSkipTaskbar(false)
   primaryWindowSkippedFromTaskbar = false
   if (!primaryWindow.isVisible()) primaryWindow.show()
   const window = primaryWindow
-  const wasAlwaysOnTop = window.isAlwaysOnTop()
-  if (!wasAlwaysOnTop) window.setAlwaysOnTop(true, "screen-saver")
-  window.moveTop()
-  primaryWindow.focus()
-  primaryWindow.webContents.focus()
-  if (!wasAlwaysOnTop) {
-    clearTimeout(primaryWindowFocusTimer)
-    primaryWindowFocusTimer = setTimeout(() => {
-      if (primaryWindow === window && !window.isDestroyed()) {
-        window.setAlwaysOnTop(false)
-      }
-      primaryWindowFocusTimer = null
-    }, 500)
+  clearTimeout(primaryWindowFocusTimer)
+
+  const applyFocus = allowRetry => {
+    if (primaryWindow !== window || window.isDestroyed()) return
+    window.focus()
+    window.webContents.focus()
+    if (allowRetry && !window.isFocused()) {
+      primaryWindowFocusTimer = setTimeout(() => {
+        primaryWindowFocusTimer = null
+        applyFocus(false)
+      }, primaryWindowFocusRetryDelayMs)
+    }
   }
+  primaryWindowFocusTimer = setTimeout(() => {
+    primaryWindowFocusTimer = null
+    applyFocus(true)
+  }, 0)
 }
 
-function requestApplicationExitFromTray() {
+function focusPrimaryWindowAfterTrayMenu() {
+  clearTimeout(primaryWindowTrayRestoreTimer)
+  primaryWindowTrayRestoreTimer = setTimeout(() => {
+    primaryWindowTrayRestoreTimer = null
+    focusPrimaryWindow()
+  }, trayMenuCloseDelayMs)
+}
+
+async function requestApplicationExitFromTray() {
+  await delay(trayMenuCloseDelayMs)
   const mainWindowVisible = Boolean(
     primaryWindow
     && !primaryWindow.isDestroyed()
@@ -2994,7 +3011,7 @@ function ensureApplicationTray() {
   applicationTray.setContextMenu(Menu.buildFromTemplate([
     {
       label: "열기",
-      click: () => focusPrimaryWindow(),
+      click: focusPrimaryWindowAfterTrayMenu,
     },
     {
       label: "종료",
@@ -3004,8 +3021,8 @@ function ensureApplicationTray() {
       },
     },
   ]))
-  applicationTray.on("click", focusPrimaryWindow)
-  applicationTray.on("double-click", focusPrimaryWindow)
+  applicationTray.on("click", focusPrimaryWindowAfterTrayMenu)
+  applicationTray.on("double-click", focusPrimaryWindowAfterTrayMenu)
   return applicationTray
 }
 
@@ -3016,6 +3033,10 @@ function updateApplicationTrayIcon() {
 
 function minimizePrimaryWindowToTray() {
   if (!primaryWindow || primaryWindow.isDestroyed()) return false
+  clearTimeout(primaryWindowFocusTimer)
+  clearTimeout(primaryWindowTrayRestoreTimer)
+  primaryWindowFocusTimer = null
+  primaryWindowTrayRestoreTimer = null
   ensureApplicationTray()
   hideInternalWindowsForTray()
   primaryWindow.setSkipTaskbar(true)
@@ -3066,6 +3087,24 @@ function observeInternalWindowVisualActivity(window) {
 function clearPrimaryRendererUnresponsiveTimer() {
   clearTimeout(primaryRendererUnresponsiveTimer)
   primaryRendererUnresponsiveTimer = null
+}
+
+function relaunchWithSandboxCompatibility(details) {
+  if (
+    !app.isPackaged
+    || globalThis.__nogiremSandboxFallbackLaunch
+    || sandboxCompatibilityRelaunching
+    || details?.reason !== "launch-failed"
+    || details?.exitCode !== 18
+  ) return false
+
+  sandboxCompatibilityRelaunching = true
+  writeStartupLog("Chromium 샌드박스 호환 모드로 한 번 재실행")
+  const args = process.argv.slice(1)
+  if (!args.includes("--sandbox-fallback")) args.push("--sandbox-fallback")
+  app.relaunch({ args })
+  app.exit(0)
+  return true
 }
 
 function recoverPrimaryRenderer(window, reason) {
@@ -3132,6 +3171,7 @@ function createWindow() {
   })
   window.webContents.on("render-process-gone", (_event, details) => {
     console.error("렌더러 프로세스 종료", details)
+    if (relaunchWithSandboxCompatibility(details)) return
     recoverPrimaryRenderer(window, `프로세스 종료 (${details.reason})`)
   })
   window.on("unresponsive", () => {
@@ -3170,10 +3210,12 @@ function createWindow() {
     clearPrimaryRendererUnresponsiveTimer()
     clearTimeout(primaryRendererRecoveryResetTimer)
     clearTimeout(primaryWindowFocusTimer)
+    clearTimeout(primaryWindowTrayRestoreTimer)
     clearTimeout(primaryVisualActivityTimer)
     clearTimeout(primaryWindowRevealFrameTimer)
     clearTimeout(primaryWindowRevealWatchdogTimer)
     primaryWindowFocusTimer = null
+    primaryWindowTrayRestoreTimer = null
     primaryVisualActivityTimer = null
     primaryWindowRevealFrameTimer = null
     primaryWindowRevealWatchdogTimer = null

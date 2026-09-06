@@ -68,7 +68,11 @@ test("렌더러 종료와 장기 무응답 상태를 자동 복구한다", () =>
   )
 })
 
-test("트레이 복귀 시 투명 보조 창의 입력 가로채기를 해제한다", () => {
+test("트레이 복귀는 메뉴 종료 후 일반 포커스를 적용하고 한 번만 재시도한다", () => {
+  const focusStart = electronMain.indexOf("function focusPrimaryWindow()")
+  const focusEnd = electronMain.indexOf("function focusPrimaryWindowAfterTrayMenu()", focusStart)
+  const focusSource = electronMain.slice(focusStart, focusEnd)
+
   assert.match(
     electronMain,
     /function hideInternalWindowsForTray\(\)[\s\S]*setIgnoreMouseEvents\(true\)[\s\S]*setAlwaysOnTop\(false\)[\s\S]*window\.hide\(\)/,
@@ -77,9 +81,14 @@ test("트레이 복귀 시 투명 보조 창의 입력 가로채기를 해제한
     electronMain,
     /function minimizePrimaryWindowToTray\(\)[\s\S]*hideInternalWindowsForTray\(\)[\s\S]*primaryWindow\.hide\(\)/,
   )
+  assert.ok(focusSource.indexOf("restore()") < focusSource.indexOf("show()"))
+  assert.match(focusSource, /const applyFocus = allowRetry =>[\s\S]*window\.focus\(\)[\s\S]*window\.webContents\.focus\(\)/)
+  assert.match(focusSource, /primaryWindowFocusTimer = setTimeout\([\s\S]*applyFocus\(true\)/)
+  assert.match(focusSource, /!window\.isFocused\(\)[\s\S]*primaryWindowFocusRetryDelayMs/)
+  assert.doesNotMatch(focusSource, /screen-saver|moveTop\(\)/)
   assert.match(
     electronMain,
-    /function focusPrimaryWindow\(\)[\s\S]*setFocusable\(true\)[\s\S]*setIgnoreMouseEvents\(false\)[\s\S]*webContents\.focus\(\)/,
+    /function focusPrimaryWindowAfterTrayMenu\(\)[\s\S]*trayMenuCloseDelayMs[\s\S]*label: "열기"[\s\S]*focusPrimaryWindowAfterTrayMenu/,
   )
   assert.equal(
     electronMain.match(/Window\.setIgnoreMouseEvents\(false\)/g)?.length,
@@ -129,6 +138,21 @@ test("초기 상태 조회와 무관하게 창을 먼저 만들고 8초 안에 �
   assert.doesNotMatch(
     applicationView,
     /then\(launchContext => loadAll\(\)\.finally/,
+  )
+})
+
+test("렌더러 생성 오류 18은 샌드박스 호환 모드로 한 번만 재실행한다", () => {
+  assert.match(
+    electronBootstrap,
+    /process\.argv\.includes\("--sandbox-fallback"\)[\s\S]*app\.commandLine\.appendSwitch\("no-sandbox"\)/,
+  )
+  assert.match(
+    electronMain,
+    /function relaunchWithSandboxCompatibility\(details\)[\s\S]*details\?\.reason !== "launch-failed"[\s\S]*details\?\.exitCode !== 18[\s\S]*app\.relaunch\(\{ args \}\)[\s\S]*app\.exit\(0\)/,
+  )
+  assert.match(
+    electronMain,
+    /webContents\.on\("render-process-gone"[\s\S]*relaunchWithSandboxCompatibility\(details\)/,
   )
 })
 

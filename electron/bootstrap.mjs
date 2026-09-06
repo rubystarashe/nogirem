@@ -8,6 +8,10 @@ const logDirectory = process.env.APPDATA
   : join(app.getPath("userData"), "logs")
 const logPath = join(logDirectory, "startup.log")
 const originalConsoleError = console.error.bind(console)
+const sandboxFallbackLaunch = process.argv.includes("--sandbox-fallback")
+
+if (sandboxFallbackLaunch) app.commandLine.appendSwitch("no-sandbox")
+globalThis.__nogiremSandboxFallbackLaunch = sandboxFallbackLaunch
 
 function formatValue(value) {
   if (value instanceof Error) return value.stack ?? value.message
@@ -48,7 +52,11 @@ process.on("unhandledRejection", reason => {
   writeLog("REJECTION", [reason])
 })
 
-writeLog("START", [`version=${app.getVersion()}`, `args=${process.argv.join(" ")}`])
+writeLog("START", [
+  `version=${app.getVersion()}`,
+  `args=${process.argv.join(" ")}`,
+  `sandboxFallback=${sandboxFallbackLaunch}`,
+])
 
 try {
   await import("./main.mjs")

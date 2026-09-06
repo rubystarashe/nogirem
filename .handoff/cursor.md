@@ -1,13 +1,15 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 20:38
+Last Updated: 2026-09-06 21:32
 
 ## Current Objective
-트레이 종료 시 메인 창 표시 여부에 맞는 종료 선택 화면을 제공한다.
+트레이 복귀 포커스 경합과 일부 PC의 Chromium 샌드박스 실행 실패를 자동 복구한다.
 
 ## Current Status
 - 앱 버전은 0.2.7이다. 트레이 최소화 시 투명 보조 창을 숨기고 입력·always-on-top을 해제하며, 복귀 시 메인 창의 focusable·마우스 입력·웹 콘텐츠 포커스를 강제로 복원한다.
 - 트레이 종료 시 메인 창이 보이면 창을 포커스하고 앱 종료 화면을 표시하며, 트레이에 숨겨져 있으면 창을 복원하지 않고 독립된 Windows 네이티브 확인창만 표시한다.
+- 트레이 복귀는 메뉴가 닫힌 뒤 `restore → show → focus` 순서로 처리하고, 일반 포커스 실패 시 150ms 뒤 한 번만 재시도한다. `screen-saver` 최상단 설정과 `moveTop()`은 제거했다.
+- 정식 설치본에서 Chromium 렌더러가 `launch-failed`, `exitCode 18`로 생성되지 않으면 `--sandbox-fallback` 인자를 붙여 한 번 재실행하며, 이 재실행에서만 `no-sandbox`를 적용한다.
 - 업데이트 레이어는 비대화형 영역에서 포인터 입력을 가로채지 않으며 일반 모달은 업데이트보다 높은 레이어에서 표시된다. 종료 모달이 열리면 업데이트 레이어를 숨긴다.
 - `VERSION_HISTORY.md`는 앱에 표시할 간결한 사용자용 기록으로 정리하고 기존 기술 내용은 `VERSION_HISTORY_DETAIL.md`로 분리해 보존했다.
 - 상태별 트레이 종료 동작까지 포함한 0.2.7을 GitHub 정식 Release로 배포했다.
@@ -1028,6 +1030,7 @@ Last Updated: 2026-09-06 20:38
 - 기존 버전 변경 기록을 `VERSION_HISTORY_DETAIL.md`로 보존하고 앱에 표시되는 `VERSION_HISTORY.md`는 증상과 결과 중심으로 압축했다.
 - 트레이 종료 경로가 `primaryWindow.isVisible()`과 트레이 숨김 상태를 확인하도록 변경했다. 보이는 창은 기존 앱 종료 화면을 사용하고 숨은 창은 독립 메시지박스를 사용하며 Node 테스트 97개와 Svelte 프로덕션 빌드가 통과했다.
 - GitHub 정식 Release `v0.2.7`을 게시했다. 병렬 게시로 나뉜 중복 Release를 정리하고 단일 Release에 installer, blockmap, `latest.yml`, 터보 키 helper 0.1.3 자산과 변경 내용을 확인했다.
+- 트레이 복귀의 강제 최상단·`moveTop()`을 제거하고 메뉴 종료 후 단계적 복원과 단일 포커스 재시도를 추가했다. `exitCode 18`에는 해당 실행에서만 Chromium 샌드박스를 해제하는 자동 재실행 fallback을 추가했으며 Node 테스트 98개와 Svelte 프로덕션 빌드가 통과했다.
 
 ## Next Recommended Step
-배포된 0.2.7 설치본에서 메인 창 표시·트레이 숨김 상태의 종료 경로와 설치 후 직접 실행을 확인한다.
+새 호환성 변경을 패키징해 트레이 복귀와 `exitCode 18` affected PC에서 자동 재실행을 검증한 뒤 다음 버전으로 배포한다.
