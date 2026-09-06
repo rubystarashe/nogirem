@@ -948,7 +948,8 @@ async function checkNetwork() {
   return {
     fastPing,
     tcpAutoTuning,
-    optimized: fastPing.configured && tcpAutoTuning.optimized,
+    optimized: (fastPing.supported === false || fastPing.configured)
+      && tcpAutoTuning.optimized,
   }
 }
 
@@ -1936,7 +1937,8 @@ async function optimizeNetworkDirect() {
   return {
     fastPing,
     tcpAutoTuning,
-    optimized: fastPing.configured && tcpAutoTuning.optimized,
+    optimized: (fastPing.supported === false || fastPing.configured)
+      && tcpAutoTuning.optimized,
   }
 }
 

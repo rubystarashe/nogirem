@@ -6,13 +6,32 @@ const nvidiaGoalLabels = {
   ultraLowLatency: "저지연 모드 울트라",
 }
 
+const nvidiaSettingGoalKeys = {
+  verticalSync: "verticalSyncOff",
+  maxFrameRate: "maxFrameRate400",
+  threadedOptimization: "threadedOptimizationOn",
+  powerManagement: "preferMaximumPerformance",
+  lowLatencyCpl: "ultraLowLatency",
+  lowLatencyEnabled: "ultraLowLatency",
+  maxPreRenderedFrames: "ultraLowLatency",
+}
+
 function normalizeNvidiaStatus(status) {
-  const goals = Object.entries(nvidiaGoalLabels).map(([key, label]) => ({
-    key,
-    label,
-    supported: status.goals?.support?.[key] !== false,
-    met: status.goals?.[key] === true,
-  }))
+  const failures = new Map()
+  for (const failure of status.applyFailures ?? []) {
+    const goalKey = nvidiaSettingGoalKeys[failure.key]
+    if (goalKey && !failures.has(goalKey)) failures.set(goalKey, failure.reason)
+  }
+  const goals = Object.entries(nvidiaGoalLabels).map(([key, label]) => {
+    const error = failures.get(key) ?? null
+    return {
+      key,
+      label,
+      supported: status.goals?.support?.[key] !== false,
+      met: !error && status.goals?.[key] === true,
+      error,
+    }
+  })
   return {
     ...status,
     detected: status.nvidia === true,
@@ -22,7 +41,8 @@ function normalizeNvidiaStatus(status) {
     scope: "application",
     scopeLabel: "마비노기 프로그램 프로필",
     goalsList: goals,
-    allMet: status.nvidia === true && goals.every(goal => goal.supported === false || goal.met),
+    allMet: status.nvidia === true
+      && goals.every(goal => goal.supported === false || goal.met),
   }
 }
 

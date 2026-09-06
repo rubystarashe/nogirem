@@ -27,7 +27,19 @@ if ($null -eq $route) {
   throw "연결된 IPv4 기본 경로를 찾지 못했습니다"
 }
 
-$adapter = Get-NetAdapter -InterfaceIndex $route.InterfaceIndex -ErrorAction Stop
+$adapter = Get-NetAdapter -IncludeHidden -ErrorAction SilentlyContinue |
+  Where-Object InterfaceIndex -eq $route.InterfaceIndex |
+  Select-Object -First 1
+
+if ($null -eq $adapter) {
+  [pscustomobject]@{
+    supported = $false
+    specialNetwork = $true
+    reason = "특수 네트워크 환경으로 패스트핑 적용 생략"
+  } | ConvertTo-Json -Compress
+  return
+}
+
 $guidValue = $adapter.InterfaceGuid.ToString().Trim("{}")
 $guid = "{$guidValue}"
 $registryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid"
@@ -55,6 +67,7 @@ $noDelay = if (
 ) { [uint32]$item.TCPNoDelay } else { $null }
 
 [pscustomobject]@{
+  supported = $true
   interfaceAlias = $adapter.Name
   interfaceIndex = $route.InterfaceIndex
   interfaceGuid = $guid
@@ -176,7 +189,8 @@ $effective = if ($groupPolicy -eq "NotConfigured") { $local } else { $groupPolic
 }
 
 export function isFastPingConfigured(status) {
-  return Object.entries(fastPingValues).every(([name, expected]) => status[name] === expected)
+  return status?.supported !== false
+    && Object.entries(fastPingValues).every(([name, expected]) => status[name] === expected)
 }
 
 export function isTcpAutoTuningNormal(status) {
@@ -260,6 +274,17 @@ export async function ensureFastPingForPrimaryInterface({
   }
 
   const before = await runner(false)
+  if (before?.supported === false) {
+    return {
+      supported: false,
+      configured: false,
+      applied: false,
+      restarted: false,
+      reason: before.reason ?? "특수 네트워크 환경으로 패스트핑 적용 생략",
+      before,
+      current: before,
+    }
+  }
   if (isFastPingConfigured(before)) {
     return {
       supported: true,

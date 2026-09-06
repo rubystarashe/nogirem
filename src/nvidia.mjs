@@ -10,6 +10,7 @@ import {
 const execFileAsync = promisify(execFile)
 
 const NVAPI_OK = 0
+const NVAPI_ERROR = -1
 const NVAPI_NO_IMPLEMENTATION = -3
 const NVAPI_EXECUTABLE_NOT_FOUND = -166
 const NVAPI_SETTING_NOT_FOUND = -160
@@ -561,42 +562,56 @@ export async function checkNvidiaProfile(gameExecutable) {
 
 export function applyNvidiaSettingDefinitions(api, candidates, definitions = settingDefinitions) {
   const unsupported = []
+  const failed = []
   for (const definition of definitions) {
-    const session = [null]
-    checkStatus("DRS 세션 생성", api.createSession(session))
-    try {
-      checkStatus("DRS 설정 로드", api.loadSettings(session[0]))
-      const application = findApplicationProfile(api, session[0], candidates)
-      if (!application.found) {
-        throw new Error("마비노기 NVIDIA 프로그램 프로필을 찾지 못했습니다")
-      }
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const session = [null]
+      checkStatus("DRS 세션 생성", api.createSession(session))
+      try {
+        checkStatus("DRS 설정 로드", api.loadSettings(session[0]))
+        const application = findApplicationProfile(api, session[0], candidates)
+        if (!application.found) {
+          throw new Error("마비노기 NVIDIA 프로그램 프로필을 찾지 못했습니다")
+        }
 
-      const setStatus = writeSetting(api, session[0], application.profile, definition)
-      if (setStatus === NVAPI_NO_IMPLEMENTATION) {
-        unsupported.push({
-          key: definition.key,
-          name: definition.name,
-          reason: "현재 드라이버에서 설정 API를 지원하지 않습니다",
-        })
-        continue
-      }
-      checkStatus(`${definition.name} 적용`, setStatus)
+        const setStatus = writeSetting(api, session[0], application.profile, definition)
+        if (setStatus === NVAPI_NO_IMPLEMENTATION) {
+          unsupported.push({
+            key: definition.key,
+            name: definition.name,
+            reason: "현재 드라이버에서 설정 API를 지원하지 않습니다",
+          })
+          break
+        }
+        checkStatus(`${definition.name} 적용`, setStatus)
 
-      const saveStatus = api.saveSettings(session[0])
-      if (saveStatus === NVAPI_NO_IMPLEMENTATION) {
-        unsupported.push({
-          key: definition.key,
-          name: definition.name,
-          reason: "현재 드라이버에서 설정 저장을 지원하지 않습니다",
-        })
-        continue
+        const saveStatus = api.saveSettings(session[0])
+        if (saveStatus === NVAPI_NO_IMPLEMENTATION) {
+          unsupported.push({
+            key: definition.key,
+            name: definition.name,
+            reason: "현재 드라이버에서 설정 저장을 지원하지 않습니다",
+          })
+          break
+        }
+        if (saveStatus === NVAPI_ERROR) {
+          if (attempt < 2) continue
+          failed.push({
+            key: definition.key,
+            name: definition.name,
+            status: saveStatus,
+            reason: `${definition.name} 저장 실패: NVAPI ${saveStatus}`,
+          })
+          break
+        }
+        checkStatus(`${definition.name} 저장`, saveStatus)
+        break
+      } finally {
+        api.destroySession(session[0])
       }
-      checkStatus(`${definition.name} 저장`, saveStatus)
-    } finally {
-      api.destroySession(session[0])
     }
   }
-  return unsupported
+  return { unsupported, failed }
 }
 
 export async function applyNvidiaProfileGoals(gameExecutable) {
@@ -610,12 +625,15 @@ export async function applyNvidiaProfileGoals(gameExecutable) {
   const api = openNvapi()
   checkStatus("NVAPI 초기화", api.initialize())
 
+  let failed = []
   try {
     const candidates = [...new Set([
       gameExecutable,
       basename(gameExecutable ?? "Client.exe"),
     ].filter(Boolean))]
-    const unsupported = applyNvidiaSettingDefinitions(api, candidates)
+    const outcome = applyNvidiaSettingDefinitions(api, candidates)
+    const unsupported = outcome.unsupported
+    failed = outcome.failed
     const unsupportedKeys = new Set(unsupported.map(setting => setting.key))
     for (const definition of settingDefinitions) {
       if (unsupportedKeys.has(definition.key)) {
@@ -631,14 +649,29 @@ export async function applyNvidiaProfileGoals(gameExecutable) {
 
   await setMabinogiVerticalSync(false)
   const result = await checkNvidiaProfile(gameExecutable)
-  if (!result.goals?.allMet) {
-    const unmetGoals = Object.entries(result.goals ?? {})
-      .filter(([key, met]) => key !== "allMet" && !met)
-      .map(([key]) => key)
-    const details = result.reason ?? (unmetGoals.join(", ") || "검증 결과 없음")
+  const failedKeys = new Set(failed.map(setting => setting.key))
+  const unmetGoals = Object.entries(result.goals ?? {})
+    .filter(([key, met]) => {
+      if (key === "allMet" || met) return false
+      if (key === "verticalSyncOff") return !failedKeys.has("verticalSync")
+      if (key === "maxFrameRate400") return !failedKeys.has("maxFrameRate")
+      if (key === "threadedOptimizationOn") return !failedKeys.has("threadedOptimization")
+      if (key === "preferMaximumPerformance") return !failedKeys.has("powerManagement")
+      if (key === "ultraLowLatency") {
+        return !["lowLatencyCpl", "lowLatencyEnabled", "maxPreRenderedFrames"]
+          .some(setting => failedKeys.has(setting))
+      }
+      return true
+    })
+    .map(([key]) => key)
+  if (unmetGoals.length) {
+    const details = result.reason ?? unmetGoals.join(", ")
     throw new Error(`NVIDIA 최적화 적용 후 목표 설정 검증 실패: ${details}`)
   }
-  return result
+  return {
+    ...result,
+    applyFailures: failed,
+  }
 }
 
 export function printNvidiaProfileStatus(result) {

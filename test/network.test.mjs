@@ -165,6 +165,31 @@ test("드라이런에서는 미적용 값을 변경하지 않는다", async () =
   assert.deepEqual(calls, [false])
 })
 
+test("기본 경로에 대응하는 어댑터가 없으면 패스트핑을 안전하게 생략한다", async () => {
+  const calls = []
+  const result = await ensureFastPingForPrimaryInterface({
+    applyChanges: true,
+    restartAfterApply: true,
+    runner: async applyChanges => {
+      calls.push(applyChanges)
+      return {
+        supported: false,
+        specialNetwork: true,
+        reason: "특수 네트워크 환경으로 패스트핑 적용 생략",
+      }
+    },
+    restarter: async () => {
+      throw new Error("특수 인터페이스를 재시작하면 안 됩니다")
+    },
+  })
+
+  assert.equal(result.supported, false)
+  assert.equal(result.configured, false)
+  assert.equal(result.restarted, false)
+  assert.equal(result.reason, "특수 네트워크 환경으로 패스트핑 적용 생략")
+  assert.deepEqual(calls, [false])
+})
+
 test("적용 후 값이 다르면 검증 오류를 발생시킨다", async () => {
   const runner = async () => ({
     ...baseStatus,

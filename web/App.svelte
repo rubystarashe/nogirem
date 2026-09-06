@@ -2075,7 +2075,9 @@
               <div>
                 <dt>{goal.label}</dt>
                 <dd class:passed={goal.met}>
-                  {goal.supported === false ? "해당 없음" : (goal.met ? "완료" : "필요")}
+                  {goal.supported === false
+                    ? "해당 없음"
+                    : (goal.error ? "적용 실패" : (goal.met ? "완료" : "필요"))}
                 </dd>
               </div>
             {/each}
@@ -2132,8 +2134,9 @@
         <p class="error-message">{services.network.error}</p>
       {:else if services.network.data}
         <p class="device">
-          {services.network.data.fastPing.current?.interfaceAlias}
-          #{services.network.data.fastPing.current?.interfaceIndex}
+          {services.network.data.fastPing.supported === false
+            ? services.network.data.fastPing.reason
+            : `${services.network.data.fastPing.current?.interfaceAlias} #${services.network.data.fastPing.current?.interfaceIndex}`}
         </p>
         <dl class="checks network-checks">
           <div class="network-checks-heading">
@@ -2143,15 +2146,21 @@
           </div>
           <div>
             <dt>TCP ACK 빈도</dt>
-            <dd class:passed={services.network.data.fastPing.current?.TcpAckFrequency === 1}>
-              {services.network.data.fastPing.current?.TcpAckFrequency ?? "없음"}
+            <dd class:passed={services.network.data.fastPing.supported === false
+              || services.network.data.fastPing.current?.TcpAckFrequency === 1}>
+              {services.network.data.fastPing.supported === false
+                ? "적용 생략"
+                : (services.network.data.fastPing.current?.TcpAckFrequency ?? "없음")}
             </dd>
             <dd class="passed">1</dd>
           </div>
           <div>
             <dt>TCP No Delay</dt>
-            <dd class:passed={services.network.data.fastPing.current?.TCPNoDelay === 1}>
-              {services.network.data.fastPing.current?.TCPNoDelay ?? "없음"}
+            <dd class:passed={services.network.data.fastPing.supported === false
+              || services.network.data.fastPing.current?.TCPNoDelay === 1}>
+              {services.network.data.fastPing.supported === false
+                ? "적용 생략"
+                : (services.network.data.fastPing.current?.TCPNoDelay ?? "없음")}
             </dd>
             <dd class="passed">1</dd>
           </div>
@@ -2421,11 +2430,16 @@
               <div>
                 <dt>{goal.label}</dt>
                 <dd class:ready={goal.met}>
-                  {goal.supported === false ? "해당 없음" : (goal.met ? "완료" : "조정 필요")}
+                  {goal.supported === false
+                    ? "해당 없음"
+                    : (goal.error ? "적용 실패" : (goal.met ? "완료" : "조정 필요"))}
                 </dd>
               </div>
             {/each}
           </dl>
+          {#each (services.graphics.data.goalsList ?? []).filter(goal => goal.error) as goal}
+            <p class="detail-error">{goal.error}</p>
+          {/each}
         {:else}
           <p class="detail-empty">
             {services.graphics.loading
@@ -2461,19 +2475,27 @@
           <p class="detail-error">{services.network.error}</p>
         {:else if services.network.data}
           <p class="detail-device">
-            {services.network.data.fastPing.current?.interfaceAlias ?? "기본 네트워크"}
+            {services.network.data.fastPing.supported === false
+              ? services.network.data.fastPing.reason
+              : (services.network.data.fastPing.current?.interfaceAlias ?? "기본 네트워크")}
           </p>
           <dl class="detail-list">
             <div>
               <dt>TCP ACK 빈도</dt>
-              <dd class:ready={services.network.data.fastPing.current?.TcpAckFrequency === 1}>
-                {services.network.data.fastPing.current?.TcpAckFrequency === 1 ? "완료" : "조정 필요"}
+              <dd class:ready={services.network.data.fastPing.supported === false
+                || services.network.data.fastPing.current?.TcpAckFrequency === 1}>
+                {services.network.data.fastPing.supported === false
+                  ? "적용 생략"
+                  : (services.network.data.fastPing.current?.TcpAckFrequency === 1 ? "완료" : "조정 필요")}
               </dd>
             </div>
             <div>
               <dt>TCP No Delay</dt>
-              <dd class:ready={services.network.data.fastPing.current?.TCPNoDelay === 1}>
-                {services.network.data.fastPing.current?.TCPNoDelay === 1 ? "완료" : "조정 필요"}
+              <dd class:ready={services.network.data.fastPing.supported === false
+                || services.network.data.fastPing.current?.TCPNoDelay === 1}>
+                {services.network.data.fastPing.supported === false
+                  ? "적용 생략"
+                  : (services.network.data.fastPing.current?.TCPNoDelay === 1 ? "완료" : "조정 필요")}
               </dd>
             </div>
             <div>

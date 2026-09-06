@@ -70,6 +70,29 @@ test("NVIDIA가 없으면 Radeon으로 전환한다", async () => {
   assert.equal((await manager.apply("Client.exe")).allMet, false)
 })
 
+test("NVIDIA 항목별 저장 실패를 전체 오류가 아닌 해당 목표 실패로 표시한다", async () => {
+  const manager = createGraphicsManager({
+    checkNvidia: async () => nvidiaStatus(),
+    applyNvidia: async () => nvidiaStatus({
+      applyFailures: [{
+        key: "verticalSync",
+        name: "수직 동기화",
+        reason: "수직 동기화 저장 실패: NVAPI -1",
+      }],
+    }),
+    checkRadeon: async () => radeonStatus(),
+    applyRadeon: async () => radeonStatus(),
+  })
+
+  const result = await manager.apply("Client.exe")
+  const verticalSync = result.goalsList.find(goal => goal.key === "verticalSyncOff")
+
+  assert.equal(result.allMet, false)
+  assert.equal(verticalSync.met, false)
+  assert.equal(verticalSync.error, "수직 동기화 저장 실패: NVAPI -1")
+  assert.equal(result.goalsList.find(goal => goal.key === "maxFrameRate400").met, true)
+})
+
 test("지원 GPU가 없으면 적용하지 않고 원인을 반환한다", async () => {
   const manager = createGraphicsManager({
     checkNvidia: async () => nvidiaStatus({
