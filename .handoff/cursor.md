@@ -1,16 +1,16 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 17:10
+Last Updated: 2026-09-06 17:18
 
 ## Current Objective
 비표준 마비노기 설치 경로의 `Client.exe`를 앱과 터보 키에서 정확히 탐지한다.
 
 ## Current Status
 - 앱과 터보 키는 `Mabinogi`, `마비노기`, `Nexon` 폴더 바로 아래의 `Client.exe`를 게임으로 인식한다. 터보 키 helper는 자동 교체를 위해 0.1.2로 올렸다.
-- GitHub 정식 Release `v0.2.6` 배포를 완료했다. 중복 생성된 Release를 하나로 합쳐 installer, blockmap, `latest.yml`, 터보 키 helper 0.1.1 네 자산을 검증했다.
+- GitHub 정식 Release `v0.2.6`을 경로 수정본으로 대치했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.2 네 자산을 검증했다.
 - 앱 버전은 0.2.6이다. 상태 JSON 교체는 `EPERM`·`EBUSY` 등을 지연 재시도한 뒤 기존 파일 삭제·교체로 복구하며, Affinity·메모리 helper는 일시적 기록 실패 후에도 계속 실행한다.
 - Affinity·메모리 helper마다 PID 기반 단일 실행 잠금을 사용해 동일한 상태 파일과 CPU 설정의 중복 처리를 막는다.
-- 터보 키 helper는 Electron 설치본과 `asarUnpack`에서 제외됐다. 패키징 시 `turbo-key-helper-win32-x64-v0.1.1.exe` 별도 자산을 `release`에 생성하며 GitHub 배포 시 같은 Release에 추가 업로드한다.
+- 터보 키 helper는 Electron 설치본과 `asarUnpack`에서 제외됐다. 패키징 시 `turbo-key-helper-win32-x64-v0.1.2.exe` 별도 자산을 `release`에 생성하며 GitHub 배포 시 같은 Release에 추가 업로드한다.
 - 고급 기능은 helper 미설치 시 `다운로드`만 표시한다. 전체 화면 약관 모달에서 별도 `TURBO_KEY_TERMS.md`를 확인한 뒤 다운로드하며, 성공 후에는 `키 설정`·사용 버튼 아래 작은 적색 `터보키 제거하기`를 표시한다.
 - helper는 `%APPDATA%/마비노기 렘 부스터/turbo-key/bin`에 설치한다. GitHub SHA-256, 2MiB 제한, PE x64 형식과 설치 manifest 해시를 검증하며 누락·변조 시 자동 실행하지 않는다.
 - 개발 실행은 같은 동의 흐름 뒤 로컬 release helper를 AppData에 복사한다. 설치 후에도 터보 키는 자동 활성화하지 않는다.
@@ -1008,7 +1008,9 @@ Last Updated: 2026-09-06 17:10
 - GitHub 정식 Release `v0.2.6`을 게시했다. installer는 93,179,042바이트, SHA-256은 `eadf732f16b0b62eebff86d2a08881707f1eebb4ee21c59f4498f735a8dbdb0a`다.
 - 병렬 게시로 생성된 중복 Release를 정리하고 단일 Release의 installer, blockmap, `latest.yml`, 터보 키 helper 네 자산과 digest를 확인했다.
 - `D:\Nexon\Client.exe`, `D:\마비노기\Client.exe` 설치를 포함하도록 앱·메모리 helper·터보 키의 게임 경로 판정을 확장했다. 같은 이름의 다른 실행 파일 오탐을 줄이기 위해 허용 폴더는 실행 파일의 바로 위 부모 폴더만 확인한다.
-- 터보 키 helper를 0.1.2로 올렸으며 Node 테스트 92개, Rust 테스트 11개와 release 빌드가 통과했다. 이 변경은 아직 공개 Release에 배포하지 않았다.
+- 터보 키 helper를 0.1.2로 올렸으며 Node 테스트 92개, Rust 테스트 11개와 release 빌드가 통과했다.
+- 기존 `v0.2.6` Release의 installer, blockmap, `latest.yml`을 경로 수정본으로 대치하고 helper 0.1.1을 0.1.2 자산으로 교체했다. 새 installer는 93,189,288바이트, SHA-256은 `cdbb05f03b9bca9368876dce7507784783378a0426bb110e8e57ebbde2fabd3c`다.
+- 동일 버전 대치이므로 이미 0.2.6을 설치한 사용자는 자동 업데이트가 재실행되지 않으며 수정본 수동 재설치가 필요하다는 안내를 Release 본문에 추가했다.
 
 ## Next Recommended Step
-이미 0.2.6으로 업데이트한 사용자에게 경로 수정과 터보 키 helper 0.1.2를 전달하려면 앱 버전을 0.2.7로 올려 패키징·배포한다.
+영향받은 0.2.6 사용자에게 대치 설치본 수동 재설치를 안내하고 `D:\Nexon\Client.exe` 탐지와 helper 0.1.2 자동 교체를 확인한다.
