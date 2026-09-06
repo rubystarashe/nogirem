@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 13:40
+Last Updated: 2026-09-06 13:49
 
 ## Current Objective
 선택 다운로드형 터보 키와 시작 안정성 개선을 포함한 0.2.3 Windows 설치본을 검증하고 GitHub에 배포한다.
@@ -971,6 +971,7 @@ Last Updated: 2026-09-06 13:40
 - 수정된 0.2.3을 다시 패키징해 기존 단일 Release의 네 자산을 덮어썼다. 최종 installer는 93,112,236바이트이고 SHA-256은 `bcb975cbc3d516e00b4479e6e8d92cc9c1c0d7688c33539fa86cc21082f0e358`다.
 - 사용자가 터보 키 약관의 문단 순서와 표현을 수정해 같은 0.2.3 Release 자산 교체를 다시 진행한다.
 - 수정된 약관을 포함한 0.2.3 Release 네 자산을 다시 교체했다. 최종 installer는 93,107,810바이트이고 SHA-256은 `2e41a4a511ef474b94e01c74d74e8c3aae889c7d3e45aa45159eb52e3f13118a`다.
+- 사용자가 8번·10번 운영정책 설명을 다시 다듬어 같은 0.2.3 교체 배포를 진행한다.
 
 ## Next Recommended Step
 0.2.3 설치본에서 약관 모달 확인 후 실제 GitHub helper 다운로드, 키 설정·사용, 제거 버튼과 재다운로드를 검증한다.
