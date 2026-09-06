@@ -152,7 +152,8 @@ Shift, Ctrl, Alt, Windows 키를 포함한 조합키와
 - [INTRODUCE.md](./INTRODUCE.md): 제작 배경과 개발 방향
 - [OPERATION.md](./OPERATION.md): 비전문가를 위한 기능별 작동 원리
 - [TURBO_KEY_TERMS.md](./TURBO_KEY_TERMS.md): 터보 키 다운로드 전 운영정책 안내
-- [VERSION_HISTORY.md](./VERSION_HISTORY.md): 버전별 변경 기록
+- [VERSION_HISTORY.md](./VERSION_HISTORY.md): 사용자용 버전 변경 요약
+- [VERSION_HISTORY_DETAIL.md](./VERSION_HISTORY_DETAIL.md): 구현 내용을 포함한 상세 변경 기록
 
 앱의 `[류트@렘] 제작`을 누르면 위 문서와 후원 안내, 고급 기능을 앱 안에서
 확인할 수 있습니다.

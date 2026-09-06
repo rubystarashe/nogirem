@@ -1,14 +1,15 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 20:18
+Last Updated: 2026-09-06 20:21
 
 ## Current Objective
-0.2.7에서 트레이 복귀 후 창 입력 불가를 방지하고 렌더러와 독립된 종료 경로를 제공한다.
+사용자에게 표시하는 버전 변경 기록을 증상과 결과 중심으로 간결하게 유지한다.
 
 ## Current Status
 - 앱 버전은 0.2.7이다. 트레이 최소화 시 투명 보조 창을 숨기고 입력·always-on-top을 해제하며, 복귀 시 메인 창의 focusable·마우스 입력·웹 콘텐츠 포커스를 강제로 복원한다.
 - 트레이 종료는 렌더러 모달 대신 Windows 네이티브 확인창을 사용해 메인 UI를 클릭할 수 없는 상황에서도 설정 복원·유지·취소를 선택할 수 있다.
 - 업데이트 레이어는 비대화형 영역에서 포인터 입력을 가로채지 않으며 일반 모달은 업데이트보다 높은 레이어에서 표시된다. 종료 모달이 열리면 업데이트 레이어를 숨긴다.
+- `VERSION_HISTORY.md`는 앱에 표시할 간결한 사용자용 기록으로 정리하고 기존 기술 내용은 `VERSION_HISTORY_DETAIL.md`로 분리해 보존했다.
 - 0.2.7 Windows 설치본 패키징을 완료했으며 아직 배포하지 않았다.
 - NSIS `customInstall`에서 `$launchLink`를 `$INSTDIR\${APP_EXECUTABLE_FILENAME}`으로 강제해 설치 완료 자동 실행이 시작 메뉴 `.lnk`에 의존하지 않는다.
 - 앱과 터보 키는 지정 폴더의 `Client.exe`뿐 아니라 같은 디렉토리에 `Mabinogi.exe`가 있는 `Client.exe`도 게임으로 인식한다. 터보 키 helper는 자동 교체를 위해 0.1.3으로 올렸다.
@@ -370,7 +371,8 @@ Last Updated: 2026-09-06 20:18
 - `web/GameWave.svelte`: 게임 감지 전환 시 OST와 Canvas 파동 효과 재생
 - `web/styles.css`: 데스크톱 최적화 화면 스타일
 - `web/UpdatePreviewModal.svelte`: 실제 다운로드 진행률과 설치 요청을 표시하는 강제 업데이트 오버레이
-- `VERSION_HISTORY.md`: 소개 화면의 버전별 변경 기록 원본
+- `VERSION_HISTORY.md`: 소개 화면에 표시하는 사용자용 버전 변경 요약
+- `VERSION_HISTORY_DETAIL.md`: 구현 방식과 기술 내용을 보존하는 상세 변경 기록
 - `INTRODUCE.md`: 안녕하세요 탭의 개발자 소개 Markdown 원본
 - `OPERATION.md`: 작동 원리 탭의 Markdown 원본
 - `TURBO_KEY_TERMS.md`: 터보 키 다운로드 전 전체 화면 모달의 운영정책 안내 원본
@@ -1023,6 +1025,7 @@ Last Updated: 2026-09-06 20:18
 - 트레이 진입 시 DXVK 관리·DXVK 안내·캐릭터 안내 창을 명시적으로 숨기고 투명 창의 입력 가로채기와 always-on-top을 해제한다. 기존 보조 창을 다시 열 때만 입력을 복원한다.
 - 메인 창 복귀 시 `setFocusable(true)`, `setIgnoreMouseEvents(false)`, `webContents.focus()`를 적용하고 트레이 종료에는 네이티브 확인창을 사용한다. 업데이트 레이어 입력 충돌 회귀 테스트를 추가해 Node 테스트 97개와 NSIS 패키징이 통과했다.
 - 0.2.7 installer는 93,245,967바이트이고 SHA-256은 `51a9596d0b1be6cff4bea61522039eea7ac0849dfdd796086092cfedf0c4965b`다.
+- 기존 버전 변경 기록을 `VERSION_HISTORY_DETAIL.md`로 보존하고 앱에 표시되는 `VERSION_HISTORY.md`는 증상과 결과 중심으로 압축했다.
 
 ## Next Recommended Step
-0.2.7 설치본에서 보조 창을 연 상태로 트레이 최소화·복귀 및 네이티브 종료 선택을 수동 검증한 뒤 배포한다.
+문서 변경을 포함해 0.2.7을 다시 패키징한 뒤 트레이 최소화·복귀와 네이티브 종료 선택을 수동 검증하고 배포한다.
