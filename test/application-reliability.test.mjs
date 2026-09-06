@@ -96,6 +96,26 @@ test("초기 부스트 상태가 확인되기 전에는 일시정지 배경으�
   )
 })
 
+test("부스트 구성 요소가 일부만 실행됐으면 누를 때 나머지를 다시 시작한다", () => {
+  const partialStateCheck = /!\(services\.affinity\.data\?\.running && services\.memory\.data\?\.running\)/g
+  assert.equal(applicationView.match(partialStateCheck)?.length, 3)
+  assert.doesNotMatch(
+    applicationView,
+    /!\(services\.affinity\.data\?\.running \|\| services\.memory\.data\?\.running\)/,
+  )
+})
+
+test("Affinity 상태가 오래됐어도 강제 간소화 상태를 직접 확인한다", () => {
+  assert.match(
+    electronMain,
+    /const characterSimplification = fresh && status\?\.characterSimplification[\s\S]*: await getCharacterSimplificationStatus\(\)/,
+  )
+  assert.match(
+    electronMain,
+    /return \{[\s\S]*characterSimplification,[\s\S]*dxvk: dxvkRuntimeStatus/,
+  )
+})
+
 test("부트스트랩이 시작 오류를 파일에 기록한다", () => {
   assert.equal(packageInfo.main, "electron/bootstrap.mjs")
   assert.match(electronBootstrap, /startup\.log/)

@@ -1128,6 +1128,9 @@ async function readAffinityRuntimeStatus() {
   const status = await readJson(statusPath)
   const fresh = status?.updatedAt
     && Date.now() - status.updatedAt < Math.max(config.pollIntervalMs * 4, 30000)
+  const characterSimplification = fresh && status?.characterSimplification
+    ? status.characterSimplification
+    : await getCharacterSimplificationStatus()
   const logicalCpuCount = cpus().length
   const half = logicalCpuCount / 2
   const detectedGameExecutablePath = isMabinogiExecutablePath(status?.gameExecutablePath)
@@ -1148,9 +1151,7 @@ async function readAffinityRuntimeStatus() {
     renderer: fresh && status?.renderer
       ? status.renderer
       : { mode: "not-running", version: null },
-    characterSimplification: fresh && status?.characterSimplification
-      ? status.characterSimplification
-      : { applied: false, value: null },
+    characterSimplification,
     dxvk: dxvkRuntimeStatus,
     conflictingPrograms: Array.isArray(status?.conflictingPrograms)
       ? status.conflictingPrograms

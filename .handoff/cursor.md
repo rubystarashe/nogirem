@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 13:51
+Last Updated: 2026-09-06 14:45
 
 ## Current Objective
-선택 다운로드형 터보 키와 시작 안정성 개선을 포함한 0.2.3 Windows 설치본을 검증하고 GitHub에 배포한다.
+사용자 환경에서 실시간 부스트가 일시정지 상태를 벗어나지 못하고 강제 간소화가 경고로 표시되는 0.2.4 문제를 수정한다.
 
 ## Current Status
 - 터보 키 helper는 Electron 설치본과 `asarUnpack`에서 제외됐다. 패키징 시 `turbo-key-helper-win32-x64-v0.1.0.exe` 별도 자산을 `release`에 생성하며 GitHub 배포 시 같은 Release에 추가 업로드한다.
@@ -973,6 +973,9 @@ Last Updated: 2026-09-06 13:51
 - 수정된 약관을 포함한 0.2.3 Release 네 자산을 다시 교체했다. 최종 installer는 93,107,810바이트이고 SHA-256은 `2e41a4a511ef474b94e01c74d74e8c3aae889c7d3e45aa45159eb52e3f13118a`다.
 - 사용자가 8번·10번 운영정책 설명을 다시 다듬어 같은 0.2.3 교체 배포를 진행한다.
 - 최신 약관을 포함한 0.2.3 Release 네 자산을 다시 교체했다. 최종 installer는 93,091,210바이트이고 SHA-256은 `c38c63da2dc912bfb85a1024e0ad3d01cd32f7cc74adc132a2360d733cc7b303`다.
+- Affinity와 메모리 helper 중 하나만 실행된 부분 상태를 일시정지로 표시하면서 클릭 시 실행 중인 helper까지 끄던 토글 조건을 수정했다. 이제 두 helper가 모두 실행된 경우에만 중지하며, 하나라도 빠졌으면 활성화를 재시도한다.
+- Affinity helper 상태가 오래됐거나 중지된 경우 강제 간소화를 무조건 미적용으로 표시하지 않고 현재 최신 MUO를 직접 읽도록 변경했다.
+- `VERSION_HISTORY.md`에 두 수정 사항을 0.2.4 작업으로 기록했다. 관련 회귀 테스트 9개와 Svelte 프로덕션 빌드가 통과했다.
 
 ## Next Recommended Step
-0.2.3 설치본에서 약관 모달 확인 후 실제 GitHub helper 다운로드, 키 설정·사용, 제거 버튼과 재다운로드를 검증한다.
+문제가 발생한 사용자 환경에서 0.2.4 테스트 설치본으로 실시간 부스트 재활성화와 강제 간소화 표시를 확인한다.

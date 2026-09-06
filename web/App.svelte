@@ -950,7 +950,7 @@
       || colorTransition
       || displayedStatusText === "부스트 대기중"
     ) return
-    const enabled = !(services.affinity.data?.running || services.memory.data?.running)
+    const enabled = !(services.affinity.data?.running && services.memory.data?.running)
     const paused = !enabled
     const wave = gameWave?.makeActionWave(event.clientX, event.clientY, paused)
       ?? { duration: paused ? 600 : 3000, radius: paused ? 420 : 600, delay: paused ? 0 : 500 }
@@ -970,7 +970,7 @@
 
   async function toggleFrameBoost(waveStarted = false) {
     if (frameBoostAction || (colorTransition && waveStarted !== true)) return
-    const enabled = !(services.affinity.data?.running || services.memory.data?.running)
+    const enabled = !(services.affinity.data?.running && services.memory.data?.running)
     const previousStatusText = displayedStatusText
     const requestedStatusText = enabled
       ? (services.affinity.data?.gameActive || services.memory.data?.gameActive
