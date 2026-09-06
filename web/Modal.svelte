@@ -83,12 +83,13 @@
 <style>
   .modal-backdrop {
     position: fixed;
-    z-index: 400;
+    z-index: 600;
     inset: 0;
     display: flex;
     align-items: flex-end;
     background: rgba(7, 8, 9, 0.68);
     animation: modal-backdrop-in 180ms ease-out both;
+    -webkit-app-region: no-drag;
   }
 
   .modal-backdrop.closing {

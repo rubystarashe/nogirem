@@ -22,6 +22,14 @@ const gameWave = await readFile(
   new URL("../web/GameWave.svelte", import.meta.url),
   "utf8",
 )
+const modalView = await readFile(
+  new URL("../web/Modal.svelte", import.meta.url),
+  "utf8",
+)
+const updateModalView = await readFile(
+  new URL("../web/UpdatePreviewModal.svelte", import.meta.url),
+  "utf8",
+)
 const turboKeyTermsDocument = await readFile(
   new URL("../TURBO_KEY_TERMS.md", import.meta.url),
   "utf8",
@@ -87,6 +95,19 @@ test("트레이 종료는 렌더러와 독립적인 네이티브 확인창을 �
   assert.match(
     electronMain,
     /if \(nativeDialog\) \{[\s\S]*dialog\.showMessageBox\(primaryWindow,[\s\S]*result\.response === 0 \? "reset" : "keep"/,
+  )
+})
+
+test("종료 모달은 업데이트 레이어보다 위에서 입력을 받는다", () => {
+  assert.match(modalView, /\.modal-backdrop \{[\s\S]*z-index: 600;[\s\S]*-webkit-app-region: no-drag;/)
+  assert.match(
+    updateModalView,
+    /\.update-preview-overlay \{[\s\S]*z-index: 500;[\s\S]*pointer-events: none;/,
+  )
+  assert.match(updateModalView, /button \{[\s\S]*pointer-events: auto;/)
+  assert.match(
+    applicationView,
+    /\{#if !closeModalVisible && \([\s\S]*applicationUpdateState\.phase === "downloading"/,
   )
 })
 

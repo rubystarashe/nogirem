@@ -42,6 +42,7 @@
     z-index: 500;
     inset: 0;
     background: transparent;
+    pointer-events: none;
   }
 
   .update-preview-panel {
@@ -79,6 +80,7 @@
     font-size: 16.5px;
     font-weight: 700;
     cursor: pointer;
+    pointer-events: auto;
     animation: install-button-in 220ms ease-out both;
     transition:
       color 180ms ease,

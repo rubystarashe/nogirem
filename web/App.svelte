@@ -2620,7 +2620,10 @@
   </Modal>
 {/if}
 
-{#if applicationUpdateState.phase === "downloading" || applicationUpdateState.phase === "downloaded"}
+{#if !closeModalVisible && (
+  applicationUpdateState.phase === "downloading"
+  || applicationUpdateState.phase === "downloaded"
+)}
   <UpdatePreviewModal
     progress={applicationUpdateState.percent}
     downloaded={applicationUpdateState.phase === "downloaded"}
