@@ -87,14 +87,18 @@ test("트레이 복귀 시 투명 보조 창의 입력 가로채기를 해제한
   )
 })
 
-test("트레이 종료는 렌더러와 독립적인 네이티브 확인창을 사용한다", () => {
+test("트레이 종료는 메인 창을 복원하지 않고 독립적인 네이티브 확인창을 사용한다", () => {
   assert.match(
     electronMain,
     /label: "종료"[\s\S]*requestApplicationExitConfirmation\(\{ nativeDialog: true \}\)/,
   )
+  assert.doesNotMatch(
+    electronMain,
+    /label: "종료"[\s\S]{0,120}focusPrimaryWindow\(\)/,
+  )
   assert.match(
     electronMain,
-    /if \(nativeDialog\) \{[\s\S]*dialog\.showMessageBox\(primaryWindow,[\s\S]*result\.response === 0 \? "reset" : "keep"/,
+    /if \(!nativeDialog && !applicationExitInProgress[\s\S]*if \(nativeDialog\) \{[\s\S]*dialog\.showMessageBox\(\{[\s\S]*result\.response === 0 \? "reset" : "keep"/,
   )
 })
 

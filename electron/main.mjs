@@ -1905,7 +1905,7 @@ async function ensureFrameBoostStarted() {
 }
 
 async function requestApplicationExitConfirmation({ nativeDialog = false } = {}) {
-  if (!applicationExitInProgress && primaryWindow && !primaryWindow.isDestroyed()) {
+  if (!nativeDialog && !applicationExitInProgress && primaryWindow && !primaryWindow.isDestroyed()) {
     focusPrimaryWindow()
   }
   if (applicationExitInProgress || (closeRequestPending && !nativeDialog)) return
@@ -1945,7 +1945,7 @@ async function requestApplicationExitConfirmation({ nativeDialog = false } = {})
     console.error("종료 전 부스트 적용 기록 확인 실패", error)
   }
   if (nativeDialog) {
-    const result = await dialog.showMessageBox(primaryWindow, {
+    const result = await dialog.showMessageBox({
       type: "question",
       title: "프로그램 종료",
       message: "프레임 부스트를 정지할까요?",
@@ -2989,7 +2989,6 @@ function ensureApplicationTray() {
     {
       label: "종료",
       click: () => {
-        focusPrimaryWindow()
         void requestApplicationExitConfirmation({ nativeDialog: true })
           .catch(error => console.error("트레이 종료 요청 처리 실패", error))
       },
