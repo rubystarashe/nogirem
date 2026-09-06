@@ -553,6 +553,9 @@
   }
 
   function frameBoostStatusText() {
+    if (services.affinity.loading || services.memory.loading) {
+      return "부스트 대기중"
+    }
     if (!(services.affinity.data?.running && services.memory.data?.running)) {
       return "실시간 적용 일시정지됨"
     }
@@ -731,6 +734,11 @@
   function syncDisplayedBoostStatus() {
     if (!interfaceVisible || frameBoostAction) return
     const nextStatusText = frameBoostStatusText()
+    const nextPaused = isPausedStatus(nextStatusText)
+    if (!colorTransition && nextPaused !== visualPaused) {
+      visualPaused = nextPaused
+      gameWave?.setPaused(nextPaused)
+    }
     gameWave?.setAmbientEnabled(ambientRhythmEnabled && nextStatusText === "실시간 부스트중")
     if (startupIdentityPhase !== "done") {
       displayedStatusText = nextStatusText

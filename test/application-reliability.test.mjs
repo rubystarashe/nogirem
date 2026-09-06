@@ -72,6 +72,17 @@ test("시작 이미지와 음악이 실패하거나 지연되어도 시작 애�
   )
 })
 
+test("초기 부스트 상태가 확인되기 전에는 일시정지 배경으로 전환하지 않는다", () => {
+  assert.match(
+    applicationView,
+    /function frameBoostStatusText\(\) \{[\s\S]*services\.affinity\.loading \|\| services\.memory\.loading[\s\S]*return "부스트 대기중"/,
+  )
+  assert.match(
+    applicationView,
+    /function syncDisplayedBoostStatus\(\)[\s\S]*nextPaused !== visualPaused[\s\S]*gameWave\?\.setPaused\(nextPaused\)/,
+  )
+})
+
 test("부트스트랩이 시작 오류를 파일에 기록한다", () => {
   assert.equal(packageInfo.main, "electron/bootstrap.mjs")
   assert.match(electronBootstrap, /startup\.log/)
