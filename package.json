@@ -1,7 +1,7 @@
 {
   "name": "nogirem",
   "productName": "마비노기 렘 부스터",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "repository": {
     "type": "git",
@@ -86,7 +86,6 @@
       "electron/**/*",
       "src/**/*",
       "native/radeon-helper/bin/radeon-helper.exe",
-      "native/turbo-key/bin/turbo-key-helper.exe",
       "assets/**/*",
       "config.json",
       "icon.ico",
@@ -97,8 +96,7 @@
       "package.json"
     ],
     "asarUnpack": [
-      "native/radeon-helper/bin/radeon-helper.exe",
-      "native/turbo-key/bin/turbo-key-helper.exe"
+      "native/radeon-helper/bin/radeon-helper.exe"
     ],
     "win": {
       "icon": "icon.ico",

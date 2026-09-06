@@ -4,12 +4,15 @@ import { copyFile, mkdir, readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { turboKeyHelperAssetName } from "../src/turbo-key-installer.mjs"
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const packageInfo = JSON.parse(await readFile(join(root, "package.json"), "utf8"))
 const temporaryOutput = join(tmpdir(), "nogirem-builder-output")
 const releaseOutput = join(root, "release")
 const installerName = `nogirem-setup-${packageInfo.version}.exe`
+const turboKeyHelperSource = join(root, "native", "turbo-key", "bin", "turbo-key-helper.exe")
+const turboKeyHelperOutput = join(releaseOutput, turboKeyHelperAssetName)
 const publishRequested = process.argv.includes("--publish")
 
 function readGithubCliToken() {
@@ -96,6 +99,47 @@ function run(command, arguments_) {
   })
 }
 
+async function uploadTurboKeyHelper() {
+  const headers = {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${process.env.GH_TOKEN}`,
+    "User-Agent": "nogirem-release",
+    "X-GitHub-Api-Version": "2022-11-28",
+  }
+  const releaseResponse = await fetch(
+    `https://api.github.com/repos/rubystarashe/nogirem/releases/tags/v${packageInfo.version}`,
+    { headers },
+  )
+  if (!releaseResponse.ok) {
+    throw new Error(`GitHub Release 조회 실패 (${releaseResponse.status})`)
+  }
+  const release = await releaseResponse.json()
+  const existingAsset = release.assets?.find(asset => asset.name === turboKeyHelperAssetName)
+  if (existingAsset) {
+    const deleteResponse = await fetch(
+      `https://api.github.com/repos/rubystarashe/nogirem/releases/assets/${existingAsset.id}`,
+      { method: "DELETE", headers },
+    )
+    if (!deleteResponse.ok) {
+      throw new Error(`기존 터보 키 자산 삭제 실패 (${deleteResponse.status})`)
+    }
+  }
+  const uploadResponse = await fetch(
+    `https://uploads.github.com/repos/rubystarashe/nogirem/releases/${release.id}/assets?name=${encodeURIComponent(turboKeyHelperAssetName)}`,
+    {
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/vnd.microsoft.portable-executable",
+      },
+      body: await readFile(turboKeyHelperSource),
+    },
+  )
+  if (!uploadResponse.ok) {
+    throw new Error(`터보 키 Release 자산 업로드 실패 (${uploadResponse.status})`)
+  }
+}
+
 await run("npm", ["run", "native:radeon"])
 await run("npm", ["run", "native:turbo-key"])
 await run("npm", ["run", "app:build"])
@@ -122,5 +166,8 @@ await Promise.all([
     join(temporaryOutput, "latest.yml"),
     join(releaseOutput, "latest.yml"),
   ),
+  copyFile(turboKeyHelperSource, turboKeyHelperOutput),
 ])
+if (publishRequested) await uploadTurboKeyHelper()
 console.log(`패키징 완료: ${join(releaseOutput, installerName)}`)
+console.log(`터보 키 별도 자산 준비 완료: ${turboKeyHelperOutput}`)

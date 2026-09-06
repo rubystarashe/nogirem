@@ -8,6 +8,7 @@ import {
   normalizeTurboKeyIntervalMs,
   turboKeyIntervalOptions,
 } from "../src/turbo-key-settings.mjs"
+import { turboKeyHelperAssetName } from "../src/turbo-key-installer.mjs"
 
 test("터보 키 기본값은 선택된 키가 없는 상태다", () => {
   assert.deepEqual(defaultTurboKeyCodes, [])
@@ -25,24 +26,27 @@ test("터보 키 입력 간격은 지정된 선택지와 1ms 기본값만 사용
   assert.equal(normalizeTurboKeyIntervalMs(2), 1)
 })
 
-test("터보 키 helper는 패키지에 포함되고 asar 밖에 배치된다", async () => {
+test("터보 키 helper는 설치본에 포함되지 않는다", async () => {
   const packageInfo = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
   )
   const helperPath = "native/turbo-key/bin/turbo-key-helper.exe"
 
   assert.equal(packageInfo.scripts["native:turbo-key"], "node scripts/build-turbo-key.mjs")
-  assert.equal(packageInfo.build.files.includes(helperPath), true)
-  assert.equal(packageInfo.build.asarUnpack.includes(helperPath), true)
+  assert.equal(packageInfo.build.files.includes(helperPath), false)
+  assert.equal(packageInfo.build.asarUnpack.includes(helperPath), false)
 })
 
-test("Windows 패키징 전에 터보 키 release 빌드를 실행한다", async () => {
+test("Windows 패키징은 터보 키를 별도 Release 자산으로 준비한다", async () => {
   const script = await readFile(
     new URL("../scripts/package-win.mjs", import.meta.url),
     "utf8",
   )
 
   assert.match(script, /run\("npm", \["run", "native:turbo-key"\]\)/)
+  assert.match(script, /uploadTurboKeyHelper/)
+  assert.match(script, /copyFile\(turboKeyHelperSource, turboKeyHelperOutput\)/)
+  assert.match(turboKeyHelperAssetName, /^turbo-key-helper-win32-x64-v[\d.]+\.exe$/)
   const buildScript = await readFile(
     new URL("../scripts/build-turbo-key.mjs", import.meta.url),
     "utf8",
@@ -59,6 +63,30 @@ test("터보 키 helper는 게임 외 P-core 마스크를 시작 인자로 받�
   assert.match(electronMain, /const latencyMask = allocation\.alternateGameMask \|\| allocation\.backgroundMask/)
   assert.match(electronMain, /`--affinity-mask=0x\$\{latencyMask\.toString\(16\)\}`/)
   assert.match(electronMain, /`--interval-ms=\$\{normalizeTurboKeyIntervalMs\(intervalMs\)\}`/)
+})
+
+test("미설치 helper는 자동 실행하지 않고 제한된 다운로드 IPC만 제공한다", async () => {
+  const [electronMain, electronPreload] = await Promise.all([
+    readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
+  ])
+
+  assert.match(
+    electronMain,
+    /async function ensureTurboKeyStarted\(\)[\s\S]*if \(!installation\.installed\) return[\s\S]*launchTurboKeyHelper/,
+  )
+  assert.match(electronMain, /application:download-turbo-key-helper/)
+  assert.match(electronMain, /application:remove-turbo-key-helper/)
+  assert.match(
+    electronMain,
+    /async function downloadTurboKeyHelper\(\)[\s\S]*enabled: false[\s\S]*return getTurboKeySetting\(\)/,
+  )
+  assert.match(
+    electronMain,
+    /BrowserWindow\.fromWebContents\(event\.sender\) !== primaryWindow[\s\S]*downloadTurboKeyHelper\(\)/,
+  )
+  assert.match(electronPreload, /downloadTurboKeyHelper:[\s\S]*application:download-turbo-key-helper/)
+  assert.match(electronPreload, /removeTurboKeyHelper:[\s\S]*application:remove-turbo-key-helper/)
 })
 
 test("터보 키 helper는 정밀 타이머와 우선 스케줄링을 사용한다", async () => {

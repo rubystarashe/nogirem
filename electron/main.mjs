@@ -39,6 +39,12 @@ import {
   normalizeTurboKeyCodes,
   normalizeTurboKeyIntervalMs,
 } from "../src/turbo-key-settings.mjs"
+import {
+  getTurboKeyHelperInstallation,
+  installTurboKeyHelper,
+  removeTurboKeyHelper,
+  turboKeyHelperVersion,
+} from "../src/turbo-key-installer.mjs"
 
 const { autoUpdater } = updaterPackage
 const execFileAsync = promisify(execFile)
@@ -135,17 +141,11 @@ const installerCloseRequestPath = join(instanceDirectory, "installer-close-reque
 function getTurboKeyPaths() {
   const directory = join(app.getPath("userData"), "turbo-key")
   return {
+    directory,
     settingsPath: join(directory, "settings.json"),
     statusPath: join(directory, "status.json"),
     controlPath: join(directory, "control.json"),
   }
-}
-
-function getTurboKeyExecutablePath() {
-  const nativeRoot = app.isPackaged
-    ? root.replace(/app\.asar$/i, "app.asar.unpacked")
-    : root
-  return join(nativeRoot, "native", "turbo-key", "bin", "turbo-key-helper.exe")
 }
 
 function serializeError(error) {
@@ -1283,12 +1283,13 @@ async function setStartupTraySetting(enabled) {
 
 async function getTurboKeySetting() {
   const paths = getTurboKeyPaths()
-  const [settings, status] = await Promise.all([
+  const [settings, status, installation] = await Promise.all([
     readJson(paths.settingsPath),
     readJson(paths.statusPath),
+    getTurboKeyHelperInstallation(paths.directory),
   ])
   const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 3000
-  const enabled = Boolean(settings?.enabled)
+  const enabled = Boolean(settings?.enabled && installation.installed)
   const intervalMs = normalizeTurboKeyIntervalMs(settings?.intervalMs)
   const running = Boolean(
     turboKeyProcess
@@ -1297,13 +1298,16 @@ async function getTurboKeySetting() {
     && statusFresh,
   )
   return {
+    installed: installation.installed,
+    helperVersion: turboKeyHelperVersion,
     enabled,
     running,
     keys: normalizeTurboKeyCodes(settings?.keys),
     intervalMs,
     repeatHz: Math.round(1000 / intervalMs),
     gameOnly: true,
-    reason: status?.error
+    reason: installation.reason
+      ?? (statusFresh ? status?.error : null)
       ?? (enabled && !running ? "터보 키 프로세스가 실행 중이 아닙니다" : null),
   }
 }
@@ -1341,10 +1345,11 @@ async function launchTurboKeyHelper(
   if (turboKeyProcess && turboKeyProcess.exitCode === null) {
     return getTurboKeySetting()
   }
-  const executablePath = getTurboKeyExecutablePath()
-  if (!existsSync(executablePath)) {
-    throw new Error("터보 키 실행 파일을 찾지 못했습니다")
+  const installation = await getTurboKeyHelperInstallation(getTurboKeyPaths().directory)
+  if (!installation.installed) {
+    throw new Error(installation.reason ?? "터보 키를 먼저 다운로드하세요")
   }
+  const executablePath = installation.executablePath
   const paths = getTurboKeyPaths()
   await mkdir(dirname(paths.statusPath), { recursive: true })
   await Promise.all([
@@ -1444,9 +1449,46 @@ async function setTurboKeySetting(setting) {
   return getTurboKeySetting()
 }
 
+async function downloadTurboKeyHelper() {
+  await stopTurboKeyHelper()
+  const paths = getTurboKeyPaths()
+  await installTurboKeyHelper({
+    directory: paths.directory,
+    appVersion: app.getVersion(),
+    acceptedAt: Date.now(),
+    localSourcePath: app.isPackaged
+      ? null
+      : join(root, "native", "turbo-key", "bin", "turbo-key-helper.exe"),
+  })
+  const settings = await readJson(paths.settingsPath)
+  await writeJsonAtomic(paths.settingsPath, {
+    enabled: false,
+    keys: normalizeTurboKeyCodes(settings?.keys),
+    intervalMs: normalizeTurboKeyIntervalMs(settings?.intervalMs),
+    updatedAt: Date.now(),
+  })
+  return getTurboKeySetting()
+}
+
+async function uninstallTurboKeyHelper() {
+  await stopTurboKeyHelper()
+  const paths = getTurboKeyPaths()
+  const settings = await readJson(paths.settingsPath)
+  await writeJsonAtomic(paths.settingsPath, {
+    enabled: false,
+    keys: normalizeTurboKeyCodes(settings?.keys),
+    intervalMs: normalizeTurboKeyIntervalMs(settings?.intervalMs),
+    updatedAt: Date.now(),
+  })
+  await removeTurboKeyHelper(paths.directory)
+  return getTurboKeySetting()
+}
+
 async function ensureTurboKeyStarted() {
   const settings = await readJson(getTurboKeyPaths().settingsPath)
   if (!settings?.enabled) return
+  const installation = await getTurboKeyHelperInstallation(getTurboKeyPaths().directory)
+  if (!installation.installed) return
   await launchTurboKeyHelper(
     normalizeTurboKeyCodes(settings.keys),
     normalizeTurboKeyIntervalMs(settings.intervalMs),
@@ -2201,6 +2243,18 @@ function registerIpc() {
       throw new Error("허용되지 않은 터보 키 설정 요청입니다")
     }
     return getTurboKeySetting()
+  })
+  ipcMain.handle("application:download-turbo-key-helper", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 터보 키 다운로드 요청입니다")
+    }
+    return downloadTurboKeyHelper()
+  })
+  ipcMain.handle("application:remove-turbo-key-helper", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 터보 키 제거 요청입니다")
+    }
+    return uninstallTurboKeyHelper()
   })
   ipcMain.handle("application:set-turbo-key-setting", (event, setting) => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {

@@ -4,6 +4,7 @@
   import packageInfo from "../package.json"
   import introduceMarkdown from "../INTRODUCE.md?raw"
   import operationMarkdown from "../OPERATION.md?raw"
+  import turboKeyTermsMarkdown from "../TURBO_KEY_TERMS.md?raw"
   import versionHistoryMarkdown from "../VERSION_HISTORY.md?raw"
   import {
     defaultTurboKeyCodes,
@@ -13,7 +14,9 @@
   import creatorChannelAvatarUrl from "./creator-channel-avatar.jpg"
   import directDonationLogoUrl from "./direct-donation-logo.svg"
   import GameWave from "./GameWave.svelte"
+  import MarkdownBlocks from "./MarkdownBlocks.svelte"
   import Modal from "./Modal.svelte"
+  import TermsModal from "./TermsModal.svelte"
   import UpdatePreviewModal from "./UpdatePreviewModal.svelte"
 
   const keyboardRows = [
@@ -138,6 +141,7 @@
   let startupTrayNotice = ""
   let turboKeyEnabled = false
   let turboKeyRunning = false
+  let turboKeyInstalled = false
   let turboKeySettingLoaded = false
   let turboKeyAction = null
   let turboKeyNotice = ""
@@ -147,6 +151,9 @@
   let turboKeyDraftIntervalMs = defaultTurboKeyIntervalMs
   let turboKeyModalVisible = false
   let turboKeyModalCloseSignal = 0
+  let turboTermsModalVisible = false
+  let turboTermsModalCloseSignal = 0
+  let turboInstallAction = null
   let closeModalVisible = false
   let optimizationModalVisible = false
   let conflictModalVisible = false
@@ -221,6 +228,7 @@
   const operationPolicyUrl = "https://mabinogi.nexon.com/page/archive/guide_view.asp?id=4889849&num=7&playtarget=1"
   const introduceBlocks = parseIntroduceMarkdown(introduceMarkdown)
   const operationBlocks = parseIntroduceMarkdown(operationMarkdown)
+  const turboTermsBlocks = parseIntroduceMarkdown(turboKeyTermsMarkdown)
   const versionHistoryEntries = parseVersionHistory(versionHistoryMarkdown)
 
   function decodeMarkdownText(text) {
@@ -625,8 +633,59 @@
     }
   }
 
+  function applyTurboKeyState(state) {
+    turboKeyInstalled = Boolean(state.installed)
+    turboKeyEnabled = Boolean(state.enabled)
+    turboKeyRunning = Boolean(state.running)
+    turboKeyCodes = state.keys
+    turboKeyIntervalMs = state.intervalMs
+    if (state.reason) turboKeyNotice = state.reason
+  }
+
+  function openTurboTerms() {
+    if (!turboKeySettingLoaded || turboKeyInstalled || turboInstallAction) return
+    turboKeyNotice = ""
+    turboTermsModalVisible = true
+  }
+
+  async function downloadTurboKey() {
+    if (turboInstallAction || turboKeyInstalled) return
+    turboInstallAction = "downloading"
+    turboKeyNotice = ""
+    let installed = false
+    try {
+      const state = await window.nogirem.downloadTurboKeyHelper()
+      applyTurboKeyState(state)
+      installed = state.installed
+    } catch (error) {
+      turboKeyNotice = messageOf(error)
+    } finally {
+      turboInstallAction = null
+      if (installed) turboTermsModalCloseSignal++
+    }
+  }
+
+  async function removeTurboKey() {
+    if (turboKeyAction || !turboKeyInstalled) return
+    turboKeyAction = "removing"
+    turboKeyNotice = ""
+    try {
+      const state = await window.nogirem.removeTurboKeyHelper()
+      applyTurboKeyState(state)
+      turboKeyModalVisible = false
+    } catch (error) {
+      turboKeyNotice = messageOf(error)
+    } finally {
+      turboKeyAction = null
+    }
+  }
+
+  function openOperationPolicyLink() {
+    void window.nogirem.openOperationPolicy()
+  }
+
   async function toggleTurboKey() {
-    if (!turboKeySettingLoaded || turboKeyAction) return
+    if (!turboKeySettingLoaded || !turboKeyInstalled || turboKeyAction) return
     turboKeyAction = "saving"
     turboKeyNotice = ""
     try {
@@ -635,10 +694,7 @@
         keys: turboKeyCodes,
         intervalMs: turboKeyIntervalMs,
       })
-      turboKeyEnabled = Boolean(state.enabled)
-      turboKeyRunning = Boolean(state.running)
-      turboKeyCodes = state.keys
-      turboKeyIntervalMs = state.intervalMs
+      applyTurboKeyState(state)
     } catch (error) {
       turboKeyNotice = messageOf(error)
     } finally {
@@ -647,7 +703,7 @@
   }
 
   function openTurboKeySettings() {
-    if (!turboKeySettingLoaded || turboKeyAction) return
+    if (!turboKeySettingLoaded || !turboKeyInstalled || turboKeyAction) return
     turboKeyDraftCodes = [...turboKeyCodes]
     turboKeyDraftIntervalMs = turboKeyIntervalMs
     turboKeyModalVisible = true
@@ -687,10 +743,7 @@
         keys: turboKeyDraftCodes,
         intervalMs: turboKeyDraftIntervalMs,
       })
-      turboKeyEnabled = Boolean(state.enabled)
-      turboKeyRunning = Boolean(state.running)
-      turboKeyCodes = state.keys
-      turboKeyIntervalMs = state.intervalMs
+      applyTurboKeyState(state)
       saved = true
     } catch (error) {
       turboKeyNotice = messageOf(error)
@@ -701,14 +754,10 @@
   }
 
   async function syncTurboKeySetting() {
-    if (!turboKeySettingLoaded || turboKeyAction) return
+    if (!turboKeySettingLoaded || turboKeyAction || turboInstallAction) return
     try {
       const state = await window.nogirem.getTurboKeySetting()
-      turboKeyEnabled = Boolean(state.enabled)
-      turboKeyRunning = Boolean(state.running)
-      turboKeyCodes = state.keys
-      turboKeyIntervalMs = state.intervalMs
-      if (state.reason) turboKeyNotice = state.reason
+      applyTurboKeyState(state)
     } catch {
     }
   }
@@ -1175,11 +1224,7 @@
       })
     void window.nogirem.getTurboKeySetting()
       .then(state => {
-        turboKeyEnabled = Boolean(state.enabled)
-        turboKeyRunning = Boolean(state.running)
-        turboKeyCodes = state.keys
-        turboKeyIntervalMs = state.intervalMs
-        if (state.reason) turboKeyNotice = state.reason
+        applyTurboKeyState(state)
       })
       .catch(error => {
         turboKeyNotice = messageOf(error)
@@ -1654,84 +1699,12 @@
                     </svg>
                   </button>
                   <div class="introduce-markdown">
-                    {#each introduceBlocks as block}
-                      {#if block.type === "heading"}
-                        {#if block.level === 1}
-                          <h1>{block.text}</h1>
-                        {:else if block.level === 2}
-                          <h2>{block.text}</h2>
-                        {:else}
-                          <h3>{block.text}</h3>
-                        {/if}
-                      {:else if block.type === "list"}
-                        <ul>
-                          {#each block.items as item}
-                            <li>{item}</li>
-                          {/each}
-                        </ul>
-                      {:else if block.type === "image"}
-                        <img
-                          class="markdown-image"
-                          src={block.src}
-                          alt={block.alt}
-                          draggable="false"
-                        />
-                      {:else if block.type === "link"}
-                        <a
-                          href={block.href}
-                          class="markdown-link"
-                          onclick={event => {
-                            event.preventDefault()
-                            void window.nogirem.openOperationPolicy()
-                          }}
-                        >
-                          {block.text}
-                        </a>
-                      {:else}
-                        <p>{block.text}</p>
-                      {/if}
-                    {/each}
+                    <MarkdownBlocks blocks={introduceBlocks} onlink={openOperationPolicyLink} />
                   </div>
                 </div>
               {:else if creatorTab === "operation"}
                 <div class="introduce-markdown operation-markdown">
-                  {#each operationBlocks as block}
-                    {#if block.type === "heading"}
-                      {#if block.level === 1}
-                        <h1>{block.text}</h1>
-                      {:else if block.level === 2}
-                        <h2>{block.text}</h2>
-                      {:else}
-                        <h3>{block.text}</h3>
-                      {/if}
-                    {:else if block.type === "list"}
-                      <ul>
-                        {#each block.items as item}
-                          <li>{item}</li>
-                        {/each}
-                      </ul>
-                    {:else if block.type === "image"}
-                      <img
-                        class="markdown-image"
-                        src={block.src}
-                        alt={block.alt}
-                        draggable="false"
-                      />
-                    {:else if block.type === "link"}
-                      <a
-                        href={block.href}
-                        class="markdown-link"
-                        onclick={event => {
-                          event.preventDefault()
-                          void window.nogirem.openOperationPolicy()
-                        }}
-                      >
-                        {block.text}
-                      </a>
-                    {:else}
-                      <p>{block.text}</p>
-                    {/if}
-                  {/each}
+                  <MarkdownBlocks blocks={operationBlocks} onlink={openOperationPolicyLink} />
                 </div>
               {:else if creatorTab === "donation"}
                 <div class="donation-grid">
@@ -1809,28 +1782,54 @@
                   <div class="developer-tool-row">
                     <div>
                       <h2>터보 키</h2>
-                      <p>키를 누르고 있으면 해당 키를 반복해서 연타합니다</p>
+                      <p>
+                        {turboKeySettingLoaded
+                          ? (turboKeyInstalled
+                            ? "키를 누르고 있으면 해당 키를 반복해서 연타합니다"
+                            : "기능을 사용하려면 다운로드가 필요합니다")
+                          : "설치 상태를 확인하고 있습니다"}
+                      </p>
                     </div>
                     <div class="developer-tool-actions">
-                      <button
-                        class="developer-tool-secondary"
-                        disabled={!turboKeySettingLoaded || turboKeyAction}
-                        onclick={openTurboKeySettings}
-                      >
-                        키 설정
-                      </button>
-                      <button
-                        class:active={turboKeyEnabled}
-                        disabled={!turboKeySettingLoaded || turboKeyAction}
-                        aria-pressed={turboKeyEnabled}
-                        onclick={toggleTurboKey}
-                      >
-                        {turboKeyAction === "saving"
-                          ? "저장 중…"
-                          : (turboKeyEnabled
-                            ? (turboKeyRunning ? "사용 중" : "실행 오류")
-                            : "사용 안 함")}
-                      </button>
+                      {#if turboKeyInstalled}
+                        <div class="turbo-key-installed-actions">
+                          <div class="turbo-key-primary-actions">
+                            <button
+                              class="developer-tool-secondary"
+                              disabled={turboKeyAction}
+                              onclick={openTurboKeySettings}
+                            >
+                              키 설정
+                            </button>
+                            <button
+                              class:active={turboKeyEnabled}
+                              disabled={turboKeyAction}
+                              aria-pressed={turboKeyEnabled}
+                              onclick={toggleTurboKey}
+                            >
+                              {turboKeyAction === "saving"
+                                ? "저장 중…"
+                                : (turboKeyEnabled
+                                  ? (turboKeyRunning ? "사용 중" : "실행 오류")
+                                  : "사용 안 함")}
+                            </button>
+                          </div>
+                          <button
+                            class="turbo-key-remove"
+                            disabled={turboKeyAction}
+                            onclick={removeTurboKey}
+                          >
+                            {turboKeyAction === "removing" ? "제거 중…" : "터보키 제거하기"}
+                          </button>
+                        </div>
+                      {:else}
+                        <button
+                          disabled={!turboKeySettingLoaded || turboInstallAction}
+                          onclick={openTurboTerms}
+                        >
+                          {turboKeySettingLoaded ? "다운로드" : "확인 중…"}
+                        </button>
+                      {/if}
                     </div>
                   </div>
                   {#if turboKeyNotice}
@@ -2205,6 +2204,41 @@
   onstartuphidden={handleStartupHidden}
   onstartuplogomaskchange={active => startupLogoMaskActive = active}
 />
+
+{#if turboTermsModalVisible}
+  <TermsModal
+    title="터보 키 다운로드 전 확인"
+    closeSignal={turboTermsModalCloseSignal}
+    closeDisabled={Boolean(turboInstallAction)}
+    onclose={() => turboTermsModalVisible = false}
+  >
+    <div class="introduce-markdown turbo-terms-content">
+      <MarkdownBlocks blocks={turboTermsBlocks} onlink={openOperationPolicyLink} />
+    </div>
+    {#snippet footer()}
+      <div class="turbo-terms-footer">
+        {#if turboKeyNotice}
+          <span class="turbo-terms-error">{turboKeyNotice}</span>
+        {/if}
+        <div class="turbo-terms-actions">
+          <button
+            class="developer-tool-secondary"
+            disabled={Boolean(turboInstallAction)}
+            onclick={() => turboTermsModalCloseSignal++}
+          >
+            취소
+          </button>
+          <button
+            disabled={Boolean(turboInstallAction)}
+            onclick={downloadTurboKey}
+          >
+            {turboInstallAction ? "다운로드 중…" : "확인 후 다운로드"}
+          </button>
+        </div>
+      </div>
+    {/snippet}
+  </TermsModal>
+{/if}
 
 {#if turboKeyModalVisible}
   <Modal

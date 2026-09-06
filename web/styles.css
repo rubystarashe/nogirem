@@ -1164,6 +1164,43 @@ button.direct-donation-card:hover {
   background: transparent;
 }
 
+.turbo-key-installed-actions {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+}
+
+.turbo-key-primary-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.developer-tools button.turbo-key-remove {
+  width: auto;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  color: #b85e5e;
+  background: transparent;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 12px;
+}
+
+.developer-tools button.turbo-key-remove:hover:not(:disabled) {
+  color: #d04444;
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.developer-tools button.turbo-key-remove:disabled {
+  border: 0;
+  color: #b88d8d;
+  background: transparent;
+}
+
 .turbo-key-picker {
   display: grid;
   grid-template-rows: auto auto auto;
@@ -1335,6 +1372,74 @@ button.direct-donation-card:hover {
 }
 
 .turbo-key-picker-actions button:disabled {
+  border-color: #4c5356;
+  color: #737c80;
+  background: transparent;
+  cursor: default;
+}
+
+.turbo-terms-content {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 4px 6px 24px;
+}
+
+.turbo-terms-content h1,
+.turbo-terms-content h2 {
+  margin-top: 0;
+  font-size: 20px;
+}
+
+.turbo-terms-content .markdown-link {
+  font-size: 14px;
+}
+
+.turbo-terms-footer {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.turbo-terms-error {
+  margin-right: auto;
+  color: #e58f8f;
+  font-size: 12px;
+}
+
+.turbo-terms-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.turbo-terms-actions button {
+  min-width: 104px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid #f1f3f4;
+  color: #191c1e;
+  background: #f1f3f4;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.turbo-terms-actions button.developer-tool-secondary {
+  border-color: #6c7478;
+  color: #c4c9cc;
+  background: transparent;
+}
+
+.turbo-terms-actions button:hover:not(:disabled) {
+  border-color: #fff;
+  color: #fff;
+  background: transparent;
+}
+
+.turbo-terms-actions button:disabled {
   border-color: #4c5356;
   color: #737c80;
   background: transparent;

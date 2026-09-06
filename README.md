@@ -118,12 +118,15 @@ CPU 토폴로지 조회를 지원하지 않는 환경에서는 기존 논리 CPU
 - `정지(전체 복구)`: 감시를 멈추고 접근 가능한 프로세스가 전체 CPU를 사용하도록 복구합니다
 - `NIC RSS 최적화 포함`: 네트워크 수신 처리를 백그라운드 CPU 영역에 배치합니다
 - 고급 기능의 `Windows 시작 시 트레이 실행`: 로그인할 때 창과 시작 음악 없이 자동 실행합니다
-- 고급 기능의 `터보 키`: 전체 키보드 화면을 클릭하거나 실제 키를 눌러 반복 대상을 선택하고, 마비노기가 전면에 있을 때 Windows 키 반복 대기 시간 이후 선택한 1~30ms 간격으로 반복합니다
+- 고급 기능의 `터보 키`: 운영정책 안내를 확인하고 실행 파일을 선택적으로 다운로드한 뒤, 반복 대상과 1~30ms 입력 간격을 설정할 수 있습니다
 
 터보 키와 입력·매크로 엔진은 마비노기용 P-core를 침범하지 않도록 나머지 P-core에 배치합니다.
 일반 백그라운드 프로그램은 나머지 P-core와 E-core를 함께 사용합니다.
 
-터보 키는 기본적으로 꺼져 있고 선택된 키 없이 시작합니다.
+터보 키 실행 파일은 기본 설치 파일에 포함되지 않으며 사용자가 다운로드하기 전에는 실행되지 않습니다.
+다운로드 파일은 현재 앱의 GitHub 정식 Release에서만 가져오고 SHA-256과 Windows x64 형식을 검증합니다.
+설치 후에는 고급 기능의 `터보키 제거하기`를 눌러 실행 파일을 다시 삭제할 수 있습니다.
+터보 키는 설치 후에도 기본적으로 꺼져 있고 선택된 키 없이 시작합니다.
 Shift, Ctrl, Alt, Windows 키를 포함한 조합키와
 잠금·시스템 키에는 적용되지 않습니다. 반복 입력 도구 사용은 게임 운영정책에 따라
 이용 제한 대상이 될 수 있으므로 사용자가 해당 위험을 확인한 뒤 직접 켜야 합니다.
@@ -148,6 +151,7 @@ Shift, Ctrl, Alt, Windows 키를 포함한 조합키와
 
 - [INTRODUCE.md](./INTRODUCE.md): 제작 배경과 개발 방향
 - [OPERATION.md](./OPERATION.md): 비전문가를 위한 기능별 작동 원리
+- [TURBO_KEY_TERMS.md](./TURBO_KEY_TERMS.md): 터보 키 다운로드 전 운영정책 안내
 - [VERSION_HISTORY.md](./VERSION_HISTORY.md): 버전별 변경 기록
 
 앱의 `[류트@렘] 제작`을 누르면 위 문서와 후원 안내, 고급 기능을 앱 안에서
@@ -182,6 +186,7 @@ npm run package:win
 - `release/nogirem-setup-<version>.exe`
 - `release/nogirem-setup-<version>.exe.blockmap`
 - `release/latest.yml`
+- `release/turbo-key-helper-win32-x64-v<helper-version>.exe`
 
 ## GitHub Release 배포
 
@@ -198,5 +203,5 @@ npm run release:github
 배포 전에 작업 트리가 깨끗한지 확인하고 현재 버전 태그를 생성·게시하므로,
 버전 변경 사항은 먼저 커밋해야 합니다.
 
-자동 업데이트가 정상 동작하려면 GitHub 정식 Release에 설치 파일, blockmap과
-`latest.yml`이 모두 게시되어야 합니다.
+자동 업데이트와 선택적 터보 키 다운로드가 정상 동작하려면 GitHub 정식 Release에
+설치 파일, blockmap, `latest.yml`과 별도 터보 키 helper 자산이 모두 게시되어야 합니다.

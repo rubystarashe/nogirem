@@ -12,6 +12,14 @@ const cargoExecutable = process.platform === "win32"
   ? [
       process.env.CARGO_HOME && join(process.env.CARGO_HOME, "bin", "cargo.exe"),
       process.env.USERPROFILE && join(process.env.USERPROFILE, ".cargo", "bin", "cargo.exe"),
+      process.env.USERPROFILE && join(
+        process.env.USERPROFILE,
+        ".rustup",
+        "toolchains",
+        "stable-x86_64-pc-windows-msvc",
+        "bin",
+        "cargo.exe",
+      ),
       "cargo",
     ].find(candidate => candidate && (candidate === "cargo" || existsSync(candidate)))
   : "cargo"

@@ -22,8 +22,8 @@ const gameWave = await readFile(
   new URL("../web/GameWave.svelte", import.meta.url),
   "utf8",
 )
-const operationDocument = await readFile(
-  new URL("../OPERATION.md", import.meta.url),
+const turboKeyTermsDocument = await readFile(
+  new URL("../TURBO_KEY_TERMS.md", import.meta.url),
   "utf8",
 )
 const packageInfo = JSON.parse(await readFile(
@@ -105,14 +105,16 @@ test("부트스트랩이 시작 오류를 파일에 기록한다", () => {
 
 test("마비노기 운영정책 링크는 허용된 주소만 시스템 브라우저로 연다", () => {
   const policyUrlAt = applicationView.indexOf("const operationPolicyUrl")
-  const operationParseAt = applicationView.indexOf("const operationBlocks")
+  const termsParseAt = applicationView.indexOf("const turboTermsBlocks")
 
   assert.ok(policyUrlAt >= 0)
-  assert.ok(operationParseAt > policyUrlAt)
+  assert.ok(termsParseAt > policyUrlAt)
   assert.match(
-    operationDocument,
+    turboKeyTermsDocument,
     /\[마비노기 '권장하지 않는 플레이 방식 안내'\]\(https:\/\/mabinogi\.nexon\.com\/page\/archive\/guide_view\.asp\?id=4889849&num=7&playtarget=1\)/,
   )
+  assert.match(applicationView, /import turboKeyTermsMarkdown from "\.\.\/TURBO_KEY_TERMS\.md\?raw"/)
+  assert.match(applicationView, /parseIntroduceMarkdown\(turboKeyTermsMarkdown\)/)
   assert.match(applicationView, /linkMatch\?\.\[2\] === operationPolicyUrl/)
   assert.match(applicationView, /window\.nogirem\.openOperationPolicy\(\)/)
   assert.match(electronPreload, /application:open-operation-policy/)

@@ -41,6 +41,8 @@ contextBridge.exposeInMainWorld("nogirem", {
     return ipcRenderer.invoke("application:set-startup-tray-setting", enabled)
   },
   getTurboKeySetting: () => ipcRenderer.invoke("application:get-turbo-key-setting"),
+  downloadTurboKeyHelper: () => ipcRenderer.invoke("application:download-turbo-key-helper"),
+  removeTurboKeyHelper: () => ipcRenderer.invoke("application:remove-turbo-key-helper"),
   setTurboKeySetting: setting => {
     return ipcRenderer.invoke("application:set-turbo-key-setting", setting)
   },
