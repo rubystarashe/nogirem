@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 import {
+  getLocalTurboKeyHelper,
   getTurboKeyHelperInstallation,
   installTurboKeyHelper,
   removeTurboKeyHelper,
@@ -24,6 +25,24 @@ function createX64Executable() {
 test("터보 키 설치 파일은 Windows x64 PE만 허용한다", () => {
   assert.equal(validateTurboKeyExecutable(createX64Executable()), true)
   assert.throws(() => validateTurboKeyExecutable(Buffer.alloc(512)), /MZ 헤더/)
+})
+
+test("개발 모드는 로컬 빌드 helper를 복사하지 않고 직접 사용한다", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "nogirem-turbo-local-"))
+  const sourcePath = join(directory, "turbo-key-helper.exe")
+  try {
+    await writeFile(sourcePath, createX64Executable())
+    const installation = await getLocalTurboKeyHelper(sourcePath)
+
+    assert.equal(installation.installed, true)
+    assert.equal(installation.executablePath, sourcePath)
+    assert.equal(installation.source, "local-development-build")
+    await assert.rejects(readFile(join(directory, "current.json")), {
+      code: "ENOENT",
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
 })
 
 test("개발 빌드 helper를 AppData 형식으로 설치하고 변조를 감지한다", async () => {

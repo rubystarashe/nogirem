@@ -55,6 +55,38 @@ export function validateTurboKeyExecutable(buffer) {
   return true
 }
 
+export async function getLocalTurboKeyHelper(localSourcePath) {
+  try {
+    const buffer = await readFile(localSourcePath)
+    if (buffer.length > maximumHelperSize) {
+      throw new Error("터보 키 실행 파일의 크기가 올바르지 않습니다")
+    }
+    validateTurboKeyExecutable(buffer)
+    return {
+      installed: true,
+      updateRequired: false,
+      executablePath: localSourcePath,
+      helperVersion: turboKeyHelperVersion,
+      installedVersion: turboKeyHelperVersion,
+      protocolVersion: turboKeyHelperProtocolVersion,
+      sha256: sha256Buffer(buffer),
+      source: "local-development-build",
+      reason: null,
+    }
+  } catch (error) {
+    return {
+      installed: false,
+      updateRequired: false,
+      executablePath: localSourcePath,
+      helperVersion: turboKeyHelperVersion,
+      installedVersion: null,
+      reason: error?.code === "ENOENT"
+        ? "로컬 터보 키 helper를 먼저 빌드하세요"
+        : (error?.message ?? String(error)),
+    }
+  }
+}
+
 export async function getTurboKeyHelperInstallation(directory) {
   const paths = helperPaths(directory)
   const manifest = await readJson(paths.manifestPath)

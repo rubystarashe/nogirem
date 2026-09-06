@@ -42,6 +42,7 @@ import {
   normalizeTurboKeyIntervalMs,
 } from "../src/turbo-key-settings.mjs"
 import {
+  getLocalTurboKeyHelper,
   getTurboKeyHelperInstallation,
   installTurboKeyHelper,
   removeTurboKeyHelper,
@@ -51,6 +52,13 @@ import {
 const { autoUpdater } = updaterPackage
 const execFileAsync = promisify(execFile)
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
+const localTurboKeyHelperPath = join(
+  root,
+  "native",
+  "turbo-key",
+  "bin",
+  "turbo-key-helper.exe",
+)
 const preloadPath = join(root, "electron", "preload.cjs")
 const characterGuidePreloadPath = join(root, "electron", "character-guide-preload.cjs")
 const dxvkManagerPreloadPath = join(root, "electron", "dxvk-manager-preload.cjs")
@@ -1409,21 +1417,24 @@ async function getTurboKeySetting() {
 
 async function getCachedTurboKeyInstallation(directory, { refresh = false } = {}) {
   if (refresh || !turboKeyInstallationCache) {
-    turboKeyInstallationCache = await getTurboKeyHelperInstallation(directory)
+    turboKeyInstallationCache = app.isPackaged
+      ? await getTurboKeyHelperInstallation(directory)
+      : await getLocalTurboKeyHelper(localTurboKeyHelperPath)
   }
   return turboKeyInstallationCache
 }
 
 async function updateTurboKeyHelperIfNeeded(installation) {
+  if (!app.isPackaged) {
+    turboKeyInstallationCache = await getLocalTurboKeyHelper(localTurboKeyHelperPath)
+    return turboKeyInstallationCache
+  }
   if (!installation?.updateRequired || !installation.acceptedAt) return installation
   const paths = getTurboKeyPaths()
   turboKeyInstallationCache = await installTurboKeyHelper({
     directory: paths.directory,
     appVersion: app.getVersion(),
     acceptedAt: installation.acceptedAt,
-    localSourcePath: app.isPackaged
-      ? null
-      : join(root, "native", "turbo-key", "bin", "turbo-key-helper.exe"),
   })
   return turboKeyInstallationCache
 }
@@ -1571,14 +1582,18 @@ async function setTurboKeySetting(setting) {
 async function downloadTurboKeyHelper() {
   await stopTurboKeyHelper()
   const paths = getTurboKeyPaths()
-  turboKeyInstallationCache = await installTurboKeyHelper({
-    directory: paths.directory,
-    appVersion: app.getVersion(),
-    acceptedAt: Date.now(),
-    localSourcePath: app.isPackaged
-      ? null
-      : join(root, "native", "turbo-key", "bin", "turbo-key-helper.exe"),
-  })
+  turboKeyInstallationCache = app.isPackaged
+    ? await installTurboKeyHelper({
+        directory: paths.directory,
+        appVersion: app.getVersion(),
+        acceptedAt: Date.now(),
+      })
+    : await getLocalTurboKeyHelper(localTurboKeyHelperPath)
+  if (!turboKeyInstallationCache.installed) {
+    throw new Error(
+      turboKeyInstallationCache.reason ?? "로컬 터보 키 helper를 확인하지 못했습니다",
+    )
+  }
   const settings = await readJson(paths.settingsPath)
   await writeJsonAtomic(paths.settingsPath, {
     enabled: false,
@@ -1599,7 +1614,10 @@ async function uninstallTurboKeyHelper() {
     intervalMs: normalizeTurboKeyIntervalMs(settings?.intervalMs),
     updatedAt: Date.now(),
   })
-  turboKeyInstallationCache = await removeTurboKeyHelper(paths.directory)
+  await removeTurboKeyHelper(paths.directory)
+  turboKeyInstallationCache = app.isPackaged
+    ? await getTurboKeyHelperInstallation(paths.directory)
+    : await getLocalTurboKeyHelper(localTurboKeyHelperPath)
   return getTurboKeySetting()
 }
 

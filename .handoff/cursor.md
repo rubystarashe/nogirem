@@ -1,11 +1,13 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-07 00:22
+Last Updated: 2026-09-07 00:25
 
 ## Current Objective
-터보 키 입력 우선순위 개선을 0.2.9 변경 기록에 반영하고 Windows 설치본을 준비한다.
+개발 모드에서 AppData 복사본이 아닌 로컬 빌드 터보 키 helper를 직접 실행한다.
 
 ## Current Status
+- 개발 실행은 `native/turbo-key/bin/turbo-key-helper.exe`의 PE 형식과 크기를 확인한 뒤 해당 파일을 직접 실행한다. 로컬 재빌드 결과를 AppData 재설치 없이 바로 테스트할 수 있다.
+- 정식 설치본은 기존처럼 GitHub Release 자산을 다운로드하고 AppData 설치본의 manifest와 SHA-256을 검증해 실행한다.
 - 앱 버전과 사용자·상세 변경 기록을 0.2.9로 갱신하고 Windows x64 설치본을 패키징했다. 사용자 요청에 따라 배포하지 않았다.
 - 로컬 자산은 `nogirem-setup-0.2.9.exe`, blockmap, `latest.yml`, `turbo-key-helper-win32-x64-v0.1.4.exe`이며 `latest.yml`의 버전과 파일명이 0.2.9로 일치한다.
 - 터보 키 helper 0.1.4는 눌린 설정 키 순서를 유지한다. `2 → 3`을 누르면 3을 반복하고 3을 떼면 계속 누르고 있던 2를 즉시 다시 반복한다.
@@ -1054,6 +1056,7 @@ Last Updated: 2026-09-07 00:22
 - 동일 버전 자산 대치이므로 이미 0.2.8을 설치한 사용자는 자동 업데이트가 다시 실행되지 않으며 최신 수정본을 수동 재설치해야 한다.
 - 터보 키 helper에 설정 키 입력 순서 스택을 추가해 최신 키 해제 시 직전 키 반복을 복원하고, 설정되지 않은 일반 키가 반복을 취소하지 않도록 변경했다. helper 버전은 0.1.4이며 Rust 테스트 13개, clippy, release 빌드와 Node 테스트 99개가 통과했다.
 - 앱 버전과 변경 기록을 0.2.9로 올리고 Windows 설치본을 패키징했다. installer는 93,330,908바이트이고 SHA-256은 `A7CB853A420469CBB0EDF431719A4A794F217A1E080D966D6DED8B5455CBF84D`이며 GitHub에는 배포하지 않았다.
+- 개발 모드의 터보 키 설치 판정을 로컬 빌드 helper 직접 참조로 분리했다. 실제 로컬 helper 인식, Node 테스트 101개와 Svelte 프로덕션 빌드가 통과했다.
 
 ## Next Recommended Step
-마비노기 전면 창에서 여러 터보 키와 일반 키를 섞은 실제 입력 순서를 확인하고, 사용자 요청이 있을 때만 0.2.9와 helper 0.1.4를 GitHub에 배포한다.
+`npm run native:turbo-key`로 helper를 재빌드한 뒤 개발 앱에서 재설치 없이 변경 동작이 반영되는지 확인한다.

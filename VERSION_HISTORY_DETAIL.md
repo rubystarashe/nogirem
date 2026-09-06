@@ -8,6 +8,7 @@
 - 설정되지 않은 일반 키의 누름·해제는 활성 터보 키와 입력 순서에 영향을 주지 않도록 keyboard hook 처리 변경
 - modifier 입력 시 터보 반복을 중단하는 기존 안전 동작은 유지
 - 자동 교체가 적용되도록 터보 키 helper 버전을 0.1.4로 갱신
+- 개발 모드는 AppData 설치 복사본 대신 `native/turbo-key/bin/turbo-key-helper.exe`를 직접 실행해 로컬 재빌드 결과를 바로 테스트
 
 ## 0.2.8
 

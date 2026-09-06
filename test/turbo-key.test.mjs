@@ -151,6 +151,26 @@ test("터보 키 설치 무결성은 매초 다시 계산하지 않고 실행 �
   )
 })
 
+test("개발 모드는 AppData 복사본 대신 로컬 빌드 helper를 직접 실행한다", async () => {
+  const electronMain = await readFile(
+    new URL("../electron/main.mjs", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(
+    electronMain,
+    /const localTurboKeyHelperPath = join\([\s\S]*"native"[\s\S]*"turbo-key-helper\.exe"/,
+  )
+  assert.match(
+    electronMain,
+    /turboKeyInstallationCache = app\.isPackaged[\s\S]*getTurboKeyHelperInstallation\(directory\)[\s\S]*getLocalTurboKeyHelper\(localTurboKeyHelperPath\)/,
+  )
+  assert.match(
+    electronMain,
+    /const executablePath = installation\.executablePath[\s\S]*spawn\(executablePath/,
+  )
+})
+
 test("기존 동의를 유지한 채 구버전 터보 키 helper를 시작 시 자동 교체한다", async () => {
   const [electronMain, installerSource] = await Promise.all([
     readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
