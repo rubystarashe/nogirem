@@ -54,6 +54,8 @@ const creatorChannelUrl = "https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zE
 const directDonationUrl = "https://thedirectdonation.org/"
 const startupTrayTaskName = "Mabinogi Rem Booster Startup"
 const startupTrayLaunch = process.argv.includes("--startup-tray")
+const applicationUpdateStallTimeoutMs = 45_000
+const primaryRendererUnresponsiveTimeoutMs = 5_000
 const conflictingProgramDefinitions = [
   {
     name: "ISLC",
@@ -95,6 +97,8 @@ let dxvkRuntimeRefreshTimer = null
 let applicationUpdateStartupTimer = null
 let applicationUpdateCheckTimer = null
 let applicationUpdateCompletionTimer = null
+let applicationUpdateStallTimer = null
+let applicationUpdateDownloadStalled = false
 let applicationUpdateCheckPromise = null
 let applicationUpdaterConfigured = false
 let applicationUpdateState = {
@@ -108,6 +112,10 @@ let gamePathStateMonitor = null
 let gamePathStateReading = false
 let creatorChannelProfilePromise = null
 let turboKeyProcess = null
+let primaryRendererRecoveryMode = false
+let primaryRendererRecoveryInProgress = false
+let primaryRendererUnresponsiveTimer = null
+let primaryRendererRecoveryResetTimer = null
 const dxvkReleaseCacheDurationMs = 6 * 60 * 1000
 
 const instanceDirectory = join(app.getPath("userData"), "instance")
@@ -161,6 +169,28 @@ function clearApplicationUpdateCompletionTimer() {
   applicationUpdateCompletionTimer = null
 }
 
+function clearApplicationUpdateStallTimer() {
+  clearTimeout(applicationUpdateStallTimer)
+  applicationUpdateStallTimer = null
+}
+
+function armApplicationUpdateStallTimer() {
+  clearApplicationUpdateStallTimer()
+  applicationUpdateStallTimer = setTimeout(() => {
+    applicationUpdateStallTimer = null
+    if (applicationUpdateState.phase !== "downloading") return
+    applicationUpdateDownloadStalled = true
+    setApplicationUpdateState({
+      phase: "error",
+      percent: 0,
+      error: {
+        name: "UpdateDownloadStalled",
+        message: "업데이트 다운로드가 응답하지 않아 중단했습니다. 버전을 눌러 다시 시도하세요",
+      },
+    })
+  }, applicationUpdateStallTimeoutMs)
+}
+
 function configureApplicationUpdater() {
   if (applicationUpdaterConfigured || !app.isPackaged) return
   applicationUpdaterConfigured = true
@@ -169,6 +199,8 @@ function configureApplicationUpdater() {
 
   autoUpdater.on("checking-for-update", () => {
     clearApplicationUpdateCompletionTimer()
+    clearApplicationUpdateStallTimer()
+    applicationUpdateDownloadStalled = false
     setApplicationUpdateState({
       phase: "checking",
       percent: 0,
@@ -177,6 +209,8 @@ function configureApplicationUpdater() {
   })
   autoUpdater.on("update-available", info => {
     clearApplicationUpdateCompletionTimer()
+    applicationUpdateDownloadStalled = false
+    armApplicationUpdateStallTimer()
     setApplicationUpdateState({
       phase: "downloading",
       percent: 0,
@@ -186,6 +220,8 @@ function configureApplicationUpdater() {
   })
   autoUpdater.on("update-not-available", () => {
     clearApplicationUpdateCompletionTimer()
+    clearApplicationUpdateStallTimer()
+    applicationUpdateDownloadStalled = false
     setApplicationUpdateState({
       phase: "idle",
       percent: 0,
@@ -194,6 +230,8 @@ function configureApplicationUpdater() {
     })
   })
   autoUpdater.on("download-progress", progress => {
+    if (applicationUpdateDownloadStalled) return
+    armApplicationUpdateStallTimer()
     const previousPercent = applicationUpdateState.phase === "downloading"
       ? applicationUpdateState.percent
       : 0
@@ -206,6 +244,8 @@ function configureApplicationUpdater() {
   })
   autoUpdater.on("update-downloaded", info => {
     clearApplicationUpdateCompletionTimer()
+    clearApplicationUpdateStallTimer()
+    applicationUpdateDownloadStalled = false
     setApplicationUpdateState({
       phase: "downloading",
       percent: 100,
@@ -223,6 +263,8 @@ function configureApplicationUpdater() {
   })
   autoUpdater.on("error", error => {
     clearApplicationUpdateCompletionTimer()
+    clearApplicationUpdateStallTimer()
+    applicationUpdateDownloadStalled = false
     console.error("앱 업데이트 확인 실패", error)
     setApplicationUpdateState({
       phase: "error",
@@ -2131,7 +2173,7 @@ function registerIpc() {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 실행 상태 요청입니다")
     }
-    return { startupTray: startupTrayLaunch }
+    return { startupTray: startupTrayLaunch || primaryRendererRecoveryMode }
   })
   ipcMain.handle("application:get-startup-tray-setting", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
@@ -2776,6 +2818,42 @@ function observeInternalWindowVisualActivity(window) {
   }
 }
 
+function clearPrimaryRendererUnresponsiveTimer() {
+  clearTimeout(primaryRendererUnresponsiveTimer)
+  primaryRendererUnresponsiveTimer = null
+}
+
+function recoverPrimaryRenderer(window, reason) {
+  if (
+    applicationExitInProgress
+    || primaryWindow !== window
+    || window.isDestroyed()
+    || window.webContents.isDestroyed()
+    || primaryRendererRecoveryInProgress
+  ) return
+
+  clearPrimaryRendererUnresponsiveTimer()
+  clearTimeout(primaryRendererRecoveryResetTimer)
+  primaryRendererRecoveryResetTimer = null
+  primaryRendererRecoveryMode = true
+  primaryRendererRecoveryInProgress = true
+  const wasVisible = window.isVisible()
+  const wasSkippedFromTaskbar = window.isSkipTaskbar()
+  console.error(`렌더러 자동 복구 시작: ${reason}`)
+
+  window.webContents.once("did-finish-load", () => {
+    if (primaryWindow !== window || window.isDestroyed()) return
+    primaryRendererRecoveryInProgress = false
+    if (!wasVisible) window.hide()
+    window.setSkipTaskbar(wasSkippedFromTaskbar)
+    primaryRendererRecoveryResetTimer = setTimeout(() => {
+      primaryRendererRecoveryMode = false
+      primaryRendererRecoveryResetTimer = null
+    }, 10_000)
+  })
+  window.webContents.reload()
+}
+
 function createWindow() {
   const window = new BrowserWindow({
     width: 640,
@@ -2800,7 +2878,16 @@ function createWindow() {
   disableProductionRefresh(window)
   window.webContents.on("render-process-gone", (_event, details) => {
     console.error("렌더러 프로세스 종료", details)
+    recoverPrimaryRenderer(window, `프로세스 종료 (${details.reason})`)
   })
+  window.on("unresponsive", () => {
+    if (primaryRendererUnresponsiveTimer || primaryRendererRecoveryInProgress) return
+    primaryRendererUnresponsiveTimer = setTimeout(() => {
+      primaryRendererUnresponsiveTimer = null
+      recoverPrimaryRenderer(window, "5초 이상 무응답")
+    }, primaryRendererUnresponsiveTimeoutMs)
+  })
+  window.on("responsive", clearPrimaryRendererUnresponsiveTimer)
   primaryWindow = window
   for (const eventName of ["focus", "blur", "show", "hide", "minimize", "restore"]) {
     window.on(eventName, notifyPrimaryVisualActivity)
@@ -2816,12 +2903,17 @@ function createWindow() {
       .catch(error => console.error("종료 요청 처리 실패", error))
   })
   window.on("closed", () => {
+    clearPrimaryRendererUnresponsiveTimer()
+    clearTimeout(primaryRendererRecoveryResetTimer)
     clearTimeout(primaryWindowFocusTimer)
     clearTimeout(primaryVisualActivityTimer)
     clearTimeout(primaryWindowRevealFrameTimer)
     primaryWindowFocusTimer = null
     primaryVisualActivityTimer = null
     primaryWindowRevealFrameTimer = null
+    primaryRendererRecoveryResetTimer = null
+    primaryRendererRecoveryMode = false
+    primaryRendererRecoveryInProgress = false
     primaryWindowRevealStarted = false
     if (primaryWindow === window) primaryWindow = null
   })
@@ -2893,6 +2985,10 @@ async function startApplication() {
     clearInterval(applicationUpdateCheckTimer)
     applicationUpdateCheckTimer = null
     clearApplicationUpdateCompletionTimer()
+    clearApplicationUpdateStallTimer()
+    clearPrimaryRendererUnresponsiveTimer()
+    clearTimeout(primaryRendererRecoveryResetTimer)
+    primaryRendererRecoveryResetTimer = null
     clearTimeout(dxvkRuntimeRefreshTimer)
     dxvkRuntimeRefreshTimer = null
     clearInterval(focusRequestMonitor)
