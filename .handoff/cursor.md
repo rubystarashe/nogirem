@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 11:05
+Last Updated: 2026-09-06 11:16
 
 ## Current Objective
-업데이트 다운로드 고착과 Electron 렌더러 무응답으로 앱 입력이 막히는 문제를 방지한다.
+PC 성능과 스케줄러 상태에 따른 Rust 터보 키 반복 속도 편차를 줄인다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -915,6 +915,9 @@ Last Updated: 2026-09-06 11:05
 - 같은 0.2.1 버전으로 교체했으므로 이미 0.2.1을 설치한 사용자는 자동 업데이트로 교체본을 받지 않으며 수동 재설치가 필요하다.
 - 업데이트 다운로드가 45초 동안 진행 이벤트 없이 멈추면 `downloading` 상태를 오류로 전환해 전체 입력 차단 오버레이를 해제한다. 지연된 진행 이벤트는 무시하지만 실제 완료 이벤트가 오면 정상 설치 화면을 표시하며, 새 검사·오류·종료 시 watchdog을 정리한다.
 - 메인 BrowserWindow가 5초 이상 `unresponsive` 상태이거나 `render-process-gone`이 발생하면 렌더러를 자동 재로드한다. 복구 시 시작 연출을 건너뛰고 기존 창 표시·작업 표시줄 상태를 유지한다. 회귀 계약 테스트 2개를 추가했으며 전체 Node 테스트 63개, 웹 빌드·구문 검사·린트가 통과했다.
+- 터보 키 반복 대기를 Windows 고해상도 waitable timer로 교체하고 지원하지 않는 환경에서는 일반 waitable timer와 기존 대기를 순차 fallback한다. 프로세스는 `ABOVE_NORMAL`, hook·반복 스레드는 `HIGHEST` 우선도를 사용하며 반복 스레드는 게임 외 P-core 마스크의 첫 CPU를 Ideal Processor로 선호한다.
+- 키를 활성화할 때만 마비노기 `Client.exe` 경로를 검증하고 PID를 캐시한다. 반복 중에는 `GetForegroundWindow`의 PID만 비교해 매 입력마다 실행하던 `OpenProcess`·경로 조회를 제거했다. Windows 키보드 반복 시작 지연은 기존 사용자 설정을 유지한다.
+- 최종 helper에서 `AboveNormal` 우선도와 `0xff` Affinity 적용을 실동작 확인했다. Node 테스트 64개, Rust 테스트 11개, Clippy와 release helper 빌드가 통과했으며 아직 패키징·배포하지 않았다.
 
 ## Next Recommended Step
-패키지 설치본에서 네트워크 중단 시 45초 후 업데이트 오버레이가 해제되는지와 강제 렌더러 종료 후 UI가 자동 복구되는지 수동 검증한다.
+마비노기 전면 창에서 1ms 반복의 실제 전송률과 입력 간격 편차를 여러 사양의 PC에서 비교하고, 패키지 설치본에서 업데이트·렌더러 복구도 함께 검증한다.

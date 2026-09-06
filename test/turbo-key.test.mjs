@@ -60,3 +60,16 @@ test("터보 키 helper는 게임 외 P-core 마스크를 시작 인자로 받�
   assert.match(electronMain, /`--affinity-mask=0x\$\{latencyMask\.toString\(16\)\}`/)
   assert.match(electronMain, /`--interval-ms=\$\{normalizeTurboKeyIntervalMs\(intervalMs\)\}`/)
 })
+
+test("터보 키 helper는 정밀 타이머와 우선 스케줄링을 사용한다", async () => {
+  const helperSource = await readFile(
+    new URL("../native/turbo-key/src/main.rs", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(helperSource, /CREATE_WAITABLE_TIMER_HIGH_RESOLUTION/)
+  assert.match(helperSource, /SetPriorityClass\(GetCurrentProcess\(\), ABOVE_NORMAL_PRIORITY_CLASS\)/)
+  assert.match(helperSource, /SetThreadPriority\(thread, THREAD_PRIORITY_HIGHEST\)/)
+  assert.match(helperSource, /SetThreadIdealProcessor\(thread, processor\)/)
+  assert.match(helperSource, /is_process_foreground\(foreground_pid\)/)
+})
