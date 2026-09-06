@@ -2976,6 +2976,16 @@ function focusPrimaryWindow() {
   }
 }
 
+function requestApplicationExitFromTray() {
+  const mainWindowVisible = Boolean(
+    primaryWindow
+    && !primaryWindow.isDestroyed()
+    && primaryWindow.isVisible()
+    && !primaryWindowSkippedFromTaskbar,
+  )
+  return requestApplicationExitConfirmation({ nativeDialog: !mainWindowVisible })
+}
+
 function ensureApplicationTray() {
   if (applicationTray && !applicationTray.isDestroyed()) return applicationTray
   applicationTray = new Tray(iconPath)
@@ -2989,7 +2999,7 @@ function ensureApplicationTray() {
     {
       label: "종료",
       click: () => {
-        void requestApplicationExitConfirmation({ nativeDialog: true })
+        void requestApplicationExitFromTray()
           .catch(error => console.error("트레이 종료 요청 처리 실패", error))
       },
     },

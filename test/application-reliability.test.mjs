@@ -87,14 +87,14 @@ test("트레이 복귀 시 투명 보조 창의 입력 가로채기를 해제한
   )
 })
 
-test("트레이 종료는 메인 창을 복원하지 않고 독립적인 네이티브 확인창을 사용한다", () => {
+test("트레이 종료는 메인 창 표시 여부에 맞는 종료 선택창을 사용한다", () => {
   assert.match(
     electronMain,
-    /label: "종료"[\s\S]*requestApplicationExitConfirmation\(\{ nativeDialog: true \}\)/,
+    /label: "종료"[\s\S]*requestApplicationExitFromTray\(\)/,
   )
-  assert.doesNotMatch(
+  assert.match(
     electronMain,
-    /label: "종료"[\s\S]{0,120}focusPrimaryWindow\(\)/,
+    /function requestApplicationExitFromTray\(\) \{[\s\S]*primaryWindow\.isVisible\(\)[\s\S]*nativeDialog: !mainWindowVisible/,
   )
   assert.match(
     electronMain,
