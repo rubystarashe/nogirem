@@ -1274,7 +1274,7 @@
     in:fly={{ y: 5, duration: 280 }}
     out:fade={{ duration: 180 }}
   >
-    작동 원리가 궁금하신가요?
+    고급 기능은 여기에서
   </span>
 {/if}
 

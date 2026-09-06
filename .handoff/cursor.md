@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 11:28
+Last Updated: 2026-09-06 11:32
 
 ## Current Objective
-렌더러 자동 복구와 터보 키 반복 안정화를 포함한 0.2.2 Windows 설치본을 검증한다.
+렌더러 자동 복구와 터보 키 반복 안정화를 포함한 0.2.2 Windows 설치본을 GitHub에 배포한다.
 
 ## Current Status
 - `src/index.mjs`는 CLI 해석과 실행 흐름만 담당하도록 축소했다.
@@ -920,6 +920,7 @@ Last Updated: 2026-09-06 11:28
 - 최종 helper에서 `AboveNormal` 우선도와 `0xff` Affinity 적용을 실동작 확인했다. Node 테스트 64개, Rust 테스트 11개, Clippy와 release helper 빌드가 통과했으며 아직 패키징·배포하지 않았다.
 - 터보 키 입력 간격 selector 오른쪽에 `저사양 PC에서는 입력 간격을 늘리세요` 안내를 추가했다. 버전 문자열과 변경 기록을 0.2.2로 올렸으며 패키징을 진행한다.
 - `npm run package:win`으로 0.2.2 Windows x64 NSIS 설치본을 생성했다. `nogirem-setup-0.2.2.exe`는 92,916,167바이트, SHA-256 `9049AE2819BB5A02819CFDCAD2252D3162D86E6F7F2DA5BEF4837C7CDCA4DDE8`이며 blockmap과 `latest.yml`의 버전·경로·크기를 확인했다. 배포는 진행하지 않았다.
+- `[류트@렘] 제작` 위 최초 안내 말풍선 문구를 `고급 기능은 여기`로 변경했으며, 이를 포함해 0.2.2를 다시 패키징하고 배포한다.
 
 ## Next Recommended Step
 마비노기 전면 창에서 1ms 반복의 실제 전송률과 입력 간격 편차를 여러 사양의 PC에서 비교하고, 패키지 설치본에서 업데이트·렌더러 복구도 함께 검증한다.
