@@ -116,6 +116,22 @@ test("Affinity 상태가 오래됐어도 강제 간소화 상태를 직접 확�
   )
 })
 
+test("helper 상태 파일 잠금 실패를 복구하고 중복 helper 실행을 막는다", () => {
+  assert.match(electronMain, /import \{ writeJsonAtomic \} from "\.\.\/src\/atomic-json\.mjs"/)
+  assert.match(
+    electronMain,
+    /async function acquireHelperLock\(statusPath\)[\s\S]*openFile\(lockPath, "wx"\)[\s\S]*isProcessRunning\(existing\?\.pid\)/,
+  )
+  assert.match(
+    electronMain,
+    /Affinity 상태 기록 실패, 다음 주기에 다시 시도합니다/,
+  )
+  assert.match(
+    electronMain,
+    /메모리 상태 기록 실패, 다음 주기에 다시 시도합니다/,
+  )
+})
+
 test("부트스트랩이 시작 오류를 파일에 기록한다", () => {
   assert.equal(packageInfo.main, "electron/bootstrap.mjs")
   assert.match(electronBootstrap, /startup\.log/)

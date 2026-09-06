@@ -1,6 +1,6 @@
 import { execFile, spawn } from "node:child_process"
 import { existsSync, unlinkSync } from "node:fs"
-import { copyFile, mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises"
+import { copyFile, mkdir, open as openFile, readFile, rename, stat, unlink, writeFile } from "node:fs/promises"
 import { cpus, tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
@@ -30,6 +30,7 @@ import {
   installDxvkVersion,
 } from "../src/dxvk.mjs"
 import { getLatestMuoStatus } from "../src/muo-status.mjs"
+import { writeJsonAtomic } from "../src/atomic-json.mjs"
 import { readRuntimeStatusJson as readRuntimeStatusJsonFile } from "../src/runtime-status.mjs"
 import { advanceDownloadProgress } from "../src/update-progress.mjs"
 import { getYouTubeChannelProfile } from "../src/youtube-channel.mjs"
@@ -408,13 +409,6 @@ async function getCharacterSimplificationStatus() {
   }
 }
 
-async function writeJsonAtomic(path, value) {
-  await mkdir(dirname(path), { recursive: true })
-  const temporaryPath = `${path}.${process.pid}.tmp`
-  await writeFile(temporaryPath, JSON.stringify(value), "utf8")
-  await rename(temporaryPath, path)
-}
-
 async function readJson(path) {
   try {
     return JSON.parse(await readFile(path, "utf8"))
@@ -428,6 +422,46 @@ async function readRuntimeStatusJson(path) {
   return readRuntimeStatusJsonFile(path, error => {
     console.error(`손상된 런타임 상태 파일을 제거합니다: ${path}`, error)
   })
+}
+
+function isProcessRunning(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error?.code === "EPERM"
+  }
+}
+
+async function acquireHelperLock(statusPath) {
+  const lockPath = `${statusPath}.lock`
+  await mkdir(dirname(lockPath), { recursive: true })
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const handle = await openFile(lockPath, "wx")
+      await handle.writeFile(JSON.stringify({
+        pid: process.pid,
+        startedAt: Date.now(),
+      }), "utf8")
+      return {
+        release: async () => {
+          await handle.close().catch(() => {})
+          await unlink(lockPath).catch(() => {})
+        },
+      }
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error
+      const existing = await readJson(lockPath).catch(() => null)
+      if (isProcessRunning(existing?.pid)) {
+        throw new Error(`이미 실행 중인 helper가 있습니다: PID ${existing.pid}`)
+      }
+      await unlink(lockPath).catch(unlinkError => {
+        if (unlinkError?.code !== "ENOENT") throw unlinkError
+      })
+    }
+  }
+  throw new Error("helper 단일 실행 잠금을 가져오지 못했습니다")
 }
 
 async function fileModifiedAt(path) {
@@ -534,6 +568,7 @@ async function runAffinityHelper() {
   if (!statusPath || !controlPath || !affinityStatePath) {
     throw new Error("Affinity helper 제어 경로가 없습니다")
   }
+  const helperLock = await acquireHelperLock(statusPath)
 
   let stopping = false
   let affinity = null
@@ -571,6 +606,16 @@ async function runAffinityHelper() {
     }
     await writeJsonAtomic(appliedMarkerPath, appliedMarker)
     appliedMarkerRecorded = true
+  }
+
+  const updateAppliedMarkerSafely = async entries => {
+    try {
+      await updateAppliedMarker(entries)
+      return true
+    } catch (error) {
+      console.error("Affinity 적용 기록 실패, 다음 주기에 다시 시도합니다", error)
+      return false
+    }
   }
 
   const writeStatus = async values => {
@@ -638,6 +683,16 @@ async function runAffinityHelper() {
     })
   }
 
+  const writeStatusSafely = async values => {
+    try {
+      await writeStatus(values)
+      return true
+    } catch (error) {
+      console.error("Affinity 상태 기록 실패, 다음 주기에 다시 시도합니다", error)
+      return false
+    }
+  }
+
   const requestStop = () => {
     stopping = true
   }
@@ -655,7 +710,7 @@ async function runAffinityHelper() {
         endsAt: Date.now() + 3000,
         error: null,
       }
-      await writeStatus()
+      await writeStatusSafely()
       try {
         const result = await affinity.performCpuReorder()
         cpuReorder = {
@@ -672,7 +727,7 @@ async function runAffinityHelper() {
           error: serializeError(error),
         }
       }
-      await writeStatus()
+      await writeStatusSafely()
       return false
     }
     exitAction = control.command === "reset" ? "reset" : "keep"
@@ -692,7 +747,7 @@ async function runAffinityHelper() {
       const nic = await applyNicRssAffinity({ applyChanges: true })
       nicManaged ||= nic.applied
       nicStatus = nic
-      if (nicManaged) await updateAppliedMarker([])
+      if (nicManaged) await updateAppliedMarkerSafely([])
     }
 
     affinity = await createAffinityManager({
@@ -704,7 +759,7 @@ async function runAffinityHelper() {
       passiveMode: false,
       restoreOnGameExit: true,
     })
-    await writeStatus()
+    await writeStatusSafely()
 
     while (!stopping) {
       const immediateCommand = await waitForAffinityCommand(controlPath, 0)
@@ -712,17 +767,18 @@ async function runAffinityHelper() {
       await affinity.tick()
       const appliedChanges = affinity.getAppliedChanges()
       if (appliedChanges.length > recordedChangeCount) {
-        await updateAppliedMarker(appliedChanges)
-        recordedChangeCount = appliedChanges.length
+        if (await updateAppliedMarkerSafely(appliedChanges)) {
+          recordedChangeCount = appliedChanges.length
+        }
       }
-      await writeStatus()
+      await writeStatusSafely()
       const delayedCommand = await waitForAffinityCommand(controlPath, config.pollIntervalMs)
       if (await handleCommand(delayedCommand)) break
     }
   } catch (error) {
     stopping = true
     failure = serializeError(error)
-    await writeStatus({ error: serializeError(error) })
+    await writeStatusSafely({ error: serializeError(error) })
     throw error
   } finally {
     stopping = true
@@ -762,12 +818,13 @@ async function runAffinityHelper() {
       appliedMarker = null
       appliedMarkerRecorded = false
     }
-    await writeStatus({
+    await writeStatusSafely({
       running: false,
       gameActive: false,
       exitAction,
       stoppedAt: Date.now(),
-    }).catch(() => {})
+    })
+    await helperLock.release()
   }
 }
 
@@ -803,6 +860,7 @@ async function runMemoryHelper() {
   const controlPath = argumentValue("control-path")
   const purgeOnStart = argumentValue("purge-on-start") === "true"
   if (!statusPath || !controlPath) throw new Error("메모리 helper 제어 경로가 없습니다")
+  const helperLock = await acquireHelperLock(statusPath)
 
   let stopping = false
   let gameActive = false
@@ -827,6 +885,16 @@ async function runMemoryHelper() {
     })
   }
 
+  const writeStatusSafely = async values => {
+    try {
+      await writeStatus(values)
+      return true
+    } catch (error) {
+      console.error("메모리 상태 기록 실패, 다음 주기에 다시 시도합니다", error)
+      return false
+    }
+  }
+
   const requestStop = () => {
     stopping = true
   }
@@ -835,13 +903,13 @@ async function runMemoryHelper() {
 
   try {
     if (purgeOnStart) memory.purgeNow()
-    await writeStatus()
+    await writeStatusSafely()
     while (!stopping) {
       const control = await readJson(controlPath)
       if (control?.command === "stop") break
       gameActive = await detectMabinogi()
       memory.checkNow()
-      await writeStatus()
+      await writeStatusSafely()
       await delay(config.memoryCleaner?.pollIntervalMs ?? 1000)
     }
   } catch (error) {
@@ -850,11 +918,12 @@ async function runMemoryHelper() {
   } finally {
     stopping = true
     memory.stop()
-    await writeStatus({
+    await writeStatusSafely({
       running: false,
       gameActive: false,
       stoppedAt: Date.now(),
-    }).catch(() => {})
+    })
+    await helperLock.release()
   }
 }
 

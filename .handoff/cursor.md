@@ -1,11 +1,13 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-06 15:42
+Last Updated: 2026-09-06 16:46
 
 ## Current Objective
-0.2.5에서 손상된 런타임 상태를 복구하고 PC방 특수 네트워크와 NVIDIA `NVAPI -1` 저장 실패를 부분 지원한다.
+0.2.6에서 Windows 파일 잠금으로 실시간 부스트 helper가 반복 종료되는 문제를 방지한다.
 
 ## Current Status
+- 앱 버전은 0.2.6이다. 상태 JSON 교체는 `EPERM`·`EBUSY` 등을 지연 재시도한 뒤 기존 파일 삭제·교체로 복구하며, Affinity·메모리 helper는 일시적 기록 실패 후에도 계속 실행한다.
+- Affinity·메모리 helper마다 PID 기반 단일 실행 잠금을 사용해 동일한 상태 파일과 CPU 설정의 중복 처리를 막는다.
 - 터보 키 helper는 Electron 설치본과 `asarUnpack`에서 제외됐다. 패키징 시 `turbo-key-helper-win32-x64-v0.1.1.exe` 별도 자산을 `release`에 생성하며 GitHub 배포 시 같은 Release에 추가 업로드한다.
 - 고급 기능은 helper 미설치 시 `다운로드`만 표시한다. 전체 화면 약관 모달에서 별도 `TURBO_KEY_TERMS.md`를 확인한 뒤 다운로드하며, 성공 후에는 `키 설정`·사용 버튼 아래 작은 적색 `터보키 제거하기`를 표시한다.
 - helper는 `%APPDATA%/마비노기 렘 부스터/turbo-key/bin`에 설치한다. GitHub SHA-256, 2MiB 제한, PE x64 형식과 설치 manifest 해시를 검증하며 누락·변조 시 자동 실행하지 않는다.
@@ -274,7 +276,8 @@ Last Updated: 2026-09-06 15:42
 - 코드 주석은 한국어로 작성하고 줄 끝 세미콜론은 사용하지 않는다.
 
 ## Pending Tasks
-1. 0.2.3 설치본에서 GitHub digest 조회·helper 다운로드·설치·제거·재실행 유지까지 수동 검증한다.
+1. 실제 `status.json` 잠금 재현 환경에서 0.2.6 Affinity helper가 종료되지 않고 잠금 해제 후 상태 기록을 복구하는지 확인한다.
+2. 0.2.3 설치본에서 GitHub digest 조회·helper 다운로드·설치·제거·재실행 유지까지 수동 검증한다.
 2. 미설치·설치 성공·파일 변조 상태에서 고급 기능의 조건부 버튼과 약관 모달 스크롤·오류 표시를 개발 앱에서 수동 확인한다.
 3. Radeon 전용 장비에서 전역 설정 확인 모달, 실제 적용과 AMD Software 반영을 수동 검증한다.
 4. 최신 앱을 재시작해 chicken과 같은 마비노기 로고, `노기렘 실행중`, OST·파동과 홈 전환 순서를 확인한다.
@@ -333,6 +336,7 @@ Last Updated: 2026-09-06 15:42
 - 시작 트레이 예약 작업의 실제 로그온 실행은 설치본과 Windows 재로그인이 필요해 자동 검증하지 않았다.
 
 ## Key Files
+- `src/atomic-json.mjs`: Windows 파일 잠금 재시도와 기존 JSON 대체 처리
 - `src/index.mjs`: CLI와 전체 실행 흐름
 - `src/affinity.mjs`: CPU affinity 적용, 프로세스 탐색, 상태 복구
 - `src/memory.mjs`: 메모리 상태·임계치 조회와 standby 정리
@@ -997,6 +1001,8 @@ Last Updated: 2026-09-06 15:42
 - 구버전 감지·동의 보존·자동 교체 연결 회귀 테스트를 포함한 Node 테스트 16개와 helper 0.1.1 release 빌드, Svelte 프로덕션 빌드가 통과했다.
 - GitHub 정식 Release `v0.2.5`를 게시했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.1 네 자산과 기능 중심 변경 내용을 검증했다.
 - 0.2.5 installer는 93,151,762바이트이고 SHA-256은 `fa8e172cc2226bedc0544429a734e842b88c5904440482ffac32f464780bebb7`다. helper 0.1.1 SHA-256은 `477f53db297b0e9a724cf63ba7afe40616b8e7c9800c5fa69d8ed388652d0283`다.
+- 0.2.6에서 상태 JSON 원자적 교체에 Windows 잠금 재시도와 삭제 후 대체 fallback을 추가했다. 일시적 상태·적용 기록 실패는 다음 주기에 재시도하며 helper를 종료하지 않는다.
+- Affinity·메모리 helper에 PID 잠금 파일을 추가해 중복 프로세스의 상태 파일 및 CPU 설정 경합을 방지했다. 관련 Node 테스트 90개가 통과했다.
 
 ## Next Recommended Step
-0.1.0 helper manifest를 가진 실제 설치 환경에서 공개 0.2.5 시작 시 0.1.1 자동 교체와 기존 활성화 상태 복원을 확인한다.
+보안 프로그램이나 별도 프로세스로 Affinity `status.json`을 잠근 설치 환경에서 0.2.6 helper의 생존과 상태 복구를 수동 확인한다.
