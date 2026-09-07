@@ -327,3 +327,17 @@ test("마비노기 운영정책 링크는 허용된 주소만 시스템 브라�
     /ipcMain\.handle\("application:open-operation-policy"[\s\S]*shell\.openExternal\(operationPolicyUrl\)/,
   )
 })
+
+test("버그 리포트 제출 버튼은 고정된 Google Forms 주소를 연다", () => {
+  assert.match(applicationView, /window\.nogirem\.openBugReportForm\(\)/)
+  assert.match(applicationView, />\s*제출하기\s*</)
+  assert.match(electronPreload, /application:open-bug-report-form/)
+  assert.match(
+    electronMain,
+    /const bugReportFormUrl = "https:\/\/docs\.google\.com\/forms\/d\/e\/1FAIpQLSfx6-QVqsxgUDKsYCMAyg7A51ZYBMrMa_17OGzzQF_gGOum1w\/viewform\?usp=publish-editor"/,
+  )
+  assert.match(
+    electronMain,
+    /ipcMain\.handle\("application:open-bug-report-form"[\s\S]*shell\.openExternal\(bugReportFormUrl\)/,
+  )
+})

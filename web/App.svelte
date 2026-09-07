@@ -730,6 +730,15 @@
     }
   }
 
+  async function openBugReportForm() {
+    diagnosticLogNotice = ""
+    try {
+      await window.nogirem.openBugReportForm()
+    } catch (error) {
+      diagnosticLogNotice = messageOf(error)
+    }
+  }
+
   async function toggleStartupTray() {
     if (!startupTraySupported || startupTrayAction) return
     startupTrayAction = "saving"
@@ -2108,12 +2117,20 @@
                       <h2>버그 리포트</h2>
                       <p>문제가 발생한 경우 로그 추출 파일을 전송해 주세요</p>
                     </div>
-                    <button
-                      disabled={diagnosticLogAction}
-                      onclick={exportDiagnosticLogs}
-                    >
-                      {diagnosticLogAction === "exporting" ? "압축 중…" : "로그 추출"}
-                    </button>
+                    <div class="developer-tool-actions">
+                      <button
+                        disabled={diagnosticLogAction}
+                        onclick={exportDiagnosticLogs}
+                      >
+                        {diagnosticLogAction === "exporting" ? "압축 중…" : "로그 추출"}
+                      </button>
+                      <button
+                        class="developer-tool-secondary"
+                        onclick={openBugReportForm}
+                      >
+                        제출하기
+                      </button>
+                    </div>
                   </div>
                   {#if diagnosticLogNotice}
                     <span class="developer-tool-status">{diagnosticLogNotice}</span>
