@@ -1611,6 +1611,7 @@ button.direct-donation-card:hover {
 }
 
 .developer-tool-status {
+  margin: -8px 0 8px;
   color: #888;
   font-size: 10px;
   line-height: 1.5;

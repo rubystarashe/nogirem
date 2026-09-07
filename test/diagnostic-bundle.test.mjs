@@ -83,6 +83,7 @@ test("고급 기능 UI와 제한된 preload IPC에 로그 추출을 연결한다
   assert.match(mainSource, /application:export-diagnostic-logs/)
   assert.match(mainSource, /BrowserWindow\.fromWebContents\(event\.sender\) !== primaryWindow/)
   assert.match(preloadSource, /exportDiagnosticLogs/)
-  assert.match(appSource, /<h2>진단 로그 추출<\/h2>/)
+  assert.match(appSource, /<h2>버그 리포트<\/h2>/)
+  assert.match(appSource, /문제가 발생한 경우 프로그램 로그를 추출해 전송해 주세요/)
   assert.match(appSource, /onclick=\{exportDiagnosticLogs\}/)
 })
