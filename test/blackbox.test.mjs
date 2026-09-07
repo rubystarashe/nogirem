@@ -83,6 +83,10 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(appSource, /class="blackbox-main-link"/)
   assert.match(appSource, /class="blackbox-window-link"/)
   assert.match(appSource, /onclick=\{toggleMainBlackbox\}/)
+  assert.match(
+    appSource,
+    /async function syncBlackboxSetting\(\) \{[\s\S]*if \(!blackboxSettingLoaded \|\| blackboxTogglePending\) return/,
+  )
   assert.match(styleSource, /\.blackbox-main-link:disabled \{[\s\S]*opacity: 1/)
   assert.match(
     appSource,

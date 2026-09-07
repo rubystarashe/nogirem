@@ -919,7 +919,7 @@
   }
 
   async function syncBlackboxSetting() {
-    if (!blackboxSettingLoaded) return
+    if (!blackboxSettingLoaded || blackboxTogglePending) return
     try {
       applyBlackboxState(await window.nogirem.getBlackboxSetting())
     } catch {
