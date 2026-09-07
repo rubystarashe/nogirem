@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-07 19:18
+Last Updated: 2026-09-07 19:38
 
 ## Current Objective
 고급 기능에서 사용하는 저부하 게임 블랙박스를 0.3.0 기능으로 완성하고 실제 설치본 검증을 준비한다.
@@ -11,6 +11,7 @@ Last Updated: 2026-09-07 19:18
 - 블랙박스 기본 화질은 자동이다. 메모리 16GB·논리 CPU 12개 이상이면 최대 1440p, 그 외에는 최대 1080p를 사용하며 설정에서 1080p·1440p·원본을 직접 선택할 수 있다.
 - `Client.exe`와 자식 프로세스의 출력 소리를 프로세스별 WASAPI loopback으로 캡처하고 AAC LC 48kHz 스테레오 192kbps로 MP4에 함께 기록한다. 다른 앱 소리와 마이크는 제외한다.
 - 게임 소리에 세션 유지형 자동 게인을 적용해 작은 소리는 최대 +24dB까지 보정하고 큰 효과음은 즉시 감쇠하며 -1dB 리미터로 clipping을 막는다. 현재 보정 dB는 고급 기능 상태에 표시한다.
+- 정식 서버 폴더와 함께 `Mabinogi_Test` 폴더의 테스트 서버 `Client.exe`도 게임 프로세스로 인식한다.
 - 순환 녹화는 4초 MP4 청크이며 용량·디스크 여유 기준을 넘으면 오래된 청크부터 삭제한다. 클립은 hard link로 청크를 보호하고 재인코딩 없이 단일 MP4로 결합한다.
 - 화면 버튼과 `Ctrl+Shift+F10` 전역 단축키로 클립을 저장한다. 단축키 충돌 시 화면 버튼은 계속 사용할 수 있다.
 - 고급 기능의 `영상 추출`은 누른 시점을 고정해 최근 60초를 여는 별도 편집 창이다. `+`로 이전 30초 추가, `++`로 직접 트랙 길이 지정, 추출 길이 설정, 가이드 드래그, 구간 미리보기와 MP4 추출을 지원한다.
@@ -195,6 +196,7 @@ Last Updated: 2026-09-07 19:18
 - 블랙박스는 Electron renderer나 게임 주입 방식이 아니라 별도 `native/recorder-helper` 프로세스가 소유한다. Electron은 설정·상태·control JSON과 제한된 IPC만 관리한다.
 - 녹화 경로는 `Windows Graphics Capture → D3D11 texture pool → GPU Video Processor NV12 변환 → Media Foundation 하드웨어 H.264/HEVC → 4초 MP4`다. CPU 화면 readback은 사용하지 않는다.
 - 게임 소리는 `ActivateAudioInterfaceAsync → process loopback → PCM 48kHz stereo → Media Foundation AAC` 경로로 같은 MP4에 기록한다. 캡처는 Audio MMCSS에서 복사·enqueue만 하고 AAC 인코딩은 기존 Below Normal encoder thread에서 실행한다.
+- 게임 경로 판별은 설정의 허용 폴더명과 같은 폴더의 `Mabinogi.exe` fallback을 사용하며 `Mabinogi`, `Mabinogi_Test`, `마비노기`, `Nexon`을 허용한다.
 - 프로세스별 오디오 캡처 packet은 WGC와 같은 QPC 100ns 시간축으로 변환하고 timestamp 오류·불연속은 연속 cursor로 복구한다. 캡처 thread는 Audio MMCSS를 사용하고 큐는 최대 1초 PCM frame으로 제한한다.
 - 자동 게인은 청크 writer가 아닌 `ProcessAudioCapture`가 소유해 4초 청크 경계에서도 이어진다. -6dB peak를 목표로 큰 신호에는 즉시 감쇠하고 작은 신호는 2.5초 시정수로 천천히 증폭하며 -65dB 이하 packet은 건드리지 않는다.
 - 자동 화질 판정은 Electron의 논리 CPU 수와 총 메모리를 사용한다. 1440p 60fps 비트레이트는 H.264 24Mbps·HEVC 16Mbps이며 원본보다 작은 캡처 화면을 확대하지 않는다.
@@ -1140,6 +1142,7 @@ Last Updated: 2026-09-07 19:18
 - 최근 30초 저장이 flush로 생긴 마지막 0~3초 청크만 결과에 남던 호환성 오판을 수정하고 실제 Ring 데이터로 약 30초 저장을 확인했다.
 - 게임 소리에 세션 유지형 자동 게인·바닥 잡음 보호·-1dB 리미터를 추가하고 현재 보정 gain을 helper 상태와 고급 기능 UI에 연결했다.
 - recorder helper Release 빌드, 앱 프로덕션 빌드, 전체 Node 테스트 114개와 편집 파일 lint가 통과했다. 실제 게임 소리 청음 검증은 남아 있다.
+- `Mabinogi_Test\Client.exe`를 게임 경로 허용 목록과 Affinity 회귀 테스트에 추가하고 사용자·상세 변경 기록을 갱신했다.
 - 0.3.0 버전·사용자 변경 기록·상세 변경 기록을 갱신했으며 패키징과 배포는 수행하지 않았다.
 
 ## Next Recommended Step

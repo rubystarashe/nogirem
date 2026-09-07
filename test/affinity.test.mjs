@@ -11,12 +11,13 @@ import {
 const gamePathConfig = {
   gameExecutable: "C:\\Nexon\\Mabinogi\\Client.exe",
   gameExecutableName: "Client.exe",
-  gameDirectoryNames: ["Mabinogi", "마비노기", "Nexon"],
+  gameDirectoryNames: ["Mabinogi", "Mabinogi_Test", "마비노기", "Nexon"],
 }
 
-test("영문·한글 마비노기 및 Nexon 폴더의 Client.exe를 게임으로 인식한다", () => {
+test("정식·테스트 마비노기 및 Nexon 폴더의 Client.exe를 게임으로 인식한다", () => {
   for (const path of [
     "C:\\Nexon\\Mabinogi\\Client.exe",
+    "C:\\Nexon\\Mabinogi_Test\\Client.exe",
     "D:\\마비노기\\Client.exe",
     "D:\\Nexon\\Client.exe",
   ]) {
