@@ -1882,6 +1882,15 @@
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 6h10a2 2 0 0 1 2 2v2.2l4-2.4a1 1 0 0 1 1.5.86v6.68a1 1 0 0 1-1.5.86l-4-2.4V16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />
               </svg>
+              {#key blackboxTransitionId}
+                {#if blackboxTransitionPhase === "enter"}
+                  <span class="blackbox-icon-mask" aria-hidden="true"></span>
+                {:else if blackboxTransitionPhase === "hold"}
+                  <span class="blackbox-icon-mask holding" aria-hidden="true"></span>
+                {:else if blackboxTransitionPhase === "leave"}
+                  <span class="blackbox-icon-mask leaving" aria-hidden="true"></span>
+                {/if}
+              {/key}
             </button>
             </div>
           {/if}
@@ -2154,6 +2163,58 @@
                   {#if startupTrayNotice}
                     <span class="developer-tool-status">{startupTrayNotice}</span>
                   {/if}
+                  <div class="developer-tool-stack">
+                    <div>
+                      <h2>마비노기 CPU 우선 점유 비율 설정</h2>
+                      <p>
+                        {services.affinity.data?.gameCoreSetting?.hybrid
+                          ? "마비노기에 우선 배정할 P코어 개수를 선택합니다"
+                          : "마비노기에 우선 배정할 물리 코어 개수를 선택합니다"}
+                      </p>
+                    </div>
+                    {#if gameCpuCoreOptions().length}
+                      <div
+                        class="game-cpu-core-controls"
+                        class:applying={gameCpuCoreAction}
+                        aria-label="마비노기 CPU 코어 개수"
+                      >
+                        {#each gameCpuCoreOptions() as coreCount}
+                          <button
+                            class="game-cpu-core-option"
+                            class:allocated={services.affinity.data?.gameCoreSetting?.gameCoreCount
+                              >= coreCount}
+                            disabled={gameCpuCoreAction
+                              || services.affinity.data?.cpuReorder?.state === "running"}
+                            aria-pressed={services.affinity.data?.gameCoreSetting?.gameCoreCount
+                              >= coreCount}
+                            style={`--allocation-color: ${gameCpuCoreColor(coreCount)}`}
+                            onclick={() => selectGameCpuCoreCount(coreCount)}
+                          >
+                            {coreCount}
+                          </button>
+                        {/each}
+                        {#if gameCpuUnavailableCores().length}
+                          <span class="game-cpu-unavailable-label">선택 불가 코어</span>
+                          {#each gameCpuUnavailableCores() as core}
+                            <button
+                              class="game-cpu-unavailable-core"
+                              disabled
+                              title={core.reason}
+                            >
+                              {core.label}
+                            </button>
+                          {/each}
+                        {/if}
+                      </div>
+                    {:else}
+                      <span class="developer-tool-status">
+                        물리 CPU 코어 구성을 확인할 수 없습니다
+                      </span>
+                    {/if}
+                  </div>
+                  {#if gameCpuCoreNotice}
+                    <span class="developer-tool-status">{gameCpuCoreNotice}</span>
+                  {/if}
                   <div class="developer-tool-row">
                     <div>
                       <h2>터보 키</h2>
@@ -2230,58 +2291,6 @@
                   </div>
                   {#if blackboxFeatureNotice}
                     <span class="developer-tool-status">{blackboxFeatureNotice}</span>
-                  {/if}
-                  <div class="developer-tool-stack">
-                    <div>
-                      <h2>마비노기 CPU 우선 점유 비율 설정</h2>
-                      <p>
-                        {services.affinity.data?.gameCoreSetting?.hybrid
-                          ? "마비노기에 우선 배정할 P코어 개수를 선택합니다"
-                          : "마비노기에 우선 배정할 물리 코어 개수를 선택합니다"}
-                      </p>
-                    </div>
-                    {#if gameCpuCoreOptions().length}
-                      <div
-                        class="game-cpu-core-controls"
-                        class:applying={gameCpuCoreAction}
-                        aria-label="마비노기 CPU 코어 개수"
-                      >
-                        {#each gameCpuCoreOptions() as coreCount}
-                          <button
-                            class="game-cpu-core-option"
-                            class:allocated={services.affinity.data?.gameCoreSetting?.gameCoreCount
-                              >= coreCount}
-                            disabled={gameCpuCoreAction
-                              || services.affinity.data?.cpuReorder?.state === "running"}
-                            aria-pressed={services.affinity.data?.gameCoreSetting?.gameCoreCount
-                              >= coreCount}
-                            style={`--allocation-color: ${gameCpuCoreColor(coreCount)}`}
-                            onclick={() => selectGameCpuCoreCount(coreCount)}
-                          >
-                            {coreCount}
-                          </button>
-                        {/each}
-                        {#if gameCpuUnavailableCores().length}
-                          <span class="game-cpu-unavailable-label">선택 불가 코어</span>
-                          {#each gameCpuUnavailableCores() as core}
-                            <button
-                              class="game-cpu-unavailable-core"
-                              disabled
-                              title={core.reason}
-                            >
-                              {core.label}
-                            </button>
-                          {/each}
-                        {/if}
-                      </div>
-                    {:else}
-                      <span class="developer-tool-status">
-                        물리 CPU 코어 구성을 확인할 수 없습니다
-                      </span>
-                    {/if}
-                  </div>
-                  {#if gameCpuCoreNotice}
-                    <span class="developer-tool-status">{gameCpuCoreNotice}</span>
                   {/if}
                   <div class="developer-tool-row">
                     <div>

@@ -597,6 +597,7 @@ footer {
 }
 
 .blackbox-window-link {
+  position: relative;
   display: grid;
   width: 26px;
   height: 46px;
@@ -637,6 +638,30 @@ footer {
 
 .blackbox-window-link.active svg {
   background: #171717;
+}
+
+.blackbox-icon-mask {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  width: 23px;
+  height: 24px;
+  padding: 2px;
+  border-radius: 2px;
+  background: #171717;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: chicken-text-in 300ms both;
+}
+
+.blackbox-icon-mask.holding {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  animation: none;
+}
+
+.blackbox-icon-mask.leaving {
+  animation: chicken-text-out 300ms both;
 }
 
 .blackbox-text-base,
