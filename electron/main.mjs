@@ -528,7 +528,10 @@ function isProcessRunning(pid) {
   }
 }
 
-async function acquireHelperLock(statusPath) {
+async function acquireHelperLock(statusPath, {
+  ownerPid = null,
+  orphanControlPath = null,
+} = {}) {
   const lockPath = `${statusPath}.lock`
   await mkdir(dirname(lockPath), { recursive: true })
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -536,6 +539,7 @@ async function acquireHelperLock(statusPath) {
       const handle = await openFile(lockPath, "wx")
       await handle.writeFile(JSON.stringify({
         pid: process.pid,
+        ownerPid,
         startedAt: Date.now(),
       }), "utf8")
       return {
@@ -548,6 +552,30 @@ async function acquireHelperLock(statusPath) {
       if (error?.code !== "EEXIST") throw error
       const existing = await readJson(lockPath).catch(() => null)
       if (isProcessRunning(existing?.pid)) {
+        const ownerIsCurrent = Number.isInteger(ownerPid)
+          && existing?.ownerPid === ownerPid
+        const existingOwnerIsAlive = isProcessRunning(existing?.ownerPid)
+        if (
+          orphanControlPath
+          && !ownerIsCurrent
+          && !existingOwnerIsAlive
+        ) {
+          await writeJsonAtomic(orphanControlPath, {
+            command: "stop",
+            requestedAt: Date.now(),
+            reason: "orphan-recovery",
+          })
+          const deadline = Date.now() + 5000
+          while (Date.now() < deadline && isProcessRunning(existing.pid)) {
+            await delay(100)
+          }
+          if (!isProcessRunning(existing.pid)) {
+            await unlink(orphanControlPath).catch(() => {})
+            await unlink(lockPath).catch(() => {})
+            continue
+          }
+          throw new Error(`이전 helper가 종료되지 않았습니다: PID ${existing.pid}`)
+        }
         throw new Error(`이미 실행 중인 helper가 있습니다: PID ${existing.pid}`)
       }
       await unlink(lockPath).catch(unlinkError => {
@@ -962,8 +990,19 @@ async function runMemoryHelper() {
   const statusPath = argumentValue("status-path")
   const controlPath = argumentValue("control-path")
   const purgeOnStart = argumentValue("purge-on-start") === "true"
-  if (!statusPath || !controlPath) throw new Error("메모리 helper 제어 경로가 없습니다")
-  const helperLock = await acquireHelperLock(statusPath)
+  const parentPid = Number(argumentValue("parent-pid"))
+  if (
+    !statusPath
+    || !controlPath
+    || !Number.isInteger(parentPid)
+    || parentPid <= 0
+  ) {
+    throw new Error("메모리 helper 제어 정보가 없습니다")
+  }
+  const helperLock = await acquireHelperLock(statusPath, {
+    ownerPid: parentPid,
+    orphanControlPath: controlPath,
+  })
 
   let stopping = false
   let gameActive = false
@@ -982,6 +1021,7 @@ async function runMemoryHelper() {
       running: !stopping,
       gameActive,
       helperPid: process.pid,
+      parentPid,
       updatedAt: Date.now(),
       error: failure ?? memoryStatus.error,
       ...values,
@@ -1007,7 +1047,7 @@ async function runMemoryHelper() {
   try {
     if (purgeOnStart) memory.purgeNow()
     await writeStatusSafely()
-    while (!stopping) {
+    while (!stopping && isProcessRunning(parentPid)) {
       const control = await readJson(controlPath)
       if (control?.command === "stop") break
       gameActive = await detectMabinogi()
@@ -2085,6 +2125,7 @@ async function launchMemoryHelper({ purgeOnStart = false } = {}) {
     "--memory-helper",
     `--status-path=${paths.statusPath}`,
     `--control-path=${paths.controlPath}`,
+    `--parent-pid=${process.pid}`,
     `--purge-on-start=${purgeOnStart}`,
   ]
   if (!app.isPackaged) helperArguments.unshift(root)

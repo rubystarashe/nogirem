@@ -70,6 +70,7 @@ test("진단 ZIP에 시스템 요약과 마스킹된 로그 목록을 만든다"
   assert.ok(names.includes("README.txt"))
   assert.ok(names.includes("included-files.json"))
   assert.ok(names.includes("files/status.json"))
+  assert.match(zip.readAsText("README.txt"), /사용자 식별 정보와 일반적인 인증값을 포함하지 않습니다/)
   assert.match(zip.readAsText("diagnostics.json"), /"version": "0\.3\.0"/)
   assert.doesNotMatch(zip.readAsText("files/status.json"), /Tester/)
 })

@@ -273,7 +273,7 @@ test("helper 상태 파일 잠금 실패를 복구하고 중복 helper 실행을
   assert.match(electronMain, /import \{ writeJsonAtomic \} from "\.\.\/src\/atomic-json\.mjs"/)
   assert.match(
     electronMain,
-    /async function acquireHelperLock\(statusPath\)[\s\S]*openFile\(lockPath, "wx"\)[\s\S]*isProcessRunning\(existing\?\.pid\)/,
+    /async function acquireHelperLock\(statusPath,[\s\S]*openFile\(lockPath, "wx"\)[\s\S]*isProcessRunning\(existing\?\.pid\)/,
   )
   assert.match(
     electronMain,
@@ -282,6 +282,21 @@ test("helper 상태 파일 잠금 실패를 복구하고 중복 helper 실행을
   assert.match(
     electronMain,
     /메모리 상태 기록 실패, 다음 주기에 다시 시도합니다/,
+  )
+})
+
+test("메모리 helper는 부모 앱 종료를 감지하고 기존 고아 helper를 정리한다", () => {
+  assert.match(
+    electronMain,
+    /async function runMemoryHelper\(\)[\s\S]*parentPid = Number\(argumentValue\("parent-pid"\)\)[\s\S]*ownerPid: parentPid[\s\S]*while \(!stopping && isProcessRunning\(parentPid\)\)/,
+  )
+  assert.match(
+    electronMain,
+    /"--memory-helper",[\s\S]*`--parent-pid=\$\{process\.pid\}`/,
+  )
+  assert.match(
+    electronMain,
+    /orphanControlPath[\s\S]*reason: "orphan-recovery"[\s\S]*이전 helper가 종료되지 않았습니다/,
   )
 })
 

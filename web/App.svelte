@@ -2198,7 +2198,7 @@
                   <div class="developer-tool-row">
                     <div>
                       <h2>진단 로그 추출</h2>
-                      <p>버전·시스템·기능 상태와 관련 로그를 개인정보 마스킹 후 ZIP으로 저장합니다</p>
+                      <p>개인정보와 인증값을 제외한 버전·시스템·기능 상태 및 관련 로그를 ZIP으로 저장합니다</p>
                     </div>
                     <button
                       disabled={diagnosticLogAction}
