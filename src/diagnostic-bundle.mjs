@@ -190,13 +190,6 @@ export async function createDiagnosticBundle({
     },
   )
   zip.addFile("diagnostics.json", Buffer.from(sanitizedDiagnostics))
-  zip.addFile("README.txt", Buffer.from([
-    "마비노기 렘 부스터 진단 자료",
-    "",
-    "앱 버전과 시스템 요약, 기능 상태 및 관련 로그를 포함합니다.",
-    "생성된 ZIP에는 사용자 식별 정보와 일반적인 인증값을 포함하지 않습니다.",
-    "녹화 영상, 클립, 실행 파일과 브라우저 캐시는 포함하지 않았습니다.",
-  ].join("\r\n")))
   for (const entry of entries) {
     zip.addFile(`files/${entry.name}`, Buffer.from(entry.content))
   }
@@ -218,6 +211,6 @@ export async function createDiagnosticBundle({
   })
   return {
     outputPath,
-    fileCount: entries.length + 3,
+    fileCount: entries.length + 2,
   }
 }
