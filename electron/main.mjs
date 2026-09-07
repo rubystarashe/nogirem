@@ -1735,6 +1735,8 @@ async function getBlackboxSetting() {
     resolvedQuality,
     running,
     recording: running && Boolean(status?.recording),
+    audioRecording: running && Boolean(status?.audioRecording),
+    audioError: statusFresh ? (status?.audioError ?? null) : null,
     waitingForGame: running && Boolean(status?.waitingForGame),
     clipInProgress: running && Boolean(status?.clipInProgress),
     bytesUsed: Number(status?.bytesUsed) || 0,

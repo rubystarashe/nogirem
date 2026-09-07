@@ -6,6 +6,8 @@
 
 - 고급 기능에 기본 비활성화 상태의 게임 블랙박스 설정·실행·클립 저장·저장 폴더 열기 UI 추가
 - 별도 `recorder-helper.exe`가 마비노기 `Client.exe` 창을 Windows Graphics Capture로 외부 캡처하며 게임 프로세스 주입이나 렌더링 hook은 사용하지 않음
+- Windows 프로세스별 WASAPI loopback으로 `Client.exe`와 자식 프로세스의 출력 소리만 48kHz 스테레오 PCM으로 캡처하고 AAC 192kbps로 MP4에 기록
+- 다른 앱의 출력 소리와 마이크는 캡처 대상에서 제외하며 오디오 연결 실패 시 영상 녹화는 계속하고 상태 화면에 부분 실패를 표시
 - D3D11 GPU 텍스처를 원본 비율의 NV12로 변환하고 Media Foundation 하드웨어 인코더에 전달해 GPU→CPU 화면 복사를 제거
 - 기본 자동 화질은 메모리 16GB·논리 CPU 12개 이상이면 최대 1440p, 그 외 환경은 최대 1080p를 선택하며 원본보다 작은 화면은 확대하지 않음
 - 설정 화면에서 자동·최대 1080p·최대 1440p·원본 화질을 직접 선택하고 실제 적용 화질과 화질별 예상 보존 시간을 표시
@@ -24,6 +26,7 @@
 - 편집 영상은 세션·트랙 토큰을 검증하는 `nogirem-blackbox` 전용 프로토콜로만 스트리밍해 renderer에 임의 `file://` 절대 경로를 노출하지 않음
 - 압축 sample remux에서 converter를 비활성화하고 해상도·frame rate·codec sequence header가 일치하는 최신 연속 청크만 결합
 - PTS와 함께 decode timestamp를 재기준화하고 실제 frame rate를 duration fallback에 사용하며 형식 변경·reader 오류는 손상 파일 대신 명시적 실패 처리
+- 클립·편집 remux에서 AAC stream의 PTS·DTS와 1024-sample duration을 청크별로 재기준화해 게임 소리를 전체 트랙과 선택 구간에 유지
 - 트랙과 클립은 `.partial.mp4`를 완성한 뒤 최종 이름으로 교체해 실패한 MP4가 정상 결과처럼 노출되지 않도록 보호
 - 클립 저장·편집 flush·helper 종료 control 작업을 Electron에서 직렬화해 단일 control JSON을 서로 덮어쓰지 않도록 변경
 - 목표 fps보다 빠른 WGC callback도 `TryGetNextFrame`으로 먼저 비워 frame pool이 정체되지 않도록 수정
@@ -31,7 +34,7 @@
 - 호환성 판정은 codec·해상도·sequence header를 사용하고 선택 청크의 실제 media duration에서 마지막 요청 시간만 정확히 잘라 저장
 - 블랙박스 설정·상태·제어 IPC를 preload에 제한적으로 노출하고 앱 시작·업데이트·종료 시 helper 생명주기와 단축키를 함께 관리
 - 공식 Microsoft C++/WinRT projection 생성기를 빌드 시 SHA-256 검증 후 사용하고 완성된 helper만 설치본의 `asarUnpack` 자산으로 포함
-- 0.3.0의 블랙박스는 게임 화면 영상만 녹화하며 게임 소리와 마이크 녹음은 포함하지 않음
+- 오디오 캡처와 AAC 인코딩은 별도 저우선순위 thread에서 처리하고 영상과 함께 4초 청크에 기록
 
 ## 0.2.9
 

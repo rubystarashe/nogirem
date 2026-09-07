@@ -1,4 +1,6 @@
 #include <windows.h>
+#include <audioclient.h>
+#include <audioclientactivationparams.h>
 #include <comdef.h>
 #include <d3d10_1.h>
 #include <d3d11.h>
@@ -6,8 +8,11 @@
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
+#include <mmdeviceapi.h>
+#include <propvarutil.h>
 #include <shlwapi.h>
 #include <wrl.h>
+#include <wrl/implements.h>
 #include <windows.graphics.capture.interop.h>
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <winrt/base.h>
@@ -21,6 +26,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -53,6 +59,12 @@ namespace {
 constexpr std::uint64_t Megabyte = 1024ull * 1024ull;
 constexpr std::uint64_t Gigabyte = 1024ull * 1024ull * 1024ull;
 constexpr std::size_t MaximumQueuedFrames = 3;
+constexpr std::size_t MaximumQueuedAudioPackets = 128;
+constexpr UINT32 AudioSampleRate = 48000;
+constexpr UINT32 AudioChannels = 2;
+constexpr UINT32 AudioBitsPerSample = 16;
+constexpr UINT32 AudioBlockAlignment =
+  AudioChannels * AudioBitsPerSample / 8;
 
 struct Options {
   fs::path statusPath;
@@ -74,8 +86,10 @@ struct SharedStatus {
   bool recording = false;
   bool waitingForGame = true;
   bool clipInProgress = false;
+  bool audioRecording = false;
   std::wstring codec = L"h264";
   std::wstring error;
+  std::wstring audioError;
   std::wstring latestClip;
   std::uint64_t bytesUsed = 0;
   std::uint64_t capacityBytes = 0;
@@ -146,6 +160,12 @@ struct FramePacket {
   std::chrono::steady_clock::time_point capturedAt;
   int width = 0;
   int height = 0;
+};
+
+struct AudioPacket {
+  std::vector<std::uint8_t> samples;
+  std::chrono::steady_clock::time_point capturedAt;
+  UINT32 frameCount = 0;
 };
 
 std::int64_t epochMilliseconds() {
@@ -624,6 +644,27 @@ public:
     check_hresult(MFSetAttributeRatio(outputType.Get(), MF_MT_PIXEL_ASPECT_RATIO, 1, 1));
     check_hresult(writer_->AddStream(outputType.Get(), &streamIndex_));
 
+    ComPtr<IMFMediaType> audioOutputType;
+    check_hresult(MFCreateMediaType(&audioOutputType));
+    check_hresult(audioOutputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio));
+    check_hresult(audioOutputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_AAC));
+    check_hresult(audioOutputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, AudioChannels));
+    check_hresult(audioOutputType->SetUINT32(
+      MF_MT_AUDIO_SAMPLES_PER_SECOND,
+      AudioSampleRate
+    ));
+    check_hresult(audioOutputType->SetUINT32(
+      MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
+      24000
+    ));
+    check_hresult(audioOutputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, 1));
+    check_hresult(audioOutputType->SetUINT32(
+      MF_MT_AUDIO_BITS_PER_SAMPLE,
+      AudioBitsPerSample
+    ));
+    check_hresult(audioOutputType->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 0));
+    check_hresult(writer_->AddStream(audioOutputType.Get(), &audioStreamIndex_));
+
     ComPtr<IMFMediaType> inputType;
     check_hresult(MFCreateMediaType(&inputType));
     check_hresult(inputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video));
@@ -639,6 +680,33 @@ public:
     check_hresult(MFSetAttributeRatio(inputType.Get(), MF_MT_FRAME_RATE, fps, 1));
     check_hresult(MFSetAttributeRatio(inputType.Get(), MF_MT_PIXEL_ASPECT_RATIO, 1, 1));
     check_hresult(writer_->SetInputMediaType(streamIndex_, inputType.Get(), nullptr));
+
+    ComPtr<IMFMediaType> audioInputType;
+    check_hresult(MFCreateMediaType(&audioInputType));
+    check_hresult(audioInputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio));
+    check_hresult(audioInputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM));
+    check_hresult(audioInputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, AudioChannels));
+    check_hresult(audioInputType->SetUINT32(
+      MF_MT_AUDIO_SAMPLES_PER_SECOND,
+      AudioSampleRate
+    ));
+    check_hresult(audioInputType->SetUINT32(
+      MF_MT_AUDIO_BLOCK_ALIGNMENT,
+      AudioBlockAlignment
+    ));
+    check_hresult(audioInputType->SetUINT32(
+      MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
+      AudioSampleRate * AudioBlockAlignment
+    ));
+    check_hresult(audioInputType->SetUINT32(
+      MF_MT_AUDIO_BITS_PER_SAMPLE,
+      AudioBitsPerSample
+    ));
+    check_hresult(writer_->SetInputMediaType(
+      audioStreamIndex_,
+      audioInputType.Get(),
+      nullptr
+    ));
     check_hresult(writer_->BeginWriting());
   }
 
@@ -668,6 +736,36 @@ public:
     checkStage(writer_->WriteSample(streamIndex_, sample.Get()), L"하드웨어 인코더 프레임 기록");
   }
 
+  void writeAudio(
+    const std::vector<std::uint8_t>& samples,
+    UINT32 frameCount,
+    LONGLONG timestamp
+  ) {
+    if (samples.empty() || frameCount == 0) return;
+    ComPtr<IMFMediaBuffer> buffer;
+    check_hresult(MFCreateMemoryBuffer(
+      static_cast<DWORD>(samples.size()),
+      &buffer
+    ));
+    BYTE* destination = nullptr;
+    check_hresult(buffer->Lock(&destination, nullptr, nullptr));
+    std::memcpy(destination, samples.data(), samples.size());
+    check_hresult(buffer->Unlock());
+    check_hresult(buffer->SetCurrentLength(static_cast<DWORD>(samples.size())));
+
+    ComPtr<IMFSample> sample;
+    check_hresult(MFCreateSample(&sample));
+    check_hresult(sample->AddBuffer(buffer.Get()));
+    check_hresult(sample->SetSampleTime(timestamp));
+    check_hresult(sample->SetSampleDuration(
+      static_cast<LONGLONG>(frameCount) * 10000000ll / AudioSampleRate
+    ));
+    checkStage(
+      writer_->WriteSample(audioStreamIndex_, sample.Get()),
+      L"게임 오디오 AAC 기록"
+    );
+  }
+
   void finalize() {
     if (!writer_) return;
     const HRESULT result = writer_->Finalize();
@@ -688,6 +786,7 @@ private:
   int fps_;
   Nv12Converter converter_;
   DWORD streamIndex_ = 0;
+  DWORD audioStreamIndex_ = 0;
   ComPtr<IMFSinkWriter> writer_;
 };
 
@@ -708,6 +807,29 @@ ComPtr<IMFSourceReader> createCompressedVideoReader(const fs::path& path) {
   return reader;
 }
 
+ComPtr<IMFSourceReader> createCompressedAudioReader(const fs::path& path) {
+  ComPtr<IMFAttributes> attributes;
+  check_hresult(MFCreateAttributes(&attributes, 1));
+  check_hresult(attributes->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, TRUE));
+  ComPtr<IMFSourceReader> reader;
+  check_hresult(MFCreateSourceReaderFromURL(path.c_str(), attributes.Get(), &reader));
+  ComPtr<IMFMediaType> nativeType;
+  if (FAILED(reader->GetNativeMediaType(
+    static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
+    0,
+    &nativeType
+  ))) return {};
+  check_hresult(reader->SetStreamSelection(
+    static_cast<DWORD>(MF_SOURCE_READER_ALL_STREAMS),
+    FALSE
+  ));
+  check_hresult(reader->SetStreamSelection(
+    static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
+    TRUE
+  ));
+  return reader;
+}
+
 struct MediaSignature {
   GUID subtype{};
   UINT32 width = 0;
@@ -715,6 +837,11 @@ struct MediaSignature {
   UINT32 frameRateNumerator = 0;
   UINT32 frameRateDenominator = 0;
   std::vector<std::uint8_t> sequenceHeader;
+  bool hasAudio = false;
+  GUID audioSubtype{};
+  UINT32 audioSampleRate = 0;
+  UINT32 audioChannels = 0;
+  std::vector<std::uint8_t> audioUserData;
 };
 
 MediaSignature mediaSignature(IMFMediaType* mediaType) {
@@ -755,14 +882,52 @@ MediaSignature mediaSignature(const fs::path& path) {
     static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
     &mediaType
   ));
-  return mediaSignature(mediaType.Get());
+  auto signature = mediaSignature(mediaType.Get());
+  if (auto audioReader = createCompressedAudioReader(path)) {
+    ComPtr<IMFMediaType> audioType;
+    check_hresult(audioReader->GetCurrentMediaType(
+      static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
+      &audioType
+    ));
+    signature.hasAudio = true;
+    check_hresult(audioType->GetGUID(MF_MT_SUBTYPE, &signature.audioSubtype));
+    check_hresult(audioType->GetUINT32(
+      MF_MT_AUDIO_SAMPLES_PER_SECOND,
+      &signature.audioSampleRate
+    ));
+    check_hresult(audioType->GetUINT32(
+      MF_MT_AUDIO_NUM_CHANNELS,
+      &signature.audioChannels
+    ));
+    UINT32 userDataSize = 0;
+    if (
+      SUCCEEDED(audioType->GetBlobSize(MF_MT_USER_DATA, &userDataSize))
+      && userDataSize > 0
+    ) {
+      signature.audioUserData.resize(userDataSize);
+      check_hresult(audioType->GetBlob(
+        MF_MT_USER_DATA,
+        signature.audioUserData.data(),
+        userDataSize,
+        nullptr
+      ));
+    }
+  }
+  return signature;
 }
 
 bool sameMediaSignature(const MediaSignature& left, const MediaSignature& right) {
   return left.subtype == right.subtype
     && left.width == right.width
     && left.height == right.height
-    && left.sequenceHeader == right.sequenceHeader;
+    && left.sequenceHeader == right.sequenceHeader
+    && left.hasAudio == right.hasAudio
+    && (!left.hasAudio || (
+      left.audioSubtype == right.audioSubtype
+      && left.audioSampleRate == right.audioSampleRate
+      && left.audioChannels == right.audioChannels
+      && left.audioUserData == right.audioUserData
+    ));
 }
 
 LONGLONG fallbackSampleDuration(const MediaSignature& signature) {
@@ -895,6 +1060,7 @@ bool remuxChunks(
     : requestedStart + requestedDuration;
   ComPtr<IMFSinkWriter> sink;
   DWORD sinkStream = 0;
+  std::optional<DWORD> sinkAudioStream;
   LONGLONG outputTime = 0;
   std::optional<MediaSignature> expectedSignature;
 
@@ -906,19 +1072,49 @@ bool remuxChunks(
       static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
       &mediaType
     ));
-    const auto signature = mediaSignature(mediaType.Get());
+    const auto signature = mediaSignature(inputs[fileIndex]);
     if (expectedSignature && !sameMediaSignature(*expectedSignature, signature)) {
       throw std::runtime_error("해상도 또는 인코딩 형식이 다른 청크는 결합할 수 없습니다");
     }
     expectedSignature = signature;
     const LONGLONG defaultDuration = fallbackSampleDuration(signature);
+    auto audioReader = createCompressedAudioReader(inputs[fileIndex]);
+    ComPtr<IMFMediaType> audioType;
+    if (audioReader) {
+      check_hresult(audioReader->GetCurrentMediaType(
+        static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
+        &audioType
+      ));
+    }
     if (!sink) {
-      check_hresult(MFCreateSinkWriterFromURL(output.c_str(), nullptr, nullptr, &sink));
+      ComPtr<IMFAttributes> sinkAttributes;
+      check_hresult(MFCreateAttributes(&sinkAttributes, 1));
+      check_hresult(sinkAttributes->SetUINT32(
+        MF_SINK_WRITER_DISABLE_THROTTLING,
+        TRUE
+      ));
+      check_hresult(MFCreateSinkWriterFromURL(
+        output.c_str(),
+        nullptr,
+        sinkAttributes.Get(),
+        &sink
+      ));
       check_hresult(sink->AddStream(mediaType.Get(), &sinkStream));
       check_hresult(sink->SetInputMediaType(sinkStream, mediaType.Get(), nullptr));
+      if (audioType) {
+        DWORD audioStream = 0;
+        check_hresult(sink->AddStream(audioType.Get(), &audioStream));
+        check_hresult(sink->SetInputMediaType(
+          audioStream,
+          audioType.Get(),
+          nullptr
+        ));
+        sinkAudioStream = audioStream;
+      }
       check_hresult(sink->BeginWriting());
     }
 
+    const LONGLONG fileStart = outputTime;
     LONGLONG firstTime = -1;
     LONGLONG fileEnd = outputTime;
     while (true) {
@@ -964,6 +1160,51 @@ bool remuxChunks(
       check_hresult(sink->WriteSample(sinkStream, sample.Get()));
     }
     outputTime = fileEnd;
+
+    if (audioReader && sinkAudioStream) {
+      LONGLONG firstAudioTime = -1;
+      const LONGLONG defaultAudioDuration =
+        signature.audioSampleRate > 0
+          ? 1024ll * 10000000ll / signature.audioSampleRate
+          : 1024ll * 10000000ll / AudioSampleRate;
+      while (true) {
+        DWORD actualStream = 0;
+        DWORD flags = 0;
+        LONGLONG timestamp = 0;
+        ComPtr<IMFSample> sample;
+        check_hresult(audioReader->ReadSample(
+          static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
+          0,
+          &actualStream,
+          &flags,
+          &timestamp,
+          &sample
+        ));
+        checkReaderFlags(flags);
+        if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+        if (!sample) continue;
+        if (firstAudioTime < 0) firstAudioTime = timestamp;
+        const LONGLONG duration = defaultAudioDuration;
+        const LONGLONG globalTime =
+          fileStart + std::max<LONGLONG>(0, timestamp - firstAudioTime);
+        if (globalTime + duration <= effectiveStart) continue;
+        if (globalTime >= requestedEnd) break;
+        const LONGLONG outputSampleTime = globalTime - requestedStart;
+        check_hresult(sample->SetSampleTime(outputSampleTime));
+        check_hresult(sample->SetSampleDuration(duration));
+        UINT64 decodeTimestamp = 0;
+        if (SUCCEEDED(sample->GetUINT64(
+          MFSampleExtension_DecodeTimestamp,
+          &decodeTimestamp
+        ))) {
+          check_hresult(sample->SetUINT64(
+            MFSampleExtension_DecodeTimestamp,
+            static_cast<UINT64>(outputSampleTime)
+          ));
+        }
+        check_hresult(sink->WriteSample(*sinkAudioStream, sample.Get()));
+      }
+    }
   }
   if (!sink) return false;
   check_hresult(sink->Finalize());
@@ -1160,6 +1401,18 @@ public:
     return true;
   }
 
+  bool enqueueAudio(AudioPacket&& packet) {
+    std::lock_guard lock(mutex_);
+    if (
+      stopping_
+      || failed_
+      || audioQueue_.size() >= MaximumQueuedAudioPackets
+    ) return false;
+    audioQueue_.push(std::move(packet));
+    condition_.notify_one();
+    return true;
+  }
+
   void flush() {
     std::lock_guard lock(mutex_);
     flushRequested_ = true;
@@ -1242,19 +1495,34 @@ private:
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
     while (true) {
       FramePacket packet;
+      AudioPacket audioPacket;
       bool hasPacket = false;
+      bool hasAudioPacket = false;
       bool flush = false;
       int clipSeconds = 0;
       std::uint64_t flushRequestId = 0;
       {
         std::unique_lock lock(mutex_);
         condition_.wait(lock, [&] {
-          return stopping_ || !queue_.empty() || flushRequested_;
+          return stopping_
+            || !queue_.empty()
+            || !audioQueue_.empty()
+            || flushRequested_;
         });
-        if (!queue_.empty()) {
+        if (
+          !queue_.empty()
+          && (
+            audioQueue_.empty()
+            || queue_.front().capturedAt <= audioQueue_.front().capturedAt
+          )
+        ) {
           packet = std::move(queue_.front());
           queue_.pop();
           hasPacket = true;
+        } else if (!audioQueue_.empty()) {
+          audioPacket = std::move(audioQueue_.front());
+          audioQueue_.pop();
+          hasAudioPacket = true;
         }
         flush = flushRequested_;
         flushRequested_ = false;
@@ -1262,7 +1530,7 @@ private:
         clipSeconds_ = 0;
         flushRequestId = flushRequestId_;
         flushRequestId_ = 0;
-        if (stopping_ && !hasPacket) {
+        if (stopping_ && !hasPacket && !hasAudioPacket) {
           closeWriter();
           break;
         }
@@ -1278,6 +1546,21 @@ private:
           clipThread_ = std::thread([this, clipSeconds] {
             createClip(ringDirectory_, clipSeconds, status_);
           });
+        }
+        if (hasAudioPacket) {
+          if (writer_ && chunkStartedAt_) {
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
+              audioPacket.capturedAt - *chunkStartedAt_
+            ).count() / 100;
+            if (elapsed >= 0) {
+              writer_->writeAudio(
+                audioPacket.samples,
+                audioPacket.frameCount,
+                elapsed
+              );
+            }
+          }
+          continue;
         }
         if (!hasPacket) continue;
         if (
@@ -1325,6 +1608,7 @@ private:
   std::mutex mutex_;
   std::condition_variable condition_;
   std::queue<FramePacket> queue_;
+  std::queue<AudioPacket> audioQueue_;
   bool stopping_ = false;
   std::atomic_bool failed_ = false;
   bool flushRequested_ = false;
@@ -1336,6 +1620,268 @@ private:
   std::optional<std::chrono::steady_clock::time_point> chunkStartedAt_;
   int writerWidth_ = 0;
   int writerHeight_ = 0;
+};
+
+class AudioActivationHandler final
+  : public Microsoft::WRL::RuntimeClass<
+      Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+      Microsoft::WRL::FtmBase,
+      IActivateAudioInterfaceCompletionHandler
+    > {
+public:
+  AudioActivationHandler()
+    : completedEvent_(CreateEventW(nullptr, TRUE, FALSE, nullptr)) {
+  }
+
+  ~AudioActivationHandler() {
+    if (completedEvent_) CloseHandle(completedEvent_);
+  }
+
+  STDMETHODIMP ActivateCompleted(
+    IActivateAudioInterfaceAsyncOperation* operation
+  ) override {
+    ComPtr<IUnknown> activatedInterface;
+    HRESULT activationResult = E_FAIL;
+    const HRESULT operationResult = operation->GetActivateResult(
+      &activationResult,
+      &activatedInterface
+    );
+    result_ = FAILED(operationResult) ? operationResult : activationResult;
+    if (SUCCEEDED(result_) && activatedInterface) {
+      result_ = activatedInterface.As(&audioClient_);
+    }
+    SetEvent(completedEvent_);
+    return S_OK;
+  }
+
+  ComPtr<IAudioClient> waitForClient() {
+    if (
+      !completedEvent_
+      || WaitForSingleObject(completedEvent_, 5000) != WAIT_OBJECT_0
+    ) {
+      throw std::runtime_error("게임 오디오 장치 연결 시간이 초과되었습니다");
+    }
+    checkStage(result_, L"게임 오디오 장치 연결");
+    return audioClient_;
+  }
+
+private:
+  HANDLE completedEvent_ = nullptr;
+  HRESULT result_ = E_PENDING;
+  ComPtr<IAudioClient> audioClient_;
+};
+
+class ProcessAudioCapture {
+public:
+  ProcessAudioCapture(
+    DWORD processId,
+    EncoderWorker& encoder,
+    SharedStatus& status
+  ) : processId_(processId),
+      encoder_(encoder),
+      status_(status),
+      stopEvent_(CreateEventW(nullptr, TRUE, FALSE, nullptr)),
+      audioEvent_(CreateEventW(nullptr, FALSE, FALSE, nullptr)),
+      thread_([this] { run(); }) {
+  }
+
+  ~ProcessAudioCapture() {
+    stop();
+  }
+
+  void stop() {
+    if (stopping_.exchange(true)) return;
+    if (stopEvent_) SetEvent(stopEvent_);
+    if (audioEvent_) SetEvent(audioEvent_);
+    if (thread_.joinable()) thread_.join();
+    if (stopEvent_) {
+      CloseHandle(stopEvent_);
+      stopEvent_ = nullptr;
+    }
+    if (audioEvent_) {
+      CloseHandle(audioEvent_);
+      audioEvent_ = nullptr;
+    }
+  }
+
+private:
+  ComPtr<IAudioClient> activateAudioClient() {
+    AUDIOCLIENT_ACTIVATION_PARAMS activationParameters{};
+    activationParameters.ActivationType =
+      AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK;
+    activationParameters.ProcessLoopbackParams.TargetProcessId = processId_;
+    activationParameters.ProcessLoopbackParams.ProcessLoopbackMode =
+      PROCESS_LOOPBACK_MODE_INCLUDE_TARGET_PROCESS_TREE;
+
+    PROPVARIANT parameters;
+    PropVariantInit(&parameters);
+    parameters.vt = VT_BLOB;
+    parameters.blob.cbSize = sizeof(activationParameters);
+    parameters.blob.pBlobData =
+      reinterpret_cast<BYTE*>(&activationParameters);
+
+    auto handler = Microsoft::WRL::Make<AudioActivationHandler>();
+    if (!handler) throw std::runtime_error("게임 오디오 연결 객체를 만들지 못했습니다");
+    ComPtr<IActivateAudioInterfaceAsyncOperation> operation;
+    checkStage(
+      ActivateAudioInterfaceAsync(
+        VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK,
+        __uuidof(IAudioClient),
+        &parameters,
+        handler.Get(),
+        &operation
+      ),
+      L"게임 프로세스 오디오 연결 시작"
+    );
+    return handler->waitForClient();
+  }
+
+  void run() {
+    init_apartment(apartment_type::multi_threaded);
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+    try {
+      auto audioClient = activateAudioClient();
+      WAVEFORMATEX format{};
+      format.wFormatTag = WAVE_FORMAT_PCM;
+      format.nChannels = AudioChannels;
+      format.nSamplesPerSec = AudioSampleRate;
+      format.wBitsPerSample = AudioBitsPerSample;
+      format.nBlockAlign = AudioBlockAlignment;
+      format.nAvgBytesPerSec = AudioSampleRate * AudioBlockAlignment;
+
+      if (!audioEvent_) throw std::runtime_error("게임 오디오 이벤트를 만들지 못했습니다");
+      checkStage(
+        audioClient->Initialize(
+          AUDCLNT_SHAREMODE_SHARED,
+          AUDCLNT_STREAMFLAGS_LOOPBACK
+            | AUDCLNT_STREAMFLAGS_EVENTCALLBACK
+            | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM
+            | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
+          0,
+          0,
+          &format,
+          nullptr
+        ),
+        L"게임 프로세스 오디오 캡처 초기화"
+      );
+      checkStage(audioClient->SetEventHandle(audioEvent_), L"게임 오디오 이벤트 연결");
+      ComPtr<IAudioCaptureClient> captureClient;
+      checkStage(
+        audioClient->GetService(IID_PPV_ARGS(&captureClient)),
+        L"게임 오디오 캡처 서비스 연결"
+      );
+      checkStage(audioClient->Start(), L"게임 오디오 캡처 시작");
+      {
+        std::lock_guard lock(status_.mutex);
+        status_.audioRecording = true;
+        status_.audioError.clear();
+      }
+
+      HANDLE events[] = { stopEvent_, audioEvent_ };
+      std::optional<UINT64> firstQpcPosition;
+      std::chrono::steady_clock::time_point firstCapturedAt;
+      while (!stopping_) {
+        const DWORD waitResult = WaitForMultipleObjects(2, events, FALSE, 250);
+        if (waitResult == WAIT_OBJECT_0) break;
+        if (waitResult != WAIT_OBJECT_0 + 1) continue;
+
+        UINT32 nextPacketFrames = 0;
+        checkStage(
+          captureClient->GetNextPacketSize(&nextPacketFrames),
+          L"게임 오디오 패킷 크기 확인"
+        );
+        while (nextPacketFrames > 0 && !stopping_) {
+          BYTE* source = nullptr;
+          UINT32 frameCount = 0;
+          DWORD flags = 0;
+          UINT64 devicePosition = 0;
+          UINT64 qpcPosition = 0;
+          checkStage(
+            captureClient->GetBuffer(
+              &source,
+              &frameCount,
+              &flags,
+              &devicePosition,
+              &qpcPosition
+            ),
+            L"게임 오디오 패킷 읽기"
+          );
+          AudioPacket packet;
+          packet.frameCount = frameCount;
+          packet.samples.resize(
+            static_cast<std::size_t>(frameCount) * AudioBlockAlignment
+          );
+          if (
+            !(flags & AUDCLNT_BUFFERFLAGS_SILENT)
+            && source
+            && !packet.samples.empty()
+          ) {
+            std::memcpy(packet.samples.data(), source, packet.samples.size());
+          }
+          if (!firstQpcPosition) {
+            firstQpcPosition = qpcPosition;
+            firstCapturedAt = std::chrono::steady_clock::now();
+          }
+          packet.capturedAt = firstCapturedAt + std::chrono::nanoseconds(
+            static_cast<std::int64_t>(qpcPosition - *firstQpcPosition) * 100
+          );
+          encoder_.enqueueAudio(std::move(packet));
+          checkStage(
+            captureClient->ReleaseBuffer(frameCount),
+            L"게임 오디오 패킷 반환"
+          );
+          checkStage(
+            captureClient->GetNextPacketSize(&nextPacketFrames),
+            L"다음 게임 오디오 패킷 확인"
+          );
+        }
+      }
+      audioClient->Stop();
+    } catch (const hresult_error& error) {
+      std::lock_guard lock(status_.mutex);
+      std::wostringstream code;
+      code << L"0x" << std::hex << std::uppercase
+        << static_cast<std::uint32_t>(error.code());
+      status_.audioError = L"게임 소리 녹음 실패: "
+        + std::wstring(error.message())
+        + L" (" + code.str() + L")";
+    } catch (const std::exception& error) {
+      std::lock_guard lock(status_.mutex);
+      const int required = MultiByteToWideChar(
+        CP_UTF8,
+        0,
+        error.what(),
+        -1,
+        nullptr,
+        0
+      );
+      std::wstring message(static_cast<std::size_t>(std::max(0, required)), L'\0');
+      if (required > 1) {
+        MultiByteToWideChar(
+          CP_UTF8,
+          0,
+          error.what(),
+          -1,
+          message.data(),
+          required
+        );
+        message.resize(static_cast<std::size_t>(required - 1));
+      }
+      status_.audioError = L"게임 소리 녹음 실패: " + message;
+    }
+    {
+      std::lock_guard lock(status_.mutex);
+      status_.audioRecording = false;
+    }
+  }
+
+  DWORD processId_;
+  EncoderWorker& encoder_;
+  SharedStatus& status_;
+  HANDLE stopEvent_ = nullptr;
+  HANDLE audioEvent_ = nullptr;
+  std::atomic_bool stopping_ = false;
+  std::thread thread_;
 };
 
 class WindowCapture {
@@ -1496,8 +2042,10 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
     snapshot.recording = status.recording;
     snapshot.waitingForGame = status.waitingForGame;
     snapshot.clipInProgress = status.clipInProgress;
+    snapshot.audioRecording = status.audioRecording;
     snapshot.codec = status.codec;
     snapshot.error = status.error;
+    snapshot.audioError = status.audioError;
     snapshot.latestClip = status.latestClip;
     snapshot.bytesUsed = status.bytesUsed;
     snapshot.capacityBytes = status.capacityBytes;
@@ -1514,10 +2062,14 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
     << "\"recording\":" << (snapshot.recording ? "true" : "false") << ","
     << "\"waitingForGame\":" << (snapshot.waitingForGame ? "true" : "false") << ","
     << "\"clipInProgress\":" << (snapshot.clipInProgress ? "true" : "false") << ","
+    << "\"audioRecording\":" << (snapshot.audioRecording ? "true" : "false") << ","
     << "\"codec\":\"" << jsonEscape(snapshot.codec) << "\","
     << "\"error\":" << (snapshot.error.empty()
       ? "null"
       : "\"" + jsonEscape(snapshot.error) + "\"") << ","
+    << "\"audioError\":" << (snapshot.audioError.empty()
+      ? "null"
+      : "\"" + jsonEscape(snapshot.audioError) + "\"") << ","
     << "\"latestClip\":" << (snapshot.latestClip.empty()
       ? "null"
       : "\"" + jsonEscape(snapshot.latestClip) + "\"") << ","
@@ -1701,6 +2253,7 @@ int wmain(int count, wchar_t** values) {
     const auto winrtDevice = createWinrtDevice(device, context);
     EncoderWorker encoder(device, options.storagePath / L"Ring", options, status);
     std::unique_ptr<WindowCapture> capture;
+    std::unique_ptr<ProcessAudioCapture> audioCapture;
     auto lastStatusWrite = std::chrono::steady_clock::now() - 2s;
 
     while (status.running && processRunning(options.parentPid)) {
@@ -1714,9 +2267,11 @@ int wmain(int count, wchar_t** values) {
       }
 
       if (capture && capture->closed()) {
+        audioCapture.reset();
         capture.reset();
         std::lock_guard lock(status.mutex);
         status.recording = false;
+        status.audioRecording = false;
         status.waitingForGame = true;
       }
       if (encoder.failed()) {
@@ -1736,6 +2291,15 @@ int wmain(int count, wchar_t** values) {
               status,
               options.fps
             );
+            DWORD gameProcessId = 0;
+            GetWindowThreadProcessId(window, &gameProcessId);
+            if (gameProcessId != 0) {
+              audioCapture = std::make_unique<ProcessAudioCapture>(
+                gameProcessId,
+                encoder,
+                status
+              );
+            }
             std::lock_guard lock(status.mutex);
             status.waitingForGame = false;
             status.error.clear();
@@ -1761,12 +2325,14 @@ int wmain(int count, wchar_t** values) {
       std::this_thread::sleep_for(100ms);
     }
 
+    audioCapture.reset();
     capture.reset();
     encoder.stop();
     {
       std::lock_guard lock(status.mutex);
       status.running = false;
       status.recording = false;
+      status.audioRecording = false;
     }
     try {
       updateStatusFile(options, status);

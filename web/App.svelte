@@ -168,6 +168,8 @@
   let blackboxEnabled = false
   let blackboxRunning = false
   let blackboxRecording = false
+  let blackboxAudioRecording = false
+  let blackboxAudioError = ""
   let blackboxWaitingForGame = false
   let blackboxClipInProgress = false
   let blackboxAction = null
@@ -866,6 +868,8 @@
     blackboxEnabled = Boolean(state.enabled)
     blackboxRunning = Boolean(state.running)
     blackboxRecording = Boolean(state.recording)
+    blackboxAudioRecording = Boolean(state.audioRecording)
+    blackboxAudioError = state.audioError ?? ""
     blackboxWaitingForGame = Boolean(state.waitingForGame)
     blackboxClipInProgress = Boolean(state.clipInProgress)
     blackboxCodec = state.codec
@@ -899,7 +903,7 @@
         ? blackboxResolvedQuality
         : blackboxDraft.quality,
     })
-    return (blackboxDraft.capacityGb / (bitrate * 0.45)).toFixed(1)
+    return (blackboxDraft.capacityGb / ((bitrate + 0.192) * 0.45)).toFixed(1)
   }
 
   function blackboxQualityLabel(quality) {
@@ -911,7 +915,8 @@
     if (!blackboxSettingLoaded) return "녹화 상태를 확인하고 있습니다"
     if (!blackboxEnabled) return "게임 화면을 청크 단위로 순환 녹화합니다"
     if (blackboxRecording) {
-      return `${blackboxCodec === "hevc" ? "HEVC" : "H.264"} · ${blackboxQualityLabel(blackboxResolvedQuality)} 녹화 중 · ${blackboxUsageText()}`
+      const audioLabel = blackboxAudioRecording ? "게임 소리 포함" : "영상만 녹화 중"
+      return `${blackboxCodec === "hevc" ? "HEVC" : "H.264"} · ${blackboxQualityLabel(blackboxResolvedQuality)} · ${audioLabel} · ${blackboxUsageText()}`
     }
     if (blackboxWaitingForGame) return "마비노기 화면을 기다리고 있습니다"
     return blackboxRunning ? "녹화를 준비하고 있습니다" : "녹화 프로세스를 확인하지 못했습니다"
@@ -949,6 +954,7 @@
       applyBlackboxState(await window.nogirem.setBlackboxSetting({
         enabled: false,
         codec: blackboxCodec,
+        quality: blackboxQuality,
         capacityGb: blackboxCapacityGb,
         clipSeconds: blackboxClipSeconds,
         fps: blackboxFps,
@@ -2160,6 +2166,9 @@
                   {#if blackboxNotice}
                     <span class="developer-tool-status">{blackboxNotice}</span>
                   {/if}
+                  {#if blackboxAudioError}
+                    <span class="developer-tool-status">{blackboxAudioError}</span>
+                  {/if}
                   <div class="developer-tool-row">
                     <div>
                       <h2>CPU 재정렬</h2>
@@ -2697,7 +2706,7 @@
     <div class="blackbox-settings">
       <p class="blackbox-settings-description">
         자동 화질은 PC 자원에 따라 최대 1080p 또는 1440p로 설정하며 원본 비율을 유지합니다.
-        녹화 처리가 밀리면 게임 대신 녹화 프레임을 건너뜁니다. 현재는 화면 영상만 저장합니다.
+        녹화 처리가 밀리면 게임 대신 녹화 프레임을 건너뜁니다. 마비노기 게임 소리만 함께 저장하며 다른 앱 소리와 마이크는 제외합니다.
       </p>
       <div class="blackbox-setting-grid">
         <label class="quality">

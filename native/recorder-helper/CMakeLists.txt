@@ -15,6 +15,8 @@ target_compile_definitions(recorder-helper PRIVATE
   _UNICODE
   WIN32_LEAN_AND_MEAN
   NOMINMAX
+  WINVER=0x0A00
+  _WIN32_WINNT=0x0A00
 )
 
 target_link_libraries(recorder-helper PRIVATE
@@ -25,6 +27,7 @@ target_link_libraries(recorder-helper PRIVATE
   mfplat
   mfreadwrite
   mfuuid
+  mmdevapi
   ole32
   shlwapi
 )

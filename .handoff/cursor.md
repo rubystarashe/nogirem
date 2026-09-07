@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-07 14:43
+Last Updated: 2026-09-07 15:05
 
 ## Current Objective
 고급 기능에서 사용하는 저부하 게임 블랙박스를 0.3.0 기능으로 완성하고 실제 설치본 검증을 준비한다.
@@ -9,6 +9,7 @@ Last Updated: 2026-09-07 14:43
 - 앱 버전은 0.3.0이다. 고급 기능에 기본 비활성화 상태의 게임 블랙박스 UI와 H.264·HEVC, 30·60fps, 20·50·100·200GB, 최근 약 30·60·120초 클립 설정을 추가했다.
 - `recorder-helper.exe`가 Windows Graphics Capture로 마비노기 창을 외부 캡처하고 D3D11에서 선택 화질의 원본 비율 NV12로 변환한 뒤 Media Foundation 하드웨어 인코더로 기록한다.
 - 블랙박스 기본 화질은 자동이다. 메모리 16GB·논리 CPU 12개 이상이면 최대 1440p, 그 외에는 최대 1080p를 사용하며 설정에서 1080p·1440p·원본을 직접 선택할 수 있다.
+- `Client.exe`와 자식 프로세스의 출력 소리를 프로세스별 WASAPI loopback으로 캡처하고 AAC LC 48kHz 스테레오 192kbps로 MP4에 함께 기록한다. 다른 앱 소리와 마이크는 제외한다.
 - 순환 녹화는 4초 MP4 청크이며 용량·디스크 여유 기준을 넘으면 오래된 청크부터 삭제한다. 클립은 hard link로 청크를 보호하고 재인코딩 없이 단일 MP4로 결합한다.
 - 화면 버튼과 `Ctrl+Shift+F10` 전역 단축키로 클립을 저장한다. 단축키 충돌 시 화면 버튼은 계속 사용할 수 있다.
 - 고급 기능의 `영상 추출`은 누른 시점을 고정해 최근 60초를 여는 별도 편집 창이다. `+`로 이전 30초 추가, `++`로 직접 트랙 길이 지정, 추출 길이 설정, 가이드 드래그, 구간 미리보기와 MP4 추출을 지원한다.
@@ -191,6 +192,7 @@ Last Updated: 2026-09-07 14:43
 ## Architecture / Important Decisions
 - 블랙박스는 Electron renderer나 게임 주입 방식이 아니라 별도 `native/recorder-helper` 프로세스가 소유한다. Electron은 설정·상태·control JSON과 제한된 IPC만 관리한다.
 - 녹화 경로는 `Windows Graphics Capture → D3D11 texture pool → GPU Video Processor NV12 변환 → Media Foundation 하드웨어 H.264/HEVC → 4초 MP4`다. CPU 화면 readback은 사용하지 않는다.
+- 게임 소리는 `ActivateAudioInterfaceAsync → process loopback → PCM 48kHz stereo → Media Foundation AAC` 경로로 같은 MP4에 기록한다. 오디오 캡처와 인코딩은 저우선순위 thread에서 실행한다.
 - 자동 화질 판정은 Electron의 논리 CPU 수와 총 메모리를 사용한다. 1440p 60fps 비트레이트는 H.264 24Mbps·HEVC 16Mbps이며 원본보다 작은 캡처 화면을 확대하지 않는다.
 - 캡처 callback은 최대 3개의 재사용 texture와 목표 fps 제한만 처리한다. encoder가 밀리면 새 프레임을 폐기해 게임·입력 경로를 기다리게 하지 않는다.
 - 순환 원본은 Windows 동영상 폴더의 `마비노기 렘 블랙박스/Ring`, 사용자 클립은 `Clips`에 저장한다. Clips는 순환 용량에서 제외한다.
@@ -202,7 +204,7 @@ Last Updated: 2026-09-07 14:43
 - remux는 converter를 끄고 codec·해상도·frame rate·sequence header가 같은 최신 연속 청크만 사용하며 PTS·DTS를 함께 재기준화한다. 출력은 `.partial.mp4` 완성 후 최종 이름으로 원자 게시한다.
 - `control.json`을 사용하는 clip·flush·stop 작업은 Electron 단일 promise queue에서 접수 확인까지 직렬화해 요청 덮어쓰기를 막는다.
 - 청크 호환성은 실제 캡처 frame 수에 따라 흔들리는 container frame rate 분수를 비교하지 않고 codec·해상도·sequence header로 판정한다. 저장 범위는 선택 청크의 media duration 합계에서 마지막 요청 초만 정확히 추출한다.
-- 0.3.0 녹화에는 게임 소리와 마이크가 포함되지 않는다. 오디오는 프로세스별 WASAPI loopback 설계·검증 후 별도 추가해야 한다.
+- 클립·편집 remux는 영상과 AAC를 함께 복사하며 두 stream의 PTS·DTS를 청크별로 재기준화한다. 오디오 연결 실패는 영상 녹화를 중단하지 않는 부분 실패로 상태에 표시한다.
 - recorder helper는 설치본에 내장하고 `asarUnpack`한다. 빌드 전용 공식 C++/WinRT projection은 NuGet 2.0.240111.5를 고정 SHA-256으로 검증해 생성한다.
 - `src/turbo-key-installer.mjs`가 helper 자산명·프로토콜 버전, GitHub Release 조회, SHA-256·PE 검증, AppData 원자 설치와 실행 파일·manifest 제거를 소유한다.
 - 배포본은 현재 앱 버전 태그의 정식 GitHub Release와 고정 자산명만 허용한다. 설치 상태는 `current.json`의 helper·프로토콜 버전과 실행 파일 해시를 실행 전마다 대조한다.
@@ -330,7 +332,8 @@ Last Updated: 2026-09-07 14:43
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
-1. 개발 앱에서 자동·1080p·1440p·원본 화질 변경 후 helper 재시작과 실제 적용 해상도 표시를 수동 확인한다.
+1. 실제 마비노기에서 음악·효과음을 재생하며 게임 소리만 들리고 다른 앱 소리와 마이크가 제외되는지 청음 확인한다.
+2. 개발 앱에서 자동·1080p·1440p·원본 화질 변경 후 helper 재시작과 실제 적용 해상도 표시를 수동 확인한다.
 2. 실제 `영상 추출` 창을 열어 항상 위·Esc 닫기, 최근 60초 재생, `+`·`++`, 가이드 드래그, 구간 미리보기와 저장 파일 재생을 수동 확인한다.
 2. `npm run package:win`으로 0.3.0 설치본을 만들고 설치 환경에서 helper 포함·고급 기능 실행·트레이 지속 녹화·업데이트 종료를 확인한다.
 3. NVIDIA·Intel·AMD GPU 각 1대 이상에서 H.264·HEVC 하드웨어 인코더 지원, 장시간 용량 순환과 게임 frametime 영향을 확인한다.
@@ -358,7 +361,7 @@ Last Updated: 2026-09-07 14:43
 20. 마비노기 전면 창에서 `2 누름 → 3 누름 → 일반 키 4 누름·해제 → 3 해제 → 2 해제` 순서로 실제 입력 전환을 확인한다.
 
 ## Known Issues
-- 0.3.0 블랙박스는 화면 영상만 저장하며 게임 소리·마이크는 녹음하지 않는다.
+- 프로세스별 오디오 loopback은 Windows 10 2004 이상이 필요하다. 연결 실패 시 영상만 계속 녹화되며 UI에 게임 소리 실패 사유가 표시된다.
 - 클립 시작점은 독립 재생 가능한 4초 청크 경계이므로 설정 시간보다 최대 약 4초 길어질 수 있다.
 - 편집 창에서 매우 긴 트랙을 직접 지정하면 해당 구간을 임시 MP4로 복사하므로 트랙 길이와 디스크 속도에 비례해 준비 시간과 임시 용량이 증가한다.
 - 활성 청크 확정은 동기 Media Foundation `Finalize()`를 사용하므로 편집 창을 여는 순간 녹화 frame 일부가 폐기될 수 있다. 게임 thread는 기다리지 않지만 실제 dropped frame 변화는 장시간 수동 계측이 필요하다.
@@ -1119,6 +1122,7 @@ Last Updated: 2026-09-07 14:43
 - 0.3.0 게임 블랙박스 네이티브 helper, 고급 기능 설정·상태·클립 UI, Electron IPC와 패키징 빌드를 추가했다.
 - 블랙박스 자동 화질 판정과 1080p·1440p·원본 선택을 추가하고 해상도별 H.264·HEVC 비트레이트를 상향했다.
 - 실제 마비노기 3440×1440 창을 자동 1440p·H.264 24Mbps 설정으로 녹화해 3440×1440 MP4 청크와 약 18.1Mbps 실효 비트레이트를 ffprobe로 확인했다.
+- 마비노기 프로세스 트리 전용 오디오 loopback과 AAC 기록을 추가하고 3개 청크 결합·내부 3초 추출에서 영상과 오디오 길이가 일치하는 것을 ffprobe로 검증했다.
 - 누른 시점을 고정한 최근 60초 영상 추출 편집 창과 트랙 확장·직접 길이·드래그 가이드·구간 미리보기·정확한 길이의 무재인코딩 추출을 추가했다.
 - 편집 창에 항상 위와 Esc 닫기를 적용하고 flush 직후 열린 새 청크를 트랙 입력으로 오인하던 경합을 청크 시작 timestamp 필터로 차단했다.
 - 검토 후 전용 영상 프로토콜, media signature·DTS 검증, 원자 MP4 게시, control 직렬화와 WGC frame pool drain 순서를 보강했다.
@@ -1126,4 +1130,4 @@ Last Updated: 2026-09-07 14:43
 - 0.3.0 버전·사용자 변경 기록·상세 변경 기록을 갱신했으며 패키징과 배포는 수행하지 않았다.
 
 ## Next Recommended Step
-0.3.0을 패키징하기 전에 개발 앱에서 자동 화질 표시와 수동 화질 변경을 확인한 뒤 H.264 1440p 60fps·50GB로 장시간 플레이하며 game frametime, 누락 프레임과 해상도 변경 복구를 확인한다.
+0.3.0을 패키징하기 전에 실제 게임 음악·효과음과 다른 앱 소리를 동시에 재생해 프로세스별 녹음 격리를 청음 확인한 뒤 H.264 1440p 60fps·50GB로 장시간 플레이하며 영상·소리 동기, game frametime과 누락 프레임을 확인한다.
