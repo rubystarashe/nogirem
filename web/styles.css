@@ -1259,77 +1259,54 @@ button.direct-donation-card:hover {
 }
 
 .game-cpu-core-controls {
+  position: relative;
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.game-cpu-core-options {
-  display: flex;
-  min-width: 0;
-  flex: none;
+  width: 100%;
+  align-items: stretch;
   gap: 3px;
 }
 
-.developer-tools .game-cpu-core-options button {
-  width: 27px;
-  min-width: 27px;
+.developer-tools .game-cpu-core-controls button {
+  min-width: 0;
   height: 27px;
-  flex: 0 0 27px;
+  flex: 1 1 0;
   padding: 0;
-  border-color: var(--allocation-color);
-  color: var(--allocation-color);
-  background: transparent;
   font-size: 10px;
 }
 
-.developer-tools .game-cpu-core-options button.allocated,
-.developer-tools .game-cpu-core-options button.allocated:hover:not(:disabled) {
+.developer-tools .game-cpu-core-option {
+  border-color: var(--allocation-color);
+  color: var(--allocation-color);
+  background: transparent;
+}
+
+.developer-tools .game-cpu-core-option.allocated,
+.developer-tools .game-cpu-core-option.allocated:hover:not(:disabled) {
   border-color: var(--allocation-color);
   color: #fff;
   background: var(--allocation-color);
 }
 
-.developer-tools .game-cpu-core-options button:hover:not(:disabled) {
+.developer-tools .game-cpu-core-option:hover:not(:disabled) {
   border-color: var(--allocation-color);
   color: var(--allocation-color);
   background: transparent;
 }
 
-.game-cpu-unavailable {
-  position: relative;
-  display: flex;
-  flex: none;
-}
-
-.game-cpu-unavailable > span {
+.game-cpu-unavailable-label {
   position: absolute;
   bottom: calc(100% + 3px);
-  left: 0;
+  right: 0;
   color: #999;
   font-size: 8px;
   line-height: 1;
   white-space: nowrap;
 }
 
-.game-cpu-unavailable > div {
-  display: flex;
-  max-width: 170px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 2px;
-}
-
-.developer-tools .game-cpu-unavailable button:disabled {
-  width: 27px;
-  min-width: 27px;
-  height: 27px;
-  flex: 0 0 27px;
-  padding: 0;
+.developer-tools .game-cpu-unavailable-core:disabled {
   border-color: #c9c9c9;
   color: #999;
   background: transparent;
-  font-size: 9px;
 }
 
 .developer-tools h2 {

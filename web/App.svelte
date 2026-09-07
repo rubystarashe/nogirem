@@ -2225,32 +2225,33 @@
                       </p>
                     </div>
                     {#if gameCpuCoreOptions().length}
-                      <div class="game-cpu-core-controls">
-                        <div class="game-cpu-core-options" aria-label="마비노기 CPU 코어 개수">
-                          {#each gameCpuCoreOptions() as coreCount}
+                      <div class="game-cpu-core-controls" aria-label="마비노기 CPU 코어 개수">
+                        {#each gameCpuCoreOptions() as coreCount}
+                          <button
+                            class="game-cpu-core-option"
+                            class:allocated={services.affinity.data?.gameCoreSetting?.gameCoreCount
+                              >= coreCount}
+                            disabled={gameCpuCoreAction
+                              || services.affinity.data?.cpuReorder?.state === "running"}
+                            aria-pressed={services.affinity.data?.gameCoreSetting?.gameCoreCount
+                              >= coreCount}
+                            style={`--allocation-color: ${gameCpuCoreColor(coreCount)}`}
+                            onclick={() => selectGameCpuCoreCount(coreCount)}
+                          >
+                            {coreCount}
+                          </button>
+                        {/each}
+                        {#if gameCpuUnavailableCores().length}
+                          <span class="game-cpu-unavailable-label">선택 불가 코어</span>
+                          {#each gameCpuUnavailableCores() as core}
                             <button
-                              class:allocated={services.affinity.data?.gameCoreSetting?.gameCoreCount
-                                >= coreCount}
-                              disabled={gameCpuCoreAction
-                                || services.affinity.data?.cpuReorder?.state === "running"}
-                              aria-pressed={services.affinity.data?.gameCoreSetting?.gameCoreCount
-                                >= coreCount}
-                              style={`--allocation-color: ${gameCpuCoreColor(coreCount)}`}
-                              onclick={() => selectGameCpuCoreCount(coreCount)}
+                              class="game-cpu-unavailable-core"
+                              disabled
+                              title={core.reason}
                             >
-                              {coreCount}
+                              {core.label}
                             </button>
                           {/each}
-                        </div>
-                        {#if gameCpuUnavailableCores().length}
-                          <div class="game-cpu-unavailable">
-                            <span>선택 불가 코어</span>
-                            <div aria-label="선택 불가 CPU 코어">
-                              {#each gameCpuUnavailableCores() as core}
-                                <button disabled title={core.reason}>{core.label}</button>
-                              {/each}
-                            </div>
-                          </div>
                         {/if}
                       </div>
                     {:else}
