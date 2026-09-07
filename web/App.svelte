@@ -161,6 +161,7 @@
   let blackboxEnabled = false
   let blackboxTogglePending = false
   let blackboxDisplayedText = "블랙박스 꺼짐"
+  let blackboxDisplayedEnabled = false
   let blackboxTransitionFrom = "블랙박스 꺼짐"
   let blackboxTransitionTo = "블랙박스 꺼짐"
   let blackboxTransitionFromEnabled = false
@@ -861,22 +862,32 @@
   function applyBlackboxState(state) {
     const nextEnabled = Boolean(state.enabled)
     const nextText = nextEnabled ? "블랙박스 켜짐" : "블랙박스 꺼짐"
-    if (blackboxSettingLoaded && nextText !== blackboxDisplayedText) {
+    const visualTarget = blackboxTransitionPhase === "done"
+      ? blackboxDisplayedText
+      : blackboxTransitionTo
+    if (blackboxSettingLoaded && nextText !== visualTarget) {
       blackboxTransitionFrom = blackboxDisplayedText
       blackboxTransitionTo = nextText
-      blackboxTransitionFromEnabled = blackboxEnabled
+      blackboxTransitionFromEnabled = blackboxDisplayedEnabled
       blackboxTransitionToEnabled = nextEnabled
       blackboxTransitionPhase = "enter"
       blackboxTransitionId += 1
     } else if (!blackboxSettingLoaded) {
+      blackboxDisplayedText = nextText
+      blackboxDisplayedEnabled = nextEnabled
       blackboxTransitionFrom = nextText
       blackboxTransitionTo = nextText
       blackboxTransitionFromEnabled = nextEnabled
       blackboxTransitionToEnabled = nextEnabled
       blackboxTransitionPhase = "done"
     }
-    blackboxDisplayedText = nextText
     blackboxEnabled = nextEnabled
+  }
+
+  function revealBlackboxTransitionTarget() {
+    blackboxDisplayedText = blackboxTransitionTo
+    blackboxDisplayedEnabled = blackboxTransitionToEnabled
+    blackboxTransitionPhase = "leave"
   }
 
   function finishBlackboxTransition() {
@@ -1714,7 +1725,7 @@
           >
             <button
               class="blackbox-main-link"
-              class:active={blackboxEnabled}
+              class:active={blackboxDisplayedEnabled}
               disabled={!blackboxSettingLoaded || blackboxTogglePending}
               aria-label={blackboxEnabled ? "블랙박스 끄기" : "블랙박스 켜기"}
               aria-pressed={blackboxEnabled}
@@ -1737,7 +1748,7 @@
                   <span
                     class="blackbox-text-over"
                     class:active-target={blackboxTransitionToEnabled}
-                    onanimationend={() => blackboxTransitionPhase = "leave"}
+                    onanimationend={revealBlackboxTransitionTarget}
                   >
                     {blackboxTransitionTo}
                   </span>

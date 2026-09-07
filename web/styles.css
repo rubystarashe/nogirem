@@ -557,7 +557,7 @@ footer {
   right: 14px;
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 0;
   opacity: 0;
   transform: translateX(12px);
   transition:
@@ -574,7 +574,7 @@ footer {
 .blackbox-main-link {
   position: relative;
   display: block;
-  width: 142px;
+  width: 94px;
   height: 38px;
   padding: 0;
   overflow: visible;

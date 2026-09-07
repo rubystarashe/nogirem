@@ -81,6 +81,10 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(appSource, /class="blackbox-main-link"/)
   assert.match(appSource, /class="blackbox-window-link"/)
   assert.match(appSource, /onclick=\{toggleMainBlackbox\}/)
+  assert.match(
+    appSource,
+    /function revealBlackboxTransitionTarget\(\)[\s\S]*blackboxDisplayedText = blackboxTransitionTo[\s\S]*blackboxDisplayedEnabled = blackboxTransitionToEnabled[\s\S]*blackboxTransitionPhase = "leave"/,
+  )
   assert.match(appSource, /openBlackboxManager/)
   assert.doesNotMatch(appSource, /<h2>게임 블랙박스<\/h2>/)
   assert.match(mainSource, /application:set-blackbox-enabled[\s\S]*\.\.\.current,[\s\S]*enabled: Boolean\(enabled\)/)
