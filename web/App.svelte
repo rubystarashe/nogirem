@@ -2959,11 +2959,24 @@
         {#if services.network.error}
           <p class="detail-error">{services.network.error}</p>
         {:else if services.network.data}
-          <p class="detail-device">
-            {services.network.data.fastPing.supported === false
-              ? services.network.data.fastPing.reason
-              : (services.network.data.fastPing.current?.interfaceAlias ?? "기본 네트워크")}
-          </p>
+          <div class="detail-device-row">
+            <p class="detail-device">
+              {services.network.data.fastPing.supported === false
+                ? services.network.data.fastPing.reason
+                : (services.network.data.fastPing.current?.interfaceAlias ?? "기본 네트워크")}
+            </p>
+            <button
+              class="detail-restore"
+              disabled={services.network.loading
+                || services.network.optimizing
+                || !networkRestoreAvailable(services.network.data)}
+              onclick={requestNetworkRestore}
+            >
+              {services.network.optimizing && networkReconnectMode === "restore"
+                ? "되돌리는 중"
+                : "설정 되돌리기"}
+            </button>
+          </div>
           <dl class="detail-list">
             <div>
               <dt>TCP ACK 빈도</dt>
@@ -2974,19 +2987,8 @@
                   : (services.network.data.fastPing.current?.TcpAckFrequency === 1 ? "완료" : "조정 필요")}
               </dd>
             </div>
-            <div class="network-restore-row">
+            <div>
               <dt>TCP No Delay</dt>
-              <button
-                class="detail-restore"
-                disabled={services.network.loading
-                  || services.network.optimizing
-                  || !networkRestoreAvailable(services.network.data)}
-                onclick={requestNetworkRestore}
-              >
-                {services.network.optimizing && networkReconnectMode === "restore"
-                  ? "되돌리는 중"
-                  : "설정 되돌리기"}
-              </button>
               <dd class:ready={services.network.data.fastPing.supported === false
                 || services.network.data.fastPing.current?.TCPNoDelay === 1}>
                 {services.network.data.fastPing.supported === false
