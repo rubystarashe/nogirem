@@ -6,6 +6,7 @@
   import operationMarkdown from "../OPERATION.md?raw"
   import turboKeyTermsMarkdown from "../TURBO_KEY_TERMS.md?raw"
   import versionHistoryMarkdown from "../VERSION_HISTORY.md?raw"
+  import { blackboxFeatureAvailable } from "../src/blackbox-settings.mjs"
   import {
     defaultTurboKeyCodes,
     defaultTurboKeyIntervalMs,
@@ -1827,7 +1828,7 @@
                     : "DXVK 업데이트"}
             </span>
           </button>
-          {#if blackboxFeatureEnabled}
+          {#if blackboxFeatureAvailable && blackboxFeatureEnabled}
             <div
               class="blackbox-main-controls"
               class:entered={leftTopContentEntered}
@@ -2294,14 +2295,11 @@
                       <p>메인 화면에서 게임 화면 순환 녹화와 클립 저장 기능을 사용할 수 있습니다</p>
                     </div>
                     <button
-                      class:active={blackboxFeatureEnabled}
-                      disabled={!blackboxSettingLoaded || blackboxFeatureAction}
-                      aria-pressed={blackboxFeatureEnabled}
-                      onclick={toggleBlackboxFeature}
+                      class:active={blackboxFeatureAvailable && blackboxFeatureEnabled}
+                      disabled
+                      aria-pressed="false"
                     >
-                      {blackboxFeatureAction === "saving"
-                        ? "저장 중…"
-                        : (blackboxFeatureEnabled ? "사용 중" : "사용하기")}
+                      준비중
                     </button>
                   </div>
                   {#if blackboxFeatureNotice}

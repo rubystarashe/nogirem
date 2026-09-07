@@ -50,6 +50,7 @@ import {
   turboKeyHelperVersion,
 } from "../src/turbo-key-installer.mjs"
 import {
+  blackboxFeatureAvailable,
   bitrateForBlackboxSetting,
   maxHeightForBlackboxQuality,
   normalizeBlackboxSetting,
@@ -1937,6 +1938,9 @@ function queueBlackboxControlOperation(operation) {
 }
 
 async function launchBlackboxHelper(setting) {
+  if (!blackboxFeatureAvailable) {
+    throw new Error("게임 블랙박스 기능은 준비 중입니다")
+  }
   if (blackboxProcess && blackboxProcess.exitCode === null) return getBlackboxSetting()
   if (!existsSync(recorderHelperPath)) {
     throw new Error("블랙박스 녹화 helper를 찾지 못했습니다")
@@ -2263,6 +2267,16 @@ async function ensureBlackboxStarted() {
   const setting = normalizeBlackboxSetting(
     await readJson(getBlackboxPaths().settingsPath),
   )
+  if (!blackboxFeatureAvailable) {
+    if (setting.featureEnabled || setting.enabled) {
+      await setBlackboxSetting({
+        ...setting,
+        featureEnabled: false,
+        enabled: false,
+      })
+    }
+    return
+  }
   if (!setting.enabled) return
   await launchBlackboxHelper(setting)
 }

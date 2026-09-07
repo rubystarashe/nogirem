@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
 import {
+  blackboxFeatureAvailable,
   bitrateForBlackboxSetting,
   defaultBlackboxSetting,
   maxHeightForBlackboxQuality,
@@ -12,6 +13,7 @@ import {
 const root = new URL("../", import.meta.url)
 
 test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사용한다", () => {
+  assert.equal(blackboxFeatureAvailable, false)
   assert.deepEqual(normalizeBlackboxSetting(null), defaultBlackboxSetting)
   assert.deepEqual(normalizeBlackboxSetting({
     enabled: true,
@@ -88,8 +90,8 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   ])
   assert.match(appSource, /class="blackbox-main-link"/)
   assert.match(appSource, /class="blackbox-window-link"/)
-  assert.match(appSource, /\{#if blackboxFeatureEnabled\}[\s\S]*class="blackbox-main-controls"/)
-  assert.match(appSource, /<h2>게임 블랙박스<\/h2>[\s\S]*blackboxFeatureEnabled \? "사용 중" : "사용하기"/)
+  assert.match(appSource, /\{#if blackboxFeatureAvailable && blackboxFeatureEnabled\}[\s\S]*class="blackbox-main-controls"/)
+  assert.match(appSource, /<h2>게임 블랙박스<\/h2>[\s\S]*<button[\s\S]*disabled[\s\S]*준비중/)
   assert.match(appSource, /onclick=\{toggleMainBlackbox\}/)
   assert.match(
     appSource,
@@ -119,6 +121,10 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
     /application:set-blackbox-feature-enabled[\s\S]*featureEnabled: nextFeatureEnabled,[\s\S]*enabled: nextFeatureEnabled && current\.enabled/,
   )
   assert.match(mainSource, /application:set-blackbox-enabled[\s\S]*\.\.\.current,[\s\S]*enabled: Boolean\(enabled\)/)
+  assert.match(
+    mainSource,
+    /async function ensureBlackboxStarted\(\)[\s\S]*if \(!blackboxFeatureAvailable\)[\s\S]*featureEnabled: false,[\s\S]*enabled: false/,
+  )
   assert.match(preloadSource, /setBlackboxEnabled/)
   assert.match(preloadSource, /setBlackboxFeatureEnabled/)
   assert.match(mainSource, /function openBlackboxManager\(\)/)
