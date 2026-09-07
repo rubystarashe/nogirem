@@ -975,6 +975,19 @@
     }
   }
 
+  async function openBlackboxEditor() {
+    if (blackboxAction || !blackboxRecording) return
+    blackboxAction = "editor"
+    blackboxNotice = ""
+    try {
+      await window.nogirem.openBlackboxEditor()
+    } catch (error) {
+      blackboxNotice = messageOf(error)
+    } finally {
+      blackboxAction = null
+    }
+  }
+
   async function openBlackboxFolder() {
     try {
       await window.nogirem.openBlackboxFolder()
@@ -2102,6 +2115,12 @@
                   </div>
                   {#if blackboxEnabled}
                     <div class="blackbox-quick-actions">
+                      <button
+                        disabled={!blackboxRecording || blackboxAction}
+                        onclick={openBlackboxEditor}
+                      >
+                        {blackboxAction === "editor" ? "여는 중…" : "영상 추출"}
+                      </button>
                       <button
                         disabled={!blackboxRecording || blackboxClipInProgress || blackboxAction}
                         onclick={saveBlackboxClip}

@@ -94,6 +94,7 @@
       "icon-paused.png",
       "character-guide.html",
       "dxvk-guide.html",
+      "blackbox-editor.html",
       "public/doc_dxvk/**/*",
       "package.json"
     ],

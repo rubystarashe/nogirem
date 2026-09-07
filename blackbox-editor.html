@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>블랙박스 영상 추출</title>
+    <link rel="stylesheet" href="./web/blackbox-editor.css" />
+  </head>
+  <body>
+    <main class="editor loading">
+      <header class="titlebar">
+        <h1>블랙박스 영상 추출</h1>
+        <span class="anchor-time"></span>
+        <button class="window-close" type="button" aria-label="창 닫기">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5.3 4 12 10.7 18.7 4 20 5.3 13.3 12l6.7 6.7-1.3 1.3-6.7-6.7L5.3 20 4 18.7l6.7-6.7L4 5.3 5.3 4Z" />
+          </svg>
+        </button>
+      </header>
+
+      <section class="preview">
+        <video preload="auto"></video>
+        <div class="loading-state"><span>누른 시점을 기준으로 최근 1분 영상을 준비하고 있습니다</span></div>
+        <div class="empty-state"></div>
+      </section>
+
+      <section class="editing-panel">
+        <div class="timeline-layout">
+          <div class="track-length-controls">
+            <button class="compact-button add-time" type="button" title="이전 30초 추가">+</button>
+            <button class="compact-button direct-time" type="button" title="트랙 길이 직접 설정">++</button>
+            <form class="direct-length">
+              <label for="track-seconds">전체 트랙 길이</label>
+              <div class="number-row">
+                <input id="track-seconds" type="number" min="30" max="21600" step="1" value="60" />
+                <button class="compact-button" type="submit">적용</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="timeline-column">
+            <div class="time-labels">
+              <span class="track-start">-01:00</span>
+              <span>편집 창을 연 시점</span>
+            </div>
+            <div class="timeline" role="slider" aria-label="영상 재생 위치" tabindex="-1">
+              <div class="selection-guide" aria-label="추출 범위"></div>
+              <div class="playhead"></div>
+            </div>
+            <div class="playback-row">
+              <button class="play-toggle" type="button" aria-label="재생">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7 4.5v15L19 12 7 4.5Z" />
+                </svg>
+              </button>
+              <span class="current-time">00:00 / 00:00</span>
+              <span class="range-time"></span>
+            </div>
+          </div>
+
+          <div class="extract-duration">
+            <label for="extract-seconds">추출 영상 길이</label>
+            <span></span>
+            <input id="extract-seconds" type="number" min="1" max="60" step="1" value="30" />
+            <span>초</span>
+          </div>
+        </div>
+
+        <footer class="actions">
+          <span class="notice" role="status"></span>
+          <button class="action show-output" type="button">파일 위치</button>
+          <button class="action preview-range" type="button" disabled>선택 구간 미리보기</button>
+          <button class="action primary extract" type="button" disabled>MP4 추출</button>
+        </footer>
+      </section>
+    </main>
+    <script type="module" src="./web/blackbox-editor.js"></script>
+  </body>
+</html>

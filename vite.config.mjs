@@ -14,6 +14,7 @@ export default defineConfig({
         characterGuide: resolve("character-guide.html"),
         dxvkManager: resolve("dxvk-manager.html"),
         dxvkGuide: resolve("dxvk-guide.html"),
+        blackboxEditor: resolve("blackbox-editor.html"),
       },
     },
   },

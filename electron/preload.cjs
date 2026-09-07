@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld("nogirem", {
     return ipcRenderer.invoke("application:set-blackbox-setting", setting)
   },
   saveBlackboxClip: () => ipcRenderer.invoke("application:save-blackbox-clip"),
+  openBlackboxEditor: () => ipcRenderer.invoke("application:open-blackbox-editor"),
   openBlackboxFolder: () => ipcRenderer.invoke("application:open-blackbox-folder"),
   getVisualActivity: () => ipcRenderer.invoke("application:get-visual-activity"),
   onVisualActivityChanged: callback => {

@@ -58,3 +58,37 @@ test("고급 기능과 Electron IPC에 블랙박스 제어가 연결된다", asy
   assert.match(preloadSource, /getBlackboxSetting/)
   assert.match(packageSource, /native\/recorder-helper\/bin\/recorder-helper\.exe/)
 })
+
+test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된다", async () => {
+  const [
+    appSource,
+    mainSource,
+    preloadSource,
+    editorSource,
+    editorScript,
+    nativeSource,
+    viteSource,
+  ] = await Promise.all([
+    readFile(new URL("web/App.svelte", root), "utf8"),
+    readFile(new URL("electron/main.mjs", root), "utf8"),
+    readFile(new URL("electron/blackbox-editor-preload.cjs", root), "utf8"),
+    readFile(new URL("blackbox-editor.html", root), "utf8"),
+    readFile(new URL("web/blackbox-editor.js", root), "utf8"),
+    readFile(new URL("native/recorder-helper/main.cpp", root), "utf8"),
+    readFile(new URL("vite.config.mjs", root), "utf8"),
+  ])
+  assert.match(appSource, /영상 추출/)
+  assert.match(mainSource, /title: "블랙박스 영상 추출"[\s\S]*alwaysOnTop: true/)
+  assert.match(mainSource, /closeWindowOnEscape\(window\)/)
+  assert.match(mainSource, /command: "flush"/)
+  assert.match(preloadSource, /blackbox-editor:set-track-seconds/)
+  assert.match(preloadSource, /blackbox-editor:extract/)
+  assert.match(editorSource, /class="compact-button add-time"[^>]*>\+</)
+  assert.match(editorSource, /class="compact-button direct-time"[^>]*>\+\+</)
+  assert.match(editorSource, /class="selection-guide"/)
+  assert.match(editorScript, /requestedTrackSeconds \+ 30/)
+  assert.match(editorScript, /previewSelection/)
+  assert.match(nativeSource, /mode == L"track"/)
+  assert.match(nativeSource, /mode == L"extract"/)
+  assert.match(viteSource, /blackboxEditor: resolve\("blackbox-editor\.html"\)/)
+})

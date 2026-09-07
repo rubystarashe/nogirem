@@ -93,7 +93,7 @@ test("트레이 진입은 보조 창을 종료하고 복귀는 메인 창을 한
   assert.doesNotMatch(restoreSource, /window\.focus\(\)|webContents\.focus\(\)/)
   assert.equal(
     electronMain.match(/internalWindowsClosedForTray\.delete\(window\)/g)?.length,
-    3,
+    4,
   )
   assert.match(
     electronMain,
@@ -182,7 +182,7 @@ test("Esc는 최상위 모달과 문서 화면을 닫고 모든 보조 창에도
     electronMain,
     /function closeWindowOnEscape\(window\)[\s\S]*input\.type !== "keyDown"[\s\S]*input\.key !== "Escape"[\s\S]*window\.close\(\)/,
   )
-  assert.equal(electronMain.match(/closeWindowOnEscape\(window\)/g)?.length, 4)
+  assert.equal(electronMain.match(/closeWindowOnEscape\(window\)/g)?.length, 5)
 })
 
 test("키보드 입력 후 버튼에 포커스 외곽선을 표시하지 않는다", () => {

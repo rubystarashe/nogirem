@@ -1,11 +1,11 @@
 import { execFile, spawn } from "node:child_process"
 import { existsSync, unlinkSync } from "node:fs"
-import { copyFile, mkdir, open as openFile, readFile, rename, stat, unlink, writeFile } from "node:fs/promises"
+import { copyFile, mkdir, open as openFile, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises"
 import { cpus, tmpdir } from "node:os"
-import { dirname, join } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { promisify } from "node:util"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import { randomUUID } from "node:crypto"
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, shell, Tray } from "electron"
 import updaterPackage from "electron-updater"
@@ -74,6 +74,7 @@ const preloadPath = join(root, "electron", "preload.cjs")
 const characterGuidePreloadPath = join(root, "electron", "character-guide-preload.cjs")
 const dxvkManagerPreloadPath = join(root, "electron", "dxvk-manager-preload.cjs")
 const dxvkGuidePreloadPath = join(root, "electron", "dxvk-guide-preload.cjs")
+const blackboxEditorPreloadPath = join(root, "electron", "blackbox-editor-preload.cjs")
 const iconPath = join(root, "icon.ico")
 const pausedTrayIconPath = join(root, "icon-paused.png")
 const characterSimplificationFileName = "주변캐릭터간소화프레임제한해제.muo"
@@ -103,6 +104,8 @@ let primaryWindow = null
 let characterGuideWindow = null
 let dxvkManagerWindow = null
 let dxvkGuideWindow = null
+let blackboxEditorWindow = null
+let blackboxEditorSession = null
 let applicationTray = null
 let closeRequestPending = false
 let applicationExitInProgress = false
@@ -1853,6 +1856,133 @@ async function requestBlackboxClip() {
   return getBlackboxSetting()
 }
 
+function blackboxEditorDateName(milliseconds = Date.now()) {
+  return new Date(milliseconds)
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "")
+    .replaceAll(":", "-")
+    .replace("T", "-")
+}
+
+async function runRecorderUtility(argumentsList) {
+  try {
+    await execFileAsync(recorderHelperPath, argumentsList, {
+      windowsHide: true,
+      maxBuffer: 1024 * 1024,
+    })
+  } catch (error) {
+    const detail = String(error?.stderr ?? error?.message ?? "").trim()
+    throw new Error(detail || "블랙박스 편집 작업을 완료하지 못했습니다")
+  }
+}
+
+async function flushBlackboxForEditor(requestId) {
+  const state = await getBlackboxSetting()
+  if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
+  if (!state.recording) throw new Error("편집할 마비노기 녹화 화면이 아직 없습니다")
+  await writeJsonAtomic(getBlackboxPaths().controlPath, {
+    command: "flush",
+    requestId,
+    requestedAt: Date.now(),
+  })
+  const status = await waitForBlackboxStatus(
+    value => Number(value?.flushCompletedId) === requestId,
+    8000,
+  )
+  if (!status) throw new Error("현재 녹화 구간을 편집 트랙으로 확정하지 못했습니다")
+}
+
+function queueBlackboxEditorOperation(session, operation) {
+  const queued = session.operation
+    .catch(() => {})
+    .then(() => operation())
+  session.operation = queued
+  return queued
+}
+
+async function createBlackboxEditorTrack(session, requestedSeconds) {
+  const seconds = Math.max(30, Math.min(21600, Math.round(Number(requestedSeconds) || 60)))
+  return queueBlackboxEditorOperation(session, async () => {
+    if (session.closed) throw new Error("블랙박스 편집 창이 닫혔습니다")
+    const outputPath = join(
+      session.directory,
+      `track-${seconds}-${Date.now()}.mp4`,
+    )
+    await runRecorderUtility([
+      "--mode=track",
+      `--ring-path=${join(getBlackboxPaths().storagePath, "Ring")}`,
+      `--output=${outputPath}`,
+      `--anchor-ms=${session.anchorAt}`,
+      `--seconds=${seconds}`,
+    ])
+    const outputStat = await stat(outputPath)
+    if (!outputStat.isFile() || outputStat.size === 0) {
+      throw new Error("편집 트랙에 재생할 영상이 없습니다")
+    }
+    const previousTrackPath = session.trackPath
+    session.trackPath = outputPath
+    session.trackSeconds = seconds
+    if (previousTrackPath && previousTrackPath !== outputPath) {
+      setTimeout(() => {
+        void unlink(previousTrackPath).catch(() => {})
+      }, 5000)
+    }
+    return {
+      anchorAt: session.anchorAt,
+      requestedSeconds: seconds,
+      videoUrl: `${pathToFileURL(outputPath).href}?v=${outputStat.mtimeMs}`,
+    }
+  })
+}
+
+async function prepareBlackboxEditorSession(session) {
+  if (!session.preparePromise) {
+    session.preparePromise = (async () => {
+      await mkdir(session.directory, { recursive: true })
+      await flushBlackboxForEditor(session.flushRequestId)
+      return createBlackboxEditorTrack(session, 60)
+    })()
+  }
+  return session.preparePromise
+}
+
+async function extractBlackboxEditorRange(session, value) {
+  const startSeconds = Math.max(0, Number(value?.startSeconds) || 0)
+  const durationSeconds = Math.max(1, Math.min(21600, Number(value?.durationSeconds) || 30))
+  return queueBlackboxEditorOperation(session, async () => {
+    if (session.closed || !session.trackPath) {
+      throw new Error("먼저 편집 트랙을 준비하세요")
+    }
+    if (startSeconds + durationSeconds > session.trackSeconds + 0.5) {
+      throw new Error("선택한 추출 구간이 편집 트랙을 벗어났습니다")
+    }
+    const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
+    const outputPath = join(
+      clipsDirectory,
+      `마비노기-추출-${blackboxEditorDateName()}.mp4`,
+    )
+    await runRecorderUtility([
+      "--mode=extract",
+      `--input=${session.trackPath}`,
+      `--output=${outputPath}`,
+      `--start-ms=${Math.round(startSeconds * 1000)}`,
+      `--duration-ms=${Math.round(durationSeconds * 1000)}`,
+    ])
+    return {
+      outputPath,
+      fileName: outputPath.split(/[\\/]/).at(-1),
+    }
+  })
+}
+
+async function cleanupBlackboxEditorSession(session) {
+  if (!session) return
+  session.closed = true
+  await session.preparePromise?.catch(() => {})
+  await session.operation.catch(() => {})
+  await rm(session.directory, { recursive: true, force: true }).catch(() => {})
+}
+
 async function openBlackboxFolder() {
   const paths = getBlackboxPaths()
   await mkdir(join(paths.storagePath, "Clips"), { recursive: true })
@@ -2692,6 +2822,59 @@ function registerIpc() {
     }
     return openBlackboxFolder()
   })
+  ipcMain.handle("application:open-blackbox-editor", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 블랙박스 편집 창 요청입니다")
+    }
+    openBlackboxEditor()
+    return true
+  })
+  ipcMain.handle("blackbox-editor:request-close", event => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window !== blackboxEditorWindow) {
+      throw new Error("허용되지 않은 블랙박스 편집 창 닫기 요청입니다")
+    }
+    window.close()
+  })
+  ipcMain.handle("blackbox-editor:get-session", event => {
+    if (
+      BrowserWindow.fromWebContents(event.sender) !== blackboxEditorWindow
+      || !blackboxEditorSession
+    ) {
+      throw new Error("허용되지 않은 블랙박스 편집 세션 요청입니다")
+    }
+    return prepareBlackboxEditorSession(blackboxEditorSession)
+  })
+  ipcMain.handle("blackbox-editor:set-track-seconds", (event, seconds) => {
+    if (
+      BrowserWindow.fromWebContents(event.sender) !== blackboxEditorWindow
+      || !blackboxEditorSession
+    ) {
+      throw new Error("허용되지 않은 블랙박스 편집 트랙 요청입니다")
+    }
+    return createBlackboxEditorTrack(blackboxEditorSession, seconds)
+  })
+  ipcMain.handle("blackbox-editor:extract", (event, range) => {
+    if (
+      BrowserWindow.fromWebContents(event.sender) !== blackboxEditorWindow
+      || !blackboxEditorSession
+    ) {
+      throw new Error("허용되지 않은 블랙박스 구간 추출 요청입니다")
+    }
+    return extractBlackboxEditorRange(blackboxEditorSession, range)
+  })
+  ipcMain.handle("blackbox-editor:show-output", async (event, outputPath) => {
+    const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
+    if (
+      BrowserWindow.fromWebContents(event.sender) !== blackboxEditorWindow
+      || typeof outputPath !== "string"
+      || resolve(dirname(outputPath)) !== resolve(clipsDirectory)
+    ) {
+      throw new Error("허용되지 않은 블랙박스 파일 위치 요청입니다")
+    }
+    shell.showItemInFolder(outputPath)
+    return true
+  })
   ipcMain.handle("application:get-visual-activity", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
     return isPrimaryWindowVisuallyActive()
@@ -3161,6 +3344,75 @@ function openCharacterSimplificationGuide() {
     .catch(error => console.error("간소화 안내 오류 화면 로드 실패", error))
 }
 
+function openBlackboxEditor() {
+  if (blackboxEditorWindow && !blackboxEditorWindow.isDestroyed()) {
+    if (blackboxEditorWindow.isMinimized()) blackboxEditorWindow.restore()
+    blackboxEditorWindow.setIgnoreMouseEvents(false)
+    blackboxEditorWindow.show()
+    blackboxEditorWindow.focus()
+    return
+  }
+
+  const identifier = randomUUID()
+  const session = {
+    id: identifier,
+    anchorAt: Date.now(),
+    flushRequestId: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+    directory: join(getBlackboxPaths().storagePath, "Editor", identifier),
+    operation: Promise.resolve(),
+    preparePromise: null,
+    trackPath: null,
+    trackSeconds: 60,
+    closed: false,
+  }
+  blackboxEditorSession = session
+  const window = new BrowserWindow({
+    width: 1100,
+    height: 720,
+    minWidth: 780,
+    minHeight: 560,
+    show: false,
+    title: "블랙박스 영상 추출",
+    icon: iconPath,
+    autoHideMenuBar: true,
+    alwaysOnTop: true,
+    frame: false,
+    backgroundColor: "#0d0f10",
+    webPreferences: {
+      preload: blackboxEditorPreloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  blackboxEditorWindow = window
+  disableProductionRefresh(window)
+  closeWindowOnEscape(window)
+  observeInternalWindowVisualActivity(window)
+  window.once("ready-to-show", () => {
+    if (window.isDestroyed()) return
+    window.center()
+    window.show()
+    window.focus()
+  })
+  window.on("closed", () => {
+    const closedForTray = internalWindowsClosedForTray.delete(window)
+    if (blackboxEditorWindow === window) blackboxEditorWindow = null
+    if (blackboxEditorSession === session) blackboxEditorSession = null
+    void cleanupBlackboxEditorSession(session)
+    if (!applicationExitInProgress && !closedForTray) focusPrimaryWindow()
+  })
+  const builtEditorPath = join(root, "dist", "blackbox-editor.html")
+  const loading = process.argv.includes("--dev")
+    ? window.loadURL("http://localhost:5173/blackbox-editor.html")
+    : window.loadFile(existsSync(builtEditorPath)
+      ? builtEditorPath
+      : join(root, "blackbox-editor.html"))
+  void loading
+    .catch(error => showWindowLoadError(window, error))
+    .catch(error => console.error("블랙박스 편집 화면 로드 실패", error))
+}
+
 async function installCharacterSimplificationFile() {
   const sourcePath = join(root, "assets", characterSimplificationFileName)
   const settingsDirectory = join(app.getPath("documents"), "마비노기", "설정")
@@ -3232,6 +3484,7 @@ function internalWindows() {
     characterGuideWindow,
     dxvkManagerWindow,
     dxvkGuideWindow,
+    blackboxEditorWindow,
   ].filter(window => window && !window.isDestroyed())
 }
 
@@ -3375,6 +3628,7 @@ function isPrimaryWindowVisuallyActive() {
     characterGuideWindow,
     dxvkManagerWindow,
     dxvkGuideWindow,
+    blackboxEditorWindow,
   ].some(window => window && !window.isDestroyed() && window.isFocused())
   return Boolean(
     primaryWindow

@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-07 13:30
+Last Updated: 2026-09-07 13:55
 
 ## Current Objective
 고급 기능에서 사용하는 저부하 게임 블랙박스를 0.3.0 기능으로 완성하고 실제 설치본 검증을 준비한다.
@@ -10,9 +10,10 @@ Last Updated: 2026-09-07 13:30
 - `recorder-helper.exe`가 Windows Graphics Capture로 마비노기 창을 외부 캡처하고 D3D11에서 원본 비율 최대 1080p NV12로 변환한 뒤 Media Foundation 하드웨어 인코더로 기록한다.
 - 순환 녹화는 4초 MP4 청크이며 용량·디스크 여유 기준을 넘으면 오래된 청크부터 삭제한다. 클립은 hard link로 청크를 보호하고 재인코딩 없이 단일 MP4로 결합한다.
 - 화면 버튼과 `Ctrl+Shift+F10` 전역 단축키로 클립을 저장한다. 단축키 충돌 시 화면 버튼은 계속 사용할 수 있다.
+- 고급 기능의 `영상 추출`은 누른 시점을 고정해 최근 60초를 여는 별도 편집 창이다. `+`로 이전 30초 추가, `++`로 직접 트랙 길이 지정, 추출 길이 설정, 가이드 드래그, 구간 미리보기와 MP4 추출을 지원한다.
 - 캡처 큐는 최대 3프레임이고 목표 fps보다 빠른 캡처 callback을 사전 제한한다. 혼잡 시 녹화 프레임만 버리며 helper와 인코더 스레드는 `Below Normal` 우선순위를 사용한다.
 - 실제 3440×1440 마비노기 창에서 H.264와 HEVC 청크 생성, 1920×802 비율 축소, H.264 청크 무재인코딩 MP4 결합과 정상 종료를 검증했다.
-- 앱 프로덕션 빌드, 전체 Node 테스트 108개, 네이티브 helper 무경고 Release 빌드와 편집기 lint가 통과했다. 아직 0.3.0 설치본은 패키징하거나 배포하지 않았다.
+- 앱 프로덕션 빌드, 전체 Node 테스트 109개, 네이티브 helper 무경고 Release 빌드와 편집기 lint가 통과했다. flush 중인 녹화와 병행한 트랙 생성 및 2초 구간의 정확한 MP4 추출을 ffprobe로 검증했다. 아직 0.3.0 설치본은 패키징하거나 배포하지 않았다.
 - GitHub 정식 Release `v0.2.9`를 게시했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.5 네 자산이 모두 업로드됐다.
 - `v0.2.9` 태그는 기능 변경 최종 커밋 `73f8e6071bb87aa0007e64acd06bc5877804d5dd`를 가리킨다.
 - Esc는 터보 키 선택 UI에서 비활성화되고 저장 설정 정규화에서 제거되며 Rust helper도 직접 거부한다.
@@ -192,6 +193,9 @@ Last Updated: 2026-09-07 13:30
 - 캡처 callback은 최대 3개의 재사용 texture와 목표 fps 제한만 처리한다. encoder가 밀리면 새 프레임을 폐기해 게임·입력 경로를 기다리게 하지 않는다.
 - 순환 원본은 Windows 동영상 폴더의 `마비노기 렘 블랙박스/Ring`, 사용자 클립은 `Clips`에 저장한다. Clips는 순환 용량에서 제외한다.
 - 클립 요청은 현재 청크를 먼저 확정하고 최근 구간 청크를 hard link로 보호한 뒤 Media Foundation compressed sample을 타임스탬프만 재작성해 단일 MP4로 remux한다.
+- 편집 창은 최초 1회 flush로 누른 시점을 확정한다. 이후 트랙 길이를 바꿔도 동일한 anchor 이전 청크만 별도 `track` helper 모드에서 remux해 편집 내용이 시간 경과로 밀리지 않는다.
+- 선택 구간 추출은 편집 트랙의 직전 keyframe부터 디코딩하되 요청 시작점 이전 sample에 음수 timestamp를 부여해 MP4 재생 구간은 가이드 길이와 일치시킨다. 게임 녹화 helper와 별도 프로세스라 인코딩을 정지시키지 않는다.
+- 편집 창은 제한된 전용 preload를 사용하고 항상 위에 유지하며 Esc 입력을 Electron 단계에서 닫기 처리한다. 교체한 임시 트랙은 5초 뒤, 전체 세션은 창 종료 뒤 제거한다.
 - 0.3.0 녹화에는 게임 소리와 마이크가 포함되지 않는다. 오디오는 프로세스별 WASAPI loopback 설계·검증 후 별도 추가해야 한다.
 - recorder helper는 설치본에 내장하고 `asarUnpack`한다. 빌드 전용 공식 C++/WinRT projection은 NuGet 2.0.240111.5를 고정 SHA-256으로 검증해 생성한다.
 - `src/turbo-key-installer.mjs`가 helper 자산명·프로토콜 버전, GitHub Release 조회, SHA-256·PE 검증, AppData 원자 설치와 실행 파일·manifest 제거를 소유한다.
@@ -320,10 +324,11 @@ Last Updated: 2026-09-07 13:30
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
-1. `npm run package:win`으로 0.3.0 설치본을 만들고 설치 환경에서 helper 포함·고급 기능 실행·트레이 지속 녹화·업데이트 종료를 확인한다.
-2. NVIDIA·Intel·AMD GPU 각 1대 이상에서 H.264·HEVC 하드웨어 인코더 지원, 장시간 용량 순환과 게임 frametime 영향을 확인한다.
-3. 해상도 변경·최소화·게임 재실행 중 캡처 재연결과 청크 복구를 장시간 수동 검증한다.
-4. 실제 `status.json` 잠금 재현 환경에서 0.2.6 Affinity helper가 종료되지 않고 잠금 해제 후 상태 기록을 복구하는지 확인한다.
+1. 개발 앱에서 실제 `영상 추출` 창을 열어 항상 위·Esc 닫기, 최근 60초 재생, `+`·`++`, 가이드 드래그, 구간 미리보기와 저장 파일 재생을 수동 확인한다.
+2. `npm run package:win`으로 0.3.0 설치본을 만들고 설치 환경에서 helper 포함·고급 기능 실행·트레이 지속 녹화·업데이트 종료를 확인한다.
+3. NVIDIA·Intel·AMD GPU 각 1대 이상에서 H.264·HEVC 하드웨어 인코더 지원, 장시간 용량 순환과 게임 frametime 영향을 확인한다.
+4. 해상도 변경·최소화·게임 재실행 중 캡처 재연결과 청크 복구를 장시간 수동 검증한다.
+5. 실제 `status.json` 잠금 재현 환경에서 0.2.6 Affinity helper가 종료되지 않고 잠금 해제 후 상태 기록을 복구하는지 확인한다.
 2. 0.2.3 설치본에서 GitHub digest 조회·helper 다운로드·설치·제거·재실행 유지까지 수동 검증한다.
 2. 미설치·설치 성공·파일 변조 상태에서 고급 기능의 조건부 버튼과 약관 모달 스크롤·오류 표시를 개발 앱에서 수동 확인한다.
 3. Radeon 전용 장비에서 전역 설정 확인 모달, 실제 적용과 AMD Software 반영을 수동 검증한다.
@@ -348,6 +353,7 @@ Last Updated: 2026-09-07 13:30
 ## Known Issues
 - 0.3.0 블랙박스는 화면 영상만 저장하며 게임 소리·마이크는 녹음하지 않는다.
 - 클립 시작점은 독립 재생 가능한 4초 청크 경계이므로 설정 시간보다 최대 약 4초 길어질 수 있다.
+- 편집 창에서 매우 긴 트랙을 직접 지정하면 해당 구간을 임시 MP4로 복사하므로 트랙 길이와 디스크 속도에 비례해 준비 시간과 임시 용량이 증가한다.
 - Windows Graphics Capture와 Media Foundation 하드웨어 HEVC 지원은 Windows 버전과 GPU 드라이버에 의존한다. 미지원 장비는 H.264 또는 30fps로 변경해야 한다.
 - helper는 unsigned 화면 녹화 실행 파일이므로 일부 보안 제품의 휴리스틱 탐지 가능성이 있으며 설치본 오탐 여부를 배포 전에 확인해야 한다.
 - 실제 마비노기 창에서 양 코덱과 클립 생성은 확인했지만 장시간 게임 frametime·입력 지연 수치는 아직 계측하지 않았다.
@@ -393,6 +399,9 @@ Last Updated: 2026-09-07 13:30
 - `src/blackbox-settings.mjs`: 블랙박스 기본값·허용 옵션·비트레이트 정규화
 - `electron/main.mjs`: recorder helper 생명주기, 전역 단축키, 설정·상태·클립 IPC
 - `web/App.svelte`: 고급 기능 블랙박스 UI와 전체 화면 설정 모달
+- `blackbox-editor.html`: 별도 블랙박스 영상 추출 창 구조
+- `web/blackbox-editor.js`: 고정 트랙 재생, 플레이바, 가이드 드래그, 미리보기와 추출 제어
+- `electron/blackbox-editor-preload.cjs`: 편집 창 전용 제한 IPC
 - `scripts/build-recorder-helper.mjs`: 고정 해시 C++/WinRT projection과 recorder helper Release 빌드
 - `test/blackbox.test.mjs`: 설정 및 UI·IPC·패키징 계약 회귀 테스트
 - `src/atomic-json.mjs`: Windows 파일 잠금 재시도와 기존 JSON 대체 처리
@@ -1101,7 +1110,9 @@ Last Updated: 2026-09-07 13:30
 - 최종 0.2.9 installer는 93,469,213바이트이고 SHA-256은 `7758D27A1F8D8A41744FFD2ED17AA519E4C48DA8DCECE6BA57541B8F7A32BAB0`이다. helper 0.1.5 SHA-256은 `D75A5FB357CCAF2BE9416F298C785C0A998E6AF25871602A109D733D59A2039B`이며 GitHub digest와 일치한다.
 - 0.3.0 게임 블랙박스 네이티브 helper, 고급 기능 설정·상태·클립 UI, Electron IPC와 패키징 빌드를 추가했다.
 - 실제 마비노기 3440×1440 창을 H.264·HEVC 최대 1080p MP4 청크로 녹화하고 H.264 클립을 무재인코딩 결합해 ffprobe로 재생 정보를 확인했다.
+- 누른 시점을 고정한 최근 60초 영상 추출 편집 창과 트랙 확장·직접 길이·드래그 가이드·구간 미리보기·정확한 길이의 무재인코딩 추출을 추가했다.
+- 편집 창에 항상 위와 Esc 닫기를 적용하고 flush 직후 열린 새 청크를 트랙 입력으로 오인하던 경합을 청크 시작 timestamp 필터로 차단했다.
 - 0.3.0 버전·사용자 변경 기록·상세 변경 기록을 갱신했으며 패키징과 배포는 수행하지 않았다.
 
 ## Next Recommended Step
-0.3.0을 패키징하기 전에 개발 앱의 고급 기능에서 H.264 60fps·50GB로 실제 장시간 플레이하며 게임 frametime, 녹화 누락 프레임, 클립 화질과 해상도 변경 복구를 확인한다.
+0.3.0을 패키징하기 전에 개발 앱에서 영상 추출 편집 흐름 전체를 수동 확인한 뒤 H.264 60fps·50GB로 장시간 플레이하며 game frametime, 누락 프레임과 해상도 변경 복구를 확인한다.

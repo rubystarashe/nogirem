@@ -25,6 +25,7 @@
 #include <fstream>
 #include <functional>
 #include <iomanip>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -33,6 +34,7 @@
 #include <regex>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -77,6 +79,7 @@ struct SharedStatus {
   std::uint64_t bytesUsed = 0;
   std::uint64_t capacityBytes = 0;
   std::uint64_t droppedFrames = 0;
+  std::uint64_t flushCompletedId = 0;
   int width = 0;
   int height = 0;
   int fps = 60;
@@ -685,8 +688,66 @@ private:
   ComPtr<IMFSinkWriter> writer_;
 };
 
-bool remuxChunks(const std::vector<fs::path>& inputs, const fs::path& output) {
+LONGLONG findCleanRangeStart(
+  const std::vector<fs::path>& inputs,
+  LONGLONG requestedStart
+) {
+  if (requestedStart <= 0) return 0;
+  LONGLONG inputOffset = 0;
+  LONGLONG cleanStart = 0;
+  for (const auto& input : inputs) {
+    ComPtr<IMFSourceReader> reader;
+    check_hresult(MFCreateSourceReaderFromURL(input.c_str(), nullptr, &reader));
+    LONGLONG firstTime = -1;
+    LONGLONG fileEnd = inputOffset;
+    while (true) {
+      DWORD actualStream = 0;
+      DWORD flags = 0;
+      LONGLONG timestamp = 0;
+      ComPtr<IMFSample> sample;
+      check_hresult(reader->ReadSample(
+        static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+        0,
+        &actualStream,
+        &flags,
+        &timestamp,
+        &sample
+      ));
+      if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+      if (!sample) continue;
+      if (firstTime < 0) firstTime = timestamp;
+      LONGLONG duration = 0;
+      if (FAILED(sample->GetSampleDuration(&duration)) || duration <= 0) {
+        duration = 10000000ll / 60;
+      }
+      const LONGLONG globalTime =
+        inputOffset + std::max<LONGLONG>(0, timestamp - firstTime);
+      UINT32 cleanPoint = FALSE;
+      if (
+        globalTime <= requestedStart
+        && SUCCEEDED(sample->GetUINT32(MFSampleExtension_CleanPoint, &cleanPoint))
+        && cleanPoint
+      ) {
+        cleanStart = globalTime;
+      }
+      fileEnd = std::max(fileEnd, globalTime + duration);
+    }
+    inputOffset = fileEnd;
+  }
+  return cleanStart;
+}
+
+bool remuxChunks(
+  const std::vector<fs::path>& inputs,
+  const fs::path& output,
+  LONGLONG requestedStart = 0,
+  LONGLONG requestedDuration = LLONG_MAX
+) {
   if (inputs.empty()) return false;
+  const LONGLONG effectiveStart = findCleanRangeStart(inputs, requestedStart);
+  const LONGLONG requestedEnd = requestedDuration == LLONG_MAX
+    ? LLONG_MAX
+    : requestedStart + requestedDuration;
   ComPtr<IMFSinkWriter> sink;
   DWORD sinkStream = 0;
   LONGLONG outputTime = 0;
@@ -737,10 +798,13 @@ bool remuxChunks(const std::vector<fs::path>& inputs, const fs::path& output) {
       if (FAILED(sample->GetSampleDuration(&duration)) || duration <= 0) {
         duration = 10000000ll / 60;
       }
-      const LONGLONG adjusted = outputTime + std::max<LONGLONG>(0, timestamp - firstTime);
-      check_hresult(sample->SetSampleTime(adjusted));
+      const LONGLONG globalTime =
+        outputTime + std::max<LONGLONG>(0, timestamp - firstTime);
+      fileEnd = std::max(fileEnd, globalTime + duration);
+      if (globalTime + duration <= effectiveStart) continue;
+      if (globalTime >= requestedEnd) break;
+      check_hresult(sample->SetSampleTime(globalTime - requestedStart));
       check_hresult(sink->WriteSample(sinkStream, sample.Get()));
-      fileEnd = std::max(fileEnd, adjusted + duration);
     }
     outputTime = fileEnd;
   }
@@ -761,6 +825,48 @@ std::vector<fs::path> selectRecentChunks(const fs::path& directory, int seconds)
     return { chunks.back() };
   }
   return { first, chunks.end() };
+}
+
+std::int64_t fileModifiedMilliseconds(const fs::path& path) {
+  WIN32_FILE_ATTRIBUTE_DATA data{};
+  if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data)) return 0;
+  ULARGE_INTEGER ticks{};
+  ticks.LowPart = data.ftLastWriteTime.dwLowDateTime;
+  ticks.HighPart = data.ftLastWriteTime.dwHighDateTime;
+  constexpr std::uint64_t WindowsToUnixEpoch100ns = 116444736000000000ull;
+  if (ticks.QuadPart <= WindowsToUnixEpoch100ns) return 0;
+  return static_cast<std::int64_t>(
+    (ticks.QuadPart - WindowsToUnixEpoch100ns) / 10000ull
+  );
+}
+
+std::int64_t chunkStartedMilliseconds(const fs::path& path) {
+  const auto name = path.stem().wstring();
+  constexpr std::wstring_view prefix = L"chunk-";
+  if (name.rfind(prefix, 0) != 0) return 0;
+  try {
+    return std::stoll(name.substr(prefix.size()));
+  } catch (...) {
+    return 0;
+  }
+}
+
+std::vector<fs::path> selectAnchoredChunks(
+  const fs::path& directory,
+  std::int64_t anchorMilliseconds,
+  int seconds
+) {
+  auto chunks = completedChunks(directory);
+  const auto earliest = anchorMilliseconds - static_cast<std::int64_t>(seconds + 4) * 1000;
+  chunks.erase(
+    std::remove_if(chunks.begin(), chunks.end(), [&](const fs::path& path) {
+      const auto modified = fileModifiedMilliseconds(path);
+      const auto started = chunkStartedMilliseconds(path);
+      return modified < earliest || started <= 0 || started > anchorMilliseconds;
+    }),
+    chunks.end()
+  );
+  return chunks;
 }
 
 void createClip(
@@ -849,6 +955,13 @@ public:
     condition_.notify_one();
   }
 
+  void requestFlush(std::uint64_t requestId) {
+    std::lock_guard lock(mutex_);
+    flushRequestId_ = requestId;
+    flushRequested_ = true;
+    condition_.notify_one();
+  }
+
   void requestClip(int seconds) {
     std::lock_guard lock(mutex_);
     clipSeconds_ = seconds;
@@ -920,6 +1033,7 @@ private:
       bool hasPacket = false;
       bool flush = false;
       int clipSeconds = 0;
+      std::uint64_t flushRequestId = 0;
       {
         std::unique_lock lock(mutex_);
         condition_.wait(lock, [&] {
@@ -934,6 +1048,8 @@ private:
         flushRequested_ = false;
         clipSeconds = clipSeconds_;
         clipSeconds_ = 0;
+        flushRequestId = flushRequestId_;
+        flushRequestId_ = 0;
         if (stopping_ && !hasPacket) {
           closeWriter();
           break;
@@ -941,6 +1057,10 @@ private:
       }
       try {
         if (flush) closeWriter();
+        if (flushRequestId > 0) {
+          std::lock_guard lock(status_.mutex);
+          status_.flushCompletedId = flushRequestId;
+        }
         if (clipSeconds > 0) {
           if (clipThread_.joinable()) clipThread_.join();
           clipThread_ = std::thread([this, clipSeconds] {
@@ -997,6 +1117,7 @@ private:
   std::atomic_bool failed_ = false;
   bool flushRequested_ = false;
   int clipSeconds_ = 0;
+  std::uint64_t flushRequestId_ = 0;
   std::thread thread_;
   std::thread clipThread_;
   std::unique_ptr<Mp4Writer> writer_;
@@ -1169,6 +1290,7 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
     snapshot.bytesUsed = status.bytesUsed;
     snapshot.capacityBytes = status.capacityBytes;
     snapshot.droppedFrames = status.droppedFrames;
+    snapshot.flushCompletedId = status.flushCompletedId;
     snapshot.width = status.width;
     snapshot.height = status.height;
     snapshot.fps = status.fps;
@@ -1190,6 +1312,7 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
     << "\"bytesUsed\":" << snapshot.bytesUsed << ","
     << "\"capacityBytes\":" << snapshot.capacityBytes << ","
     << "\"droppedFrames\":" << snapshot.droppedFrames << ","
+    << "\"flushCompletedId\":" << snapshot.flushCompletedId << ","
     << "\"width\":" << snapshot.width << ","
     << "\"height\":" << snapshot.height << ","
     << "\"fps\":" << snapshot.fps << ","
@@ -1199,7 +1322,13 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
   writeTextAtomic(options.statusPath, output.str());
 }
 
-std::optional<std::pair<std::string, int>> readControl(const fs::path& path) {
+struct ControlCommand {
+  std::string command;
+  int seconds = 0;
+  std::uint64_t requestId = 0;
+};
+
+std::optional<ControlCommand> readControl(const fs::path& path) {
   const auto text = readText(path);
   if (text.empty()) return std::nullopt;
   std::error_code error;
@@ -1215,12 +1344,114 @@ std::optional<std::pair<std::string, int>> readControl(const fs::path& path) {
   if (std::regex_search(text, secondsMatch, std::regex(R"("seconds"\s*:\s*(\d+))"))) {
     seconds = std::clamp(std::stoi(secondsMatch[1].str()), 5, 600);
   }
-  return std::pair{ commandMatch[1].str(), seconds };
+  std::uint64_t requestId = 0;
+  std::smatch requestIdMatch;
+  if (std::regex_search(
+    text,
+    requestIdMatch,
+    std::regex(R"("requestId"\s*:\s*(\d+))")
+  )) {
+    requestId = std::stoull(requestIdMatch[1].str());
+  }
+  return ControlCommand{ commandMatch[1].str(), seconds, requestId };
+}
+
+std::int64_t wideInteger(
+  const std::map<std::wstring, std::wstring>& arguments,
+  const std::wstring& name,
+  std::int64_t fallback
+) {
+  const auto iterator = arguments.find(name);
+  if (iterator == arguments.end()) return fallback;
+  try {
+    return std::stoll(iterator->second);
+  } catch (...) {
+    return fallback;
+  }
+}
+
+int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
+  const auto mode = arguments.at(L"mode");
+  init_apartment(apartment_type::multi_threaded);
+  check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
+  SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+  try {
+    if (mode == L"track") {
+      const fs::path ringPath = arguments.at(L"ring-path");
+      const fs::path outputPath = arguments.at(L"output");
+      const auto anchorMilliseconds = wideInteger(
+        arguments,
+        L"anchor-ms",
+        epochMilliseconds()
+      );
+      const int seconds = std::clamp(
+        static_cast<int>(wideInteger(arguments, L"seconds", 60)),
+        30,
+        21600
+      );
+      const auto chunks = selectAnchoredChunks(
+        ringPath,
+        anchorMilliseconds,
+        seconds
+      );
+      if (chunks.empty()) throw std::runtime_error("편집할 녹화 청크가 없습니다");
+      fs::create_directories(outputPath.parent_path());
+      std::error_code removeError;
+      fs::remove(outputPath, removeError);
+      if (!remuxChunks(chunks, outputPath)) {
+        throw std::runtime_error("편집 트랙을 만들지 못했습니다");
+      }
+    } else if (mode == L"extract") {
+      const fs::path inputPath = arguments.at(L"input");
+      const fs::path outputPath = arguments.at(L"output");
+      const auto startMilliseconds = std::max<std::int64_t>(
+        0,
+        wideInteger(arguments, L"start-ms", 0)
+      );
+      const auto durationMilliseconds = std::clamp<std::int64_t>(
+        wideInteger(arguments, L"duration-ms", 30000),
+        1000,
+        21600000
+      );
+      fs::create_directories(outputPath.parent_path());
+      std::error_code removeError;
+      fs::remove(outputPath, removeError);
+      if (!remuxChunks(
+        { inputPath },
+        outputPath,
+        startMilliseconds * 10000,
+        durationMilliseconds * 10000
+      )) {
+        throw std::runtime_error("선택 구간을 추출하지 못했습니다");
+      }
+    } else {
+      throw std::runtime_error("지원하지 않는 recorder helper 모드입니다");
+    }
+    MFShutdown();
+    return 0;
+  } catch (...) {
+    MFShutdown();
+    throw;
+  }
 }
 
 } 
 
 int wmain(int count, wchar_t** values) {
+  const auto arguments = parseArguments(count, values);
+  if (
+    arguments.count(L"mode")
+    && (arguments.at(L"mode") == L"track" || arguments.at(L"mode") == L"extract")
+  ) {
+    try {
+      return runUtilityMode(arguments);
+    } catch (const hresult_error& error) {
+      std::cerr << utf8(error.message().c_str()) << "\n";
+    } catch (const std::exception& error) {
+      std::cerr << error.what() << "\n";
+    }
+    return 1;
+  }
   Options options;
   SharedStatus status;
   HANDLE instanceMutex = nullptr;
@@ -1252,11 +1483,12 @@ int wmain(int count, wchar_t** values) {
 
     while (status.running && processRunning(options.parentPid)) {
       if (const auto control = readControl(options.controlPath)) {
-        if (control->first == "stop") {
+        if (control->command == "stop") {
           status.running = false;
           break;
         }
-        if (control->first == "clip") encoder.requestClip(control->second);
+        if (control->command == "clip") encoder.requestClip(control->seconds);
+        if (control->command == "flush") encoder.requestFlush(control->requestId);
       }
 
       if (capture && capture->closed()) {
