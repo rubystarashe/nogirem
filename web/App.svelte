@@ -143,6 +143,8 @@
   let frameBoostAction = null
   let cpuReorderAction = null
   let cpuReorderNotice = ""
+  let diagnosticLogAction = null
+  let diagnosticLogNotice = ""
   let startupTrayEnabled = false
   let startupTraySupported = false
   let startupTraySettingLoaded = false
@@ -666,6 +668,23 @@
       updateService("affinity", { error: message })
     } finally {
       cpuReorderAction = null
+    }
+  }
+
+  async function exportDiagnosticLogs() {
+    if (diagnosticLogAction) return
+    diagnosticLogAction = "exporting"
+    diagnosticLogNotice = ""
+    try {
+      const result = await window.nogirem.exportDiagnosticLogs()
+      if (!result.canceled) {
+        const fileName = result.filePath.split(/[\\/]/).pop()
+        diagnosticLogNotice = `${fileName} 저장 완료`
+      }
+    } catch (error) {
+      diagnosticLogNotice = messageOf(error)
+    } finally {
+      diagnosticLogAction = null
     }
   }
 
@@ -2168,6 +2187,21 @@
                   {/if}
                   {#if blackboxAudioError}
                     <span class="developer-tool-status">{blackboxAudioError}</span>
+                  {/if}
+                  <div class="developer-tool-row">
+                    <div>
+                      <h2>진단 로그 추출</h2>
+                      <p>버전·시스템·기능 상태와 관련 로그를 개인정보 마스킹 후 ZIP으로 저장합니다</p>
+                    </div>
+                    <button
+                      disabled={diagnosticLogAction}
+                      onclick={exportDiagnosticLogs}
+                    >
+                      {diagnosticLogAction === "exporting" ? "압축 중…" : "로그 추출"}
+                    </button>
+                  </div>
+                  {#if diagnosticLogNotice}
+                    <span class="developer-tool-status">{diagnosticLogNotice}</span>
                   {/if}
                   <div class="developer-tool-row">
                     <div>

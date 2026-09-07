@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld("nogirem", {
   },
   beginStartupReveal: () => ipcRenderer.invoke("application:begin-startup-reveal"),
   getLaunchContext: () => ipcRenderer.invoke("application:get-launch-context"),
+  exportDiagnosticLogs: () => ipcRenderer.invoke("application:export-diagnostic-logs"),
   getStartupTraySetting: () => ipcRenderer.invoke("application:get-startup-tray-setting"),
   setStartupTraySetting: enabled => {
     return ipcRenderer.invoke("application:set-startup-tray-setting", enabled)

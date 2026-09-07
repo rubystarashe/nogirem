@@ -35,6 +35,10 @@
 - 블랙박스 설정·상태·제어 IPC를 preload에 제한적으로 노출하고 앱 시작·업데이트·종료 시 helper 생명주기와 단축키를 함께 관리
 - 공식 Microsoft C++/WinRT projection 생성기를 빌드 시 SHA-256 검증 후 사용하고 완성된 helper만 설치본의 `asarUnpack` 자산으로 포함
 - 오디오 캡처와 AAC 인코딩은 별도 저우선순위 thread에서 처리하고 영상과 함께 4초 청크에 기록
+- 고급 기능에 진단 로그 추출 버튼을 추가해 앱·Electron·Windows 버전, CPU·GPU·메모리, 업데이트·창·터보 키·블랙박스 상태와 AppData 로그·상태 파일을 단일 ZIP으로 저장
+- 사용자 데이터 절대 경로, IP 주소, 이메일, 일반적인 token·비밀번호·cookie·서명값을 ZIP 생성 전에 마스킹
+- 녹화 Ring·Clips, helper 실행 파일, Chromium cache는 제외하고 개별 파일 최근 5MB·전체 원본 25MB로 제한해 대용량 로그가 앱을 장시간 막지 않도록 보호
+- 진단 ZIP 생성은 주 창에서만 호출 가능한 preload IPC로 제한하고 저장 완료 후 Windows 탐색기에서 결과 파일을 표시
 
 ## 0.2.9
 

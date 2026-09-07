@@ -1,7 +1,7 @@
 import { execFile, spawn } from "node:child_process"
 import { existsSync, unlinkSync } from "node:fs"
 import { copyFile, mkdir, open as openFile, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises"
-import { cpus, tmpdir, totalmem } from "node:os"
+import { arch, cpus, freemem, platform, release, tmpdir, totalmem, type, uptime } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { promisify } from "node:util"
@@ -54,6 +54,7 @@ import {
   normalizeBlackboxSetting,
   resolveBlackboxQuality,
 } from "../src/blackbox-settings.mjs"
+import { createDiagnosticBundle } from "../src/diagnostic-bundle.mjs"
 
 const { autoUpdater } = updaterPackage
 protocol.registerSchemesAsPrivileged([{
@@ -2742,6 +2743,123 @@ async function updateDxvk(version) {
   }
 }
 
+async function diagnosticResult(operation) {
+  try {
+    return await operation()
+  } catch (error) {
+    return { error: serializeError(error) }
+  }
+}
+
+function diagnosticFileTimestamp(date = new Date()) {
+  const pad = value => String(value).padStart(2, "0")
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+    "-",
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join("")
+}
+
+async function createApplicationDiagnosticBundle() {
+  const processorModels = new Map()
+  for (const processor of cpus()) {
+    const model = processor.model.trim() || "알 수 없음"
+    processorModels.set(model, (processorModels.get(model) ?? 0) + 1)
+  }
+  const [gpu, turboKey, blackbox, startupTray] = await Promise.all([
+    diagnosticResult(() => app.getGPUInfo("basic")),
+    diagnosticResult(() => getTurboKeySetting()),
+    diagnosticResult(() => getBlackboxSetting()),
+    diagnosticResult(() => getStartupTraySetting()),
+  ])
+  const diagnostics = {
+    generatedAt: new Date().toISOString(),
+    application: {
+      name: app.getName(),
+      version: app.getVersion(),
+      packaged: app.isPackaged,
+      executablePath: app.getPath("exe"),
+      applicationPath: app.getAppPath(),
+      startupTrayLaunch,
+      sandboxFallback: Boolean(globalThis.__nogiremSandboxFallbackLaunch),
+      update: applicationUpdateState,
+    },
+    runtime: {
+      electron: process.versions.electron,
+      chrome: process.versions.chrome,
+      node: process.versions.node,
+      v8: process.versions.v8,
+    },
+    system: {
+      platform: platform(),
+      type: type(),
+      release: release(),
+      version: typeof process.getSystemVersion === "function"
+        ? process.getSystemVersion()
+        : null,
+      architecture: arch(),
+      uptimeSeconds: Math.round(uptime()),
+      totalMemoryBytes: totalmem(),
+      freeMemoryBytes: freemem(),
+      logicalCpuCount: cpus().length,
+      processorModels: [...processorModels].map(([model, logicalProcessors]) => ({
+        model,
+        logicalProcessors,
+      })),
+      locale: app.getLocale(),
+      gpu,
+    },
+    applicationState: {
+      activeMabinogiExecutablePath,
+      turboKey,
+      blackbox,
+      startupTray,
+      windows: BrowserWindow.getAllWindows().map(window => ({
+        id: window.id,
+        title: window.getTitle(),
+        visible: window.isVisible(),
+        focused: window.isFocused(),
+        minimized: window.isMinimized(),
+        enabled: window.isEnabled(),
+        focusable: window.isFocusable(),
+        destroyed: window.isDestroyed(),
+        bounds: window.getBounds(),
+      })),
+    },
+  }
+  const defaultName =
+    `nogirem-diagnostics-${app.getVersion()}-${diagnosticFileTimestamp()}.zip`
+  const result = await dialog.showSaveDialog(primaryWindow, {
+    title: "진단 로그 압축파일 저장",
+    defaultPath: join(app.getPath("downloads"), defaultName),
+    buttonLabel: "진단 로그 저장",
+    filters: [{ name: "ZIP 압축파일", extensions: ["zip"] }],
+    properties: ["createDirectory", "showOverwriteConfirmation"],
+  })
+  if (result.canceled || !result.filePath) return { canceled: true }
+  const outputPath = result.filePath.toLowerCase().endsWith(".zip")
+    ? result.filePath
+    : `${result.filePath}.zip`
+  const created = await createDiagnosticBundle({
+    outputPath,
+    userDataPath: app.getPath("userData"),
+    diagnostics,
+    redactionOptions: {
+      privatePaths: [root, app.getPath("exe"), app.getAppPath()],
+    },
+  })
+  shell.showItemInFolder(outputPath)
+  return {
+    canceled: false,
+    filePath: outputPath,
+    fileCount: created.fileCount,
+  }
+}
+
 function resultOf(promise) {
   return promise.then(
     data => ({ ok: true, data }),
@@ -2822,6 +2940,12 @@ function registerIpc() {
       throw new Error("허용되지 않은 실행 상태 요청입니다")
     }
     return { startupTray: startupTrayLaunch || primaryRendererRecoveryMode }
+  })
+  ipcMain.handle("application:export-diagnostic-logs", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 진단 로그 추출 요청입니다")
+    }
+    return createApplicationDiagnosticBundle()
   })
   ipcMain.handle("application:get-startup-tray-setting", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
