@@ -639,6 +639,15 @@
       : []
   }
 
+  function gameCpuCoreColor(coreCount) {
+    const max = services.affinity.data?.gameCoreSetting?.maxGameCoreCount
+    const progress = Number.isInteger(max) && max > 1
+      ? (coreCount - 1) / (max - 1)
+      : 0
+    const hue = Math.round(120 * (1 - progress))
+    return `hsl(${hue} 58% 42%)`
+  }
+
   function gameCpuUnavailableCores() {
     const setting = services.affinity.data?.gameCoreSetting
     const performanceCoreCount = setting?.performanceCoreCount
@@ -2220,12 +2229,13 @@
                         <div class="game-cpu-core-options" aria-label="마비노기 CPU 코어 개수">
                           {#each gameCpuCoreOptions() as coreCount}
                             <button
-                              class:active={services.affinity.data?.gameCoreSetting?.gameCoreCount
-                                === coreCount}
+                              class:allocated={services.affinity.data?.gameCoreSetting?.gameCoreCount
+                                >= coreCount}
                               disabled={gameCpuCoreAction
                                 || services.affinity.data?.cpuReorder?.state === "running"}
                               aria-pressed={services.affinity.data?.gameCoreSetting?.gameCoreCount
-                                === coreCount}
+                                >= coreCount}
+                              style={`--allocation-color: ${gameCpuCoreColor(coreCount)}`}
                               onclick={() => selectGameCpuCoreCount(coreCount)}
                             >
                               {coreCount}

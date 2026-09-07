@@ -150,9 +150,12 @@ test("CPU 코어 선택 UI와 IPC가 영구 설정 경로에 연결된다", asyn
   assert.match(preloadSource, /setGameCpuCoreCount/)
   assert.match(appSource, /마비노기 CPU 우선 점유 비율 설정/)
   assert.match(appSource, /gameCpuCoreOptions\(\)/)
+  assert.match(appSource, /gameCpuCoreColor\(coreCount\)/)
+  assert.match(appSource, /class:allocated=/)
   assert.match(appSource, /gameCpuUnavailableCores\(\)/)
   assert.match(appSource, /선택 불가 코어/)
   assert.match(styleSource, /\.game-cpu-core-options/)
+  assert.match(styleSource, /var\(--allocation-color\)/)
   assert.match(styleSource, /\.game-cpu-unavailable/)
 })
 

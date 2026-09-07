@@ -1254,7 +1254,8 @@ button.direct-donation-card:hover {
 
 .developer-tool-stack {
   display: grid;
-  gap: 8px;
+  gap: 5px;
+  padding-bottom: 6px;
 }
 
 .game-cpu-core-controls {
@@ -1266,29 +1267,49 @@ button.direct-donation-card:hover {
 .game-cpu-core-options {
   display: flex;
   min-width: 0;
-  flex: 1;
+  flex: none;
   gap: 3px;
 }
 
 .developer-tools .game-cpu-core-options button {
-  min-width: 0;
+  width: 27px;
+  min-width: 27px;
   height: 27px;
-  flex: 1 1 0;
+  flex: 0 0 27px;
   padding: 0;
+  border-color: var(--allocation-color);
+  color: var(--allocation-color);
+  background: transparent;
   font-size: 10px;
 }
 
+.developer-tools .game-cpu-core-options button.allocated,
+.developer-tools .game-cpu-core-options button.allocated:hover:not(:disabled) {
+  border-color: var(--allocation-color);
+  color: #fff;
+  background: var(--allocation-color);
+}
+
+.developer-tools .game-cpu-core-options button:hover:not(:disabled) {
+  border-color: var(--allocation-color);
+  color: var(--allocation-color);
+  background: transparent;
+}
+
 .game-cpu-unavailable {
-  display: grid;
+  position: relative;
+  display: flex;
   flex: none;
-  justify-items: end;
-  gap: 3px;
 }
 
 .game-cpu-unavailable > span {
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 0;
   color: #999;
   font-size: 8px;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .game-cpu-unavailable > div {
@@ -1300,13 +1321,14 @@ button.direct-donation-card:hover {
 }
 
 .developer-tools .game-cpu-unavailable button:disabled {
-  width: 26px;
-  min-width: 26px;
+  width: 27px;
+  min-width: 27px;
   height: 27px;
+  flex: 0 0 27px;
   padding: 0;
   border-color: #c9c9c9;
   color: #999;
-  background: #ededed;
+  background: transparent;
   font-size: 9px;
 }
 
