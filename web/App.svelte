@@ -640,11 +640,17 @@
   }
 
   function gameCpuCoreColor(coreCount) {
-    const max = services.affinity.data?.gameCoreSetting?.maxGameCoreCount
-    const progress = Number.isInteger(max) && max > 1
-      ? (coreCount - 1) / (max - 1)
-      : 0
-    const hue = Math.round(120 * (1 - progress))
+    const setting = services.affinity.data?.gameCoreSetting
+    const max = setting?.maxGameCoreCount
+    const defaultCount = setting?.defaultGameCoreCount
+    if (!Number.isInteger(max) || !Number.isInteger(defaultCount)) return "hsl(0 58% 42%)"
+    const hue = coreCount <= defaultCount
+      ? Math.round(120 * (
+        defaultCount > 1 ? (coreCount - 1) / (defaultCount - 1) : 1
+      ))
+      : Math.round(120 * (
+        max > defaultCount ? 1 - ((coreCount - defaultCount) / (max - defaultCount)) : 1
+      ))
     return `hsl(${hue} 58% 42%)`
   }
 
@@ -1851,7 +1857,6 @@
                   <span
                     class="blackbox-text-over"
                     aria-hidden="true"
-                    onanimationend={holdBlackboxTransitionMask}
                   >
                     {blackboxTransitionTo}
                   </span>
@@ -1866,7 +1871,6 @@
                   <span
                     class="blackbox-text-over leaving"
                     aria-hidden="true"
-                    onanimationend={finishBlackboxTransition}
                   >
                     {blackboxTransitionTo}
                   </span>
@@ -1884,11 +1888,19 @@
               </svg>
               {#key blackboxTransitionId}
                 {#if blackboxTransitionPhase === "enter"}
-                  <span class="blackbox-icon-mask" aria-hidden="true"></span>
+                  <span
+                    class="blackbox-icon-mask"
+                    aria-hidden="true"
+                    onanimationend={holdBlackboxTransitionMask}
+                  ></span>
                 {:else if blackboxTransitionPhase === "hold"}
                   <span class="blackbox-icon-mask holding" aria-hidden="true"></span>
                 {:else if blackboxTransitionPhase === "leave"}
-                  <span class="blackbox-icon-mask leaving" aria-hidden="true"></span>
+                  <span
+                    class="blackbox-icon-mask leaving"
+                    aria-hidden="true"
+                    onanimationend={finishBlackboxTransition}
+                  ></span>
                 {/if}
               {/key}
             </button>
@@ -2206,6 +2218,9 @@
                           {/each}
                         {/if}
                       </div>
+                      <small class="game-cpu-core-hint">
+                        코어 개수가 많을수록 마비노기가 더 많은 CPU를 활용하지만 다른 프로그램들의 성능이 저하될 수 있습니다
+                      </small>
                     {:else}
                       <span class="developer-tool-status">
                         물리 CPU 코어 구성을 확인할 수 없습니다

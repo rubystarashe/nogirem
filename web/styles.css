@@ -652,7 +652,7 @@ footer {
   background: #171717;
   pointer-events: none;
   transform: translate(-50%, -50%);
-  animation: chicken-text-in 300ms both;
+  animation: chicken-text-in 70ms 300ms both;
 }
 
 .blackbox-icon-mask.holding {
@@ -661,7 +661,7 @@ footer {
 }
 
 .blackbox-icon-mask.leaving {
-  animation: chicken-text-out 300ms both;
+  animation: chicken-text-out 70ms 300ms both;
 }
 
 .blackbox-text-base,
@@ -1338,6 +1338,12 @@ button.direct-donation-card:hover {
   border-color: #c9c9c9;
   color: #999;
   background: transparent;
+}
+
+.game-cpu-core-hint {
+  color: #888;
+  font-size: 9px;
+  line-height: 1.45;
 }
 
 .developer-tools h2 {
