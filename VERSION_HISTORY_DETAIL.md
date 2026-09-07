@@ -39,6 +39,8 @@
 - 목표 fps보다 빠른 WGC callback도 `TryGetNextFrame`으로 먼저 비워 frame pool이 정체되지 않도록 수정
 - 청크별 실제 frame rate 분수의 미세한 차이를 영상 형식 변경으로 오판해 최근 저장이 마지막 0~3초 청크만 남기던 문제 수정
 - 호환성 판정은 codec·해상도·sequence header를 사용하고 선택 청크의 실제 media duration에서 마지막 요청 시간만 정확히 잘라 저장
+- 새 청크는 `.partial.mp4`로 기록하고 Media Foundation `Finalize()` 성공 후에만 정식 `.mp4`로 원자 변경해 클립 스레드가 작성 중인 파일을 선택하지 않도록 수정
+- 시작 시 남은 미완성 청크를 제거하고 최신 청크가 손상됐으면 이전의 정상·호환 청크부터 선택해 바이트 스트림 형식 오류와 2초 클립을 방지
 - 블랙박스 설정·상태·제어 IPC를 preload에 제한적으로 노출하고 앱 시작·업데이트·종료 시 helper 생명주기와 단축키를 함께 관리
 - 공식 Microsoft C++/WinRT projection 생성기를 빌드 시 SHA-256 검증 후 사용하고 완성된 helper만 설치본의 `asarUnpack` 자산으로 포함
 - 오디오 캡처는 Audio MMCSS thread에서 복사·enqueue만 수행하고 AAC 인코딩은 기존 Below Normal encoder thread에서 영상과 함께 4초 청크에 기록

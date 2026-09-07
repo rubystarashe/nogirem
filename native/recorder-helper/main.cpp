@@ -531,7 +531,11 @@ std::vector<fs::path> completedChunks(const fs::path& directory) {
     if (error) break;
     if (!entry.is_regular_file(error)) continue;
     const auto name = lower(entry.path().filename().wstring());
-    if (name.rfind(L"chunk-", 0) == 0 && entry.path().extension() == L".mp4") {
+    if (
+      name.rfind(L"chunk-", 0) == 0
+      && name.find(L".partial.") == std::wstring::npos
+      && entry.path().extension() == L".mp4"
+    ) {
       chunks.push_back(entry.path());
     }
   }
@@ -544,6 +548,24 @@ std::vector<fs::path> completedChunks(const fs::path& directory) {
     return leftTime < rightTime;
   });
   return chunks;
+}
+
+void removeIncompleteChunks(const fs::path& directory) {
+  std::error_code error;
+  if (!fs::exists(directory, error)) return;
+  for (const auto& entry : fs::directory_iterator(directory, error)) {
+    if (error) break;
+    if (!entry.is_regular_file(error)) continue;
+    const auto name = lower(entry.path().filename().wstring());
+    if (
+      name.rfind(L"chunk-", 0) == 0
+      && name.find(L".partial.") != std::wstring::npos
+      && entry.path().extension() == L".mp4"
+    ) {
+      std::error_code removeError;
+      fs::remove(entry.path(), removeError);
+    }
+  }
 }
 
 std::uint64_t directoryBytes(const fs::path& directory) {
@@ -1380,16 +1402,31 @@ std::vector<fs::path> compatibleChunkSuffix(
   const std::vector<fs::path>& chunks
 ) {
   if (chunks.empty()) return {};
-  const auto expected = mediaSignature(chunks.back());
-  std::size_t firstCompatible = chunks.size() - 1;
+  std::optional<MediaSignature> expected;
+  std::size_t firstCompatible = chunks.size();
+  std::size_t endCompatible = chunks.size();
   while (firstCompatible > 0) {
-    const auto candidate = mediaSignature(chunks[firstCompatible - 1]);
-    if (!sameMediaSignature(expected, candidate)) break;
-    --firstCompatible;
+    const auto candidateIndex = firstCompatible - 1;
+    try {
+      const auto candidate = mediaSignature(chunks[candidateIndex]);
+      if (!expected) {
+        expected = candidate;
+        firstCompatible = candidateIndex;
+        endCompatible = candidateIndex + 1;
+        continue;
+      }
+      if (!sameMediaSignature(*expected, candidate)) break;
+      firstCompatible = candidateIndex;
+    } catch (...) {
+      if (expected) break;
+      firstCompatible = candidateIndex;
+      endCompatible = candidateIndex;
+    }
   }
+  if (!expected) return {};
   return {
     chunks.begin() + static_cast<std::ptrdiff_t>(firstCompatible),
-    chunks.end(),
+    chunks.begin() + static_cast<std::ptrdiff_t>(endCompatible),
   };
 }
 
@@ -1543,23 +1580,34 @@ private:
   void closeWriter() {
     if (!writer_) return;
     const auto path = writer_->path();
+    const auto finalPath = writerFinalPath_;
     writer_->finalize();
     writer_.reset();
+    chunkStartedAt_.reset();
+    writerFinalPath_.clear();
+    writerWidth_ = 0;
+    writerHeight_ = 0;
     std::error_code error;
     if (!fs::exists(path, error) || fs::file_size(path, error) == 0) {
       fs::remove(path, error);
     } else {
+      fs::remove(finalPath, error);
+      error.clear();
+      fs::rename(path, finalPath, error);
+      if (error) {
+        fs::remove(path, error);
+        throw std::runtime_error("완성된 녹화 청크를 게시하지 못했습니다");
+      }
       pruneRing(ringDirectory_, static_cast<std::uint64_t>(options_.capacityGb) * Gigabyte);
     }
-    chunkStartedAt_.reset();
-    writerWidth_ = 0;
-    writerHeight_ = 0;
   }
 
   void startWriter(const FramePacket& packet) {
     fs::create_directories(ringDirectory_);
+    const auto identifier = std::to_wstring(epochMilliseconds());
+    writerFinalPath_ = ringDirectory_ / (L"chunk-" + identifier + L".mp4");
     const auto output = ringDirectory_
-      / (L"chunk-" + std::to_wstring(epochMilliseconds()) + L".mp4");
+      / (L"chunk-" + identifier + L".partial.mp4");
     writer_ = std::make_unique<Mp4Writer>(
       device_.Get(),
       output,
@@ -1710,6 +1758,7 @@ private:
   std::thread thread_;
   std::thread clipThread_;
   std::unique_ptr<Mp4Writer> writer_;
+  fs::path writerFinalPath_;
   std::optional<std::chrono::steady_clock::time_point> chunkStartedAt_;
   int writerWidth_ = 0;
   int writerHeight_ = 0;
@@ -2374,6 +2423,7 @@ int wmain(int count, wchar_t** values) {
     check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
     fs::create_directories(options.storagePath / L"Ring");
     fs::create_directories(options.storagePath / L"Clips");
+    removeIncompleteChunks(options.storagePath / L"Ring");
 
     ComPtr<ID3D11Device> device;
     ComPtr<ID3D11DeviceContext> context;

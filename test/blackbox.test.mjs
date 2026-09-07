@@ -128,6 +128,8 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /MF_SOURCE_READER_FIRST_AUDIO_STREAM/)
   assert.match(nativeSource, /audioRecording/)
   assert.match(nativeSource, /compatibleChunkSuffix/)
+  assert.match(nativeSource, /removeIncompleteChunks/)
+  assert.match(nativeSource, /name\.find\(L"\.partial\."\)/)
   assert.match(nativeSource, /combinedMediaDuration/)
   assert.match(nativeSource, /totalDuration - requestedDuration/)
   assert.match(nativeSource, /\.partial\.mp4/)
