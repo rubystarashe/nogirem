@@ -11,15 +11,6 @@
     defaultTurboKeyIntervalMs,
     turboKeyIntervalOptions,
   } from "../src/turbo-key-settings.mjs"
-  import {
-    bitrateForBlackboxSetting,
-    blackboxCapacityOptions,
-    blackboxClipDurationOptions,
-    blackboxCodecOptions,
-    blackboxFrameRateOptions,
-    blackboxQualityOptions,
-    defaultBlackboxSetting,
-  } from "../src/blackbox-settings.mjs"
   import creatorChannelAvatarUrl from "./creator-channel-avatar.jpg"
   import directDonationLogoUrl from "./direct-donation-logo.svg"
   import GameWave from "./GameWave.svelte"
@@ -168,30 +159,7 @@
   let turboInstallAction = null
   let blackboxSettingLoaded = false
   let blackboxEnabled = false
-  let blackboxRunning = false
   let blackboxRecording = false
-  let blackboxAudioRecording = false
-  let blackboxAudioError = ""
-  let blackboxAudioGainDb = 0
-  let blackboxWaitingForGame = false
-  let blackboxClipInProgress = false
-  let blackboxAction = null
-  let blackboxNotice = ""
-  let blackboxCodec = defaultBlackboxSetting.codec
-  let blackboxQuality = defaultBlackboxSetting.quality
-  let blackboxResolvedQuality = "1440p"
-  let blackboxCapacityGb = defaultBlackboxSetting.capacityGb
-  let blackboxClipSeconds = defaultBlackboxSetting.clipSeconds
-  let blackboxFps = defaultBlackboxSetting.fps
-  let blackboxBytesUsed = 0
-  let blackboxDurationSeconds = 0
-  let blackboxDroppedFrames = 0
-  let blackboxShortcutAvailable = false
-  let blackboxLatestClip = null
-  let blackboxDraft = { ...defaultBlackboxSetting }
-  let blackboxModalVisible = false
-  let blackboxModalCloseSignal = 0
-  let blackboxEnableAfterSettings = false
   let closeModalVisible = false
   let closeModalCloseSignal = 0
   let optimizationModalVisible = false
@@ -827,8 +795,6 @@
       if (!radeonGlobalAction) closeRadeonGlobalModal("cancel")
     } else if (turboTermsModalVisible) {
       if (!turboInstallAction) turboTermsModalCloseSignal++
-    } else if (blackboxModalVisible) {
-      if (!blackboxAction) blackboxModalCloseSignal++
     } else if (turboKeyModalVisible) {
       if (turboKeyAction !== "keys") turboKeyModalCloseSignal++
     } else if (conflictModalVisible) {
@@ -886,193 +852,12 @@
   }
 
   function applyBlackboxState(state) {
-    const previousClip = blackboxLatestClip
     blackboxEnabled = Boolean(state.enabled)
-    blackboxRunning = Boolean(state.running)
     blackboxRecording = Boolean(state.recording)
-    blackboxAudioRecording = Boolean(state.audioRecording)
-    blackboxAudioError = state.audioError ?? ""
-    blackboxAudioGainDb = Number(state.audioGainDb) || 0
-    blackboxWaitingForGame = Boolean(state.waitingForGame)
-    blackboxClipInProgress = Boolean(state.clipInProgress)
-    blackboxCodec = state.codec
-    blackboxQuality = state.quality
-    blackboxResolvedQuality = state.resolvedQuality ?? (
-      state.quality === "original" ? "original" : "1440p"
-    )
-    blackboxCapacityGb = state.capacityGb
-    blackboxClipSeconds = state.clipSeconds
-    blackboxFps = state.fps
-    blackboxBytesUsed = Number(state.bytesUsed) || 0
-    blackboxDurationSeconds = Number(state.durationSeconds) || 0
-    blackboxDroppedFrames = Number(state.droppedFrames) || 0
-    blackboxShortcutAvailable = Boolean(state.shortcutAvailable)
-    blackboxLatestClip = state.latestClip
-    if (state.reason) {
-      blackboxNotice = state.reason
-    } else if (state.latestClip && state.latestClip !== previousClip) {
-      blackboxNotice = "클립 저장이 완료되었습니다"
-    }
-  }
-
-  function blackboxUsageText() {
-    const usedGb = blackboxBytesUsed / 1024 ** 3
-    const totalMinutes = Math.floor(blackboxDurationSeconds / 60)
-    const duration = totalMinutes < 1
-      ? `${Math.floor(blackboxDurationSeconds)}초`
-      : (totalMinutes < 60
-        ? `${totalMinutes}분`
-        : `${Math.floor(totalMinutes / 60)}시간 ${totalMinutes % 60}분`)
-    return `${usedGb.toFixed(1)} / ${blackboxCapacityGb} GB · 약 ${duration}`
-  }
-
-  function blackboxDraftEstimatedHours() {
-    const bitrate = bitrateForBlackboxSetting({
-      ...blackboxDraft,
-      quality: blackboxDraft.quality === "auto"
-        ? blackboxResolvedQuality
-        : blackboxDraft.quality,
-    })
-    return (blackboxDraft.capacityGb / ((bitrate + 0.192) * 0.45)).toFixed(1)
-  }
-
-  function blackboxQualityLabel(quality) {
-    if (quality === "original") return "원본"
-    return quality === "1440p" ? "최대 1440p" : "최대 1080p"
-  }
-
-  function blackboxAudioLabel() {
-    if (!blackboxAudioRecording) return "영상만 녹화 중"
-    const gain = blackboxAudioGainDb.toFixed(1)
-    return `게임 소리 자동 조정 ${blackboxAudioGainDb > 0 ? "+" : ""}${gain}dB`
-  }
-
-  function blackboxDescription() {
-    if (!blackboxSettingLoaded) return "녹화 상태를 확인하고 있습니다"
-    if (!blackboxEnabled) return "게임 화면을 청크 단위로 순환 녹화합니다"
-    if (blackboxRecording) {
-      return `${blackboxCodec === "hevc" ? "HEVC" : "H.264"} · ${blackboxQualityLabel(blackboxResolvedQuality)} · ${blackboxAudioLabel()} · ${blackboxUsageText()}`
-    }
-    if (blackboxWaitingForGame) return "마비노기 화면을 기다리고 있습니다"
-    return blackboxRunning ? "녹화를 준비하고 있습니다" : "녹화 프로세스를 확인하지 못했습니다"
-  }
-
-  function openBlackboxSettings(enableAfterSettings = false) {
-    if (!blackboxSettingLoaded || blackboxAction) return
-    blackboxEnableAfterSettings = enableAfterSettings
-    blackboxDraft = {
-      enabled: enableAfterSettings || blackboxEnabled,
-      codec: blackboxCodec,
-      quality: blackboxQuality,
-      capacityGb: blackboxCapacityGb,
-      clipSeconds: blackboxClipSeconds,
-      fps: blackboxFps,
-      chunkSeconds: defaultBlackboxSetting.chunkSeconds,
-    }
-    blackboxModalVisible = true
-  }
-
-  function closeBlackboxSettings() {
-    blackboxModalVisible = false
-    blackboxEnableAfterSettings = false
-  }
-
-  async function toggleBlackbox() {
-    if (!blackboxSettingLoaded || blackboxAction) return
-    if (!blackboxEnabled) {
-      openBlackboxSettings(true)
-      return
-    }
-    blackboxAction = "saving"
-    blackboxNotice = ""
-    try {
-      applyBlackboxState(await window.nogirem.setBlackboxSetting({
-        enabled: false,
-        codec: blackboxCodec,
-        quality: blackboxQuality,
-        capacityGb: blackboxCapacityGb,
-        clipSeconds: blackboxClipSeconds,
-        fps: blackboxFps,
-      }))
-    } catch (error) {
-      blackboxNotice = messageOf(error)
-    } finally {
-      blackboxAction = null
-    }
-  }
-
-  async function saveBlackboxSettings() {
-    if (blackboxAction) return
-    blackboxAction = "saving"
-    blackboxNotice = ""
-    let saved = false
-    try {
-      applyBlackboxState(await window.nogirem.setBlackboxSetting({
-        ...blackboxDraft,
-        enabled: blackboxEnableAfterSettings || blackboxEnabled,
-      }))
-      saved = true
-      blackboxEnableAfterSettings = false
-    } catch (error) {
-      blackboxNotice = messageOf(error)
-    } finally {
-      blackboxAction = null
-      if (saved) blackboxModalCloseSignal++
-    }
-  }
-
-  async function saveBlackboxClip() {
-    if (blackboxAction || !blackboxRecording || blackboxClipInProgress) return
-    blackboxAction = "clip"
-    blackboxNotice = ""
-    try {
-      applyBlackboxState(await window.nogirem.saveBlackboxClip())
-      blackboxNotice = `최근 약 ${blackboxClipSeconds}초 클립을 저장하고 있습니다`
-    } catch (error) {
-      blackboxNotice = messageOf(error)
-    } finally {
-      blackboxAction = null
-    }
-  }
-
-  async function clearBlackboxRecording() {
-    if (blackboxAction || (blackboxBytesUsed <= 0 && blackboxDurationSeconds <= 0)) return
-    blackboxAction = "clear"
-    blackboxNotice = ""
-    try {
-      const state = await window.nogirem.clearBlackboxRecording()
-      applyBlackboxState(state)
-      if (!state.canceled) blackboxNotice = "순환 녹화를 모두 비웠습니다"
-    } catch (error) {
-      blackboxNotice = messageOf(error)
-    } finally {
-      blackboxAction = null
-    }
-  }
-
-  async function openBlackboxEditor() {
-    if (blackboxAction || !blackboxRecording) return
-    blackboxAction = "editor"
-    blackboxNotice = ""
-    try {
-      await window.nogirem.openBlackboxEditor()
-    } catch (error) {
-      blackboxNotice = messageOf(error)
-    } finally {
-      blackboxAction = null
-    }
-  }
-
-  async function openBlackboxFolder() {
-    try {
-      await window.nogirem.openBlackboxFolder()
-    } catch (error) {
-      blackboxNotice = messageOf(error)
-    }
   }
 
   async function syncBlackboxSetting() {
-    if (!blackboxSettingLoaded || blackboxAction) return
+    if (!blackboxSettingLoaded) return
     try {
       applyBlackboxState(await window.nogirem.getBlackboxSetting())
     } catch {
@@ -1576,9 +1361,7 @@
       .then(state => {
         applyBlackboxState(state)
       })
-      .catch(error => {
-        blackboxNotice = messageOf(error)
-      })
+      .catch(() => {})
       .finally(() => {
         blackboxSettingLoaded = true
       })
@@ -1879,6 +1662,19 @@
                     ? "Vulkan 최신버전 사용중"
                     : "DXVK 업데이트"}
             </span>
+          </button>
+          <button
+            class="blackbox-main-link"
+            class:active={blackboxEnabled}
+            class:recording={blackboxRecording}
+            class:entered={leftTopContentEntered}
+            aria-label="게임 블랙박스 관리 열기"
+            onclick={() => window.nogirem.openBlackboxManager()}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm8 3.25A3.75 3.75 0 1 0 12 15.75 3.75 3.75 0 0 0 12 8.25Zm0 1.5A2.25 2.25 0 1 1 12 14.25 2.25 2.25 0 0 1 12 9.75ZM18.5 7a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" />
+            </svg>
+            <span>{blackboxSettingLoaded ? "블랙박스" : "확인 중"}</span>
           </button>
         {/if}
         <button
@@ -2198,77 +1994,6 @@
                   </div>
                   {#if turboKeyNotice}
                     <span class="developer-tool-status">{turboKeyNotice}</span>
-                  {/if}
-                  <div class="developer-tool-row blackbox-tool-row">
-                    <div>
-                      <h2>게임 블랙박스</h2>
-                      <p>{blackboxDescription()}</p>
-                    </div>
-                    <div class="developer-tool-actions">
-                      {#if blackboxEnabled}
-                        <button
-                          class="developer-tool-secondary"
-                          disabled={blackboxAction}
-                          onclick={() => openBlackboxSettings(false)}
-                        >
-                          설정
-                        </button>
-                      {/if}
-                      <button
-                        class:active={blackboxEnabled}
-                        disabled={!blackboxSettingLoaded || blackboxAction}
-                        aria-pressed={blackboxEnabled}
-                        onclick={toggleBlackbox}
-                      >
-                        {blackboxAction === "saving"
-                          ? "저장 중…"
-                          : (blackboxEnabled ? "사용 중" : "사용하기")}
-                      </button>
-                    </div>
-                  </div>
-                  {#if blackboxEnabled || blackboxBytesUsed > 0 || blackboxDurationSeconds > 0}
-                    <div class="blackbox-quick-actions">
-                      {#if blackboxEnabled}
-                        <button
-                          disabled={!blackboxRecording || blackboxAction}
-                          onclick={openBlackboxEditor}
-                        >
-                          {blackboxAction === "editor" ? "여는 중…" : "영상 추출"}
-                        </button>
-                        <button
-                          disabled={!blackboxRecording || blackboxClipInProgress || blackboxAction}
-                          onclick={saveBlackboxClip}
-                        >
-                          {blackboxClipInProgress ? "클립 저장 중…" : `최근 약 ${blackboxClipSeconds}초 저장`}
-                        </button>
-                        <button
-                          class="developer-tool-secondary"
-                          onclick={openBlackboxFolder}
-                        >
-                          저장 폴더
-                        </button>
-                      {/if}
-                      {#if blackboxBytesUsed > 0 || blackboxDurationSeconds > 0}
-                        <button
-                          class="blackbox-clear-recording"
-                          disabled={blackboxAction}
-                          onclick={clearBlackboxRecording}
-                        >
-                          {blackboxAction === "clear" ? "비우는 중…" : "전체 비우기"}
-                        </button>
-                      {/if}
-                      {#if blackboxEnabled}
-                        <span>
-                          {blackboxShortcutAvailable ? "단축키 Ctrl+Shift+F10 · " : ""}누락 {blackboxDroppedFrames}프레임
-                        </span>
-                      {/if}
-                    </div>
-                  {/if}
-                  {#if blackboxNotice}
-                    <span class="developer-tool-status">{blackboxNotice}</span>
-                  {/if}
-                  {#if blackboxAudioError}
-                    <span class="developer-tool-status">{blackboxAudioError}</span>
                   {/if}
                   <div class="developer-tool-row">
                     <div>
@@ -2791,91 +2516,6 @@
             설정 완료
           </button>
         </div>
-      </div>
-    </div>
-  </Modal>
-{/if}
-
-{#if blackboxModalVisible}
-  <Modal
-    title="게임 블랙박스 설정"
-    variant="fullscreen"
-    closeSignal={blackboxModalCloseSignal}
-    closeDisabled={Boolean(blackboxAction)}
-    onclose={closeBlackboxSettings}
-  >
-    <div class="blackbox-settings">
-      <p class="blackbox-settings-description">
-        자동 화질은 PC 자원에 따라 최대 1080p 또는 1440p로 설정하며 원본 비율을 유지합니다.
-        녹화 처리가 밀리면 게임 대신 녹화 프레임을 건너뜁니다. 마비노기 게임 소리만 함께 저장하며 다른 앱 소리와 마이크는 제외합니다.
-      </p>
-      <div class="blackbox-setting-grid">
-        <label class="quality">
-          <span>화질</span>
-          <select bind:value={blackboxDraft.quality}>
-            {#each blackboxQualityOptions as quality}
-              <option value={quality}>
-                {quality === "auto"
-                  ? `자동 권장 · ${blackboxQualityLabel(blackboxResolvedQuality)}`
-                  : blackboxQualityLabel(quality)}
-              </option>
-            {/each}
-          </select>
-        </label>
-        <label class="codec">
-          <span>영상 코덱</span>
-          <select bind:value={blackboxDraft.codec}>
-            {#each blackboxCodecOptions as codec}
-              <option value={codec}>{codec === "hevc" ? "HEVC · 용량 절약" : "H.264 · 기본 권장"}</option>
-            {/each}
-          </select>
-        </label>
-        <label class="fps">
-          <span>프레임</span>
-          <select bind:value={blackboxDraft.fps}>
-            {#each blackboxFrameRateOptions as fps}
-              <option value={fps}>{fps}fps</option>
-            {/each}
-          </select>
-        </label>
-        <label class="capacity">
-          <span>순환 저장 한도</span>
-          <select bind:value={blackboxDraft.capacityGb}>
-            {#each blackboxCapacityOptions as capacity}
-              <option value={capacity}>{capacity} GB</option>
-            {/each}
-          </select>
-        </label>
-        <label class="clip-duration">
-          <span>클립 길이</span>
-          <select bind:value={blackboxDraft.clipSeconds}>
-            {#each blackboxClipDurationOptions as seconds}
-              <option value={seconds}>최근 약 {seconds}초</option>
-            {/each}
-          </select>
-        </label>
-      </div>
-      <div class="blackbox-settings-summary">
-        <span>{blackboxDraft.quality === "auto" ? "자동 판정" : "선택 화질"} · 예상 보존 약 {blackboxDraftEstimatedHours()}시간</span>
-        <span>클립 단축키 Ctrl+Shift+F10 · 충돌 시 화면 버튼 사용</span>
-      </div>
-      {#if blackboxNotice}
-        <span class="blackbox-settings-error">{blackboxNotice}</span>
-      {/if}
-      <div class="blackbox-settings-actions">
-        <button
-          class="secondary"
-          disabled={Boolean(blackboxAction)}
-          onclick={() => blackboxModalCloseSignal++}
-        >
-          취소
-        </button>
-        <button
-          disabled={Boolean(blackboxAction)}
-          onclick={saveBlackboxSettings}
-        >
-          {blackboxAction === "saving" ? "적용 중…" : "설정 완료"}
-        </button>
       </div>
     </div>
   </Modal>

@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld("nogirem", {
   minimizeToTray: () => ipcRenderer.invoke("application:minimize-to-tray"),
   openCharacterGuide: () => ipcRenderer.invoke("application:open-character-guide"),
   openDxvkManager: () => ipcRenderer.invoke("application:open-dxvk-manager"),
+  openBlackboxManager: () => ipcRenderer.invoke("application:open-blackbox-manager"),
   openDxvkGuide: () => ipcRenderer.invoke("application:open-dxvk-guide"),
   getCreatorChannel: () => ipcRenderer.invoke("application:get-creator-channel"),
   getCreatorPromptDismissed: () => ipcRenderer.invoke("application:get-creator-prompt-dismissed"),

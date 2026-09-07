@@ -87,6 +87,7 @@ const preloadPath = join(root, "electron", "preload.cjs")
 const characterGuidePreloadPath = join(root, "electron", "character-guide-preload.cjs")
 const dxvkManagerPreloadPath = join(root, "electron", "dxvk-manager-preload.cjs")
 const dxvkGuidePreloadPath = join(root, "electron", "dxvk-guide-preload.cjs")
+const blackboxManagerPreloadPath = join(root, "electron", "blackbox-manager-preload.cjs")
 const blackboxEditorPreloadPath = join(root, "electron", "blackbox-editor-preload.cjs")
 const iconPath = join(root, "icon.ico")
 const pausedTrayIconPath = join(root, "icon-paused.png")
@@ -117,6 +118,7 @@ let primaryWindow = null
 let characterGuideWindow = null
 let dxvkManagerWindow = null
 let dxvkGuideWindow = null
+let blackboxManagerWindow = null
 let blackboxEditorWindow = null
 let blackboxEditorSession = null
 let applicationTray = null
@@ -2007,6 +2009,26 @@ async function clearBlackboxRecording() {
   })
 }
 
+async function confirmClearBlackboxRecording(parentWindow) {
+  const confirmation = await dialog.showMessageBox(parentWindow, {
+    type: "warning",
+    title: "순환 녹화 비우기",
+    message: "블랙박스 순환 녹화를 모두 비울까요?",
+    detail: "저장된 클립은 삭제하지 않습니다.",
+    buttons: ["취소", "비우기"],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+  })
+  if (confirmation.response !== 1) {
+    return {
+      ...await getBlackboxSetting(),
+      canceled: true,
+    }
+  }
+  return clearBlackboxRecording()
+}
+
 function blackboxEditorDateName(milliseconds = Date.now()) {
   return new Date(milliseconds)
     .toISOString()
@@ -3187,23 +3209,7 @@ function registerIpc() {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 블랙박스 삭제 요청입니다")
     }
-    const confirmation = await dialog.showMessageBox(primaryWindow, {
-      type: "warning",
-      title: "순환 녹화 비우기",
-      message: "블랙박스 순환 녹화를 모두 비울까요?",
-      detail: "저장된 클립은 삭제하지 않습니다.",
-      buttons: ["취소", "비우기"],
-      defaultId: 0,
-      cancelId: 0,
-      noLink: true,
-    })
-    if (confirmation.response !== 1) {
-      return {
-        ...await getBlackboxSetting(),
-        canceled: true,
-      }
-    }
-    return clearBlackboxRecording()
+    return confirmClearBlackboxRecording(primaryWindow)
   })
   ipcMain.handle("application:open-blackbox-folder", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
@@ -3299,6 +3305,11 @@ function registerIpc() {
   ipcMain.handle("application:open-dxvk-manager", () => {
     openDxvkManager()
   })
+  ipcMain.handle("application:open-blackbox-manager", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
+    openBlackboxManager()
+    return true
+  })
   ipcMain.handle("application:open-dxvk-guide", () => {
     openDxvkGuide()
   })
@@ -3363,6 +3374,50 @@ function registerIpc() {
       throw new Error("허용되지 않은 DXVK 설치 요청입니다")
     }
     return updateDxvk(version)
+  })
+  ipcMain.handle("blackbox-manager:request-close", event => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 관리 창 닫기 요청입니다")
+    }
+    window.close()
+  })
+  ipcMain.handle("blackbox-manager:get-status", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 상태 요청입니다")
+    }
+    return getBlackboxSetting()
+  })
+  ipcMain.handle("blackbox-manager:set-setting", (event, setting) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 설정 요청입니다")
+    }
+    return setBlackboxSetting(setting)
+  })
+  ipcMain.handle("blackbox-manager:save-clip", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 클립 요청입니다")
+    }
+    return requestBlackboxClip()
+  })
+  ipcMain.handle("blackbox-manager:clear-recording", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 삭제 요청입니다")
+    }
+    return confirmClearBlackboxRecording(blackboxManagerWindow)
+  })
+  ipcMain.handle("blackbox-manager:open-editor", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 편집 요청입니다")
+    }
+    openBlackboxEditor()
+    return true
+  })
+  ipcMain.handle("blackbox-manager:open-folder", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 폴더 요청입니다")
+    }
+    return openBlackboxFolder()
   })
   ipcMain.on("character-guide:drag-start", (event, point) => {
     if (
@@ -3548,6 +3603,91 @@ function openDxvkManager() {
   void loading
     .catch(error => showWindowLoadError(window, error))
     .catch(error => console.error("DXVK 관리 화면 로드 실패", error))
+}
+
+function openBlackboxManager() {
+  if (blackboxManagerWindow && !blackboxManagerWindow.isDestroyed()) {
+    if (blackboxManagerWindow.isMinimized()) blackboxManagerWindow.restore()
+    blackboxManagerWindow.setIgnoreMouseEvents(false)
+    blackboxManagerWindow.show()
+    blackboxManagerWindow.moveTop()
+    blackboxManagerWindow.focus()
+    return
+  }
+
+  const window = new BrowserWindow({
+    width: 700,
+    height: 560,
+    show: false,
+    opacity: 0,
+    resizable: false,
+    maximizable: false,
+    parent: primaryWindow ?? undefined,
+    title: "게임 블랙박스 관리",
+    icon: iconPath,
+    autoHideMenuBar: true,
+    skipTaskbar: true,
+    frame: false,
+    roundedCorners: true,
+    backgroundColor: "#101214",
+    webPreferences: {
+      preload: blackboxManagerPreloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  disableProductionRefresh(window)
+  closeWindowOnEscape(window)
+  blackboxManagerWindow = window
+  observeInternalWindowVisualActivity(window)
+  let opacityTimer = null
+  let closing = false
+  const animateOpacity = (from, to, duration, onComplete) => {
+    clearInterval(opacityTimer)
+    const startedAt = Date.now()
+    opacityTimer = setInterval(() => {
+      if (window.isDestroyed()) {
+        clearInterval(opacityTimer)
+        opacityTimer = null
+        return
+      }
+      const progress = Math.min(1, (Date.now() - startedAt) / duration)
+      window.setOpacity(from + (to - from) * progress)
+      if (progress < 1) return
+      clearInterval(opacityTimer)
+      opacityTimer = null
+      onComplete?.()
+    }, 16)
+  }
+  window.once("ready-to-show", () => {
+    if (window.isDestroyed()) return
+    window.center()
+    window.show()
+    window.focus()
+    animateOpacity(0, 1, 300)
+  })
+  window.on("close", event => {
+    if (closing) return
+    event.preventDefault()
+    closing = true
+    animateOpacity(window.getOpacity(), 0, 300, () => window.destroy())
+  })
+  window.on("closed", () => {
+    const closedForTray = internalWindowsClosedForTray.delete(window)
+    clearInterval(opacityTimer)
+    if (blackboxManagerWindow === window) blackboxManagerWindow = null
+    if (!applicationExitInProgress && !closedForTray) focusPrimaryWindow()
+  })
+  const builtManagerPath = join(root, "dist", "blackbox-manager.html")
+  const loading = process.argv.includes("--dev")
+    ? window.loadURL("http://localhost:5173/blackbox-manager.html")
+    : window.loadFile(existsSync(builtManagerPath)
+      ? builtManagerPath
+      : join(root, "blackbox-manager.html"))
+  void loading
+    .catch(error => showWindowLoadError(window, error))
+    .catch(error => console.error("블랙박스 관리 화면 로드 실패", error))
 }
 
 function openDxvkGuide() {
@@ -3874,6 +4014,7 @@ function internalWindows() {
     characterGuideWindow,
     dxvkManagerWindow,
     dxvkGuideWindow,
+    blackboxManagerWindow,
     blackboxEditorWindow,
   ].filter(window => window && !window.isDestroyed())
 }
@@ -4018,6 +4159,7 @@ function isPrimaryWindowVisuallyActive() {
     characterGuideWindow,
     dxvkManagerWindow,
     dxvkGuideWindow,
+    blackboxManagerWindow,
     blackboxEditorWindow,
   ].some(window => window && !window.isDestroyed() && window.isFocused())
   return Boolean(

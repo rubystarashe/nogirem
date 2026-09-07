@@ -62,15 +62,34 @@ test("자동 화질은 CPU와 메모리에 따라 1080p 또는 1440p를 선택�
   assert.equal(maxHeightForBlackboxQuality("original"), 0)
 })
 
-test("고급 기능과 Electron IPC에 블랙박스 제어가 연결된다", async () => {
-  const [appSource, mainSource, preloadSource, packageSource] = await Promise.all([
+test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다", async () => {
+  const [
+    appSource,
+    mainSource,
+    preloadSource,
+    managerPreloadSource,
+    managerSource,
+    packageSource,
+  ] = await Promise.all([
     readFile(new URL("web/App.svelte", root), "utf8"),
     readFile(new URL("electron/main.mjs", root), "utf8"),
     readFile(new URL("electron/preload.cjs", root), "utf8"),
+    readFile(new URL("electron/blackbox-manager-preload.cjs", root), "utf8"),
+    readFile(new URL("blackbox-manager.html", root), "utf8"),
     readFile(new URL("package.json", root), "utf8"),
   ])
-  assert.match(appSource, /<h2>게임 블랙박스<\/h2>/)
-  assert.match(appSource, /Ctrl\+Shift\+F10/)
+  assert.match(appSource, /class="blackbox-main-link"/)
+  assert.match(appSource, /openBlackboxManager/)
+  assert.doesNotMatch(appSource, /<h2>게임 블랙박스<\/h2>/)
+  assert.match(mainSource, /function openBlackboxManager\(\)/)
+  assert.match(mainSource, /title: "게임 블랙박스 관리"/)
+  assert.match(mainSource, /blackbox-manager\.html/)
+  assert.match(managerSource, /게임 블랙박스 관리/)
+  assert.match(managerSource, /Ctrl\+Shift\+F10/)
+  assert.match(managerSource, /영상 추출/)
+  assert.match(managerSource, /전체 비우기/)
+  assert.match(managerPreloadSource, /blackbox-manager:set-setting/)
+  assert.match(managerPreloadSource, /blackbox-manager:clear-recording/)
   assert.match(mainSource, /application:get-blackbox-setting/)
   assert.match(mainSource, /application:save-blackbox-clip/)
   assert.match(mainSource, /application:clear-blackbox-recording/)
@@ -78,14 +97,13 @@ test("고급 기능과 Electron IPC에 블랙박스 제어가 연결된다", asy
   assert.match(mainSource, /저장된 클립은 삭제하지 않습니다/)
   assert.match(preloadSource, /getBlackboxSetting/)
   assert.match(preloadSource, /clearBlackboxRecording/)
-  assert.match(appSource, /blackboxDurationSeconds/)
-  assert.match(appSource, /전체 비우기/)
   assert.match(packageSource, /native\/recorder-helper\/bin\/recorder-helper\.exe/)
+  assert.match(packageSource, /blackbox-manager\.html/)
 })
 
 test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된다", async () => {
   const [
-    appSource,
+    managerSource,
     mainSource,
     preloadSource,
     editorSource,
@@ -93,7 +111,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     nativeSource,
     viteSource,
   ] = await Promise.all([
-    readFile(new URL("web/App.svelte", root), "utf8"),
+    readFile(new URL("blackbox-manager.html", root), "utf8"),
     readFile(new URL("electron/main.mjs", root), "utf8"),
     readFile(new URL("electron/blackbox-editor-preload.cjs", root), "utf8"),
     readFile(new URL("blackbox-editor.html", root), "utf8"),
@@ -101,7 +119,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     readFile(new URL("native/recorder-helper/main.cpp", root), "utf8"),
     readFile(new URL("vite.config.mjs", root), "utf8"),
   ])
-  assert.match(appSource, /영상 추출/)
+  assert.match(managerSource, /영상 추출/)
   assert.match(mainSource, /title: "블랙박스 영상 추출"[\s\S]*alwaysOnTop: true/)
   assert.match(mainSource, /closeWindowOnEscape\(window\)/)
   assert.match(mainSource, /command: "flush"/)
