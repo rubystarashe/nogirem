@@ -570,7 +570,6 @@ footer {
   opacity: 0;
   transform: translateX(12px);
   transition:
-    background 250ms ease,
     opacity 450ms 150ms ease-out,
     transform 450ms 150ms ease-out;
   -webkit-app-region: no-drag;
@@ -583,11 +582,6 @@ footer {
 
 .blackbox-main-link.active {
   color: #ffd400;
-  background: #171717;
-}
-
-.blackbox-main-link.transitioning {
-  background: #171717;
 }
 
 .blackbox-text-base,
@@ -602,7 +596,12 @@ footer {
 }
 
 .blackbox-text-final {
+  padding: 0 8px;
   color: inherit;
+}
+
+.blackbox-main-link.active .blackbox-text-final {
+  background: #171717;
 }
 
 .blackbox-text-final.concealed {
@@ -611,12 +610,15 @@ footer {
 
 .blackbox-text-base {
   z-index: 2;
-  color: #e8e8e8;
+  padding: 0 8px;
+  color: #202020;
+  background: transparent;
   animation: chicken-text-out 500ms both;
 }
 
 .blackbox-text-base.active-source {
   color: #ffd400;
+  background: #171717;
 }
 
 .blackbox-text-over {

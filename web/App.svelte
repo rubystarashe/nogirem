@@ -1692,7 +1692,6 @@
           <button
             class="blackbox-main-link"
             class:active={blackboxEnabled}
-            class:transitioning={blackboxTransitionPhase !== "done"}
             class:entered={leftTopContentEntered}
             aria-label="게임 블랙박스 관리 열기"
             onclick={() => window.nogirem.openBlackboxManager()}
