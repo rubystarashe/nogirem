@@ -649,7 +649,7 @@ footer {
   height: 24px;
   padding: 2px;
   border-radius: 2px;
-  background: #171717;
+  background: #ffd400;
   pointer-events: none;
   transform: translate(-50%, -50%);
   animation: chicken-text-in 80ms 270ms linear both;
@@ -712,7 +712,7 @@ footer {
   z-index: 3;
   padding: 0 3px;
   color: transparent;
-  background: #171717;
+  background: #ffd400;
   animation: chicken-text-in 300ms linear;
 }
 
