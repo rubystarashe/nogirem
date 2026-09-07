@@ -176,19 +176,17 @@ function formatCpuIndexes(cpuIndexes) {
   return ranges.join(",")
 }
 
-export function defaultGamePhysicalCoreCount(performanceCoreCount, hybrid = false) {
+export function defaultGamePhysicalCoreCount(performanceCoreCount) {
   if (!Number.isInteger(performanceCoreCount) || performanceCoreCount < 1) {
     throw new Error(`Invalid performance core count: ${performanceCoreCount}`)
   }
   if (performanceCoreCount === 1) return 1
-  if (!hybrid && performanceCoreCount <= 6) {
-    return Math.min(4, performanceCoreCount - 1)
-  }
-  return Math.ceil(performanceCoreCount / 2)
+  const half = Math.ceil(performanceCoreCount / 2)
+  return Math.min(performanceCoreCount - 1, Math.max(4, half))
 }
 
-export function normalizeGamePhysicalCoreCount(value, performanceCoreCount, hybrid = false) {
-  const defaultCount = defaultGamePhysicalCoreCount(performanceCoreCount, hybrid)
+export function normalizeGamePhysicalCoreCount(value, performanceCoreCount) {
+  const defaultCount = defaultGamePhysicalCoreCount(performanceCoreCount)
   if (value === null || value === undefined || value === "") return defaultCount
   const parsed = Number(value)
   if (!Number.isInteger(parsed)) return defaultCount
@@ -232,11 +230,10 @@ export function buildCpuTopologyMasks(cpuSets, logicalCpuCount, requestedGameCor
   const performanceCores = cores.filter(core => core.efficiencyClass === performanceClass)
   const efficiencyCores = cores.filter(core => core.efficiencyClass < performanceClass)
   const hybrid = efficiencyCores.length > 0
-  const defaultGameCoreCount = defaultGamePhysicalCoreCount(performanceCores.length, hybrid)
+  const defaultGameCoreCount = defaultGamePhysicalCoreCount(performanceCores.length)
   const gameCoreCount = normalizeGamePhysicalCoreCount(
     requestedGameCoreCount,
     performanceCores.length,
-    hybrid,
   )
   const gameCores = performanceCores.slice(-gameCoreCount)
   const backgroundPerformanceCores = performanceCores.slice(0, -gameCoreCount)

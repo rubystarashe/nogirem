@@ -112,13 +112,13 @@ test("4코어 비하이브리드 CPU는 백그라운드 1코어를 남기고 게
   })
 })
 
-test("6코어 이하 비하이브리드는 게임 기본 몫을 최대 4코어로 늘린다", () => {
-  assert.equal(defaultGamePhysicalCoreCount(2, false), 1)
-  assert.equal(defaultGamePhysicalCoreCount(4, false), 3)
-  assert.equal(defaultGamePhysicalCoreCount(5, false), 4)
-  assert.equal(defaultGamePhysicalCoreCount(6, false), 4)
-  assert.equal(defaultGamePhysicalCoreCount(8, false), 4)
-  assert.equal(defaultGamePhysicalCoreCount(6, true), 3)
+test("게임 기본 몫은 절반과 4코어 중 큰 값이며 백그라운드 1코어를 남긴다", () => {
+  assert.equal(defaultGamePhysicalCoreCount(2), 1)
+  assert.equal(defaultGamePhysicalCoreCount(4), 3)
+  assert.equal(defaultGamePhysicalCoreCount(5), 4)
+  assert.equal(defaultGamePhysicalCoreCount(6), 4)
+  assert.equal(defaultGamePhysicalCoreCount(8), 4)
+  assert.equal(defaultGamePhysicalCoreCount(10), 5)
 })
 
 test("사용자가 선택한 물리 코어 수만큼 SMT 스레드를 함께 게임에 배정한다", () => {
@@ -153,7 +153,7 @@ test("CPU 코어 선택 UI와 IPC가 영구 설정 경로에 연결된다", asyn
   assert.match(styleSource, /\.game-cpu-core-options/)
 })
 
-test("하이브리드 CPU는 P-core 절반만 게임에 주고 나머지 P/E-core를 백그라운드에 준다", () => {
+test("하이브리드 CPU는 E-core를 제외하고 최소 4개 P-core를 게임에 준다", () => {
   const performanceSets = Array.from({ length: 12 }, (_, logicalProcessorIndex) => ({
     group: 0,
     logicalProcessorIndex,
@@ -169,22 +169,22 @@ test("하이브리드 CPU는 P-core 절반만 게임에 주고 나머지 P/E-cor
 
   const allocation = buildCpuTopologyMasks([...performanceSets, ...efficiencySets], 20)
 
-  assert.equal(allocation.gameMask, 0x0fc0n)
-  assert.equal(allocation.backgroundMask, 0xff03fn)
-  assert.equal(allocation.alternateGameMask, 0x003fn)
-  assert.equal(allocation.alternateBackgroundMask, 0xfffc0n)
-  assert.deepEqual(allocation.gameCpuIndexes, [6, 7, 8, 9, 10, 11])
-  assert.deepEqual(allocation.backgroundCpuIndexes, [0, 1, 2, 3, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19])
+  assert.equal(allocation.gameMask, 0x0ff0n)
+  assert.equal(allocation.backgroundMask, 0xff00fn)
+  assert.equal(allocation.alternateGameMask, 0x000fn)
+  assert.equal(allocation.alternateBackgroundMask, 0xffff0n)
+  assert.deepEqual(allocation.gameCpuIndexes, [4, 5, 6, 7, 8, 9, 10, 11])
+  assert.deepEqual(allocation.backgroundCpuIndexes, [0, 1, 2, 3, 12, 13, 14, 15, 16, 17, 18, 19])
   assert.equal(allocation.performanceCoreCount, 6)
   assert.equal(allocation.efficiencyCoreCount, 8)
   assert.equal(allocation.physicalCoreCount, 14)
-  assert.equal(allocation.gameCoreCount, 3)
-  assert.equal(allocation.defaultGameCoreCount, 3)
+  assert.equal(allocation.gameCoreCount, 4)
+  assert.equal(allocation.defaultGameCoreCount, 4)
   assert.equal(allocation.maxGameCoreCount, 5)
   assert.equal(allocation.hybrid, true)
 })
 
-test("P-core 수가 홀수면 게임 몫을 올림하고 SMT 스레드를 분리하지 않는다", () => {
+test("P-core 수가 홀수여도 최소 4코어 규칙과 SMT 묶음을 유지한다", () => {
   const performanceSets = Array.from({ length: 10 }, (_, logicalProcessorIndex) => ({
     group: 0,
     logicalProcessorIndex,
@@ -200,8 +200,8 @@ test("P-core 수가 홀수면 게임 몫을 올림하고 SMT 스레드를 분리
 
   const allocation = buildCpuTopologyMasks([...performanceSets, ...efficiencySets], 14)
 
-  assert.deepEqual(allocation.gameCpuIndexes, [4, 5, 6, 7, 8, 9])
-  assert.deepEqual(allocation.backgroundCpuIndexes, [0, 1, 2, 3, 10, 11, 12, 13])
+  assert.deepEqual(allocation.gameCpuIndexes, [2, 3, 4, 5, 6, 7, 8, 9])
+  assert.deepEqual(allocation.backgroundCpuIndexes, [0, 1, 10, 11, 12, 13])
 })
 
 test("입력 장치와 매크로 엔진은 지연 민감 프로세스로 분류한다", async () => {
