@@ -639,6 +639,29 @@
       : []
   }
 
+  function gameCpuUnavailableCores() {
+    const setting = services.affinity.data?.gameCoreSetting
+    const performanceCoreCount = setting?.performanceCoreCount
+    const efficiencyCoreCount = setting?.efficiencyCoreCount
+    if (!Number.isInteger(performanceCoreCount) || !Number.isInteger(efficiencyCoreCount)) {
+      return []
+    }
+    const unavailable = []
+    if (performanceCoreCount > 1) {
+      unavailable.push({
+        label: `P${performanceCoreCount}`,
+        reason: "백그라운드와 입력 프로그램을 위해 남겨 두는 P-core",
+      })
+    }
+    for (let index = 1; index <= efficiencyCoreCount; index++) {
+      unavailable.push({
+        label: `E${performanceCoreCount + index}`,
+        reason: "마비노기에 배정하지 않는 E-core",
+      })
+    }
+    return unavailable
+  }
+
   async function selectGameCpuCoreCount(gameCoreCount) {
     if (gameCpuCoreAction || services.affinity.data?.cpuReorder?.state === "running") return
     gameCpuCoreAction = "saving"
@@ -2193,20 +2216,32 @@
                       </p>
                     </div>
                     {#if gameCpuCoreOptions().length}
-                      <div class="game-cpu-core-options" aria-label="마비노기 CPU 코어 개수">
-                        {#each gameCpuCoreOptions() as coreCount}
-                          <button
-                            class:active={services.affinity.data?.gameCoreSetting?.gameCoreCount
-                              === coreCount}
-                            disabled={gameCpuCoreAction
-                              || services.affinity.data?.cpuReorder?.state === "running"}
-                            aria-pressed={services.affinity.data?.gameCoreSetting?.gameCoreCount
-                              === coreCount}
-                            onclick={() => selectGameCpuCoreCount(coreCount)}
-                          >
-                            {coreCount}
-                          </button>
-                        {/each}
+                      <div class="game-cpu-core-controls">
+                        <div class="game-cpu-core-options" aria-label="마비노기 CPU 코어 개수">
+                          {#each gameCpuCoreOptions() as coreCount}
+                            <button
+                              class:active={services.affinity.data?.gameCoreSetting?.gameCoreCount
+                                === coreCount}
+                              disabled={gameCpuCoreAction
+                                || services.affinity.data?.cpuReorder?.state === "running"}
+                              aria-pressed={services.affinity.data?.gameCoreSetting?.gameCoreCount
+                                === coreCount}
+                              onclick={() => selectGameCpuCoreCount(coreCount)}
+                            >
+                              {coreCount}
+                            </button>
+                          {/each}
+                        </div>
+                        {#if gameCpuUnavailableCores().length}
+                          <div class="game-cpu-unavailable">
+                            <span>선택 불가 코어</span>
+                            <div aria-label="선택 불가 CPU 코어">
+                              {#each gameCpuUnavailableCores() as core}
+                                <button disabled title={core.reason}>{core.label}</button>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
                       </div>
                     {:else}
                       <span class="developer-tool-status">
