@@ -199,6 +199,7 @@
   let networkReconnectModalVisible = false
   let networkReconnectCloseSignal = 0
   let networkReconnectAction = null
+  let networkReconnectMode = "apply"
   let radeonGlobalModalVisible = false
   let radeonGlobalCloseSignal = 0
   let radeonGlobalAction = null
@@ -1181,6 +1182,13 @@
       void optimize("network", window.nogirem.optimizeNetwork)
       return
     }
+    networkReconnectMode = "apply"
+    networkReconnectAction = null
+    networkReconnectModalVisible = true
+  }
+
+  function requestNetworkRestore() {
+    networkReconnectMode = "restore"
     networkReconnectAction = null
     networkReconnectModalVisible = true
   }
@@ -1196,7 +1204,12 @@
     networkReconnectModalVisible = false
     networkReconnectAction = null
     if (action === "continue") {
-      void optimize("network", window.nogirem.optimizeNetwork)
+      void optimize(
+        "network",
+        networkReconnectMode === "restore"
+          ? window.nogirem.restoreNetwork
+          : window.nogirem.optimizeNetwork,
+      )
     }
   }
 
@@ -1231,6 +1244,17 @@
 
   function networkReady(data) {
     return data?.optimized
+  }
+
+  function networkRestoreAvailable(data) {
+    return data?.originalStateRecorded
+      || (
+        data?.fastPing?.supported !== false
+        && (
+          data?.fastPing?.current?.TcpAckFrequency === 1
+          || data?.fastPing?.current?.TCPNoDelay === 1
+        )
+      )
   }
 
   function formatMiB(bytes) {
@@ -2935,11 +2959,24 @@
         {#if services.network.error}
           <p class="detail-error">{services.network.error}</p>
         {:else if services.network.data}
-          <p class="detail-device">
-            {services.network.data.fastPing.supported === false
-              ? services.network.data.fastPing.reason
-              : (services.network.data.fastPing.current?.interfaceAlias ?? "기본 네트워크")}
-          </p>
+          <div class="detail-device-row">
+            <p class="detail-device">
+              {services.network.data.fastPing.supported === false
+                ? services.network.data.fastPing.reason
+                : (services.network.data.fastPing.current?.interfaceAlias ?? "기본 네트워크")}
+            </p>
+            <button
+              class="detail-restore"
+              disabled={services.network.loading
+                || services.network.optimizing
+                || !networkRestoreAvailable(services.network.data)}
+              onclick={requestNetworkRestore}
+            >
+              {services.network.optimizing && networkReconnectMode === "restore"
+                ? "되돌리는 중"
+                : "설정 되돌리기"}
+            </button>
+          </div>
           <dl class="detail-list">
             <div>
               <dt>TCP ACK 빈도</dt>
@@ -3006,14 +3043,18 @@
 
 {#if networkReconnectModalVisible}
   <Modal
-    eyebrow="네트워크 최적화"
-    title="네트워크 연결을 다시 시작합니다"
+    eyebrow={networkReconnectMode === "restore" ? "네트워크 설정 복원" : "네트워크 최적화"}
+    title={networkReconnectMode === "restore"
+      ? "패스트핑 설정을 되돌립니다"
+      : "네트워크 연결을 다시 시작합니다"}
     hideClose={true}
     closeSignal={networkReconnectCloseSignal}
     onclose={finishNetworkReconnectModal}
   >
     <p class="modal-description">
-      TCP ACK 빈도 또는 TCP No Delay를 적용하려면 네트워크 어댑터를 다시 연결해야 합니다.
+      {networkReconnectMode === "restore"
+        ? "TCP ACK 빈도와 TCP No Delay를 이전 설정으로 되돌립니다. 기록이 없으면 두 옵션을 끄며 TCP 자동 조정은 유지합니다."
+        : "TCP ACK 빈도 또는 TCP No Delay를 적용하려면 네트워크 어댑터를 다시 연결해야 합니다."}
       인터넷 연결이 잠시 끊길 수 있습니다. 계속하시겠습니까?
     </p>
     <div class="modal-actions">
@@ -3029,7 +3070,7 @@
         disabled={Boolean(networkReconnectAction)}
         onclick={() => closeNetworkReconnectModal("continue")}
       >
-        계속하기
+        {networkReconnectMode === "restore" ? "되돌리기" : "계속하기"}
       </button>
     </div>
   </Modal>

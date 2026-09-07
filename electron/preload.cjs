@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("nogirem", {
   optimizeGraphics: () => ipcRenderer.invoke("optimization:optimize-graphics"),
   optimizeNvidia: () => ipcRenderer.invoke("optimization:optimize-nvidia"),
   optimizeNetwork: () => ipcRenderer.invoke("optimization:optimize-network"),
+  restoreNetwork: () => ipcRenderer.invoke("optimization:restore-network"),
   setAffinityEnabled: options => {
     return ipcRenderer.invoke("optimization:set-affinity-enabled", options)
   },

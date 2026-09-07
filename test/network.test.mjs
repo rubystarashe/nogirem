@@ -1,10 +1,12 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import test from "node:test"
 import {
   ensureFastPingForPrimaryInterface,
   ensureTcpAutoTuningNormal,
   isFastPingConfigured,
   isTcpAutoTuningNormal,
+  restoreFastPingForInterface,
   restartPrimaryNetworkInterface,
 } from "../src/network.mjs"
 
@@ -23,6 +25,13 @@ const normalAutoTuning = {
   groupPolicy: "NotConfigured",
   effective: "Normal",
 }
+
+const [electronMain, electronPreload, applicationView, applicationStyles] = await Promise.all([
+  readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
+  readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
+  readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
+  readFile(new URL("../web/styles.css", import.meta.url), "utf8"),
+])
 
 test("두 레지스트리 값이 1이면 패스트핑 적용 상태로 판정한다", () => {
   assert.equal(isFastPingConfigured({
@@ -203,6 +212,47 @@ test("적용 후 값이 다르면 검증 오류를 발생시킨다", async () =>
   )
 })
 
+test("저장된 패스트핑 원래 값을 복원하고 인터페이스를 다시 시작한다", async () => {
+  const target = {
+    ...baseStatus,
+    TcpAckFrequency: null,
+    TCPNoDelay: 0,
+  }
+  const restarted = []
+  const result = await restoreFastPingForInterface(target, {
+    restartAfterRestore: true,
+    runner: async received => ({
+      ...received,
+      supported: true,
+    }),
+    restarter: async status => {
+      restarted.push(status.interfaceIndex)
+      return { status: "Up" }
+    },
+  })
+
+  assert.equal(result.restored, true)
+  assert.equal(result.configured, false)
+  assert.equal(result.restarted, true)
+  assert.deepEqual(restarted, [baseStatus.interfaceIndex])
+})
+
+test("패스트핑 복원 결과가 원래 값과 다르면 실패한다", async () => {
+  await assert.rejects(
+    restoreFastPingForInterface({
+      ...baseStatus,
+      TcpAckFrequency: null,
+      TCPNoDelay: null,
+    }, {
+      runner: async target => ({
+        ...target,
+        TcpAckFrequency: 1,
+      }),
+    }),
+    /복원한 뒤 검증에 실패/,
+  )
+})
+
 test("TCP 자동 조정은 Normal만 최적화 상태로 판정한다", () => {
   assert.equal(isTcpAutoTuningNormal(normalAutoTuning), true)
   assert.equal(isTcpAutoTuningNormal({
@@ -263,4 +313,24 @@ test("그룹 정책이 Normal 이외의 값을 강제하면 복구 실패로 처
     }),
     /그룹 정책=Disabled/,
   )
+})
+
+test("패스트핑 원본 기록과 기록 없는 기본값 복원이 IPC와 UI에 연결된다", () => {
+  assert.match(
+    electronMain,
+    /async function optimizeNetworkDirect\(\)[\s\S]*beforeFastPing[\s\S]*writeJsonAtomic\(statePath,[\s\S]*TcpAckFrequency: before\.TcpAckFrequency \?\? null/,
+  )
+  assert.match(
+    electronMain,
+    /const target = hasSavedTarget[\s\S]*TcpAckFrequency: null,[\s\S]*TCPNoDelay: null/,
+  )
+  assert.match(
+    electronMain,
+    /async function restoreNetworkDirect\(\)[\s\S]*ensureTcpAutoTuningNormal\(\)/,
+  )
+  assert.match(electronMain, /optimization:restore-network/)
+  assert.match(electronPreload, /restoreNetwork: \(\) => ipcRenderer\.invoke\("optimization:restore-network"\)/)
+  assert.match(applicationView, /설정 되돌리기/)
+  assert.match(applicationView, /TCP 자동 조정은 유지합니다/)
+  assert.match(applicationStyles, /\.detail-restore/)
 })

@@ -94,6 +94,84 @@ async function runPowerShell(applyFastPing) {
   }
 }
 
+async function runFastPingRestorePowerShell(target) {
+  const interfaceGuid = String(target?.interfaceGuid ?? "")
+  if (!/^\{[0-9a-f-]{36}\}$/i.test(interfaceGuid)) {
+    throw new Error("복원할 네트워크 인터페이스 GUID가 올바르지 않습니다")
+  }
+  const interfaceIndex = Number(target?.interfaceIndex)
+  if (!Number.isInteger(interfaceIndex) || interfaceIndex < 1) {
+    throw new Error("복원할 네트워크 인터페이스 인덱스가 올바르지 않습니다")
+  }
+  const valueLiteral = value => {
+    if (value === null || value === undefined) return "$null"
+    const number = Number(value)
+    if (!Number.isInteger(number) || number < 0 || number > 0xffffffff) {
+      throw new Error("복원할 패스트핑 값이 올바르지 않습니다")
+    }
+    return `[uint32]${number}`
+  }
+  const script = String.raw`
+$ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+$principal = [Security.Principal.WindowsPrincipal]::new(
+  [Security.Principal.WindowsIdentity]::GetCurrent()
+)
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+  throw "패스트핑 복원에는 관리자 권한이 필요합니다"
+}
+
+$guid = "${interfaceGuid}"
+$registryPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\$guid"
+New-Item -Path $registryPath -Force | Out-Null
+
+function Restore-DwordValue($name, $value) {
+  if ($null -eq $value) {
+    Remove-ItemProperty -LiteralPath $registryPath -Name $name -ErrorAction SilentlyContinue
+  } else {
+    New-ItemProperty -LiteralPath $registryPath -Name $name -PropertyType DWord -Value $value -Force | Out-Null
+  }
+}
+
+Restore-DwordValue "TcpAckFrequency" ${valueLiteral(target.TcpAckFrequency)}
+Restore-DwordValue "TCPNoDelay" ${valueLiteral(target.TCPNoDelay)}
+
+$item = Get-ItemProperty -LiteralPath $registryPath -ErrorAction SilentlyContinue
+$ackFrequency = if (
+  $null -ne $item -and
+  $item.PSObject.Properties.Name -contains "TcpAckFrequency"
+) { [uint32]$item.TcpAckFrequency } else { $null }
+$noDelay = if (
+  $null -ne $item -and
+  $item.PSObject.Properties.Name -contains "TCPNoDelay"
+) { [uint32]$item.TCPNoDelay } else { $null }
+$adapter = Get-NetAdapter -IncludeHidden -ErrorAction SilentlyContinue |
+  Where-Object { $_.InterfaceGuid.ToString().Trim("{}") -eq $guid.Trim("{}") } |
+  Select-Object -First 1
+
+[pscustomobject]@{
+  supported = $true
+  interfaceAlias = if ($null -ne $adapter) { $adapter.Name } else { "기본 네트워크" }
+  interfaceIndex = if ($null -ne $adapter) { $adapter.InterfaceIndex } else { ${interfaceIndex} }
+  interfaceGuid = $guid
+  TcpAckFrequency = $ackFrequency
+  TCPNoDelay = $noDelay
+} | ConvertTo-Json -Compress
+`
+
+  try {
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command", script],
+      { windowsHide: true, maxBuffer: 1024 * 1024 },
+    )
+    return JSON.parse(stdout.trim())
+  } catch (error) {
+    const detail = error.stderr?.trim() || error.message
+    throw new Error(`패스트핑 설정 복원 실패: ${detail}`)
+  }
+}
+
 async function runAdapterRestart(status) {
   const interfaceIndex = Number(status.interfaceIndex)
   if (!Number.isInteger(interfaceIndex) || interfaceIndex < 1) {
@@ -256,6 +334,48 @@ export async function restartPrimaryNetworkInterface(
     throw new Error("Windows에서만 네트워크 인터페이스를 재시작할 수 있습니다")
   }
   return restarter(status)
+}
+
+function sameFastPingValue(current, expected) {
+  return (current ?? null) === (expected ?? null)
+}
+
+export async function restoreFastPingForInterface(
+  target,
+  {
+    restartAfterRestore = false,
+    runner = runFastPingRestorePowerShell,
+    restarter = runAdapterRestart,
+  } = {},
+) {
+  if (process.platform !== "win32") {
+    return {
+      supported: false,
+      restored: false,
+      restarted: false,
+      reason: "Windows에서만 패스트핑 설정을 복원할 수 있습니다",
+    }
+  }
+
+  const current = await runner(target)
+  if (
+    !sameFastPingValue(current.TcpAckFrequency, target.TcpAckFrequency)
+    || !sameFastPingValue(current.TCPNoDelay, target.TCPNoDelay)
+  ) {
+    throw new Error("패스트핑 레지스트리 값을 복원한 뒤 검증에 실패했습니다")
+  }
+  const restart = restartAfterRestore
+    ? await restartPrimaryNetworkInterface(current, { restarter })
+    : null
+  return {
+    supported: true,
+    configured: isFastPingConfigured(current),
+    restored: true,
+    restarted: restart !== null,
+    restart,
+    target,
+    current,
+  }
 }
 
 export async function ensureFastPingForPrimaryInterface({

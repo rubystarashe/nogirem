@@ -1833,6 +1833,39 @@ button.direct-donation-card:hover {
   white-space: nowrap;
 }
 
+.detail-device-row {
+  display: flex;
+  min-height: 14px;
+  margin-bottom: 6px;
+  gap: 8px;
+  align-items: center;
+}
+
+.detail-device-row .detail-device {
+  flex: 1;
+  margin: 0;
+}
+
+.detail-restore {
+  flex: none;
+  padding: 0;
+  border: 0;
+  color: #91999e;
+  background: transparent;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.detail-restore:hover:not(:disabled) {
+  color: #d6dbde;
+}
+
+.detail-restore:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .detail-list {
   display: grid;
   gap: 2px;

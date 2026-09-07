@@ -12,6 +12,7 @@ import updaterPackage from "electron-updater"
 import {
   ensureFastPingForPrimaryInterface,
   ensureTcpAutoTuningNormal,
+  restoreFastPingForInterface,
 } from "../src/network.mjs"
 import {
   applyNicRssAffinity,
@@ -205,6 +206,10 @@ function getBlackboxPaths() {
     controlPath: join(directory, "control.json"),
     storagePath: join(app.getPath("videos"), "마비노기 렘 블랙박스"),
   }
+}
+
+function getNetworkStatePath() {
+  return join(app.getPath("userData"), "network", "fast-ping-original.json")
 }
 
 function registerBlackboxEditorProtocol() {
@@ -1109,7 +1114,11 @@ if (affinityHelperMode) {
   }
   app.exit(process.exitCode ?? 0)
 } else if (networkHelperMode) {
-  await runOptimizationHelper(optimizeNetworkDirect)
+  await runOptimizationHelper(
+    argumentValue("network-action") === "restore"
+      ? restoreNetworkDirect
+      : optimizeNetworkDirect,
+  )
   app.exit(process.exitCode ?? 0)
 } else {
   if (!(await isAdministrator())) {
@@ -1154,13 +1163,15 @@ async function optimizeGraphics() {
 }
 
 async function checkNetwork() {
-  const [fastPing, tcpAutoTuning] = await Promise.all([
+  const [fastPing, tcpAutoTuning, originalState] = await Promise.all([
     ensureFastPingForPrimaryInterface(),
     ensureTcpAutoTuningNormal(),
+    readJson(getNetworkStatePath()),
   ])
   return {
     fastPing,
     tcpAutoTuning,
+    originalStateRecorded: Boolean(originalState),
     optimized: (fastPing.supported === false || fastPing.configured)
       && tcpAutoTuning.optimized,
   }
@@ -2519,11 +2530,15 @@ async function finishApplicationExit(action) {
   return { closing: true }
 }
 
-async function runElevatedOptimization(helperFlag, failureMessage) {
+async function runElevatedOptimization(
+  helperFlag,
+  failureMessage,
+  extraArguments = [],
+) {
   const outputPath = join(tmpdir(), `nogirem-${randomUUID()}.json`)
   const helperArguments = app.isPackaged
-    ? [helperFlag, `--output=${outputPath}`]
-    : [root, helperFlag, `--output=${outputPath}`]
+    ? [helperFlag, `--output=${outputPath}`, ...extraArguments]
+    : [root, helperFlag, `--output=${outputPath}`, ...extraArguments]
   const argumentList = helperArguments.map(quoteProcessArgument).join(", ")
   const script = [
     "$ErrorActionPreference = 'Stop'",
@@ -2560,6 +2575,25 @@ async function runElevatedOptimization(helperFlag, failureMessage) {
 }
 
 async function optimizeNetworkDirect() {
+  const statePath = argumentValue("network-state-path")
+  if (!statePath) throw new Error("패스트핑 원본 설정 저장 경로가 없습니다")
+  const beforeFastPing = await ensureFastPingForPrimaryInterface()
+  if (
+    beforeFastPing.supported !== false
+    && !beforeFastPing.configured
+    && !(await readJson(statePath))
+  ) {
+    const before = beforeFastPing.current
+    await writeJsonAtomic(statePath, {
+      version: 1,
+      capturedAt: Date.now(),
+      interfaceAlias: before.interfaceAlias,
+      interfaceIndex: before.interfaceIndex,
+      interfaceGuid: before.interfaceGuid,
+      TcpAckFrequency: before.TcpAckFrequency ?? null,
+      TCPNoDelay: before.TCPNoDelay ?? null,
+    })
+  }
   const tcpAutoTuning = await ensureTcpAutoTuningNormal({ applyChanges: true })
   const fastPing = await ensureFastPingForPrimaryInterface({
     applyChanges: true,
@@ -2574,7 +2608,68 @@ async function optimizeNetworkDirect() {
 }
 
 async function optimizeNetwork() {
-  return runElevatedOptimization("--network-helper", "네트워크 최적화 실패")
+  return runElevatedOptimization(
+    "--network-helper",
+    "네트워크 최적화 실패",
+    [
+      "--network-action=apply",
+      `--network-state-path=${getNetworkStatePath()}`,
+    ],
+  )
+}
+
+async function restoreNetworkDirect() {
+  const statePath = argumentValue("network-state-path")
+  if (!statePath) throw new Error("패스트핑 원본 설정 저장 경로가 없습니다")
+  const [savedState, beforeFastPing] = await Promise.all([
+    readJson(statePath),
+    ensureFastPingForPrimaryInterface(),
+  ])
+  const hasSavedTarget = typeof savedState?.interfaceGuid === "string"
+    && Number.isInteger(Number(savedState?.interfaceIndex))
+  if (beforeFastPing.supported === false && !hasSavedTarget) {
+    const tcpAutoTuning = await ensureTcpAutoTuningNormal()
+    return {
+      fastPing: beforeFastPing,
+      tcpAutoTuning,
+      originalStateRecorded: Boolean(savedState),
+      restored: false,
+      optimized: tcpAutoTuning.optimized,
+    }
+  }
+  const current = beforeFastPing.current
+  const target = hasSavedTarget
+    ? savedState
+    : {
+        interfaceAlias: current.interfaceAlias,
+        interfaceIndex: current.interfaceIndex,
+        interfaceGuid: current.interfaceGuid,
+        TcpAckFrequency: null,
+        TCPNoDelay: null,
+      }
+  const fastPing = await restoreFastPingForInterface(target, {
+    restartAfterRestore: true,
+  })
+  const tcpAutoTuning = await ensureTcpAutoTuningNormal()
+  return {
+    fastPing,
+    tcpAutoTuning,
+    originalStateRecorded: hasSavedTarget,
+    restored: true,
+    restoredFromRecord: hasSavedTarget,
+    optimized: fastPing.configured && tcpAutoTuning.optimized,
+  }
+}
+
+async function restoreNetwork() {
+  return runElevatedOptimization(
+    "--network-helper",
+    "네트워크 설정 복원 실패",
+    [
+      "--network-action=restore",
+      `--network-state-path=${getNetworkStatePath()}`,
+    ],
+  )
 }
 
 function getDxvkDirectory() {
@@ -2957,6 +3052,7 @@ function registerIpc() {
   ipcMain.handle("optimization:optimize-graphics", () => optimizeGraphics())
   ipcMain.handle("optimization:optimize-nvidia", () => optimizeGraphics())
   ipcMain.handle("optimization:optimize-network", () => optimizeNetwork())
+  ipcMain.handle("optimization:restore-network", () => restoreNetwork())
   ipcMain.handle("optimization:set-affinity-enabled", (_event, options) => {
     return setAffinityEnabled(options)
   })
