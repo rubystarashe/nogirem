@@ -554,24 +554,22 @@ footer {
 .blackbox-main-link {
   position: fixed;
   top: 129px;
-  left: calc(50% + 82px);
-  display: flex;
+  right: 14px;
+  display: block;
+  width: 128px;
   height: 30px;
-  align-items: center;
-  gap: 5px;
-  padding: 0 10px;
-  border: 1px solid rgba(35, 35, 35, 0.28);
-  border-radius: 15px;
-  color: #666;
-  background: rgba(255, 255, 255, 0.62);
-  font-size: 10px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 2px;
+  color: #202020;
+  background: transparent;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   opacity: 0;
   transform: translateX(12px);
   transition:
-    color 250ms ease,
-    border-color 250ms ease,
     background 250ms ease,
     opacity 450ms 150ms ease-out,
     transform 450ms 150ms ease-out;
@@ -583,36 +581,58 @@ footer {
   transform: translateX(0);
 }
 
-.blackbox-main-link svg {
-  width: 14px;
-  height: 14px;
-  fill: currentColor;
+.blackbox-main-link.active {
+  color: #ffd400;
+  background: #171717;
 }
 
-.blackbox-main-link:hover {
-  color: #222;
-  border-color: rgba(20, 20, 20, 0.52);
-  background: rgba(255, 255, 255, 0.88);
+.blackbox-main-link.transitioning {
+  background: #171717;
 }
 
-.blackbox-main-link.active svg {
-  color: #55a968;
+.blackbox-text-base,
+.blackbox-text-over,
+.blackbox-text-final {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  line-height: 30px;
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 
-.blackbox-main-link.recording svg {
-  color: #cf5b5b;
+.blackbox-text-final {
+  color: inherit;
 }
 
-.boost-home.paused .blackbox-main-link {
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #bbb;
-  background: rgba(30, 30, 30, 0.58);
+.blackbox-text-final.concealed {
+  visibility: hidden;
 }
 
-.boost-home.paused .blackbox-main-link:hover {
-  border-color: rgba(255, 255, 255, 0.5);
-  color: #fff;
-  background: rgba(50, 50, 50, 0.8);
+.blackbox-text-base {
+  z-index: 2;
+  color: #e8e8e8;
+  animation: chicken-text-out 500ms both;
+}
+
+.blackbox-text-base.active-source {
+  color: #ffd400;
+}
+
+.blackbox-text-over {
+  z-index: 3;
+  padding: 0 4px;
+  color: #e8e8e8;
+  background: #171717;
+  animation: chicken-text-in 500ms;
+}
+
+.blackbox-text-over.active-target {
+  color: #ffd400;
+}
+
+.blackbox-text-over.leaving {
+  animation: chicken-text-out 500ms both;
 }
 
 .app-version {

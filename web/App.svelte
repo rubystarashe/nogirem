@@ -159,7 +159,13 @@
   let turboInstallAction = null
   let blackboxSettingLoaded = false
   let blackboxEnabled = false
-  let blackboxRecording = false
+  let blackboxDisplayedText = "블랙박스 비활성화됨"
+  let blackboxTransitionFrom = "블랙박스 비활성화됨"
+  let blackboxTransitionTo = "블랙박스 비활성화됨"
+  let blackboxTransitionFromEnabled = false
+  let blackboxTransitionToEnabled = false
+  let blackboxTransitionPhase = "done"
+  let blackboxTransitionId = 0
   let closeModalVisible = false
   let closeModalCloseSignal = 0
   let optimizationModalVisible = false
@@ -852,8 +858,28 @@
   }
 
   function applyBlackboxState(state) {
-    blackboxEnabled = Boolean(state.enabled)
-    blackboxRecording = Boolean(state.recording)
+    const nextEnabled = Boolean(state.enabled)
+    const nextText = nextEnabled ? "블랙박스 활성화됨" : "블랙박스 비활성화됨"
+    if (blackboxSettingLoaded && nextText !== blackboxDisplayedText) {
+      blackboxTransitionFrom = blackboxDisplayedText
+      blackboxTransitionTo = nextText
+      blackboxTransitionFromEnabled = blackboxEnabled
+      blackboxTransitionToEnabled = nextEnabled
+      blackboxTransitionPhase = "enter"
+      blackboxTransitionId += 1
+    } else if (!blackboxSettingLoaded) {
+      blackboxTransitionFrom = nextText
+      blackboxTransitionTo = nextText
+      blackboxTransitionFromEnabled = nextEnabled
+      blackboxTransitionToEnabled = nextEnabled
+      blackboxTransitionPhase = "done"
+    }
+    blackboxDisplayedText = nextText
+    blackboxEnabled = nextEnabled
+  }
+
+  function finishBlackboxTransition() {
+    blackboxTransitionPhase = "done"
   }
 
   async function syncBlackboxSetting() {
@@ -1666,15 +1692,42 @@
           <button
             class="blackbox-main-link"
             class:active={blackboxEnabled}
-            class:recording={blackboxRecording}
+            class:transitioning={blackboxTransitionPhase !== "done"}
             class:entered={leftTopContentEntered}
             aria-label="게임 블랙박스 관리 열기"
             onclick={() => window.nogirem.openBlackboxManager()}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm8 3.25A3.75 3.75 0 1 0 12 15.75 3.75 3.75 0 0 0 12 8.25Zm0 1.5A2.25 2.25 0 1 1 12 14.25 2.25 2.25 0 0 1 12 9.75ZM18.5 7a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" />
-            </svg>
-            <span>{blackboxSettingLoaded ? "블랙박스" : "확인 중"}</span>
+            <span
+              class="blackbox-text-final"
+              class:concealed={blackboxTransitionPhase === "enter"}
+            >
+              {blackboxSettingLoaded ? blackboxDisplayedText : "블랙박스 확인 중"}
+            </span>
+            {#key blackboxTransitionId}
+              {#if blackboxTransitionPhase === "enter"}
+                <span
+                  class="blackbox-text-base"
+                  class:active-source={blackboxTransitionFromEnabled}
+                >
+                  {blackboxTransitionFrom}
+                </span>
+                <span
+                  class="blackbox-text-over"
+                  class:active-target={blackboxTransitionToEnabled}
+                  onanimationend={() => blackboxTransitionPhase = "leave"}
+                >
+                  {blackboxTransitionTo}
+                </span>
+              {:else if blackboxTransitionPhase === "leave"}
+                <span
+                  class="blackbox-text-over leaving"
+                  class:active-target={blackboxTransitionToEnabled}
+                  onanimationend={finishBlackboxTransition}
+                >
+                  {blackboxTransitionTo}
+                </span>
+              {/if}
+            {/key}
           </button>
         {/if}
         <button
