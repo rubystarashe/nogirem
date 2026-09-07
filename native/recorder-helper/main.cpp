@@ -83,7 +83,7 @@ struct Options {
   int fps = 60;
   int bitrateMbps = 12;
   int maxHeight = 1080;
-  int chunkSeconds = 30;
+  int chunkSeconds = 4;
   int capacityGb = 50;
   DWORD parentPid = 0;
 };
@@ -409,7 +409,7 @@ Options optionsFromArguments(int count, wchar_t** values) {
   options.fps = integerArgument(arguments, L"fps", 60, 15, 120);
   options.bitrateMbps = integerArgument(arguments, L"bitrate-mbps", 12, 2, 100);
   options.maxHeight = integerArgument(arguments, L"max-height", 1080, 0, 4320);
-  options.chunkSeconds = integerArgument(arguments, L"chunk-seconds", 30, 2, 30);
+  options.chunkSeconds = integerArgument(arguments, L"chunk-seconds", 4, 2, 30);
   options.capacityGb = integerArgument(arguments, L"capacity-gb", 50, 1, 4096);
   options.parentPid = static_cast<DWORD>(
     integerArgument(arguments, L"parent-pid", 0, 0, INT_MAX)
@@ -1618,30 +1618,62 @@ private:
     }
   }
 
-  void closeWriter() {
-    if (!writer_) return;
-    const auto path = writer_->path();
+  void joinWriterPublisher() {
+    if (writerPublisherThread_.joinable()) writerPublisherThread_.join();
+  }
+
+  void closeWriter(bool waitForPublish = false) {
+    if (!writer_) {
+      if (waitForPublish) joinWriterPublisher();
+      return;
+    }
+    joinWriterPublisher();
+    auto writer = std::move(writer_);
+    const auto path = writer->path();
     const auto finalPath = writerFinalPath_;
-    writer_->finalize();
-    writer_.reset();
     chunkStartedAt_.reset();
     currentChunkDurationSeconds_ = 0;
     writerFinalPath_.clear();
     writerWidth_ = 0;
     writerHeight_ = 0;
-    std::error_code error;
-    if (!fs::exists(path, error) || fs::file_size(path, error) == 0) {
-      fs::remove(path, error);
-    } else {
-      fs::remove(finalPath, error);
-      error.clear();
-      fs::rename(path, finalPath, error);
-      if (error) {
-        fs::remove(path, error);
-        throw std::runtime_error("완성된 녹화 청크를 게시하지 못했습니다");
+    writerPublisherThread_ = std::thread([
+      this,
+      writer = std::move(writer),
+      path,
+      finalPath
+    ]() mutable {
+      try {
+        writer->finalize();
+        writer.reset();
+        std::error_code error;
+        if (!fs::exists(path, error) || fs::file_size(path, error) == 0) {
+          fs::remove(path, error);
+          return;
+        }
+        fs::remove(finalPath, error);
+        error.clear();
+        fs::rename(path, finalPath, error);
+        if (error) {
+          fs::remove(path, error);
+          throw std::runtime_error("완성된 녹화 청크를 게시하지 못했습니다");
+        }
+        pruneRing(
+          ringDirectory_,
+          static_cast<std::uint64_t>(options_.capacityGb) * Gigabyte
+        );
+      } catch (const hresult_error& error) {
+        failed_ = true;
+        std::lock_guard lock(status_.mutex);
+        status_.recording = false;
+        status_.error = L"녹화 청크 확정 오류: " + std::wstring(error.message());
+      } catch (const std::exception&) {
+        failed_ = true;
+        std::lock_guard lock(status_.mutex);
+        status_.recording = false;
+        status_.error = L"녹화 청크 파일 게시 오류";
       }
-      pruneRing(ringDirectory_, static_cast<std::uint64_t>(options_.capacityGb) * Gigabyte);
-    }
+    });
+    if (waitForPublish) joinWriterPublisher();
   }
 
   void startWriter(const FramePacket& packet) {
@@ -1717,12 +1749,12 @@ private:
         clearRequestId = clearRequestId_;
         clearRequestId_ = 0;
         if (stopping_ && !hasPacket && !hasAudioPacket) {
-          closeWriter();
+          closeWriter(true);
           break;
         }
       }
       try {
-        if (flush) closeWriter();
+        if (flush) closeWriter(true);
         if (flushRequestId > 0) {
           std::lock_guard lock(status_.mutex);
           status_.flushCompletedId = flushRequestId;
@@ -1756,7 +1788,6 @@ private:
           continue;
         }
         if (!hasPacket) continue;
-        bool rotatedWriter = false;
         if (
           writer_
           && (
@@ -1770,14 +1801,26 @@ private:
           )
         ) {
           closeWriter();
-          discardQueuedVideoFrames();
-          rotatedWriter = true;
         }
-        if (rotatedWriter) {
-          std::lock_guard lock(status_.mutex);
-          ++status_.droppedFrames;
-        } else {
-          if (!writer_) startWriter(packet);
+        bool skipPacket = false;
+        if (!writer_) {
+          const auto writerStart = std::chrono::steady_clock::now();
+          startWriter(packet);
+          const auto writerStartupTime = std::chrono::steady_clock::now() - writerStart;
+          const auto queueCoverage = std::chrono::microseconds(
+            2000000 / std::max(1, options_.fps)
+          );
+          if (writerStartupTime > queueCoverage) {
+            discardQueuedVideoFrames();
+            chunkStartedAt_.reset();
+            currentChunkDurationSeconds_ = 0;
+            skipPacket = true;
+            std::lock_guard lock(status_.mutex);
+            ++status_.droppedFrames;
+          }
+        }
+        if (!skipPacket) {
+          if (!chunkStartedAt_) chunkStartedAt_ = packet.capturedAt;
           const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
             packet.capturedAt - *chunkStartedAt_
           ).count() / 100;
@@ -1785,13 +1828,13 @@ private:
           currentChunkDurationSeconds_ = static_cast<double>(elapsed) / 10000000.0;
         }
       } catch (const hresult_error& error) {
-        closeWriter();
+        closeWriter(true);
         failed_ = true;
         std::lock_guard lock(status_.mutex);
         status_.recording = false;
         status_.error = L"녹화 인코더 오류: " + std::wstring(error.message());
       } catch (const std::exception&) {
-        closeWriter();
+        closeWriter(true);
         failed_ = true;
         std::lock_guard lock(status_.mutex);
         status_.recording = false;
@@ -1820,6 +1863,7 @@ private:
   std::uint64_t clearRequestId_ = 0;
   std::thread thread_;
   std::thread clipThread_;
+  std::thread writerPublisherThread_;
   std::unique_ptr<Mp4Writer> writer_;
   fs::path writerFinalPath_;
   std::optional<std::chrono::steady_clock::time_point> chunkStartedAt_;

@@ -37,7 +37,7 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     capacityGb: 100,
     clipSeconds: 60,
     fps: 30,
-    chunkSeconds: 30,
+    chunkSeconds: 4,
   })
 })
 
@@ -138,6 +138,8 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /clearRingDirectory/)
   assert.match(nativeSource, /clearCompletedId/)
   assert.match(nativeSource, /discardQueuedVideoFrames/)
+  assert.match(nativeSource, /writerPublisherThread_/)
+  assert.match(nativeSource, /closeWriter\(bool waitForPublish = false\)/)
   assert.match(nativeSource, /durationSeconds/)
   assert.match(nativeSource, /name\.find\(L"\.partial\."\)/)
   assert.match(nativeSource, /combinedMediaDuration/)
