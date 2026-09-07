@@ -21,6 +21,7 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     fps: 144,
   }), {
     ...defaultBlackboxSetting,
+    featureEnabled: true,
     enabled: true,
   })
   assert.deepEqual(normalizeBlackboxSetting({
@@ -31,6 +32,7 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     clipSeconds: 60,
     fps: 30,
   }), {
+    featureEnabled: true,
     enabled: true,
     codec: "hevc",
     quality: "auto",
@@ -39,6 +41,10 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     fps: 30,
     chunkSeconds: 4,
   })
+  assert.equal(normalizeBlackboxSetting({
+    featureEnabled: true,
+    enabled: false,
+  }).featureEnabled, true)
 })
 
 test("H.264와 HEVC 프리셋은 프레임별 비트레이트를 제공한다", () => {
@@ -82,6 +88,8 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   ])
   assert.match(appSource, /class="blackbox-main-link"/)
   assert.match(appSource, /class="blackbox-window-link"/)
+  assert.match(appSource, /\{#if blackboxFeatureEnabled\}[\s\S]*class="blackbox-main-controls"/)
+  assert.match(appSource, /<h2>게임 블랙박스<\/h2>[\s\S]*blackboxFeatureEnabled \? "사용 중" : "사용하기"/)
   assert.match(appSource, /onclick=\{toggleMainBlackbox\}/)
   assert.match(
     appSource,
@@ -101,9 +109,13 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
     /function revealBlackboxTransitionTarget\(\)[\s\S]*blackboxDisplayedText = blackboxTransitionTo[\s\S]*blackboxDisplayedEnabled = blackboxTransitionToEnabled[\s\S]*blackboxTransitionPhase = "leave"/,
   )
   assert.match(appSource, /openBlackboxManager/)
-  assert.doesNotMatch(appSource, /<h2>게임 블랙박스<\/h2>/)
+  assert.match(
+    mainSource,
+    /application:set-blackbox-feature-enabled[\s\S]*featureEnabled: nextFeatureEnabled,[\s\S]*enabled: nextFeatureEnabled && current\.enabled/,
+  )
   assert.match(mainSource, /application:set-blackbox-enabled[\s\S]*\.\.\.current,[\s\S]*enabled: Boolean\(enabled\)/)
   assert.match(preloadSource, /setBlackboxEnabled/)
+  assert.match(preloadSource, /setBlackboxFeatureEnabled/)
   assert.match(mainSource, /function openBlackboxManager\(\)/)
   assert.match(mainSource, /title: "게임 블랙박스 관리"/)
   assert.match(mainSource, /blackbox-manager\.html/)

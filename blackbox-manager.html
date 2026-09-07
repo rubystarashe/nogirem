@@ -435,6 +435,7 @@
 
       function draftSetting(enabled = status?.enabled) {
         return {
+          featureEnabled: Boolean(status?.featureEnabled),
           enabled: Boolean(enabled),
           quality: qualitySelect.value,
           codec: codecSelect.value,
@@ -520,14 +521,16 @@
           audioDetail.textContent = value.audioError || "마비노기 소리만 녹화합니다"
         }
 
-        toggleRecordingButton.textContent = value.enabled ? "사용 중" : "사용하기"
+        toggleRecordingButton.textContent = !value.featureEnabled
+          ? "사용 설정 필요"
+          : value.enabled ? "사용 중" : "사용하기"
         toggleRecordingButton.classList.toggle("active", value.enabled)
         openEditorButton.disabled = busy || !value.recording
         saveClipButton.disabled = busy || !value.recording || value.clipInProgress
         saveClipButton.textContent = value.clipInProgress ? "저장 중…" : "최근 클립 저장"
         clearRecordingButton.disabled = busy || (value.bytesUsed <= 0 && value.durationSeconds <= 0)
         saveSettingButton.disabled = busy || !settingsDirty
-        toggleRecordingButton.disabled = busy
+        toggleRecordingButton.disabled = busy || !value.featureEnabled
         renderSettingSummary()
 
         if (value.latestClip && value.latestClip !== oldClip) {

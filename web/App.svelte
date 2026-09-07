@@ -158,6 +158,9 @@
   let turboTermsModalCloseSignal = 0
   let turboInstallAction = null
   let blackboxSettingLoaded = false
+  let blackboxFeatureEnabled = false
+  let blackboxFeatureAction = null
+  let blackboxFeatureNotice = ""
   let blackboxEnabled = false
   let blackboxTogglePending = false
   let blackboxDisplayedText = "블랙박스 꺼짐"
@@ -860,6 +863,9 @@
   }
 
   function applyBlackboxState(state) {
+    if ("featureEnabled" in state) {
+      blackboxFeatureEnabled = Boolean(state.featureEnabled)
+    }
     const nextEnabled = Boolean(state.enabled)
     const nextText = nextEnabled ? "블랙박스 켜짐" : "블랙박스 꺼짐"
     const visualTarget = blackboxTransitionPhase === "done"
@@ -915,6 +921,21 @@
     } finally {
       blackboxTogglePending = false
       if (blackboxTransitionPhase === "hold") revealBlackboxTransitionTarget()
+    }
+  }
+
+  async function toggleBlackboxFeature() {
+    if (!blackboxSettingLoaded || blackboxFeatureAction) return
+    blackboxFeatureAction = "saving"
+    blackboxFeatureNotice = ""
+    try {
+      applyBlackboxState(
+        await window.nogirem.setBlackboxFeatureEnabled(!blackboxFeatureEnabled),
+      )
+    } catch (error) {
+      blackboxFeatureNotice = messageOf(error)
+    } finally {
+      blackboxFeatureAction = null
     }
   }
 
@@ -1725,10 +1746,11 @@
                     : "DXVK 업데이트"}
             </span>
           </button>
-          <div
-            class="blackbox-main-controls"
-            class:entered={leftTopContentEntered}
-          >
+          {#if blackboxFeatureEnabled}
+            <div
+              class="blackbox-main-controls"
+              class:entered={leftTopContentEntered}
+            >
             <button
               class="blackbox-main-link"
               class:active={blackboxDisplayedEnabled}
@@ -1778,14 +1800,16 @@
             </button>
             <button
               class="blackbox-window-link"
+              class:active={blackboxDisplayedEnabled}
               aria-label="게임 블랙박스 관리 창 열기"
               onclick={() => window.nogirem.openBlackboxManager()}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M14 3h7v7h-2V6.41l-8.29 8.3-1.42-1.42L17.59 5H14V3ZM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+                <path d="M4 6h10a2 2 0 0 1 2 2v2.2l4-2.4a1 1 0 0 1 1.5.86v6.68a1 1 0 0 1-1.5.86l-4-2.4V16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />
               </svg>
             </button>
-          </div>
+            </div>
+          {/if}
         {/if}
         <button
           class="boost-text-area"
@@ -2104,6 +2128,25 @@
                   </div>
                   {#if turboKeyNotice}
                     <span class="developer-tool-status">{turboKeyNotice}</span>
+                  {/if}
+                  <div class="developer-tool-row">
+                    <div>
+                      <h2>게임 블랙박스</h2>
+                      <p>메인 화면에서 게임 화면 순환 녹화와 클립 저장 기능을 사용할 수 있습니다</p>
+                    </div>
+                    <button
+                      class:active={blackboxFeatureEnabled}
+                      disabled={!blackboxSettingLoaded || blackboxFeatureAction}
+                      aria-pressed={blackboxFeatureEnabled}
+                      onclick={toggleBlackboxFeature}
+                    >
+                      {blackboxFeatureAction === "saving"
+                        ? "저장 중…"
+                        : (blackboxFeatureEnabled ? "사용 중" : "사용하기")}
+                    </button>
+                  </div>
+                  {#if blackboxFeatureNotice}
+                    <span class="developer-tool-status">{blackboxFeatureNotice}</span>
                   {/if}
                   <div class="developer-tool-row">
                     <div>

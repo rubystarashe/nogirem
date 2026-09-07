@@ -55,6 +55,9 @@ contextBridge.exposeInMainWorld("nogirem", {
   setBlackboxEnabled: enabled => {
     return ipcRenderer.invoke("application:set-blackbox-enabled", enabled)
   },
+  setBlackboxFeatureEnabled: enabled => {
+    return ipcRenderer.invoke("application:set-blackbox-feature-enabled", enabled)
+  },
   saveBlackboxClip: () => ipcRenderer.invoke("application:save-blackbox-clip"),
   clearBlackboxRecording: () => ipcRenderer.invoke("application:clear-blackbox-recording"),
   openBlackboxEditor: () => ipcRenderer.invoke("application:open-blackbox-editor"),

@@ -4,6 +4,7 @@ export const blackboxCapacityOptions = [20, 50, 100, 200]
 export const blackboxClipDurationOptions = [30, 60, 120]
 export const blackboxFrameRateOptions = [30, 60]
 export const defaultBlackboxSetting = Object.freeze({
+  featureEnabled: false,
   enabled: false,
   codec: "h264",
   quality: "auto",
@@ -63,8 +64,10 @@ export function normalizeBlackboxSetting(value) {
   const codec = blackboxCodecOptions.includes(value?.codec)
     ? value.codec
     : defaultBlackboxSetting.codec
+  const enabled = Boolean(value?.enabled)
   return {
-    enabled: Boolean(value?.enabled),
+    featureEnabled: Boolean(value?.featureEnabled || enabled),
+    enabled,
     codec,
     quality: blackboxQualityOptions.includes(value?.quality)
       ? value.quality

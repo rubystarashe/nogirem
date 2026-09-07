@@ -3204,9 +3204,24 @@ function registerIpc() {
       throw new Error("허용되지 않은 블랙박스 상태 변경 요청입니다")
     }
     const current = await getBlackboxSetting()
+    if (!current.featureEnabled) {
+      throw new Error("고급 기능에서 블랙박스 기능을 먼저 사용 설정해 주세요")
+    }
     return setBlackboxSetting({
       ...current,
       enabled: Boolean(enabled),
+    })
+  })
+  ipcMain.handle("application:set-blackbox-feature-enabled", async (event, featureEnabled) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 블랙박스 기능 설정 요청입니다")
+    }
+    const current = await getBlackboxSetting()
+    const nextFeatureEnabled = Boolean(featureEnabled)
+    return setBlackboxSetting({
+      ...current,
+      featureEnabled: nextFeatureEnabled,
+      enabled: nextFeatureEnabled && current.enabled,
     })
   })
   ipcMain.handle("application:save-blackbox-clip", event => {

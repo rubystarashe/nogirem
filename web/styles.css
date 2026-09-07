@@ -553,11 +553,11 @@ footer {
 
 .blackbox-main-controls {
   position: fixed;
-  top: 123px;
-  right: 14px;
+  top: 121px;
+  right: 17px;
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 3px;
   opacity: 0;
   transform: translateX(12px);
   transition:
@@ -574,15 +574,15 @@ footer {
 .blackbox-main-link {
   position: relative;
   display: block;
-  width: 104px;
-  height: 42px;
+  width: 114px;
+  height: 46px;
   padding: 0;
   overflow: visible;
   border: 0;
   border-radius: 2px;
   color: #202020;
   background: transparent;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -598,13 +598,13 @@ footer {
 
 .blackbox-window-link {
   display: grid;
-  width: 37px;
-  height: 42px;
+  width: 26px;
+  height: 46px;
   padding: 0;
   place-items: center;
   border: 0;
   border-radius: 2px;
-  color: #4c4c4c;
+  color: rgba(32, 32, 32, 0.65);
   background: transparent;
   cursor: pointer;
   transition:
@@ -614,13 +614,29 @@ footer {
 
 .blackbox-window-link:hover {
   color: #111;
-  background: rgba(0, 0, 0, 0.08);
+  background: transparent;
+}
+
+.blackbox-window-link.active {
+  color: #ffd400;
+  background: transparent;
+}
+
+.blackbox-window-link.active:hover {
+  color: #ffe052;
+  background: transparent;
 }
 
 .blackbox-window-link svg {
-  width: 19px;
-  height: 19px;
+  width: 23px;
+  height: 24px;
+  padding: 2px;
+  border-radius: 2px;
   fill: currentColor;
+}
+
+.blackbox-window-link.active svg {
+  background: #171717;
 }
 
 .blackbox-text-base,
@@ -628,19 +644,24 @@ footer {
 .blackbox-text-final {
   position: absolute;
   top: 50%;
-  left: 50%;
-  line-height: 21px;
-  transform: translate(-50%, -50%);
+  right: 0;
+  display: flex;
+  height: 23px;
+  align-items: center;
+  line-height: 23px;
+  transform: translateY(-50%);
   white-space: nowrap;
 }
 
 .blackbox-text-final {
   padding: 0 3px;
   color: inherit;
+  opacity: 0.5;
 }
 
 .blackbox-main-link.active .blackbox-text-final {
   background: #171717;
+  opacity: 1;
 }
 
 .blackbox-text-final.concealed {
@@ -652,12 +673,14 @@ footer {
   padding: 0 3px;
   color: #202020;
   background: transparent;
-  animation: chicken-text-out 500ms both;
+  opacity: 0.5;
+  animation: chicken-text-out 300ms both;
 }
 
 .blackbox-text-base.active-source {
   color: #ffd400;
   background: #171717;
+  opacity: 1;
 }
 
 .blackbox-text-over {
@@ -665,7 +688,7 @@ footer {
   padding: 0 3px;
   color: transparent;
   background: #171717;
-  animation: chicken-text-in 500ms;
+  animation: chicken-text-in 300ms;
 }
 
 .blackbox-text-over.holding {
@@ -674,7 +697,7 @@ footer {
 }
 
 .blackbox-text-over.leaving {
-  animation: chicken-text-out 500ms both;
+  animation: chicken-text-out 300ms both;
 }
 
 .app-version {
