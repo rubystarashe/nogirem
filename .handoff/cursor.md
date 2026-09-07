@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-07 13:55
+Last Updated: 2026-09-07 14:12
 
 ## Current Objective
 고급 기능에서 사용하는 저부하 게임 블랙박스를 0.3.0 기능으로 완성하고 실제 설치본 검증을 준비한다.
@@ -13,7 +13,7 @@ Last Updated: 2026-09-07 13:55
 - 고급 기능의 `영상 추출`은 누른 시점을 고정해 최근 60초를 여는 별도 편집 창이다. `+`로 이전 30초 추가, `++`로 직접 트랙 길이 지정, 추출 길이 설정, 가이드 드래그, 구간 미리보기와 MP4 추출을 지원한다.
 - 캡처 큐는 최대 3프레임이고 목표 fps보다 빠른 캡처 callback을 사전 제한한다. 혼잡 시 녹화 프레임만 버리며 helper와 인코더 스레드는 `Below Normal` 우선순위를 사용한다.
 - 실제 3440×1440 마비노기 창에서 H.264와 HEVC 청크 생성, 1920×802 비율 축소, H.264 청크 무재인코딩 MP4 결합과 정상 종료를 검증했다.
-- 앱 프로덕션 빌드, 전체 Node 테스트 109개, 네이티브 helper 무경고 Release 빌드와 편집기 lint가 통과했다. flush 중인 녹화와 병행한 트랙 생성 및 2초 구간의 정확한 MP4 추출을 ffprobe로 검증했다. 아직 0.3.0 설치본은 패키징하거나 배포하지 않았다.
+- 앱 프로덕션 빌드, 전체 Node 테스트 109개, 네이티브 helper 무경고 Release 빌드와 편집기 lint가 통과했다. flush 중인 녹화와 병행한 트랙 생성, 정확한 2초 MP4 추출, 320×240→640×360 형식 변경 시 최신 형식만 선택하는 동작을 ffprobe로 검증했다. 아직 0.3.0 설치본은 패키징하거나 배포하지 않았다.
 - GitHub 정식 Release `v0.2.9`를 게시했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.5 네 자산이 모두 업로드됐다.
 - `v0.2.9` 태그는 기능 변경 최종 커밋 `73f8e6071bb87aa0007e64acd06bc5877804d5dd`를 가리킨다.
 - Esc는 터보 키 선택 UI에서 비활성화되고 저장 설정 정규화에서 제거되며 Rust helper도 직접 거부한다.
@@ -196,6 +196,9 @@ Last Updated: 2026-09-07 13:55
 - 편집 창은 최초 1회 flush로 누른 시점을 확정한다. 이후 트랙 길이를 바꿔도 동일한 anchor 이전 청크만 별도 `track` helper 모드에서 remux해 편집 내용이 시간 경과로 밀리지 않는다.
 - 선택 구간 추출은 편집 트랙의 직전 keyframe부터 디코딩하되 요청 시작점 이전 sample에 음수 timestamp를 부여해 MP4 재생 구간은 가이드 길이와 일치시킨다. 게임 녹화 helper와 별도 프로세스라 인코딩을 정지시키지 않는다.
 - 편집 창은 제한된 전용 preload를 사용하고 항상 위에 유지하며 Esc 입력을 Electron 단계에서 닫기 처리한다. 교체한 임시 트랙은 5초 뒤, 전체 세션은 창 종료 뒤 제거한다.
+- 편집 영상은 세션별 토큰을 검증하는 `nogirem-blackbox` 프로토콜과 Electron `net.fetch`로만 제공한다. renderer에는 로컬 절대 경로를 전달하지 않는다.
+- remux는 converter를 끄고 codec·해상도·frame rate·sequence header가 같은 최신 연속 청크만 사용하며 PTS·DTS를 함께 재기준화한다. 출력은 `.partial.mp4` 완성 후 최종 이름으로 원자 게시한다.
+- `control.json`을 사용하는 clip·flush·stop 작업은 Electron 단일 promise queue에서 접수 확인까지 직렬화해 요청 덮어쓰기를 막는다.
 - 0.3.0 녹화에는 게임 소리와 마이크가 포함되지 않는다. 오디오는 프로세스별 WASAPI loopback 설계·검증 후 별도 추가해야 한다.
 - recorder helper는 설치본에 내장하고 `asarUnpack`한다. 빌드 전용 공식 C++/WinRT projection은 NuGet 2.0.240111.5를 고정 SHA-256으로 검증해 생성한다.
 - `src/turbo-key-installer.mjs`가 helper 자산명·프로토콜 버전, GitHub Release 조회, SHA-256·PE 검증, AppData 원자 설치와 실행 파일·manifest 제거를 소유한다.
@@ -354,6 +357,7 @@ Last Updated: 2026-09-07 13:55
 - 0.3.0 블랙박스는 화면 영상만 저장하며 게임 소리·마이크는 녹음하지 않는다.
 - 클립 시작점은 독립 재생 가능한 4초 청크 경계이므로 설정 시간보다 최대 약 4초 길어질 수 있다.
 - 편집 창에서 매우 긴 트랙을 직접 지정하면 해당 구간을 임시 MP4로 복사하므로 트랙 길이와 디스크 속도에 비례해 준비 시간과 임시 용량이 증가한다.
+- 활성 청크 확정은 동기 Media Foundation `Finalize()`를 사용하므로 편집 창을 여는 순간 녹화 frame 일부가 폐기될 수 있다. 게임 thread는 기다리지 않지만 실제 dropped frame 변화는 장시간 수동 계측이 필요하다.
 - Windows Graphics Capture와 Media Foundation 하드웨어 HEVC 지원은 Windows 버전과 GPU 드라이버에 의존한다. 미지원 장비는 H.264 또는 30fps로 변경해야 한다.
 - helper는 unsigned 화면 녹화 실행 파일이므로 일부 보안 제품의 휴리스틱 탐지 가능성이 있으며 설치본 오탐 여부를 배포 전에 확인해야 한다.
 - 실제 마비노기 창에서 양 코덱과 클립 생성은 확인했지만 장시간 게임 frametime·입력 지연 수치는 아직 계측하지 않았다.
@@ -1112,6 +1116,7 @@ Last Updated: 2026-09-07 13:55
 - 실제 마비노기 3440×1440 창을 H.264·HEVC 최대 1080p MP4 청크로 녹화하고 H.264 클립을 무재인코딩 결합해 ffprobe로 재생 정보를 확인했다.
 - 누른 시점을 고정한 최근 60초 영상 추출 편집 창과 트랙 확장·직접 길이·드래그 가이드·구간 미리보기·정확한 길이의 무재인코딩 추출을 추가했다.
 - 편집 창에 항상 위와 Esc 닫기를 적용하고 flush 직후 열린 새 청크를 트랙 입력으로 오인하던 경합을 청크 시작 timestamp 필터로 차단했다.
+- 검토 후 전용 영상 프로토콜, media signature·DTS 검증, 원자 MP4 게시, control 직렬화와 WGC frame pool drain 순서를 보강했다.
 - 0.3.0 버전·사용자 변경 기록·상세 변경 기록을 갱신했으며 패키징과 배포는 수행하지 않았다.
 
 ## Next Recommended Step

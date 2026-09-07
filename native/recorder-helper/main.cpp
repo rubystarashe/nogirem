@@ -673,6 +673,7 @@ public:
     if (FAILED(result)) {
       std::error_code error;
       fs::remove(path_, error);
+      check_hresult(result);
     }
   }
 
@@ -688,6 +689,100 @@ private:
   ComPtr<IMFSinkWriter> writer_;
 };
 
+ComPtr<IMFSourceReader> createCompressedVideoReader(const fs::path& path) {
+  ComPtr<IMFAttributes> attributes;
+  check_hresult(MFCreateAttributes(&attributes, 1));
+  check_hresult(attributes->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, TRUE));
+  ComPtr<IMFSourceReader> reader;
+  check_hresult(MFCreateSourceReaderFromURL(path.c_str(), attributes.Get(), &reader));
+  check_hresult(reader->SetStreamSelection(
+    static_cast<DWORD>(MF_SOURCE_READER_ALL_STREAMS),
+    FALSE
+  ));
+  check_hresult(reader->SetStreamSelection(
+    static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+    TRUE
+  ));
+  return reader;
+}
+
+struct MediaSignature {
+  GUID subtype{};
+  UINT32 width = 0;
+  UINT32 height = 0;
+  UINT32 frameRateNumerator = 0;
+  UINT32 frameRateDenominator = 0;
+  std::vector<std::uint8_t> sequenceHeader;
+};
+
+MediaSignature mediaSignature(IMFMediaType* mediaType) {
+  MediaSignature signature;
+  check_hresult(mediaType->GetGUID(MF_MT_SUBTYPE, &signature.subtype));
+  check_hresult(MFGetAttributeSize(
+    mediaType,
+    MF_MT_FRAME_SIZE,
+    &signature.width,
+    &signature.height
+  ));
+  check_hresult(MFGetAttributeRatio(
+    mediaType,
+    MF_MT_FRAME_RATE,
+    &signature.frameRateNumerator,
+    &signature.frameRateDenominator
+  ));
+  UINT32 headerSize = 0;
+  if (
+    SUCCEEDED(mediaType->GetBlobSize(MF_MT_MPEG_SEQUENCE_HEADER, &headerSize))
+    && headerSize > 0
+  ) {
+    signature.sequenceHeader.resize(headerSize);
+    check_hresult(mediaType->GetBlob(
+      MF_MT_MPEG_SEQUENCE_HEADER,
+      signature.sequenceHeader.data(),
+      headerSize,
+      nullptr
+    ));
+  }
+  return signature;
+}
+
+MediaSignature mediaSignature(const fs::path& path) {
+  auto reader = createCompressedVideoReader(path);
+  ComPtr<IMFMediaType> mediaType;
+  check_hresult(reader->GetCurrentMediaType(
+    static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+    &mediaType
+  ));
+  return mediaSignature(mediaType.Get());
+}
+
+bool sameMediaSignature(const MediaSignature& left, const MediaSignature& right) {
+  return left.subtype == right.subtype
+    && left.width == right.width
+    && left.height == right.height
+    && left.frameRateNumerator == right.frameRateNumerator
+    && left.frameRateDenominator == right.frameRateDenominator
+    && left.sequenceHeader == right.sequenceHeader;
+}
+
+LONGLONG fallbackSampleDuration(const MediaSignature& signature) {
+  if (signature.frameRateNumerator == 0 || signature.frameRateDenominator == 0) {
+    return 10000000ll / 60;
+  }
+  return static_cast<LONGLONG>(
+    10000000ull * signature.frameRateDenominator / signature.frameRateNumerator
+  );
+}
+
+void checkReaderFlags(DWORD flags) {
+  if (flags & MF_SOURCE_READERF_ERROR) {
+    throw std::runtime_error("압축 영상 sample을 읽지 못했습니다");
+  }
+  if (flags & MF_SOURCE_READERF_CURRENTMEDIATYPECHANGED) {
+    throw std::runtime_error("편집 중 영상 형식이 변경되었습니다");
+  }
+}
+
 LONGLONG findCleanRangeStart(
   const std::vector<fs::path>& inputs,
   LONGLONG requestedStart
@@ -696,8 +791,14 @@ LONGLONG findCleanRangeStart(
   LONGLONG inputOffset = 0;
   LONGLONG cleanStart = 0;
   for (const auto& input : inputs) {
-    ComPtr<IMFSourceReader> reader;
-    check_hresult(MFCreateSourceReaderFromURL(input.c_str(), nullptr, &reader));
+    auto reader = createCompressedVideoReader(input);
+    ComPtr<IMFMediaType> mediaType;
+    check_hresult(reader->GetCurrentMediaType(
+      static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+      &mediaType
+    ));
+    const auto signature = mediaSignature(mediaType.Get());
+    const LONGLONG defaultDuration = fallbackSampleDuration(signature);
     LONGLONG firstTime = -1;
     LONGLONG fileEnd = inputOffset;
     while (true) {
@@ -713,12 +814,13 @@ LONGLONG findCleanRangeStart(
         &timestamp,
         &sample
       ));
+      checkReaderFlags(flags);
       if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
       if (!sample) continue;
       if (firstTime < 0) firstTime = timestamp;
       LONGLONG duration = 0;
       if (FAILED(sample->GetSampleDuration(&duration)) || duration <= 0) {
-        duration = 10000000ll / 60;
+        duration = defaultDuration;
       }
       const LONGLONG globalTime =
         inputOffset + std::max<LONGLONG>(0, timestamp - firstTime);
@@ -751,24 +853,22 @@ bool remuxChunks(
   ComPtr<IMFSinkWriter> sink;
   DWORD sinkStream = 0;
   LONGLONG outputTime = 0;
+  std::optional<MediaSignature> expectedSignature;
 
   for (std::size_t fileIndex = 0; fileIndex < inputs.size(); ++fileIndex) {
-    ComPtr<IMFSourceReader> reader;
-    check_hresult(MFCreateSourceReaderFromURL(inputs[fileIndex].c_str(), nullptr, &reader));
-    check_hresult(reader->SetStreamSelection(
-      static_cast<DWORD>(MF_SOURCE_READER_ALL_STREAMS),
-      FALSE
-    ));
-    check_hresult(reader->SetStreamSelection(
-      static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
-      TRUE
-    ));
+    auto reader = createCompressedVideoReader(inputs[fileIndex]);
 
     ComPtr<IMFMediaType> mediaType;
     check_hresult(reader->GetCurrentMediaType(
       static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
       &mediaType
     ));
+    const auto signature = mediaSignature(mediaType.Get());
+    if (expectedSignature && !sameMediaSignature(*expectedSignature, signature)) {
+      throw std::runtime_error("해상도 또는 인코딩 형식이 다른 청크는 결합할 수 없습니다");
+    }
+    expectedSignature = signature;
+    const LONGLONG defaultDuration = fallbackSampleDuration(signature);
     if (!sink) {
       check_hresult(MFCreateSinkWriterFromURL(output.c_str(), nullptr, nullptr, &sink));
       check_hresult(sink->AddStream(mediaType.Get(), &sinkStream));
@@ -791,12 +891,13 @@ bool remuxChunks(
         &timestamp,
         &sample
       ));
+      checkReaderFlags(flags);
       if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
       if (!sample) continue;
       if (firstTime < 0) firstTime = timestamp;
       LONGLONG duration = 0;
       if (FAILED(sample->GetSampleDuration(&duration)) || duration <= 0) {
-        duration = 10000000ll / 60;
+        duration = defaultDuration;
       }
       const LONGLONG globalTime =
         outputTime + std::max<LONGLONG>(0, timestamp - firstTime);
@@ -804,6 +905,19 @@ bool remuxChunks(
       if (globalTime + duration <= effectiveStart) continue;
       if (globalTime >= requestedEnd) break;
       check_hresult(sample->SetSampleTime(globalTime - requestedStart));
+      UINT64 decodeTimestamp = 0;
+      if (SUCCEEDED(sample->GetUINT64(
+        MFSampleExtension_DecodeTimestamp,
+        &decodeTimestamp
+      ))) {
+        const auto signedDecodeTimestamp = static_cast<LONGLONG>(decodeTimestamp);
+        const auto globalDecodeTimestamp =
+          outputTime + signedDecodeTimestamp - firstTime;
+        check_hresult(sample->SetUINT64(
+          MFSampleExtension_DecodeTimestamp,
+          static_cast<UINT64>(globalDecodeTimestamp - requestedStart)
+        ));
+      }
       check_hresult(sink->WriteSample(sinkStream, sample.Get()));
     }
     outputTime = fileEnd;
@@ -811,6 +925,27 @@ bool remuxChunks(
   if (!sink) return false;
   check_hresult(sink->Finalize());
   return true;
+}
+
+bool remuxChunksAtomically(
+  const std::vector<fs::path>& inputs,
+  const fs::path& output,
+  LONGLONG requestedStart = 0,
+  LONGLONG requestedDuration = LLONG_MAX
+) {
+  auto partial = output;
+  partial += L".partial.mp4";
+  std::error_code cleanupError;
+  fs::remove(partial, cleanupError);
+  try {
+    if (!remuxChunks(inputs, partial, requestedStart, requestedDuration)) return false;
+    fs::remove(output, cleanupError);
+    fs::rename(partial, output);
+    return true;
+  } catch (...) {
+    fs::remove(partial, cleanupError);
+    throw;
+  }
 }
 
 std::vector<fs::path> selectRecentChunks(const fs::path& directory, int seconds) {
@@ -869,6 +1004,23 @@ std::vector<fs::path> selectAnchoredChunks(
   return chunks;
 }
 
+std::vector<fs::path> compatibleChunkSuffix(
+  const std::vector<fs::path>& chunks
+) {
+  if (chunks.empty()) return {};
+  const auto expected = mediaSignature(chunks.back());
+  std::size_t firstCompatible = chunks.size() - 1;
+  while (firstCompatible > 0) {
+    const auto candidate = mediaSignature(chunks[firstCompatible - 1]);
+    if (!sameMediaSignature(expected, candidate)) break;
+    --firstCompatible;
+  }
+  return {
+    chunks.begin() + static_cast<std::ptrdiff_t>(firstCompatible),
+    chunks.end(),
+  };
+}
+
 void createClip(
   const fs::path& ringDirectory,
   int seconds,
@@ -882,7 +1034,9 @@ void createClip(
   }
   init_apartment(apartment_type::multi_threaded);
   try {
-      const auto sourceFiles = selectRecentChunks(ringDirectory, seconds);
+      const auto sourceFiles = compatibleChunkSuffix(
+        selectRecentChunks(ringDirectory, seconds)
+      );
       if (sourceFiles.empty()) throw std::runtime_error("저장할 녹화 청크가 없습니다");
       const auto identifier = std::to_wstring(epochMilliseconds());
       const auto clipsDirectory = ringDirectory.parent_path() / L"Clips";
@@ -898,7 +1052,7 @@ void createClip(
         protectedFiles.push_back(destination);
       }
       const auto output = clipsDirectory / (L"마비노기-클립-" + identifier + L".mp4");
-      if (!remuxChunks(protectedFiles, output)) {
+      if (!remuxChunksAtomically(protectedFiles, output)) {
         throw std::runtime_error("클립 파일을 결합하지 못했습니다");
       }
       std::error_code cleanupError;
@@ -1187,13 +1341,13 @@ private:
   ) {
     std::lock_guard callbackLock(callbackMutex_);
     if (stopped_) return;
+    auto frame = sender.TryGetNextFrame();
+    if (!frame) return;
     const auto capturedAt = std::chrono::steady_clock::now();
     if (
       nextFrameAt_
       && capturedAt + 1ms < *nextFrameAt_
     ) return;
-    auto frame = sender.TryGetNextFrame();
-    if (!frame) return;
     const auto contentSize = frame.ContentSize();
     using DxgiAccess =
       ::Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess;
@@ -1389,16 +1543,14 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
         30,
         21600
       );
-      const auto chunks = selectAnchoredChunks(
-        ringPath,
-        anchorMilliseconds,
-        seconds
-      );
+      const auto chunks = compatibleChunkSuffix(selectAnchoredChunks(
+          ringPath,
+          anchorMilliseconds,
+          seconds
+      ));
       if (chunks.empty()) throw std::runtime_error("편집할 녹화 청크가 없습니다");
       fs::create_directories(outputPath.parent_path());
-      std::error_code removeError;
-      fs::remove(outputPath, removeError);
-      if (!remuxChunks(chunks, outputPath)) {
+      if (!remuxChunksAtomically(chunks, outputPath)) {
         throw std::runtime_error("편집 트랙을 만들지 못했습니다");
       }
     } else if (mode == L"extract") {
@@ -1414,9 +1566,7 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
         21600000
       );
       fs::create_directories(outputPath.parent_path());
-      std::error_code removeError;
-      fs::remove(outputPath, removeError);
-      if (!remuxChunks(
+      if (!remuxChunksAtomically(
         { inputPath },
         outputPath,
         startMilliseconds * 10000,

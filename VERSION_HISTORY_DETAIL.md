@@ -19,6 +19,12 @@
 - 선택 구간은 이전 키프레임을 디코딩용 프리롤로 유지하면서 음수 타임스탬프를 사용해 표시 구간만 정확한 길이의 MP4로 무재인코딩 추출
 - 트랙 생성과 추출은 실행 중인 녹화를 막지 않는 별도 helper 유틸리티 프로세스에서 처리하고 임시 편집 트랙은 창 종료 또는 교체 뒤 정리
 - 편집 창은 `Esc`로 닫을 수 있으며 다른 창 위에 유지되고 preload가 편집 세션·트랙 길이·추출·파일 위치 IPC만 제한적으로 노출
+- 편집 영상은 세션·트랙 토큰을 검증하는 `nogirem-blackbox` 전용 프로토콜로만 스트리밍해 renderer에 임의 `file://` 절대 경로를 노출하지 않음
+- 압축 sample remux에서 converter를 비활성화하고 해상도·frame rate·codec sequence header가 일치하는 최신 연속 청크만 결합
+- PTS와 함께 decode timestamp를 재기준화하고 실제 frame rate를 duration fallback에 사용하며 형식 변경·reader 오류는 손상 파일 대신 명시적 실패 처리
+- 트랙과 클립은 `.partial.mp4`를 완성한 뒤 최종 이름으로 교체해 실패한 MP4가 정상 결과처럼 노출되지 않도록 보호
+- 클립 저장·편집 flush·helper 종료 control 작업을 Electron에서 직렬화해 단일 control JSON을 서로 덮어쓰지 않도록 변경
+- 목표 fps보다 빠른 WGC callback도 `TryGetNextFrame`으로 먼저 비워 frame pool이 정체되지 않도록 수정
 - 블랙박스 설정·상태·제어 IPC를 preload에 제한적으로 노출하고 앱 시작·업데이트·종료 시 helper 생명주기와 단축키를 함께 관리
 - 공식 Microsoft C++/WinRT projection 생성기를 빌드 시 SHA-256 검증 후 사용하고 완성된 helper만 설치본의 `asarUnpack` 자산으로 포함
 - 0.3.0의 블랙박스는 게임 화면 영상만 녹화하며 게임 소리와 마이크 녹음은 포함하지 않음

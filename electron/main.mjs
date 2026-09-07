@@ -7,7 +7,7 @@ import { setTimeout as delay } from "node:timers/promises"
 import { promisify } from "node:util"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { randomUUID } from "node:crypto"
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, shell, Tray } from "electron"
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, net, protocol, shell, Tray } from "electron"
 import updaterPackage from "electron-updater"
 import {
   ensureFastPingForPrimaryInterface,
@@ -54,6 +54,15 @@ import {
 } from "../src/blackbox-settings.mjs"
 
 const { autoUpdater } = updaterPackage
+protocol.registerSchemesAsPrivileged([{
+  scheme: "nogirem-blackbox",
+  privileges: {
+    secure: true,
+    standard: true,
+    stream: true,
+    supportFetchAPI: true,
+  },
+}])
 const execFileAsync = promisify(execFile)
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const localTurboKeyHelperPath = join(
@@ -157,6 +166,7 @@ let creatorPromptDisplayPromise = null
 let turboKeyProcess = null
 let turboKeyInstallationCache = null
 let blackboxProcess = null
+let blackboxControlOperation = Promise.resolve()
 let lastBlackboxClipRequestedAt = 0
 const blackboxShortcut = "CommandOrControl+Shift+F10"
 const internalWindowsClosedForTray = new WeakSet()
@@ -192,6 +202,27 @@ function getBlackboxPaths() {
     controlPath: join(directory, "control.json"),
     storagePath: join(app.getPath("videos"), "마비노기 렘 블랙박스"),
   }
+}
+
+function registerBlackboxEditorProtocol() {
+  protocol.handle("nogirem-blackbox", request => {
+    const url = new URL(request.url)
+    const [sessionId, trackId] = url.pathname.split("/").filter(Boolean)
+    const session = blackboxEditorSession
+    const trackPath = session?.trackFiles?.get(trackId)
+    if (
+      url.hostname !== "editor"
+      || !session
+      || session.closed
+      || session.id !== sessionId
+      || !trackPath
+    ) {
+      return new Response("허용되지 않은 블랙박스 영상 요청입니다", { status: 404 })
+    }
+    return net.fetch(pathToFileURL(trackPath).href, {
+      headers: request.headers,
+    })
+  })
 }
 
 function serializeError(error) {
@@ -1742,6 +1773,14 @@ async function waitForBlackboxStatus(predicate, timeoutMs = 5000) {
   return null
 }
 
+function queueBlackboxControlOperation(operation) {
+  const queued = blackboxControlOperation
+    .catch(() => {})
+    .then(operation)
+  blackboxControlOperation = queued.catch(() => {})
+  return queued
+}
+
 async function launchBlackboxHelper(setting) {
   if (blackboxProcess && blackboxProcess.exitCode === null) return getBlackboxSetting()
   if (!existsSync(recorderHelperPath)) {
@@ -1796,26 +1835,28 @@ async function launchBlackboxHelper(setting) {
 }
 
 async function stopBlackboxHelper() {
-  unregisterBlackboxShortcut()
-  const child = blackboxProcess
-  if (!child || child.exitCode !== null) {
-    blackboxProcess = null
+  return queueBlackboxControlOperation(async () => {
+    unregisterBlackboxShortcut()
+    const child = blackboxProcess
+    if (!child || child.exitCode !== null) {
+      blackboxProcess = null
+      return getBlackboxSetting()
+    }
+    const paths = getBlackboxPaths()
+    await writeJsonAtomic(paths.controlPath, {
+      command: "stop",
+      requestedAt: Date.now(),
+    })
+    await waitForBlackboxStatus(value => value?.running === false, 3000)
+    let exited = await waitForTurboKeyProcessExit(child, 2000)
+    if (!exited) {
+      child.kill()
+      exited = await waitForTurboKeyProcessExit(child, 1000)
+    }
+    if (!exited) throw new Error("블랙박스 녹화 프로세스를 종료하지 못했습니다")
+    if (blackboxProcess === child) blackboxProcess = null
     return getBlackboxSetting()
-  }
-  const paths = getBlackboxPaths()
-  await writeJsonAtomic(paths.controlPath, {
-    command: "stop",
-    requestedAt: Date.now(),
   })
-  await waitForBlackboxStatus(value => value?.running === false, 3000)
-  let exited = await waitForTurboKeyProcessExit(child, 2000)
-  if (!exited) {
-    child.kill()
-    exited = await waitForTurboKeyProcessExit(child, 1000)
-  }
-  if (!exited) throw new Error("블랙박스 녹화 프로세스를 종료하지 못했습니다")
-  if (blackboxProcess === child) blackboxProcess = null
-  return getBlackboxSetting()
 }
 
 async function setBlackboxSetting(value) {
@@ -1840,20 +1881,28 @@ async function setBlackboxSetting(value) {
 }
 
 async function requestBlackboxClip() {
-  const requestedAt = Date.now()
-  if (requestedAt - lastBlackboxClipRequestedAt < 2000) {
-    throw new Error("이전 클립 요청을 처리하고 있습니다")
-  }
-  const state = await getBlackboxSetting()
-  if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
-  if (state.clipInProgress) throw new Error("이전 클립을 저장하고 있습니다")
-  await writeJsonAtomic(getBlackboxPaths().controlPath, {
-    command: "clip",
-    seconds: state.clipSeconds,
-    requestedAt,
+  return queueBlackboxControlOperation(async () => {
+    const requestedAt = Date.now()
+    if (requestedAt - lastBlackboxClipRequestedAt < 2000) {
+      throw new Error("이전 클립 요청을 처리하고 있습니다")
+    }
+    const state = await getBlackboxSetting()
+    if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
+    if (state.clipInProgress) throw new Error("이전 클립을 저장하고 있습니다")
+    await writeJsonAtomic(getBlackboxPaths().controlPath, {
+      command: "clip",
+      seconds: state.clipSeconds,
+      requestedAt,
+    })
+    lastBlackboxClipRequestedAt = requestedAt
+    await waitForBlackboxStatus(
+      value => Boolean(value?.clipInProgress) || (
+        value?.latestClip && value.latestClip !== state.latestClip
+      ),
+      4000,
+    )
+    return getBlackboxSetting()
   })
-  lastBlackboxClipRequestedAt = requestedAt
-  return getBlackboxSetting()
 }
 
 function blackboxEditorDateName(milliseconds = Date.now()) {
@@ -1877,19 +1926,21 @@ async function runRecorderUtility(argumentsList) {
 }
 
 async function flushBlackboxForEditor(requestId) {
-  const state = await getBlackboxSetting()
-  if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
-  if (!state.recording) throw new Error("편집할 마비노기 녹화 화면이 아직 없습니다")
-  await writeJsonAtomic(getBlackboxPaths().controlPath, {
-    command: "flush",
-    requestId,
-    requestedAt: Date.now(),
+  return queueBlackboxControlOperation(async () => {
+    const state = await getBlackboxSetting()
+    if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
+    if (!state.recording) throw new Error("편집할 마비노기 녹화 화면이 아직 없습니다")
+    await writeJsonAtomic(getBlackboxPaths().controlPath, {
+      command: "flush",
+      requestId,
+      requestedAt: Date.now(),
+    })
+    const status = await waitForBlackboxStatus(
+      value => Number(value?.flushCompletedId) === requestId,
+      8000,
+    )
+    if (!status) throw new Error("현재 녹화 구간을 편집 트랙으로 확정하지 못했습니다")
   })
-  const status = await waitForBlackboxStatus(
-    value => Number(value?.flushCompletedId) === requestId,
-    8000,
-  )
-  if (!status) throw new Error("현재 녹화 구간을 편집 트랙으로 확정하지 못했습니다")
 }
 
 function queueBlackboxEditorOperation(session, operation) {
@@ -1920,17 +1971,22 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
       throw new Error("편집 트랙에 재생할 영상이 없습니다")
     }
     const previousTrackPath = session.trackPath
+    const trackId = randomUUID()
     session.trackPath = outputPath
     session.trackSeconds = seconds
+    session.trackFiles.set(trackId, outputPath)
     if (previousTrackPath && previousTrackPath !== outputPath) {
       setTimeout(() => {
+        for (const [identifier, path] of session.trackFiles) {
+          if (path === previousTrackPath) session.trackFiles.delete(identifier)
+        }
         void unlink(previousTrackPath).catch(() => {})
       }, 5000)
     }
     return {
       anchorAt: session.anchorAt,
       requestedSeconds: seconds,
-      videoUrl: `${pathToFileURL(outputPath).href}?v=${outputStat.mtimeMs}`,
+      videoUrl: `nogirem-blackbox://editor/${session.id}/${trackId}?v=${outputStat.mtimeMs}`,
     }
   })
 }
@@ -3362,6 +3418,7 @@ function openBlackboxEditor() {
     operation: Promise.resolve(),
     preparePromise: null,
     trackPath: null,
+    trackFiles: new Map(),
     trackSeconds: 60,
     closed: false,
   }
@@ -3828,6 +3885,7 @@ async function startApplication() {
   registerIpc()
   await app.whenReady()
   writeStartupLog("Electron 준비 완료")
+  registerBlackboxEditorProtocol()
   configureApplicationUpdater()
   ensureApplicationTray()
   createWindow()
