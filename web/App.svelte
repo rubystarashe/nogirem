@@ -172,6 +172,7 @@
   let blackboxRecording = false
   let blackboxAudioRecording = false
   let blackboxAudioError = ""
+  let blackboxAudioGainDb = 0
   let blackboxWaitingForGame = false
   let blackboxClipInProgress = false
   let blackboxAction = null
@@ -889,6 +890,7 @@
     blackboxRecording = Boolean(state.recording)
     blackboxAudioRecording = Boolean(state.audioRecording)
     blackboxAudioError = state.audioError ?? ""
+    blackboxAudioGainDb = Number(state.audioGainDb) || 0
     blackboxWaitingForGame = Boolean(state.waitingForGame)
     blackboxClipInProgress = Boolean(state.clipInProgress)
     blackboxCodec = state.codec
@@ -930,12 +932,17 @@
     return quality === "1440p" ? "최대 1440p" : "최대 1080p"
   }
 
+  function blackboxAudioLabel() {
+    if (!blackboxAudioRecording) return "영상만 녹화 중"
+    const gain = blackboxAudioGainDb.toFixed(1)
+    return `게임 소리 자동 조정 ${blackboxAudioGainDb > 0 ? "+" : ""}${gain}dB`
+  }
+
   function blackboxDescription() {
     if (!blackboxSettingLoaded) return "녹화 상태를 확인하고 있습니다"
     if (!blackboxEnabled) return "게임 화면을 청크 단위로 순환 녹화합니다"
     if (blackboxRecording) {
-      const audioLabel = blackboxAudioRecording ? "게임 소리 포함" : "영상만 녹화 중"
-      return `${blackboxCodec === "hevc" ? "HEVC" : "H.264"} · ${blackboxQualityLabel(blackboxResolvedQuality)} · ${audioLabel} · ${blackboxUsageText()}`
+      return `${blackboxCodec === "hevc" ? "HEVC" : "H.264"} · ${blackboxQualityLabel(blackboxResolvedQuality)} · ${blackboxAudioLabel()} · ${blackboxUsageText()}`
     }
     if (blackboxWaitingForGame) return "마비노기 화면을 기다리고 있습니다"
     return blackboxRunning ? "녹화를 준비하고 있습니다" : "녹화 프로세스를 확인하지 못했습니다"

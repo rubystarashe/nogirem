@@ -67,6 +67,12 @@ constexpr UINT32 AudioBitsPerSample = 16;
 constexpr UINT32 AudioBlockAlignment =
   AudioChannels * AudioBitsPerSample / 8;
 constexpr std::size_t MaximumQueuedAudioFrames = AudioSampleRate;
+constexpr double AudioTargetPeak = 0.5011872336;
+constexpr double AudioLimiterPeak = 0.8912509381;
+constexpr double AudioNoiseFloor = 0.0005623413;
+constexpr double AudioMaximumGain = 15.8489319246;
+constexpr double AudioMinimumGain = 0.25;
+constexpr double AudioGainReleaseSeconds = 2.5;
 
 struct Options {
   fs::path statusPath;
@@ -93,6 +99,7 @@ struct SharedStatus {
   std::wstring error;
   std::wstring audioError;
   std::wstring latestClip;
+  double audioGainDb = 0;
   std::uint64_t bytesUsed = 0;
   std::uint64_t capacityBytes = 0;
   std::uint64_t droppedFrames = 0;
@@ -168,6 +175,62 @@ struct AudioPacket {
   std::vector<std::uint8_t> samples;
   std::chrono::steady_clock::time_point capturedAt;
   UINT32 frameCount = 0;
+};
+
+class AudioGainController {
+public:
+  double process(std::vector<std::uint8_t>& samples, UINT32 frameCount) {
+    if (samples.size() < sizeof(std::int16_t) || frameCount == 0) {
+      return gainDecibels();
+    }
+    auto* pcm = reinterpret_cast<std::int16_t*>(samples.data());
+    const std::size_t sampleCount = samples.size() / sizeof(std::int16_t);
+    int peak = 0;
+    for (std::size_t index = 0; index < sampleCount; ++index) {
+      peak = std::max(peak, std::abs(static_cast<int>(pcm[index])));
+    }
+    const double normalizedPeak = static_cast<double>(peak) / 32768.0;
+    if (normalizedPeak <= AudioNoiseFloor) return gainDecibels();
+
+    const double desiredGain = std::clamp(
+      AudioTargetPeak / normalizedPeak,
+      AudioMinimumGain,
+      AudioMaximumGain
+    );
+    if (!initialized_) {
+      gain_ = desiredGain;
+      initialized_ = true;
+    } else if (desiredGain < gain_) {
+      gain_ = desiredGain;
+    } else {
+      const double packetSeconds =
+        static_cast<double>(frameCount) / AudioSampleRate;
+      const double releaseAmount =
+        1.0 - std::exp(-packetSeconds / AudioGainReleaseSeconds);
+      gain_ += (desiredGain - gain_) * releaseAmount;
+    }
+
+    const int limiter = static_cast<int>(
+      std::lround(AudioLimiterPeak * 32767.0)
+    );
+    for (std::size_t index = 0; index < sampleCount; ++index) {
+      const auto amplified = static_cast<int>(
+        std::lround(static_cast<double>(pcm[index]) * gain_)
+      );
+      pcm[index] = static_cast<std::int16_t>(
+        std::clamp(amplified, -limiter, limiter)
+      );
+    }
+    return gainDecibels();
+  }
+
+private:
+  double gainDecibels() const {
+    return initialized_ ? 20.0 * std::log10(gain_) : 0.0;
+  }
+
+  double gain_ = 1.0;
+  bool initialized_ = false;
 };
 
 std::int64_t epochMilliseconds() {
@@ -1809,6 +1872,7 @@ private:
         std::lock_guard lock(status_.mutex);
         status_.audioRecording = true;
         status_.audioError.clear();
+        status_.audioGainDb = 0;
       }
 
       HANDLE events[] = { stopEvent_, audioEvent_ };
@@ -1850,6 +1914,15 @@ private:
             && !packet.samples.empty()
           ) {
             std::memcpy(packet.samples.data(), source, packet.samples.size());
+          }
+          const double gainDb = audioGainController_.process(
+            packet.samples,
+            frameCount
+          );
+          if (std::abs(gainDb - lastReportedGainDb_) >= 0.25) {
+            std::lock_guard lock(status_.mutex);
+            status_.audioGainDb = gainDb;
+            lastReportedGainDb_ = gainDb;
           }
           const auto packetDuration = std::chrono::nanoseconds(
             static_cast<std::int64_t>(frameCount) * 1000000000ll / AudioSampleRate
@@ -1919,6 +1992,7 @@ private:
     {
       std::lock_guard lock(status_.mutex);
       status_.audioRecording = false;
+      status_.audioGainDb = 0;
     }
     if (multimediaTask) AvRevertMmThreadCharacteristics(multimediaTask);
   }
@@ -1929,6 +2003,8 @@ private:
   HANDLE stopEvent_ = nullptr;
   HANDLE audioEvent_ = nullptr;
   std::atomic_bool stopping_ = false;
+  AudioGainController audioGainController_;
+  double lastReportedGainDb_ = -1000;
   std::thread thread_;
 };
 
@@ -2095,6 +2171,7 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
     snapshot.error = status.error;
     snapshot.audioError = status.audioError;
     snapshot.latestClip = status.latestClip;
+    snapshot.audioGainDb = status.audioGainDb;
     snapshot.bytesUsed = status.bytesUsed;
     snapshot.capacityBytes = status.capacityBytes;
     snapshot.droppedFrames = status.droppedFrames;
@@ -2118,6 +2195,8 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
     << "\"audioError\":" << (snapshot.audioError.empty()
       ? "null"
       : "\"" + jsonEscape(snapshot.audioError) + "\"") << ","
+    << "\"audioGainDb\":" << std::fixed << std::setprecision(2)
+      << snapshot.audioGainDb << ","
     << "\"latestClip\":" << (snapshot.latestClip.empty()
       ? "null"
       : "\"" + jsonEscape(snapshot.latestClip) + "\"") << ","
