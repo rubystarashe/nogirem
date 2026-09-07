@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-07 15:20
+Last Updated: 2026-09-07 15:31
 
 ## Current Objective
 고급 기능에서 사용하는 저부하 게임 블랙박스를 0.3.0 기능으로 완성하고 실제 설치본 검증을 준비한다.
@@ -193,7 +193,8 @@ Last Updated: 2026-09-07 15:20
 ## Architecture / Important Decisions
 - 블랙박스는 Electron renderer나 게임 주입 방식이 아니라 별도 `native/recorder-helper` 프로세스가 소유한다. Electron은 설정·상태·control JSON과 제한된 IPC만 관리한다.
 - 녹화 경로는 `Windows Graphics Capture → D3D11 texture pool → GPU Video Processor NV12 변환 → Media Foundation 하드웨어 H.264/HEVC → 4초 MP4`다. CPU 화면 readback은 사용하지 않는다.
-- 게임 소리는 `ActivateAudioInterfaceAsync → process loopback → PCM 48kHz stereo → Media Foundation AAC` 경로로 같은 MP4에 기록한다. 오디오 캡처와 인코딩은 저우선순위 thread에서 실행한다.
+- 게임 소리는 `ActivateAudioInterfaceAsync → process loopback → PCM 48kHz stereo → Media Foundation AAC` 경로로 같은 MP4에 기록한다. 캡처는 Audio MMCSS에서 복사·enqueue만 하고 AAC 인코딩은 기존 Below Normal encoder thread에서 실행한다.
+- 프로세스별 오디오 캡처 packet은 WGC와 같은 QPC 100ns 시간축으로 변환하고 timestamp 오류·불연속은 연속 cursor로 복구한다. 캡처 thread는 Audio MMCSS를 사용하고 큐는 최대 1초 PCM frame으로 제한한다.
 - 자동 화질 판정은 Electron의 논리 CPU 수와 총 메모리를 사용한다. 1440p 60fps 비트레이트는 H.264 24Mbps·HEVC 16Mbps이며 원본보다 작은 캡처 화면을 확대하지 않는다.
 - 캡처 callback은 최대 3개의 재사용 texture와 목표 fps 제한만 처리한다. encoder가 밀리면 새 프레임을 폐기해 게임·입력 경로를 기다리게 하지 않는다.
 - 순환 원본은 Windows 동영상 폴더의 `마비노기 렘 블랙박스/Ring`, 사용자 클립은 `Clips`에 저장한다. Clips는 순환 용량에서 제외한다.
@@ -364,7 +365,7 @@ Last Updated: 2026-09-07 15:20
 20. 마비노기 전면 창에서 `2 누름 → 3 누름 → 일반 키 4 누름·해제 → 3 해제 → 2 해제` 순서로 실제 입력 전환을 확인한다.
 
 ## Known Issues
-- 프로세스별 오디오 loopback은 Windows 10 2004 이상이 필요하다. 연결 실패 시 영상만 계속 녹화되며 UI에 게임 소리 실패 사유가 표시된다.
+- 프로세스별 오디오 loopback의 공식 최소 지원은 Windows 빌드 20348이다. 일반 사용자 환경에서는 사실상 Windows 11 기능이며 미지원 Windows 10에서는 영상만 계속 녹화하고 UI에 게임 소리 실패 사유를 표시한다.
 - 클립 시작점은 독립 재생 가능한 4초 청크 경계이므로 설정 시간보다 최대 약 4초 길어질 수 있다.
 - 편집 창에서 매우 긴 트랙을 직접 지정하면 해당 구간을 임시 MP4로 복사하므로 트랙 길이와 디스크 속도에 비례해 준비 시간과 임시 용량이 증가한다.
 - 활성 청크 확정은 동기 Media Foundation `Finalize()`를 사용하므로 편집 창을 여는 순간 녹화 frame 일부가 폐기될 수 있다. 게임 thread는 기다리지 않지만 실제 dropped frame 변화는 장시간 수동 계측이 필요하다.
@@ -1129,6 +1130,7 @@ Last Updated: 2026-09-07 15:20
 - 실제 마비노기 3440×1440 창을 자동 1440p·H.264 24Mbps 설정으로 녹화해 3440×1440 MP4 청크와 약 18.1Mbps 실효 비트레이트를 ffprobe로 확인했다.
 - 마비노기 프로세스 트리 전용 오디오 loopback과 AAC 기록을 추가하고 3개 청크 결합·내부 3초 추출에서 영상과 오디오 길이가 일치하는 것을 ffprobe로 검증했다.
 - 진단 ZIP 생성 모듈과 제한된 IPC·고급 기능 UI를 추가했다. 실제 AppData에서 23개 항목을 생성했고 사용자 데이터 절대 경로가 ZIP에 남지 않는 것을 검증했다.
+- 오디오 캡처 시간축을 직접 QPC에 맞추고 timestamp 불연속 fallback, Audio MMCSS와 1초 frame 기준 큐 제한을 추가했다. Windows 최소 지원 기록을 빌드 20348로 바로잡았다.
 - 누른 시점을 고정한 최근 60초 영상 추출 편집 창과 트랙 확장·직접 길이·드래그 가이드·구간 미리보기·정확한 길이의 무재인코딩 추출을 추가했다.
 - 편집 창에 항상 위와 Esc 닫기를 적용하고 flush 직후 열린 새 청크를 트랙 입력으로 오인하던 경합을 청크 시작 timestamp 필터로 차단했다.
 - 검토 후 전용 영상 프로토콜, media signature·DTS 검증, 원자 MP4 게시, control 직렬화와 WGC frame pool drain 순서를 보강했다.

@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <avrt.h>
 #include <audioclient.h>
 #include <audioclientactivationparams.h>
 #include <comdef.h>
@@ -27,6 +28,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <cstring>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -59,12 +61,12 @@ namespace {
 constexpr std::uint64_t Megabyte = 1024ull * 1024ull;
 constexpr std::uint64_t Gigabyte = 1024ull * 1024ull * 1024ull;
 constexpr std::size_t MaximumQueuedFrames = 3;
-constexpr std::size_t MaximumQueuedAudioPackets = 128;
 constexpr UINT32 AudioSampleRate = 48000;
 constexpr UINT32 AudioChannels = 2;
 constexpr UINT32 AudioBitsPerSample = 16;
 constexpr UINT32 AudioBlockAlignment =
   AudioChannels * AudioBitsPerSample / 8;
+constexpr std::size_t MaximumQueuedAudioFrames = AudioSampleRate;
 
 struct Options {
   fs::path statusPath;
@@ -172,6 +174,29 @@ std::int64_t epochMilliseconds() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
     std::chrono::system_clock::now().time_since_epoch()
   ).count();
+}
+
+std::chrono::steady_clock::time_point steadyTimeFromQpc100Nanoseconds(
+  UINT64 qpcPosition
+) {
+  LARGE_INTEGER counter{};
+  LARGE_INTEGER frequency{};
+  const auto now = std::chrono::steady_clock::now();
+  if (
+    !QueryPerformanceCounter(&counter)
+    || !QueryPerformanceFrequency(&frequency)
+    || frequency.QuadPart <= 0
+  ) return now;
+  const long double currentQpc100Nanoseconds =
+    static_cast<long double>(counter.QuadPart)
+    * 10000000.0L
+    / static_cast<long double>(frequency.QuadPart);
+  const long double deltaNanoseconds =
+    (static_cast<long double>(qpcPosition) - currentQpc100Nanoseconds) * 100.0L;
+  if (std::abs(deltaNanoseconds) > 60.0L * 1000000000.0L) return now;
+  return now + std::chrono::nanoseconds(
+    static_cast<std::int64_t>(std::llround(deltaNanoseconds))
+  );
 }
 
 std::wstring lower(std::wstring value) {
@@ -1406,8 +1431,11 @@ public:
     if (
       stopping_
       || failed_
-      || audioQueue_.size() >= MaximumQueuedAudioPackets
+      || packet.frameCount == 0
+      || packet.frameCount > MaximumQueuedAudioFrames
+      || queuedAudioFrames_ + packet.frameCount > MaximumQueuedAudioFrames
     ) return false;
+    queuedAudioFrames_ += packet.frameCount;
     audioQueue_.push(std::move(packet));
     condition_.notify_one();
     return true;
@@ -1521,6 +1549,7 @@ private:
           hasPacket = true;
         } else if (!audioQueue_.empty()) {
           audioPacket = std::move(audioQueue_.front());
+          queuedAudioFrames_ -= audioPacket.frameCount;
           audioQueue_.pop();
           hasAudioPacket = true;
         }
@@ -1609,6 +1638,7 @@ private:
   std::condition_variable condition_;
   std::queue<FramePacket> queue_;
   std::queue<AudioPacket> audioQueue_;
+  std::size_t queuedAudioFrames_ = 0;
   bool stopping_ = false;
   std::atomic_bool failed_ = false;
   bool flushRequested_ = false;
@@ -1738,7 +1768,11 @@ private:
 
   void run() {
     init_apartment(apartment_type::multi_threaded);
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+    DWORD multimediaTaskIndex = 0;
+    HANDLE multimediaTask = AvSetMmThreadCharacteristicsW(
+      L"Audio",
+      &multimediaTaskIndex
+    );
     try {
       auto audioClient = activateAudioClient();
       WAVEFORMATEX format{};
@@ -1778,8 +1812,7 @@ private:
       }
 
       HANDLE events[] = { stopEvent_, audioEvent_ };
-      std::optional<UINT64> firstQpcPosition;
-      std::chrono::steady_clock::time_point firstCapturedAt;
+      std::optional<std::chrono::steady_clock::time_point> audioCursor;
       while (!stopping_) {
         const DWORD waitResult = WaitForMultipleObjects(2, events, FALSE, 250);
         if (waitResult == WAIT_OBJECT_0) break;
@@ -1818,13 +1851,27 @@ private:
           ) {
             std::memcpy(packet.samples.data(), source, packet.samples.size());
           }
-          if (!firstQpcPosition) {
-            firstQpcPosition = qpcPosition;
-            firstCapturedAt = std::chrono::steady_clock::now();
-          }
-          packet.capturedAt = firstCapturedAt + std::chrono::nanoseconds(
-            static_cast<std::int64_t>(qpcPosition - *firstQpcPosition) * 100
+          const auto packetDuration = std::chrono::nanoseconds(
+            static_cast<std::int64_t>(frameCount) * 1000000000ll / AudioSampleRate
           );
+          const auto now = std::chrono::steady_clock::now();
+          const bool timestampInvalid =
+            (flags & AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR) || qpcPosition == 0;
+          auto capturedAt = timestampInvalid
+            ? audioCursor.value_or(now - packetDuration)
+            : steadyTimeFromQpc100Nanoseconds(qpcPosition);
+          if (
+            audioCursor
+            && (
+              (flags & AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY)
+              || capturedAt + 50ms < *audioCursor
+              || capturedAt > *audioCursor + 250ms
+            )
+          ) {
+            capturedAt = *audioCursor;
+          }
+          packet.capturedAt = capturedAt;
+          audioCursor = capturedAt + packetDuration;
           encoder_.enqueueAudio(std::move(packet));
           checkStage(
             captureClient->ReleaseBuffer(frameCount),
@@ -1873,6 +1920,7 @@ private:
       std::lock_guard lock(status_.mutex);
       status_.audioRecording = false;
     }
+    if (multimediaTask) AvRevertMmThreadCharacteristics(multimediaTask);
   }
 
   DWORD processId_;

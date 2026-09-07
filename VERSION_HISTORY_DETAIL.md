@@ -7,6 +7,9 @@
 - 고급 기능에 기본 비활성화 상태의 게임 블랙박스 설정·실행·클립 저장·저장 폴더 열기 UI 추가
 - 별도 `recorder-helper.exe`가 마비노기 `Client.exe` 창을 Windows Graphics Capture로 외부 캡처하며 게임 프로세스 주입이나 렌더링 hook은 사용하지 않음
 - Windows 프로세스별 WASAPI loopback으로 `Client.exe`와 자식 프로세스의 출력 소리만 48kHz 스테레오 PCM으로 캡처하고 AAC 192kbps로 MP4에 기록
+- 프로세스별 loopback 공식 지원 기준인 Windows 빌드 20348 이상에서 사용하며 미지원 환경은 영상 녹화를 유지하고 오디오 부분 실패를 표시
+- 오디오 packet timestamp를 영상과 같은 QPC 기반 100ns 시간축에 맞추고 timestamp 오류·불연속·비정상 점프는 직전 sample 종료 시각으로 복구
+- 오디오 캡처 thread에 Windows Audio MMCSS를 적용하고 대기열을 packet 개수가 아닌 최대 1초 분량 PCM frame으로 제한
 - 다른 앱의 출력 소리와 마이크는 캡처 대상에서 제외하며 오디오 연결 실패 시 영상 녹화는 계속하고 상태 화면에 부분 실패를 표시
 - D3D11 GPU 텍스처를 원본 비율의 NV12로 변환하고 Media Foundation 하드웨어 인코더에 전달해 GPU→CPU 화면 복사를 제거
 - 기본 자동 화질은 메모리 16GB·논리 CPU 12개 이상이면 최대 1440p, 그 외 환경은 최대 1080p를 선택하며 원본보다 작은 화면은 확대하지 않음
@@ -34,7 +37,7 @@
 - 호환성 판정은 codec·해상도·sequence header를 사용하고 선택 청크의 실제 media duration에서 마지막 요청 시간만 정확히 잘라 저장
 - 블랙박스 설정·상태·제어 IPC를 preload에 제한적으로 노출하고 앱 시작·업데이트·종료 시 helper 생명주기와 단축키를 함께 관리
 - 공식 Microsoft C++/WinRT projection 생성기를 빌드 시 SHA-256 검증 후 사용하고 완성된 helper만 설치본의 `asarUnpack` 자산으로 포함
-- 오디오 캡처와 AAC 인코딩은 별도 저우선순위 thread에서 처리하고 영상과 함께 4초 청크에 기록
+- 오디오 캡처는 Audio MMCSS thread에서 복사·enqueue만 수행하고 AAC 인코딩은 기존 Below Normal encoder thread에서 영상과 함께 4초 청크에 기록
 - 고급 기능에 진단 로그 추출 버튼을 추가해 앱·Electron·Windows 버전, CPU·GPU·메모리, 업데이트·창·터보 키·블랙박스 상태와 AppData 로그·상태 파일을 단일 ZIP으로 저장
 - 사용자 데이터 절대 경로, IP 주소, 이메일, 일반적인 token·비밀번호·cookie·서명값을 ZIP 생성 전에 마스킹
 - 녹화 Ring·Clips, helper 실행 파일, Chromium cache는 제외하고 개별 파일 최근 5MB·전체 원본 25MB로 제한해 대용량 로그가 앱을 장시간 막지 않도록 보호

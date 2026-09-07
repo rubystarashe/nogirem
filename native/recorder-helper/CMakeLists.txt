@@ -17,11 +17,13 @@ target_compile_definitions(recorder-helper PRIVATE
   NOMINMAX
   WINVER=0x0A00
   _WIN32_WINNT=0x0A00
+  NTDDI_VERSION=0x0A000008
 )
 
 target_link_libraries(recorder-helper PRIVATE
   d3d11
   dxgi
+  avrt
   windowsapp
   mf
   mfplat
