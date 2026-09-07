@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises"
 import {
   buildCpuHalfMasks,
   buildCpuTopologyMasks,
+  defaultGamePhysicalCoreCount,
   hasLiveAppliedAffinityEntries,
   matchesGameProcess,
 } from "../src/affinity.mjs"
@@ -83,7 +84,7 @@ test("지원하지 않는 논리 CPU 수는 마스크를 만들지 않는다", (
   assert.throws(() => buildCpuHalfMasks(54), /Unsupported logical CPU count/)
 })
 
-test("동일 성능 코어는 물리 코어와 SMT 스레드를 함께 절반으로 나눈다", () => {
+test("4코어 비하이브리드 CPU는 백그라운드 1코어를 남기고 게임에 3코어를 준다", () => {
   const cpuSets = Array.from({ length: 8 }, (_, logicalProcessorIndex) => ({
     group: 0,
     logicalProcessorIndex,
@@ -94,17 +95,62 @@ test("동일 성능 코어는 물리 코어와 SMT 스레드를 함께 절반으
   assert.deepEqual(buildCpuTopologyMasks(cpuSets, 8), {
     source: "windows-cpu-sets",
     allMask: 0xffn,
-    gameMask: 0xf0n,
-    backgroundMask: 0x0fn,
-    alternateGameMask: 0x0fn,
-    alternateBackgroundMask: 0xf0n,
+    gameMask: 0xfcn,
+    backgroundMask: 0x03n,
+    alternateGameMask: 0x03n,
+    alternateBackgroundMask: 0xfcn,
     lastPerformanceCoreMask: 0xc0n,
-    gameCpuIndexes: [4, 5, 6, 7],
-    backgroundCpuIndexes: [0, 1, 2, 3],
+    gameCpuIndexes: [2, 3, 4, 5, 6, 7],
+    backgroundCpuIndexes: [0, 1],
+    physicalCoreCount: 4,
     performanceCoreCount: 4,
     efficiencyCoreCount: 0,
+    gameCoreCount: 3,
+    defaultGameCoreCount: 3,
+    maxGameCoreCount: 3,
     hybrid: false,
   })
+})
+
+test("6코어 이하 비하이브리드는 게임 기본 몫을 최대 4코어로 늘린다", () => {
+  assert.equal(defaultGamePhysicalCoreCount(2, false), 1)
+  assert.equal(defaultGamePhysicalCoreCount(4, false), 3)
+  assert.equal(defaultGamePhysicalCoreCount(5, false), 4)
+  assert.equal(defaultGamePhysicalCoreCount(6, false), 4)
+  assert.equal(defaultGamePhysicalCoreCount(8, false), 4)
+  assert.equal(defaultGamePhysicalCoreCount(6, true), 3)
+})
+
+test("사용자가 선택한 물리 코어 수만큼 SMT 스레드를 함께 게임에 배정한다", () => {
+  const cpuSets = Array.from({ length: 12 }, (_, logicalProcessorIndex) => ({
+    group: 0,
+    logicalProcessorIndex,
+    coreIndex: Math.floor(logicalProcessorIndex / 2),
+    efficiencyClass: 0,
+  }))
+
+  const allocation = buildCpuTopologyMasks(cpuSets, 12, 5)
+
+  assert.equal(allocation.gameCoreCount, 5)
+  assert.deepEqual(allocation.gameCpuIndexes, [2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+  assert.deepEqual(allocation.backgroundCpuIndexes, [0, 1])
+})
+
+test("CPU 코어 선택 UI와 IPC가 영구 설정 경로에 연결된다", async () => {
+  const [mainSource, preloadSource, appSource, styleSource] = await Promise.all([
+    readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
+    readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
+    readFile(new URL("../web/styles.css", import.meta.url), "utf8"),
+  ])
+
+  assert.match(mainSource, /game-core-setting\.json/)
+  assert.match(mainSource, /optimization:set-game-cpu-core-count/)
+  assert.match(mainSource, /command: "set-game-core-count"/)
+  assert.match(preloadSource, /setGameCpuCoreCount/)
+  assert.match(appSource, /마비노기 CPU 우선 점유 비율 설정/)
+  assert.match(appSource, /gameCpuCoreOptions\(\)/)
+  assert.match(styleSource, /\.game-cpu-core-options/)
 })
 
 test("하이브리드 CPU는 P-core 절반만 게임에 주고 나머지 P/E-core를 백그라운드에 준다", () => {
@@ -131,6 +177,10 @@ test("하이브리드 CPU는 P-core 절반만 게임에 주고 나머지 P/E-cor
   assert.deepEqual(allocation.backgroundCpuIndexes, [0, 1, 2, 3, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19])
   assert.equal(allocation.performanceCoreCount, 6)
   assert.equal(allocation.efficiencyCoreCount, 8)
+  assert.equal(allocation.physicalCoreCount, 14)
+  assert.equal(allocation.gameCoreCount, 3)
+  assert.equal(allocation.defaultGameCoreCount, 3)
+  assert.equal(allocation.maxGameCoreCount, 5)
   assert.equal(allocation.hybrid, true)
 })
 

@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld("nogirem", {
   setFrameBoostEnabled: options => {
     return ipcRenderer.invoke("optimization:set-frame-boost-enabled", options)
   },
+  setGameCpuCoreCount: gameCoreCount => {
+    return ipcRenderer.invoke("optimization:set-game-cpu-core-count", gameCoreCount)
+  },
   runCpuReorder: () => ipcRenderer.invoke("optimization:run-cpu-reorder"),
   resetFrameBoost: () => ipcRenderer.invoke("optimization:reset-frame-boost"),
   onCloseRequested: callback => {

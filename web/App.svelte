@@ -134,6 +134,8 @@
   let frameBoostAction = null
   let cpuReorderAction = null
   let cpuReorderNotice = ""
+  let gameCpuCoreAction = null
+  let gameCpuCoreNotice = ""
   let diagnosticLogAction = null
   let diagnosticLogNotice = ""
   let startupTrayEnabled = false
@@ -627,6 +629,33 @@
       && services.affinity.data?.gameActive
       && !frameBoostAction
       && !cpuReorderAction
+      && !gameCpuCoreAction
+  }
+
+  function gameCpuCoreOptions() {
+    const max = services.affinity.data?.gameCoreSetting?.maxGameCoreCount
+    return Number.isInteger(max)
+      ? Array.from({ length: max }, (_, index) => index + 1)
+      : []
+  }
+
+  async function selectGameCpuCoreCount(gameCoreCount) {
+    if (gameCpuCoreAction || services.affinity.data?.cpuReorder?.state === "running") return
+    gameCpuCoreAction = "saving"
+    gameCpuCoreNotice = ""
+    try {
+      const affinity = await window.nogirem.setGameCpuCoreCount(gameCoreCount)
+      updateService("affinity", {
+        loading: false,
+        data: affinity,
+        error: null,
+      })
+      gameCpuCoreNotice = `마비노기에 물리 코어 ${gameCoreCount}개를 우선 배정합니다`
+    } catch (error) {
+      gameCpuCoreNotice = messageOf(error)
+    } finally {
+      gameCpuCoreAction = null
+    }
   }
 
   async function runCpuReorder() {
@@ -1305,6 +1334,7 @@
     if (
       closeActionPending
       || affinityRuntimeSyncing
+      || gameCpuCoreAction
       || services.affinity.optimizing
       || !services.affinity.data?.running
       || document.visibilityState !== "visible"
@@ -1327,6 +1357,11 @@
           renderer: runtime.renderer,
           characterSimplification: runtime.characterSimplification,
           dxvk: runtime.dxvk,
+          backgroundCpuRange: runtime.backgroundCpuRange,
+          gameCpuRange: runtime.gameCpuRange,
+          cpuTopology: runtime.cpuTopology,
+          gameCoreSetting: runtime.gameCoreSetting,
+          gameCoreReconfigure: runtime.gameCoreReconfigure,
           conflictingPrograms: runtime.conflictingPrograms,
           cpuReorder: runtime.cpuReorder,
         },
@@ -2147,6 +2182,40 @@
                   </div>
                   {#if blackboxFeatureNotice}
                     <span class="developer-tool-status">{blackboxFeatureNotice}</span>
+                  {/if}
+                  <div class="developer-tool-stack">
+                    <div>
+                      <h2>마비노기 CPU 우선 점유 비율 설정</h2>
+                      <p>
+                        {services.affinity.data?.gameCoreSetting?.hybrid
+                          ? "마비노기에 우선 배정할 P코어 개수를 선택합니다"
+                          : "마비노기에 우선 배정할 물리 코어 개수를 선택합니다"}
+                      </p>
+                    </div>
+                    {#if gameCpuCoreOptions().length}
+                      <div class="game-cpu-core-options" aria-label="마비노기 CPU 코어 개수">
+                        {#each gameCpuCoreOptions() as coreCount}
+                          <button
+                            class:active={services.affinity.data?.gameCoreSetting?.gameCoreCount
+                              === coreCount}
+                            disabled={gameCpuCoreAction
+                              || services.affinity.data?.cpuReorder?.state === "running"}
+                            aria-pressed={services.affinity.data?.gameCoreSetting?.gameCoreCount
+                              === coreCount}
+                            onclick={() => selectGameCpuCoreCount(coreCount)}
+                          >
+                            {coreCount}
+                          </button>
+                        {/each}
+                      </div>
+                    {:else}
+                      <span class="developer-tool-status">
+                        물리 CPU 코어 구성을 확인할 수 없습니다
+                      </span>
+                    {/if}
+                  </div>
+                  {#if gameCpuCoreNotice}
+                    <span class="developer-tool-status">{gameCpuCoreNotice}</span>
                   {/if}
                   <div class="developer-tool-row">
                     <div>

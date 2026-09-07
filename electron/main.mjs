@@ -677,7 +677,7 @@ async function waitForAffinityCommand(controlPath, durationMs) {
   const deadline = Date.now() + durationMs
   while (true) {
     const control = await readJson(controlPath)
-    if (["stop", "reset", "cpu-reorder"].includes(control?.command)) {
+    if (["stop", "reset", "cpu-reorder", "set-game-core-count"].includes(control?.command)) {
       return control
     }
     const remaining = deadline - Date.now()
@@ -694,6 +694,10 @@ async function runAffinityHelper() {
   const gamePathStatePath = argumentValue("game-path-state-path")
   const includeNic = argumentValue("include-nic") === "true"
   const inheritedNicManaged = argumentValue("nic-managed") === "true"
+  const gameCoreCountArgument = Number(argumentValue("game-core-count"))
+  let requestedGameCoreCount = Number.isInteger(gameCoreCountArgument)
+    ? gameCoreCountArgument
+    : null
   if (!statusPath || !controlPath || !affinityStatePath) {
     throw new Error("Affinity helper 제어 경로가 없습니다")
   }
@@ -710,6 +714,8 @@ async function runAffinityHelper() {
   let recordedChangeCount = 0
   let exitAction = "keep"
   let cpuReorder = null
+  let gameCoreReconfigure = null
+  let affinityModule = null
   const savedGameExecutablePath = (await readJson(gamePathStatePath))?.executablePath
   const previousGameExecutablePath = (await readRuntimeStatusJson(statusPath))?.gameExecutablePath
   let persistedGameExecutablePath = savedGameExecutablePath
@@ -795,8 +801,12 @@ async function runAffinityHelper() {
           ? {
               source: helperAffinity.source,
               hybrid: helperAffinity.hybrid,
+              physicalCoreCount: helperAffinity.physicalCoreCount,
               performanceCoreCount: helperAffinity.performanceCoreCount,
               efficiencyCoreCount: helperAffinity.efficiencyCoreCount,
+              gameCoreCount: helperAffinity.gameCoreCount,
+              defaultGameCoreCount: helperAffinity.defaultGameCoreCount,
+              maxGameCoreCount: helperAffinity.maxGameCoreCount,
             }
           : null
       ),
@@ -806,6 +816,7 @@ async function runAffinityHelper() {
       appliedMarkerRecorded,
       conflictingPrograms: findConflictingPrograms(affinity?.getRunningProcessNames()),
       cpuReorder,
+      gameCoreReconfigure,
       updatedAt: Date.now(),
       error: failure,
       ...values,
@@ -830,6 +841,51 @@ async function runAffinityHelper() {
 
   const handleCommand = async control => {
     if (!control) return false
+    if (control.command === "set-game-core-count") {
+      await unlink(controlPath).catch(() => {})
+      gameCoreReconfigure = {
+        requestId: control.requestId,
+        state: "running",
+        requestedAt: control.requestedAt,
+      }
+      await writeStatusSafely()
+      try {
+        const nextGameCoreCount = Number(control.gameCoreCount)
+        if (!Number.isInteger(nextGameCoreCount)) {
+          throw new Error("마비노기 CPU 코어 수가 올바르지 않습니다")
+        }
+        await affinity.resetAllAffinities()
+        requestedGameCoreCount = nextGameCoreCount
+        helperAffinity = affinityModule.pinCurrentProcessToBackgroundCpus({
+          gameCoreCount: requestedGameCoreCount,
+        })
+        affinity = await affinityModule.createAffinityManager({
+          config,
+          statePath: affinityStatePath,
+          applyChanges: true,
+          quiet: true,
+          lastCoreMode: false,
+          passiveMode: false,
+          restoreOnGameExit: true,
+          gameCoreCount: requestedGameCoreCount,
+        })
+        await affinity.tick()
+        gameCoreReconfigure = {
+          ...gameCoreReconfigure,
+          state: "completed",
+          completedAt: Date.now(),
+        }
+      } catch (error) {
+        gameCoreReconfigure = {
+          ...gameCoreReconfigure,
+          state: "failed",
+          completedAt: Date.now(),
+          error: serializeError(error),
+        }
+      }
+      await writeStatusSafely()
+      return false
+    }
     if (control.command === "cpu-reorder") {
       await unlink(controlPath).catch(() => {})
       cpuReorder = {
@@ -865,11 +921,10 @@ async function runAffinityHelper() {
   }
 
   try {
-    const {
-      createAffinityManager,
-      pinCurrentProcessToBackgroundCpus,
-    } = await import("../src/affinity.mjs")
-    helperAffinity = pinCurrentProcessToBackgroundCpus()
+    affinityModule = await import("../src/affinity.mjs")
+    helperAffinity = affinityModule.pinCurrentProcessToBackgroundCpus({
+      gameCoreCount: requestedGameCoreCount,
+    })
     await unlink(affinityStatePath).catch(() => {})
 
     if (includeNic) {
@@ -879,7 +934,7 @@ async function runAffinityHelper() {
       if (nicManaged) await updateAppliedMarkerSafely([])
     }
 
-    affinity = await createAffinityManager({
+    affinity = await affinityModule.createAffinityManager({
       config,
       statePath: affinityStatePath,
       applyChanges: true,
@@ -887,6 +942,7 @@ async function runAffinityHelper() {
       lastCoreMode: false,
       passiveMode: false,
       restoreOnGameExit: true,
+      gameCoreCount: requestedGameCoreCount,
     })
     await writeStatusSafely()
 
@@ -1225,6 +1281,7 @@ async function checkMemory() {
 
 let affinityStartPromise = null
 let cpuReorderPromise = null
+let gameCpuCoreSettingCache = null
 const NIC_STATUS_CACHE_MS = 30000
 let nicStatusCache = null
 let nicStatusCheckedAt = 0
@@ -1268,7 +1325,33 @@ function getAffinityPaths() {
     controlPath: join(base, "control.json"),
     statePath: join(base, "runtime-state.json"),
     appliedMarkerPath: join(base, "applied-marker.json"),
+    gameCoreSettingPath: join(base, "game-core-setting.json"),
   }
+}
+
+async function getGameCpuCoreSetting() {
+  if (gameCpuCoreSettingCache) return gameCpuCoreSettingCache
+  const { gameCoreSettingPath } = getAffinityPaths()
+  const saved = await readJson(gameCoreSettingPath)
+  const requestedGameCoreCount = Number.isInteger(saved?.gameCoreCount)
+    ? saved.gameCoreCount
+    : null
+  const allocation = resolveCpuAllocation(cpus().length, {
+    gameCoreCount: requestedGameCoreCount,
+  })
+  gameCpuCoreSettingCache = {
+    supported: Number.isInteger(allocation.gameCoreCount)
+      && Number.isInteger(allocation.maxGameCoreCount),
+    gameCoreCount: allocation.gameCoreCount,
+    defaultGameCoreCount: allocation.defaultGameCoreCount,
+    maxGameCoreCount: allocation.maxGameCoreCount,
+    physicalCoreCount: allocation.physicalCoreCount,
+    performanceCoreCount: allocation.performanceCoreCount,
+    efficiencyCoreCount: allocation.efficiencyCoreCount,
+    hybrid: allocation.hybrid,
+    customized: requestedGameCoreCount !== null,
+  }
+  return gameCpuCoreSettingCache
 }
 
 function getMabinogiPathStatePath() {
@@ -1370,6 +1453,7 @@ async function readAffinityRuntimeStatus() {
   const detectedGameExecutablePath = isMabinogiExecutablePath(status?.gameExecutablePath)
     ? status.gameExecutablePath
     : null
+  const gameCoreSetting = await getGameCpuCoreSetting()
   if (detectedGameExecutablePath) observeMabinogiExecutablePath(detectedGameExecutablePath)
   return {
     running: Boolean(status?.running && fresh),
@@ -1379,7 +1463,10 @@ async function readAffinityRuntimeStatus() {
     nicManaged: Boolean(status?.nicManaged),
     backgroundCpuRange: status?.backgroundCpuRange ?? `0-${half - 1}`,
     gameCpuRange: status?.gameCpuRange ?? `${half}-${logicalCpuCount - 1}`,
+    cpuTopology: fresh ? status?.cpuTopology ?? null : null,
+    gameCoreSetting,
     cpuReorder: fresh ? status?.cpuReorder ?? null : null,
+    gameCoreReconfigure: fresh ? status?.gameCoreReconfigure ?? null : null,
     error: status?.error ?? null,
     nicStatus: status?.nicStatus ?? null,
     renderer: fresh && status?.renderer
@@ -2260,6 +2347,7 @@ async function setMemoryEnabled(enabled, { purgeOnStart = false } = {}) {
 async function launchAffinityHelper(includeNic, inheritedNicManaged = false) {
   const paths = getAffinityPaths()
   const gamePathStatePath = getMabinogiPathStatePath()
+  const gameCoreSetting = await getGameCpuCoreSetting()
   await Promise.all([
     mkdir(dirname(paths.statusPath), { recursive: true }),
     mkdir(dirname(gamePathStatePath), { recursive: true }),
@@ -2279,6 +2367,9 @@ async function launchAffinityHelper(includeNic, inheritedNicManaged = false) {
     `--include-nic=${includeNic}`,
     `--nic-managed=${inheritedNicManaged}`,
   ]
+  if (gameCoreSetting.supported) {
+    helperArguments.push(`--game-core-count=${gameCoreSetting.gameCoreCount}`)
+  }
   if (!app.isPackaged) helperArguments.unshift(root)
 
   try {
@@ -2395,6 +2486,60 @@ async function setFrameBoostEnabled({ enabled, includeNic = false } = {}) {
     updateApplicationTrayIcon()
     throw error
   }
+}
+
+async function setGameCpuCoreCount(gameCoreCount) {
+  const currentSetting = await getGameCpuCoreSetting()
+  if (!currentSetting.supported) {
+    throw new Error("이 PC에서는 물리 CPU 코어 구성을 확인할 수 없습니다")
+  }
+  const parsed = Number(gameCoreCount)
+  if (
+    !Number.isInteger(parsed)
+    || parsed < 1
+    || parsed > currentSetting.maxGameCoreCount
+  ) {
+    throw new Error(`마비노기 CPU 코어 수는 1~${currentSetting.maxGameCoreCount} 사이여야 합니다`)
+  }
+
+  const { gameCoreSettingPath, controlPath, statusPath } = getAffinityPaths()
+  await writeJsonAtomic(gameCoreSettingPath, {
+    gameCoreCount: parsed,
+    updatedAt: new Date().toISOString(),
+  })
+  gameCpuCoreSettingCache = null
+
+  const current = await readAffinityRuntimeStatus()
+  if (!current.running || current.cpuTopology?.gameCoreCount === parsed) {
+    return checkAffinity()
+  }
+  if (current.cpuReorder?.state === "running") {
+    throw new Error("CPU 재정렬이 끝난 뒤 코어 수를 변경해 주세요")
+  }
+
+  const requestId = randomUUID()
+  await writeJsonAtomic(controlPath, {
+    command: "set-game-core-count",
+    requestId,
+    gameCoreCount: parsed,
+    requestedAt: Date.now(),
+  })
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const status = await readRuntimeStatusJson(statusPath)
+    if (status?.running === false) {
+      throw new Error("Affinity helper가 CPU 코어 설정 중 종료되었습니다")
+    }
+    if (status?.gameCoreReconfigure?.requestId === requestId) {
+      if (status.gameCoreReconfigure.state === "completed") return checkAffinity()
+      if (status.gameCoreReconfigure.state === "failed") {
+        throw new Error(
+          status.gameCoreReconfigure.error?.message ?? "CPU 코어 설정 적용에 실패했습니다",
+        )
+      }
+    }
+    await delay(100)
+  }
+  throw new Error("CPU 코어 설정이 제한 시간 안에 적용되지 않았습니다")
 }
 
 async function runCpuReorder() {
@@ -3114,6 +3259,12 @@ function registerIpc() {
   ipcMain.handle("optimization:reset-affinity", () => resetAllAffinities())
   ipcMain.handle("optimization:set-frame-boost-enabled", (_event, options) => {
     return setFrameBoostEnabled(options)
+  })
+  ipcMain.handle("optimization:set-game-cpu-core-count", (event, gameCoreCount) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 CPU 코어 설정 요청입니다")
+    }
+    return setGameCpuCoreCount(gameCoreCount)
   })
   ipcMain.handle("optimization:run-cpu-reorder", () => runCpuReorder())
   ipcMain.handle("optimization:reset-frame-boost", () => resetFrameBoost())

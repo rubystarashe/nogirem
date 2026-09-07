@@ -176,7 +176,26 @@ function formatCpuIndexes(cpuIndexes) {
   return ranges.join(",")
 }
 
-export function buildCpuTopologyMasks(cpuSets, logicalCpuCount) {
+export function defaultGamePhysicalCoreCount(performanceCoreCount, hybrid = false) {
+  if (!Number.isInteger(performanceCoreCount) || performanceCoreCount < 1) {
+    throw new Error(`Invalid performance core count: ${performanceCoreCount}`)
+  }
+  if (performanceCoreCount === 1) return 1
+  if (!hybrid && performanceCoreCount <= 6) {
+    return Math.min(4, performanceCoreCount - 1)
+  }
+  return Math.ceil(performanceCoreCount / 2)
+}
+
+export function normalizeGamePhysicalCoreCount(value, performanceCoreCount, hybrid = false) {
+  const defaultCount = defaultGamePhysicalCoreCount(performanceCoreCount, hybrid)
+  if (value === null || value === undefined || value === "") return defaultCount
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed)) return defaultCount
+  return Math.min(Math.max(parsed, 1), Math.max(performanceCoreCount - 1, 1))
+}
+
+export function buildCpuTopologyMasks(cpuSets, logicalCpuCount, requestedGameCoreCount = null) {
   if (logicalCpuCount < 4 || logicalCpuCount > 52 || logicalCpuCount % 2) {
     throw new Error(`Unsupported logical CPU count: ${logicalCpuCount}; expected an even count from 4 to 52.`)
   }
@@ -212,7 +231,13 @@ export function buildCpuTopologyMasks(cpuSets, logicalCpuCount) {
   const performanceClass = Math.max(...cores.map(core => core.efficiencyClass))
   const performanceCores = cores.filter(core => core.efficiencyClass === performanceClass)
   const efficiencyCores = cores.filter(core => core.efficiencyClass < performanceClass)
-  const gameCoreCount = Math.ceil(performanceCores.length / 2)
+  const hybrid = efficiencyCores.length > 0
+  const defaultGameCoreCount = defaultGamePhysicalCoreCount(performanceCores.length, hybrid)
+  const gameCoreCount = normalizeGamePhysicalCoreCount(
+    requestedGameCoreCount,
+    performanceCores.length,
+    hybrid,
+  )
   const gameCores = performanceCores.slice(-gameCoreCount)
   const backgroundPerformanceCores = performanceCores.slice(0, -gameCoreCount)
   const alternateGameCores = backgroundPerformanceCores
@@ -238,9 +263,13 @@ export function buildCpuTopologyMasks(cpuSets, logicalCpuCount) {
     lastPerformanceCoreMask: maskFromCpuIndexes(performanceCores.at(-1).cpuIndexes),
     gameCpuIndexes,
     backgroundCpuIndexes,
+    physicalCoreCount: cores.length,
     performanceCoreCount: performanceCores.length,
     efficiencyCoreCount: efficiencyCores.length,
-    hybrid: efficiencyCores.length > 0,
+    gameCoreCount,
+    defaultGameCoreCount,
+    maxGameCoreCount: Math.max(performanceCores.length - 1, 1),
+    hybrid,
   }
 }
 
@@ -314,12 +343,15 @@ function queryWindowsCpuSets() {
   }
 }
 
-export function resolveCpuAllocation(logicalCpuCount = cpus().length) {
+export function resolveCpuAllocation(
+  logicalCpuCount = cpus().length,
+  { gameCoreCount = null } = {},
+) {
   if (process.platform !== "win32" || process.arch !== "x64") {
     throw new Error("Windows x64 only.")
   }
   try {
-    return buildCpuTopologyMasks(queryWindowsCpuSets(), logicalCpuCount)
+    return buildCpuTopologyMasks(queryWindowsCpuSets(), logicalCpuCount, gameCoreCount)
   } catch {
     const { allMask, lowerHalfMask, upperHalfMask } = buildCpuHalfMasks(logicalCpuCount)
     const half = logicalCpuCount / 2
@@ -333,16 +365,20 @@ export function resolveCpuAllocation(logicalCpuCount = cpus().length) {
       lastPerformanceCoreMask: 3n << BigInt(logicalCpuCount - 2),
       gameCpuIndexes: Array.from({ length: half }, (_, index) => index + half),
       backgroundCpuIndexes: Array.from({ length: half }, (_, index) => index),
+      physicalCoreCount: null,
       performanceCoreCount: null,
       efficiencyCoreCount: null,
+      gameCoreCount: null,
+      defaultGameCoreCount: null,
+      maxGameCoreCount: null,
       hybrid: null,
     }
   }
 }
 
-export function pinCurrentProcessToBackgroundCpus() {
+export function pinCurrentProcessToBackgroundCpus({ gameCoreCount = null } = {}) {
   const logicalCpuCount = cpus().length
-  const allocation = resolveCpuAllocation(logicalCpuCount)
+  const allocation = resolveCpuAllocation(logicalCpuCount, { gameCoreCount })
   const { backgroundMask } = allocation
   setAffinity(process.pid, backgroundMask)
   return {
@@ -350,8 +386,12 @@ export function pinCurrentProcessToBackgroundCpus() {
     cpuRange: formatCpuIndexes(allocation.backgroundCpuIndexes),
     source: allocation.source,
     hybrid: allocation.hybrid,
+    physicalCoreCount: allocation.physicalCoreCount,
     performanceCoreCount: allocation.performanceCoreCount,
     efficiencyCoreCount: allocation.efficiencyCoreCount,
+    gameCoreCount: allocation.gameCoreCount,
+    defaultGameCoreCount: allocation.defaultGameCoreCount,
+    maxGameCoreCount: allocation.maxGameCoreCount,
     backgroundCpuRange: formatCpuIndexes(allocation.backgroundCpuIndexes),
     gameCpuRange: formatCpuIndexes(allocation.gameCpuIndexes),
   }
@@ -365,11 +405,12 @@ export async function createAffinityManager({
   lastCoreMode,
   passiveMode,
   restoreOnGameExit = true,
+  gameCoreCount = null,
 }) {
   const logicalCpuCount = cpus().length
 
   if (process.platform !== "win32" || process.arch !== "x64") throw new Error("Windows x64 only.")
-  const allocation = resolveCpuAllocation(logicalCpuCount)
+  const allocation = resolveCpuAllocation(logicalCpuCount, { gameCoreCount })
   const { allMask } = allocation
   const gameMask = passiveMode
     ? null
@@ -745,8 +786,12 @@ export async function createAffinityManager({
     getCpuAllocation: () => ({
       source: allocation.source,
       hybrid: allocation.hybrid,
+      physicalCoreCount: allocation.physicalCoreCount,
       performanceCoreCount: allocation.performanceCoreCount,
       efficiencyCoreCount: allocation.efficiencyCoreCount,
+      gameCoreCount: allocation.gameCoreCount,
+      defaultGameCoreCount: allocation.defaultGameCoreCount,
+      maxGameCoreCount: allocation.maxGameCoreCount,
       backgroundCpuRange: formatCpuIndexes(allocation.backgroundCpuIndexes),
       gameCpuRange: formatCpuIndexes(allocation.gameCpuIndexes),
     }),
