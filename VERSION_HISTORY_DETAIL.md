@@ -25,6 +25,8 @@
 - 트랙과 클립은 `.partial.mp4`를 완성한 뒤 최종 이름으로 교체해 실패한 MP4가 정상 결과처럼 노출되지 않도록 보호
 - 클립 저장·편집 flush·helper 종료 control 작업을 Electron에서 직렬화해 단일 control JSON을 서로 덮어쓰지 않도록 변경
 - 목표 fps보다 빠른 WGC callback도 `TryGetNextFrame`으로 먼저 비워 frame pool이 정체되지 않도록 수정
+- 청크별 실제 frame rate 분수의 미세한 차이를 영상 형식 변경으로 오판해 최근 저장이 마지막 0~3초 청크만 남기던 문제 수정
+- 호환성 판정은 codec·해상도·sequence header를 사용하고 선택 청크의 실제 media duration에서 마지막 요청 시간만 정확히 잘라 저장
 - 블랙박스 설정·상태·제어 IPC를 preload에 제한적으로 노출하고 앱 시작·업데이트·종료 시 helper 생명주기와 단축키를 함께 관리
 - 공식 Microsoft C++/WinRT projection 생성기를 빌드 시 SHA-256 검증 후 사용하고 완성된 helper만 설치본의 `asarUnpack` 자산으로 포함
 - 0.3.0의 블랙박스는 게임 화면 영상만 녹화하며 게임 소리와 마이크 녹음은 포함하지 않음

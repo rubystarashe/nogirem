@@ -96,6 +96,8 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /MF_READWRITE_DISABLE_CONVERTERS/)
   assert.match(nativeSource, /MFSampleExtension_DecodeTimestamp/)
   assert.match(nativeSource, /compatibleChunkSuffix/)
+  assert.match(nativeSource, /combinedMediaDuration/)
+  assert.match(nativeSource, /totalDuration - requestedDuration/)
   assert.match(nativeSource, /\.partial\.mp4/)
   assert.match(viteSource, /blackboxEditor: resolve\("blackbox-editor\.html"\)/)
 })

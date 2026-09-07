@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-07 14:12
+Last Updated: 2026-09-07 14:25
 
 ## Current Objective
 고급 기능에서 사용하는 저부하 게임 블랙박스를 0.3.0 기능으로 완성하고 실제 설치본 검증을 준비한다.
@@ -13,7 +13,7 @@ Last Updated: 2026-09-07 14:12
 - 고급 기능의 `영상 추출`은 누른 시점을 고정해 최근 60초를 여는 별도 편집 창이다. `+`로 이전 30초 추가, `++`로 직접 트랙 길이 지정, 추출 길이 설정, 가이드 드래그, 구간 미리보기와 MP4 추출을 지원한다.
 - 캡처 큐는 최대 3프레임이고 목표 fps보다 빠른 캡처 callback을 사전 제한한다. 혼잡 시 녹화 프레임만 버리며 helper와 인코더 스레드는 `Below Normal` 우선순위를 사용한다.
 - 실제 3440×1440 마비노기 창에서 H.264와 HEVC 청크 생성, 1920×802 비율 축소, H.264 청크 무재인코딩 MP4 결합과 정상 종료를 검증했다.
-- 앱 프로덕션 빌드, 전체 Node 테스트 109개, 네이티브 helper 무경고 Release 빌드와 편집기 lint가 통과했다. flush 중인 녹화와 병행한 트랙 생성, 정확한 2초 MP4 추출, 320×240→640×360 형식 변경 시 최신 형식만 선택하는 동작을 ffprobe로 검증했다. 아직 0.3.0 설치본은 패키징하거나 배포하지 않았다.
+- 앱 프로덕션 빌드, 전체 Node 테스트 109개, 네이티브 helper 무경고 Release 빌드와 편집기 lint가 통과했다. 실제 Ring 청크 9개에서 29.986초 트랙과 내부 10.001초 구간 추출, 320×240→640×360 형식 변경 시 최신 형식만 선택하는 동작을 ffprobe로 검증했다. 아직 0.3.0 설치본은 패키징하거나 배포하지 않았다.
 - GitHub 정식 Release `v0.2.9`를 게시했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.5 네 자산이 모두 업로드됐다.
 - `v0.2.9` 태그는 기능 변경 최종 커밋 `73f8e6071bb87aa0007e64acd06bc5877804d5dd`를 가리킨다.
 - Esc는 터보 키 선택 UI에서 비활성화되고 저장 설정 정규화에서 제거되며 Rust helper도 직접 거부한다.
@@ -199,6 +199,7 @@ Last Updated: 2026-09-07 14:12
 - 편집 영상은 세션별 토큰을 검증하는 `nogirem-blackbox` 프로토콜과 Electron `net.fetch`로만 제공한다. renderer에는 로컬 절대 경로를 전달하지 않는다.
 - remux는 converter를 끄고 codec·해상도·frame rate·sequence header가 같은 최신 연속 청크만 사용하며 PTS·DTS를 함께 재기준화한다. 출력은 `.partial.mp4` 완성 후 최종 이름으로 원자 게시한다.
 - `control.json`을 사용하는 clip·flush·stop 작업은 Electron 단일 promise queue에서 접수 확인까지 직렬화해 요청 덮어쓰기를 막는다.
+- 청크 호환성은 실제 캡처 frame 수에 따라 흔들리는 container frame rate 분수를 비교하지 않고 codec·해상도·sequence header로 판정한다. 저장 범위는 선택 청크의 media duration 합계에서 마지막 요청 초만 정확히 추출한다.
 - 0.3.0 녹화에는 게임 소리와 마이크가 포함되지 않는다. 오디오는 프로세스별 WASAPI loopback 설계·검증 후 별도 추가해야 한다.
 - recorder helper는 설치본에 내장하고 `asarUnpack`한다. 빌드 전용 공식 C++/WinRT projection은 NuGet 2.0.240111.5를 고정 SHA-256으로 검증해 생성한다.
 - `src/turbo-key-installer.mjs`가 helper 자산명·프로토콜 버전, GitHub Release 조회, SHA-256·PE 검증, AppData 원자 설치와 실행 파일·manifest 제거를 소유한다.
@@ -1117,6 +1118,7 @@ Last Updated: 2026-09-07 14:12
 - 누른 시점을 고정한 최근 60초 영상 추출 편집 창과 트랙 확장·직접 길이·드래그 가이드·구간 미리보기·정확한 길이의 무재인코딩 추출을 추가했다.
 - 편집 창에 항상 위와 Esc 닫기를 적용하고 flush 직후 열린 새 청크를 트랙 입력으로 오인하던 경합을 청크 시작 timestamp 필터로 차단했다.
 - 검토 후 전용 영상 프로토콜, media signature·DTS 검증, 원자 MP4 게시, control 직렬화와 WGC frame pool drain 순서를 보강했다.
+- 최근 30초 저장이 flush로 생긴 마지막 0~3초 청크만 결과에 남던 호환성 오판을 수정하고 실제 Ring 데이터로 약 30초 저장을 확인했다.
 - 0.3.0 버전·사용자 변경 기록·상세 변경 기록을 갱신했으며 패키징과 배포는 수행하지 않았다.
 
 ## Next Recommended Step

@@ -760,8 +760,6 @@ bool sameMediaSignature(const MediaSignature& left, const MediaSignature& right)
   return left.subtype == right.subtype
     && left.width == right.width
     && left.height == right.height
-    && left.frameRateNumerator == right.frameRateNumerator
-    && left.frameRateDenominator == right.frameRateDenominator
     && left.sequenceHeader == right.sequenceHeader;
 }
 
@@ -837,6 +835,49 @@ LONGLONG findCleanRangeStart(
     inputOffset = fileEnd;
   }
   return cleanStart;
+}
+
+LONGLONG combinedMediaDuration(const std::vector<fs::path>& inputs) {
+  LONGLONG inputOffset = 0;
+  for (const auto& input : inputs) {
+    auto reader = createCompressedVideoReader(input);
+    ComPtr<IMFMediaType> mediaType;
+    check_hresult(reader->GetCurrentMediaType(
+      static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+      &mediaType
+    ));
+    const LONGLONG defaultDuration =
+      fallbackSampleDuration(mediaSignature(mediaType.Get()));
+    LONGLONG firstTime = -1;
+    LONGLONG fileEnd = inputOffset;
+    while (true) {
+      DWORD actualStream = 0;
+      DWORD flags = 0;
+      LONGLONG timestamp = 0;
+      ComPtr<IMFSample> sample;
+      check_hresult(reader->ReadSample(
+        static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+        0,
+        &actualStream,
+        &flags,
+        &timestamp,
+        &sample
+      ));
+      checkReaderFlags(flags);
+      if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+      if (!sample) continue;
+      if (firstTime < 0) firstTime = timestamp;
+      LONGLONG duration = 0;
+      if (FAILED(sample->GetSampleDuration(&duration)) || duration <= 0) {
+        duration = defaultDuration;
+      }
+      const auto globalTime =
+        inputOffset + std::max<LONGLONG>(0, timestamp - firstTime);
+      fileEnd = std::max(fileEnd, globalTime + duration);
+    }
+    inputOffset = fileEnd;
+  }
+  return inputOffset;
 }
 
 bool remuxChunks(
@@ -1052,7 +1093,21 @@ void createClip(
         protectedFiles.push_back(destination);
       }
       const auto output = clipsDirectory / (L"마비노기-클립-" + identifier + L".mp4");
-      if (!remuxChunksAtomically(protectedFiles, output)) {
+      const auto totalDuration = combinedMediaDuration(protectedFiles);
+      const auto requestedDuration = std::min<LONGLONG>(
+        totalDuration,
+        static_cast<LONGLONG>(seconds) * 10000000ll
+      );
+      const auto requestedStart = std::max<LONGLONG>(
+        0,
+        totalDuration - requestedDuration
+      );
+      if (!remuxChunksAtomically(
+        protectedFiles,
+        output,
+        requestedStart,
+        requestedDuration
+      )) {
         throw std::runtime_error("클립 파일을 결합하지 못했습니다");
       }
       std::error_code cleanupError;
@@ -1550,7 +1605,21 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
       ));
       if (chunks.empty()) throw std::runtime_error("편집할 녹화 청크가 없습니다");
       fs::create_directories(outputPath.parent_path());
-      if (!remuxChunksAtomically(chunks, outputPath)) {
+      const auto totalDuration = combinedMediaDuration(chunks);
+      const auto requestedDuration = std::min<LONGLONG>(
+        totalDuration,
+        static_cast<LONGLONG>(seconds) * 10000000ll
+      );
+      const auto requestedStart = std::max<LONGLONG>(
+        0,
+        totalDuration - requestedDuration
+      );
+      if (!remuxChunksAtomically(
+        chunks,
+        outputPath,
+        requestedStart,
+        requestedDuration
+      )) {
         throw std::runtime_error("편집 트랙을 만들지 못했습니다");
       }
     } else if (mode == L"extract") {
