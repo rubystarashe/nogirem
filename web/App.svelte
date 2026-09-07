@@ -184,6 +184,7 @@
   let blackboxClipSeconds = defaultBlackboxSetting.clipSeconds
   let blackboxFps = defaultBlackboxSetting.fps
   let blackboxBytesUsed = 0
+  let blackboxDurationSeconds = 0
   let blackboxDroppedFrames = 0
   let blackboxShortcutAvailable = false
   let blackboxLatestClip = null
@@ -903,6 +904,7 @@
     blackboxClipSeconds = state.clipSeconds
     blackboxFps = state.fps
     blackboxBytesUsed = Number(state.bytesUsed) || 0
+    blackboxDurationSeconds = Number(state.durationSeconds) || 0
     blackboxDroppedFrames = Number(state.droppedFrames) || 0
     blackboxShortcutAvailable = Boolean(state.shortcutAvailable)
     blackboxLatestClip = state.latestClip
@@ -915,7 +917,13 @@
 
   function blackboxUsageText() {
     const usedGb = blackboxBytesUsed / 1024 ** 3
-    return `${usedGb.toFixed(1)} / ${blackboxCapacityGb} GB`
+    const totalMinutes = Math.floor(blackboxDurationSeconds / 60)
+    const duration = totalMinutes < 1
+      ? `${Math.floor(blackboxDurationSeconds)}초`
+      : (totalMinutes < 60
+        ? `${totalMinutes}분`
+        : `${Math.floor(totalMinutes / 60)}시간 ${totalMinutes % 60}분`)
+    return `${usedGb.toFixed(1)} / ${blackboxCapacityGb} GB · 약 ${duration}`
   }
 
   function blackboxDraftEstimatedHours() {
@@ -1020,6 +1028,21 @@
     try {
       applyBlackboxState(await window.nogirem.saveBlackboxClip())
       blackboxNotice = `최근 약 ${blackboxClipSeconds}초 클립을 저장하고 있습니다`
+    } catch (error) {
+      blackboxNotice = messageOf(error)
+    } finally {
+      blackboxAction = null
+    }
+  }
+
+  async function clearBlackboxRecording() {
+    if (blackboxAction || (blackboxBytesUsed <= 0 && blackboxDurationSeconds <= 0)) return
+    blackboxAction = "clear"
+    blackboxNotice = ""
+    try {
+      const state = await window.nogirem.clearBlackboxRecording()
+      applyBlackboxState(state)
+      if (!state.canceled) blackboxNotice = "순환 녹화를 모두 비웠습니다"
     } catch (error) {
       blackboxNotice = messageOf(error)
     } finally {
@@ -2188,29 +2211,42 @@
                       </button>
                     </div>
                   </div>
-                  {#if blackboxEnabled}
+                  {#if blackboxEnabled || blackboxBytesUsed > 0 || blackboxDurationSeconds > 0}
                     <div class="blackbox-quick-actions">
-                      <button
-                        disabled={!blackboxRecording || blackboxAction}
-                        onclick={openBlackboxEditor}
-                      >
-                        {blackboxAction === "editor" ? "여는 중…" : "영상 추출"}
-                      </button>
-                      <button
-                        disabled={!blackboxRecording || blackboxClipInProgress || blackboxAction}
-                        onclick={saveBlackboxClip}
-                      >
-                        {blackboxClipInProgress ? "클립 저장 중…" : `최근 약 ${blackboxClipSeconds}초 저장`}
-                      </button>
-                      <button
-                        class="developer-tool-secondary"
-                        onclick={openBlackboxFolder}
-                      >
-                        저장 폴더
-                      </button>
-                      <span>
-                        {blackboxShortcutAvailable ? "단축키 Ctrl+Shift+F10 · " : ""}누락 {blackboxDroppedFrames}프레임
-                      </span>
+                      {#if blackboxEnabled}
+                        <button
+                          disabled={!blackboxRecording || blackboxAction}
+                          onclick={openBlackboxEditor}
+                        >
+                          {blackboxAction === "editor" ? "여는 중…" : "영상 추출"}
+                        </button>
+                        <button
+                          disabled={!blackboxRecording || blackboxClipInProgress || blackboxAction}
+                          onclick={saveBlackboxClip}
+                        >
+                          {blackboxClipInProgress ? "클립 저장 중…" : `최근 약 ${blackboxClipSeconds}초 저장`}
+                        </button>
+                        <button
+                          class="developer-tool-secondary"
+                          onclick={openBlackboxFolder}
+                        >
+                          저장 폴더
+                        </button>
+                      {/if}
+                      {#if blackboxBytesUsed > 0 || blackboxDurationSeconds > 0}
+                        <button
+                          class="blackbox-clear-recording"
+                          disabled={blackboxAction}
+                          onclick={clearBlackboxRecording}
+                        >
+                          {blackboxAction === "clear" ? "비우는 중…" : "전체 비우기"}
+                        </button>
+                      {/if}
+                      {#if blackboxEnabled}
+                        <span>
+                          {blackboxShortcutAvailable ? "단축키 Ctrl+Shift+F10 · " : ""}누락 {blackboxDroppedFrames}프레임
+                        </span>
+                      {/if}
                     </div>
                   {/if}
                   {#if blackboxNotice}

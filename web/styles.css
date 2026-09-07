@@ -1216,6 +1216,17 @@ button.direct-donation-card:hover {
   font-size: 9px;
 }
 
+.developer-tools .blackbox-quick-actions .blackbox-clear-recording {
+  border-color: #b88d8d;
+  color: #a45f5f;
+  background: transparent;
+}
+
+.developer-tools .blackbox-quick-actions .blackbox-clear-recording:hover:not(:disabled) {
+  color: #8e4242;
+  background: #f8eded;
+}
+
 .blackbox-quick-actions span {
   color: #777;
   font-size: 9px;

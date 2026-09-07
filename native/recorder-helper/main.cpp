@@ -83,7 +83,7 @@ struct Options {
   int fps = 60;
   int bitrateMbps = 12;
   int maxHeight = 1080;
-  int chunkSeconds = 4;
+  int chunkSeconds = 30;
   int capacityGb = 50;
   DWORD parentPid = 0;
 };
@@ -100,10 +100,12 @@ struct SharedStatus {
   std::wstring audioError;
   std::wstring latestClip;
   double audioGainDb = 0;
+  double durationSeconds = 0;
   std::uint64_t bytesUsed = 0;
   std::uint64_t capacityBytes = 0;
   std::uint64_t droppedFrames = 0;
   std::uint64_t flushCompletedId = 0;
+  std::uint64_t clearCompletedId = 0;
   int width = 0;
   int height = 0;
   int fps = 60;
@@ -407,7 +409,7 @@ Options optionsFromArguments(int count, wchar_t** values) {
   options.fps = integerArgument(arguments, L"fps", 60, 15, 120);
   options.bitrateMbps = integerArgument(arguments, L"bitrate-mbps", 12, 2, 100);
   options.maxHeight = integerArgument(arguments, L"max-height", 1080, 0, 4320);
-  options.chunkSeconds = integerArgument(arguments, L"chunk-seconds", 4, 2, 30);
+  options.chunkSeconds = integerArgument(arguments, L"chunk-seconds", 30, 2, 30);
   options.capacityGb = integerArgument(arguments, L"capacity-gb", 50, 1, 4096);
   options.parentPid = static_cast<DWORD>(
     integerArgument(arguments, L"parent-pid", 0, 0, INT_MAX)
@@ -566,6 +568,14 @@ void removeIncompleteChunks(const fs::path& directory) {
       fs::remove(entry.path(), removeError);
     }
   }
+}
+
+void clearRingDirectory(const fs::path& directory) {
+  for (const auto& path : completedChunks(directory)) {
+    std::error_code error;
+    fs::remove(path, error);
+  }
+  removeIncompleteChunks(directory);
 }
 
 std::uint64_t directoryBytes(const fs::path& directory) {
@@ -1561,8 +1571,19 @@ public:
     condition_.notify_one();
   }
 
+  void requestClear(std::uint64_t requestId) {
+    std::lock_guard lock(mutex_);
+    clearRequestId_ = requestId;
+    flushRequested_ = true;
+    condition_.notify_one();
+  }
+
   bool failed() const {
     return failed_;
+  }
+
+  double currentChunkDurationSeconds() const {
+    return currentChunkDurationSeconds_.load();
   }
 
   void stop() {
@@ -1577,6 +1598,26 @@ public:
   }
 
 private:
+  void discardQueuedVideoFrames() {
+    std::vector<FramePacket> discarded;
+    {
+      std::lock_guard lock(mutex_);
+      while (!queue_.empty()) {
+        discarded.push_back(std::move(queue_.front()));
+        queue_.pop();
+      }
+    }
+    for (auto& packet : discarded) {
+      if (packet.texturePool) {
+        packet.texturePool->release(std::move(packet.texture));
+      }
+    }
+    if (!discarded.empty()) {
+      std::lock_guard lock(status_.mutex);
+      status_.droppedFrames += discarded.size();
+    }
+  }
+
   void closeWriter() {
     if (!writer_) return;
     const auto path = writer_->path();
@@ -1584,6 +1625,7 @@ private:
     writer_->finalize();
     writer_.reset();
     chunkStartedAt_.reset();
+    currentChunkDurationSeconds_ = 0;
     writerFinalPath_.clear();
     writerWidth_ = 0;
     writerHeight_ = 0;
@@ -1619,6 +1661,7 @@ private:
       options_.codec
     );
     chunkStartedAt_ = packet.capturedAt;
+    currentChunkDurationSeconds_ = 0;
     writerWidth_ = packet.width;
     writerHeight_ = packet.height;
     std::lock_guard lock(status_.mutex);
@@ -1640,6 +1683,7 @@ private:
       bool flush = false;
       int clipSeconds = 0;
       std::uint64_t flushRequestId = 0;
+      std::uint64_t clearRequestId = 0;
       {
         std::unique_lock lock(mutex_);
         condition_.wait(lock, [&] {
@@ -1670,6 +1714,8 @@ private:
         clipSeconds_ = 0;
         flushRequestId = flushRequestId_;
         flushRequestId_ = 0;
+        clearRequestId = clearRequestId_;
+        clearRequestId_ = 0;
         if (stopping_ && !hasPacket && !hasAudioPacket) {
           closeWriter();
           break;
@@ -1680,6 +1726,13 @@ private:
         if (flushRequestId > 0) {
           std::lock_guard lock(status_.mutex);
           status_.flushCompletedId = flushRequestId;
+        }
+        if (clearRequestId > 0) {
+          if (clipThread_.joinable()) clipThread_.join();
+          clearRingDirectory(ringDirectory_);
+          std::lock_guard lock(status_.mutex);
+          status_.bytesUsed = 0;
+          status_.clearCompletedId = clearRequestId;
         }
         if (clipSeconds > 0) {
           if (clipThread_.joinable()) clipThread_.join();
@@ -1703,6 +1756,7 @@ private:
           continue;
         }
         if (!hasPacket) continue;
+        bool rotatedWriter = false;
         if (
           writer_
           && (
@@ -1716,12 +1770,20 @@ private:
           )
         ) {
           closeWriter();
+          discardQueuedVideoFrames();
+          rotatedWriter = true;
         }
-        if (!writer_) startWriter(packet);
-        const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
-          packet.capturedAt - *chunkStartedAt_
-        ).count() / 100;
-        writer_->write(packet.texture.Get(), std::max<LONGLONG>(0, elapsed));
+        if (rotatedWriter) {
+          std::lock_guard lock(status_.mutex);
+          ++status_.droppedFrames;
+        } else {
+          if (!writer_) startWriter(packet);
+          const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            packet.capturedAt - *chunkStartedAt_
+          ).count() / 100;
+          writer_->write(packet.texture.Get(), std::max<LONGLONG>(0, elapsed));
+          currentChunkDurationSeconds_ = static_cast<double>(elapsed) / 10000000.0;
+        }
       } catch (const hresult_error& error) {
         closeWriter();
         failed_ = true;
@@ -1755,11 +1817,13 @@ private:
   bool flushRequested_ = false;
   int clipSeconds_ = 0;
   std::uint64_t flushRequestId_ = 0;
+  std::uint64_t clearRequestId_ = 0;
   std::thread thread_;
   std::thread clipThread_;
   std::unique_ptr<Mp4Writer> writer_;
   fs::path writerFinalPath_;
   std::optional<std::chrono::steady_clock::time_point> chunkStartedAt_;
+  std::atomic<double> currentChunkDurationSeconds_ = 0;
   int writerWidth_ = 0;
   int writerHeight_ = 0;
 };
@@ -2221,10 +2285,12 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
     snapshot.audioError = status.audioError;
     snapshot.latestClip = status.latestClip;
     snapshot.audioGainDb = status.audioGainDb;
+    snapshot.durationSeconds = status.durationSeconds;
     snapshot.bytesUsed = status.bytesUsed;
     snapshot.capacityBytes = status.capacityBytes;
     snapshot.droppedFrames = status.droppedFrames;
     snapshot.flushCompletedId = status.flushCompletedId;
+    snapshot.clearCompletedId = status.clearCompletedId;
     snapshot.width = status.width;
     snapshot.height = status.height;
     snapshot.fps = status.fps;
@@ -2246,6 +2312,8 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
       : "\"" + jsonEscape(snapshot.audioError) + "\"") << ","
     << "\"audioGainDb\":" << std::fixed << std::setprecision(2)
       << snapshot.audioGainDb << ","
+    << "\"durationSeconds\":" << std::fixed << std::setprecision(1)
+      << snapshot.durationSeconds << ","
     << "\"latestClip\":" << (snapshot.latestClip.empty()
       ? "null"
       : "\"" + jsonEscape(snapshot.latestClip) + "\"") << ","
@@ -2253,6 +2321,7 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
     << "\"capacityBytes\":" << snapshot.capacityBytes << ","
     << "\"droppedFrames\":" << snapshot.droppedFrames << ","
     << "\"flushCompletedId\":" << snapshot.flushCompletedId << ","
+    << "\"clearCompletedId\":" << snapshot.clearCompletedId << ","
     << "\"width\":" << snapshot.width << ","
     << "\"height\":" << snapshot.height << ","
     << "\"fps\":" << snapshot.fps << ","
@@ -2441,6 +2510,7 @@ int wmain(int count, wchar_t** values) {
         }
         if (control->command == "clip") encoder.requestClip(control->seconds);
         if (control->command == "flush") encoder.requestFlush(control->requestId);
+        if (control->command == "clear") encoder.requestClear(control->requestId);
       }
 
       if (capture && capture->closed()) {
@@ -2492,6 +2562,14 @@ int wmain(int count, wchar_t** values) {
         {
           std::lock_guard lock(status.mutex);
           status.bytesUsed = directoryBytes(options.storagePath / L"Ring");
+          const double estimatedCompletedSeconds =
+            static_cast<double>(status.bytesUsed) * 8.0
+            / (
+              static_cast<double>(options.bitrateMbps) * 1000000.0
+              + 192000.0
+            );
+          status.durationSeconds =
+            estimatedCompletedSeconds + encoder.currentChunkDurationSeconds();
         }
         try {
           updateStatusFile(options, status);

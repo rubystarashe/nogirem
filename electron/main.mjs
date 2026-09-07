@@ -1782,6 +1782,7 @@ async function getBlackboxSetting() {
   const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 5000
   const processRunning = Boolean(blackboxProcess && blackboxProcess.exitCode === null)
   const running = setting.enabled && processRunning && statusFresh && Boolean(status?.running)
+  const bytesUsed = Number(status?.bytesUsed) || 0
   return {
     ...setting,
     resolvedQuality,
@@ -1792,7 +1793,8 @@ async function getBlackboxSetting() {
     audioGainDb: Number(status?.audioGainDb) || 0,
     waitingForGame: running && Boolean(status?.waitingForGame),
     clipInProgress: running && Boolean(status?.clipInProgress),
-    bytesUsed: Number(status?.bytesUsed) || 0,
+    bytesUsed,
+    durationSeconds: Number(status?.durationSeconds) || 0,
     capacityBytes: setting.capacityGb * 1024 ** 3,
     droppedFrames: Number(status?.droppedFrames) || 0,
     width: Number(status?.width) || 0,
@@ -1971,6 +1973,37 @@ async function requestBlackboxClip() {
       4000,
     )
     return getBlackboxSetting()
+  })
+}
+
+async function clearBlackboxRecording() {
+  return queueBlackboxControlOperation(async () => {
+    const paths = getBlackboxPaths()
+    const state = await getBlackboxSetting()
+    if (!state.running) {
+      await rm(join(paths.storagePath, "Ring"), { recursive: true, force: true })
+      await mkdir(join(paths.storagePath, "Ring"), { recursive: true })
+      await unlink(paths.statusPath).catch(() => {})
+      return {
+        ...await getBlackboxSetting(),
+        cleared: true,
+      }
+    }
+    const requestId = Date.now()
+    await writeJsonAtomic(paths.controlPath, {
+      command: "clear",
+      requestId,
+      requestedAt: requestId,
+    })
+    const completed = await waitForBlackboxStatus(
+      value => Number(value?.clearCompletedId) === requestId,
+      10000,
+    )
+    if (!completed) throw new Error("순환 녹화를 제한 시간 안에 비우지 못했습니다")
+    return {
+      ...await getBlackboxSetting(),
+      cleared: true,
+    }
   })
 }
 
@@ -3149,6 +3182,28 @@ function registerIpc() {
       throw new Error("허용되지 않은 블랙박스 클립 요청입니다")
     }
     return requestBlackboxClip()
+  })
+  ipcMain.handle("application:clear-blackbox-recording", async event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 블랙박스 삭제 요청입니다")
+    }
+    const confirmation = await dialog.showMessageBox(primaryWindow, {
+      type: "warning",
+      title: "순환 녹화 비우기",
+      message: "블랙박스 순환 녹화를 모두 비울까요?",
+      detail: "저장된 클립은 삭제하지 않습니다.",
+      buttons: ["취소", "비우기"],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    })
+    if (confirmation.response !== 1) {
+      return {
+        ...await getBlackboxSetting(),
+        canceled: true,
+      }
+    }
+    return clearBlackboxRecording()
   })
   ipcMain.handle("application:open-blackbox-folder", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {

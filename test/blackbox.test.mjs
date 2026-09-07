@@ -37,7 +37,7 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     capacityGb: 100,
     clipSeconds: 60,
     fps: 30,
-    chunkSeconds: 4,
+    chunkSeconds: 30,
   })
 })
 
@@ -73,7 +73,13 @@ test("고급 기능과 Electron IPC에 블랙박스 제어가 연결된다", asy
   assert.match(appSource, /Ctrl\+Shift\+F10/)
   assert.match(mainSource, /application:get-blackbox-setting/)
   assert.match(mainSource, /application:save-blackbox-clip/)
+  assert.match(mainSource, /application:clear-blackbox-recording/)
+  assert.match(mainSource, /rm\(join\(paths\.storagePath, "Ring"\)/)
+  assert.match(mainSource, /저장된 클립은 삭제하지 않습니다/)
   assert.match(preloadSource, /getBlackboxSetting/)
+  assert.match(preloadSource, /clearBlackboxRecording/)
+  assert.match(appSource, /blackboxDurationSeconds/)
+  assert.match(appSource, /전체 비우기/)
   assert.match(packageSource, /native\/recorder-helper\/bin\/recorder-helper\.exe/)
 })
 
@@ -129,6 +135,10 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /audioRecording/)
   assert.match(nativeSource, /compatibleChunkSuffix/)
   assert.match(nativeSource, /removeIncompleteChunks/)
+  assert.match(nativeSource, /clearRingDirectory/)
+  assert.match(nativeSource, /clearCompletedId/)
+  assert.match(nativeSource, /discardQueuedVideoFrames/)
+  assert.match(nativeSource, /durationSeconds/)
   assert.match(nativeSource, /name\.find\(L"\.partial\."\)/)
   assert.match(nativeSource, /combinedMediaDuration/)
   assert.match(nativeSource, /totalDuration - requestedDuration/)
