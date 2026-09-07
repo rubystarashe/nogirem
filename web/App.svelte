@@ -2219,7 +2219,7 @@
                         {/if}
                       </div>
                       <small class="game-cpu-core-hint">
-                        코어 개수가 많을수록 마비노기가 더 많은 CPU를 활용하지만 다른 프로그램들의 성능이 저하될 수 있습니다
+                        선택한 코어 개수가 많을수록 마비노기가 더 많은 CPU를 활용하지만, 터보 키의 입력 성능과 다른 프로그램들의 성능이 저하될 수 있습니다
                       </small>
                     {:else}
                       <span class="developer-tool-status">

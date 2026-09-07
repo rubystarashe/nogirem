@@ -652,7 +652,7 @@ footer {
   background: #171717;
   pointer-events: none;
   transform: translate(-50%, -50%);
-  animation: chicken-text-in 70ms 300ms both;
+  animation: chicken-text-in 80ms 270ms linear both;
 }
 
 .blackbox-icon-mask.holding {
@@ -661,7 +661,7 @@ footer {
 }
 
 .blackbox-icon-mask.leaving {
-  animation: chicken-text-out 70ms 300ms both;
+  animation: chicken-text-out 80ms 270ms linear both;
 }
 
 .blackbox-text-base,
@@ -699,7 +699,7 @@ footer {
   color: #202020;
   background: transparent;
   opacity: 0.5;
-  animation: chicken-text-out 300ms both;
+  animation: chicken-text-out 300ms linear both;
 }
 
 .blackbox-text-base.active-source {
@@ -713,7 +713,7 @@ footer {
   padding: 0 3px;
   color: transparent;
   background: #171717;
-  animation: chicken-text-in 300ms;
+  animation: chicken-text-in 300ms linear;
 }
 
 .blackbox-text-over.holding {
@@ -722,7 +722,7 @@ footer {
 }
 
 .blackbox-text-over.leaving {
-  animation: chicken-text-out 300ms both;
+  animation: chicken-text-out 300ms linear both;
 }
 
 .app-version {

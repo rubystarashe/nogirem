@@ -106,8 +106,8 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(appSource, /blackboxTransitionPhase === "enter"[\s\S]*class="blackbox-icon-mask"/)
   assert.match(appSource, /blackboxTransitionPhase === "hold"[\s\S]*class="blackbox-icon-mask holding"/)
   assert.match(appSource, /blackboxTransitionPhase === "leave"[\s\S]*class="blackbox-icon-mask leaving"/)
-  assert.match(styleSource, /\.blackbox-icon-mask \{[\s\S]*animation: chicken-text-in 70ms 300ms both/)
-  assert.match(styleSource, /\.blackbox-icon-mask\.leaving \{[\s\S]*animation: chicken-text-out 70ms 300ms both/)
+  assert.match(styleSource, /\.blackbox-icon-mask \{[\s\S]*animation: chicken-text-in 80ms 270ms linear both/)
+  assert.match(styleSource, /\.blackbox-icon-mask\.leaving \{[\s\S]*animation: chicken-text-out 80ms 270ms linear both/)
   assert.doesNotMatch(styleSource, /blackbox-pending-mask/)
   assert.match(
     appSource,
