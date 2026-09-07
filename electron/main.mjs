@@ -7,7 +7,7 @@ import { setTimeout as delay } from "node:timers/promises"
 import { promisify } from "node:util"
 import { fileURLToPath } from "node:url"
 import { randomUUID } from "node:crypto"
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell, Tray } from "electron"
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, shell, Tray } from "electron"
 import updaterPackage from "electron-updater"
 import {
   ensureFastPingForPrimaryInterface,
@@ -48,6 +48,10 @@ import {
   removeTurboKeyHelper,
   turboKeyHelperVersion,
 } from "../src/turbo-key-installer.mjs"
+import {
+  bitrateForBlackboxSetting,
+  normalizeBlackboxSetting,
+} from "../src/blackbox-settings.mjs"
 
 const { autoUpdater } = updaterPackage
 const execFileAsync = promisify(execFile)
@@ -58,6 +62,13 @@ const localTurboKeyHelperPath = join(
   "turbo-key",
   "bin",
   "turbo-key-helper.exe",
+)
+const recorderHelperPath = join(
+  root.includes("app.asar") ? root.replace("app.asar", "app.asar.unpacked") : root,
+  "native",
+  "recorder-helper",
+  "bin",
+  "recorder-helper.exe",
 )
 const preloadPath = join(root, "electron", "preload.cjs")
 const characterGuidePreloadPath = join(root, "electron", "character-guide-preload.cjs")
@@ -142,6 +153,9 @@ let creatorChannelProfilePromise = null
 let creatorPromptDisplayPromise = null
 let turboKeyProcess = null
 let turboKeyInstallationCache = null
+let blackboxProcess = null
+let lastBlackboxClipRequestedAt = 0
+const blackboxShortcut = "CommandOrControl+Shift+F10"
 const internalWindowsClosedForTray = new WeakSet()
 let primaryRendererRecoveryMode = false
 let primaryRendererRecoveryInProgress = false
@@ -163,6 +177,17 @@ function getTurboKeyPaths() {
     settingsPath: join(directory, "settings.json"),
     statusPath: join(directory, "status.json"),
     controlPath: join(directory, "control.json"),
+  }
+}
+
+function getBlackboxPaths() {
+  const directory = join(app.getPath("userData"), "blackbox")
+  return {
+    directory,
+    settingsPath: join(directory, "settings.json"),
+    statusPath: join(directory, "status.json"),
+    controlPath: join(directory, "control.json"),
+    storagePath: join(app.getPath("videos"), "마비노기 렘 블랙박스"),
   }
 }
 
@@ -328,6 +353,7 @@ async function installDownloadedApplicationUpdate() {
     stopAffinityHelper(),
     stopMemoryHelper(),
     stopTurboKeyHelper(),
+    stopBlackboxHelper(),
   ])
   for (const result of results) {
     if (result.status === "rejected") console.error(result.reason)
@@ -1653,6 +1679,196 @@ async function ensureTurboKeyStarted() {
   )
 }
 
+async function getBlackboxSetting() {
+  const paths = getBlackboxPaths()
+  const [savedSetting, status] = await Promise.all([
+    readJson(paths.settingsPath),
+    readRuntimeStatusJson(paths.statusPath),
+  ])
+  const setting = normalizeBlackboxSetting(savedSetting)
+  const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 5000
+  const processRunning = Boolean(blackboxProcess && blackboxProcess.exitCode === null)
+  const running = setting.enabled && processRunning && statusFresh && Boolean(status?.running)
+  return {
+    ...setting,
+    running,
+    recording: running && Boolean(status?.recording),
+    waitingForGame: running && Boolean(status?.waitingForGame),
+    clipInProgress: running && Boolean(status?.clipInProgress),
+    bytesUsed: Number(status?.bytesUsed) || 0,
+    capacityBytes: setting.capacityGb * 1024 ** 3,
+    droppedFrames: Number(status?.droppedFrames) || 0,
+    width: Number(status?.width) || 0,
+    height: Number(status?.height) || 0,
+    storagePath: paths.storagePath,
+    latestClip: status?.latestClip ?? null,
+    shortcut: "Ctrl+Shift+F10",
+    shortcutAvailable: globalShortcut.isRegistered(blackboxShortcut),
+    bitrateMbps: bitrateForBlackboxSetting(setting),
+    reason: statusFresh
+      ? (status?.error ?? null)
+      : (setting.enabled && !running ? "블랙박스 녹화 프로세스가 실행 중이 아닙니다" : null),
+  }
+}
+
+function unregisterBlackboxShortcut() {
+  if (globalShortcut.isRegistered(blackboxShortcut)) {
+    globalShortcut.unregister(blackboxShortcut)
+  }
+}
+
+function registerBlackboxShortcut() {
+  unregisterBlackboxShortcut()
+  const registered = globalShortcut.register(blackboxShortcut, () => {
+    void requestBlackboxClip().catch(error => {
+      console.error("블랙박스 단축키 클립 저장 실패", error)
+    })
+  })
+  if (!registered) console.error("Ctrl+Shift+F10 블랙박스 단축키를 등록하지 못했습니다")
+  return registered
+}
+
+async function waitForBlackboxStatus(predicate, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs
+  const { statusPath } = getBlackboxPaths()
+  while (Date.now() < deadline) {
+    const status = await readRuntimeStatusJson(statusPath)
+    if (predicate(status)) return status
+    await delay(50)
+  }
+  return null
+}
+
+async function launchBlackboxHelper(setting) {
+  if (blackboxProcess && blackboxProcess.exitCode === null) return getBlackboxSetting()
+  if (!existsSync(recorderHelperPath)) {
+    throw new Error("블랙박스 녹화 helper를 찾지 못했습니다")
+  }
+  const paths = getBlackboxPaths()
+  await Promise.all([
+    mkdir(paths.directory, { recursive: true }),
+    mkdir(paths.storagePath, { recursive: true }),
+    unlink(paths.statusPath).catch(() => {}),
+    unlink(paths.controlPath).catch(() => {}),
+  ])
+  const normalized = normalizeBlackboxSetting(setting)
+  const child = spawn(recorderHelperPath, [
+    `--status-path=${paths.statusPath}`,
+    `--control-path=${paths.controlPath}`,
+    `--storage-path=${paths.storagePath}`,
+    `--game-path=${activeMabinogiExecutablePath ?? ""}`,
+    `--parent-pid=${process.pid}`,
+    `--codec=${normalized.codec}`,
+    `--fps=${normalized.fps}`,
+    `--bitrate-mbps=${bitrateForBlackboxSetting(normalized)}`,
+    `--chunk-seconds=${normalized.chunkSeconds}`,
+    `--capacity-gb=${normalized.capacityGb}`,
+  ], {
+    windowsHide: true,
+    stdio: "ignore",
+  })
+  blackboxProcess = child
+  let spawnError = null
+  child.once("error", error => {
+    spawnError = error
+  })
+  child.once("exit", () => {
+    if (blackboxProcess === child) blackboxProcess = null
+    unregisterBlackboxShortcut()
+  })
+  const status = await waitForBlackboxStatus(
+    value => value?.running || value?.error || spawnError || child.exitCode !== null,
+  )
+  if (!status?.running) {
+    if (child.pid && child.exitCode === null) child.kill()
+    if (blackboxProcess === child) blackboxProcess = null
+    throw new Error(
+      status?.error
+      ?? spawnError?.message
+      ?? "블랙박스 녹화 프로세스를 시작하지 못했습니다",
+    )
+  }
+  registerBlackboxShortcut()
+  return getBlackboxSetting()
+}
+
+async function stopBlackboxHelper() {
+  unregisterBlackboxShortcut()
+  const child = blackboxProcess
+  if (!child || child.exitCode !== null) {
+    blackboxProcess = null
+    return getBlackboxSetting()
+  }
+  const paths = getBlackboxPaths()
+  await writeJsonAtomic(paths.controlPath, {
+    command: "stop",
+    requestedAt: Date.now(),
+  })
+  await waitForBlackboxStatus(value => value?.running === false, 3000)
+  let exited = await waitForTurboKeyProcessExit(child, 2000)
+  if (!exited) {
+    child.kill()
+    exited = await waitForTurboKeyProcessExit(child, 1000)
+  }
+  if (!exited) throw new Error("블랙박스 녹화 프로세스를 종료하지 못했습니다")
+  if (blackboxProcess === child) blackboxProcess = null
+  return getBlackboxSetting()
+}
+
+async function setBlackboxSetting(value) {
+  const paths = getBlackboxPaths()
+  const setting = normalizeBlackboxSetting(value)
+  await stopBlackboxHelper()
+  await writeJsonAtomic(paths.settingsPath, {
+    ...setting,
+    updatedAt: Date.now(),
+  })
+  if (!setting.enabled) return getBlackboxSetting()
+  try {
+    return await launchBlackboxHelper(setting)
+  } catch (error) {
+    await writeJsonAtomic(paths.settingsPath, {
+      ...setting,
+      enabled: false,
+      updatedAt: Date.now(),
+    })
+    throw error
+  }
+}
+
+async function requestBlackboxClip() {
+  const requestedAt = Date.now()
+  if (requestedAt - lastBlackboxClipRequestedAt < 2000) {
+    throw new Error("이전 클립 요청을 처리하고 있습니다")
+  }
+  const state = await getBlackboxSetting()
+  if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
+  if (state.clipInProgress) throw new Error("이전 클립을 저장하고 있습니다")
+  await writeJsonAtomic(getBlackboxPaths().controlPath, {
+    command: "clip",
+    seconds: state.clipSeconds,
+    requestedAt,
+  })
+  lastBlackboxClipRequestedAt = requestedAt
+  return getBlackboxSetting()
+}
+
+async function openBlackboxFolder() {
+  const paths = getBlackboxPaths()
+  await mkdir(join(paths.storagePath, "Clips"), { recursive: true })
+  const error = await shell.openPath(join(paths.storagePath, "Clips"))
+  if (error) throw new Error(error)
+  return true
+}
+
+async function ensureBlackboxStarted() {
+  const setting = normalizeBlackboxSetting(
+    await readJson(getBlackboxPaths().settingsPath),
+  )
+  if (!setting.enabled) return
+  await launchBlackboxHelper(setting)
+}
+
 async function launchMemoryHelper({ purgeOnStart = false } = {}) {
   const paths = getMemoryPaths()
   await mkdir(dirname(paths.statusPath), { recursive: true })
@@ -2024,6 +2240,7 @@ async function finishApplicationExitWithoutAppliedBoost() {
       reason: "application-exit-without-applied-boost",
     }),
     stopTurboKeyHelper(),
+    stopBlackboxHelper(),
   ])
   for (const result of results) {
     if (result.status === "rejected") console.error(result.reason)
@@ -2048,6 +2265,7 @@ async function finishApplicationExit(action) {
     action === "reset" ? resetAllAffinities() : stopAffinityHelper(),
     stopMemoryHelper(),
     stopTurboKeyHelper(),
+    stopBlackboxHelper(),
   ])
   for (const result of results) {
     if (result.status === "rejected") console.error(result.reason)
@@ -2449,6 +2667,30 @@ function registerIpc() {
       throw new Error("터보 키 설정 값이 올바르지 않습니다")
     }
     return setTurboKeySetting(setting)
+  })
+  ipcMain.handle("application:get-blackbox-setting", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 블랙박스 상태 요청입니다")
+    }
+    return getBlackboxSetting()
+  })
+  ipcMain.handle("application:set-blackbox-setting", (event, setting) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 블랙박스 설정 변경 요청입니다")
+    }
+    return setBlackboxSetting(setting)
+  })
+  ipcMain.handle("application:save-blackbox-clip", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 블랙박스 클립 요청입니다")
+    }
+    return requestBlackboxClip()
+  })
+  ipcMain.handle("application:open-blackbox-folder", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 블랙박스 폴더 요청입니다")
+    }
+    return openBlackboxFolder()
   })
   ipcMain.handle("application:get-visual-activity", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
@@ -3349,6 +3591,11 @@ async function startApplication() {
   }).then(() => {
     writeStartupLog("터보 키 초기화 처리 종료")
   })
+  void ensureBlackboxStarted().catch(error => {
+    console.error("블랙박스 녹화 자동 실행 실패", error)
+  }).then(() => {
+    writeStartupLog("블랙박스 녹화 초기화 처리 종료")
+  })
   void (async () => {
     await loadMabinogiExecutablePath()
       .catch(error => console.error("마비노기 경로 초기화 실패", error))
@@ -3389,6 +3636,7 @@ async function startApplication() {
   })
   app.on("window-all-closed", () => app.quit())
   app.on("will-quit", () => {
+    unregisterBlackboxShortcut()
     clearTimeout(applicationUpdateStartupTimer)
     applicationUpdateStartupTimer = null
     clearInterval(applicationUpdateCheckTimer)

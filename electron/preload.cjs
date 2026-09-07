@@ -46,6 +46,12 @@ contextBridge.exposeInMainWorld("nogirem", {
   setTurboKeySetting: setting => {
     return ipcRenderer.invoke("application:set-turbo-key-setting", setting)
   },
+  getBlackboxSetting: () => ipcRenderer.invoke("application:get-blackbox-setting"),
+  setBlackboxSetting: setting => {
+    return ipcRenderer.invoke("application:set-blackbox-setting", setting)
+  },
+  saveBlackboxClip: () => ipcRenderer.invoke("application:save-blackbox-clip"),
+  openBlackboxFolder: () => ipcRenderer.invoke("application:open-blackbox-folder"),
   getVisualActivity: () => ipcRenderer.invoke("application:get-visual-activity"),
   onVisualActivityChanged: callback => {
     const listener = (_event, active) => callback(Boolean(active))

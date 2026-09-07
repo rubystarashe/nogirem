@@ -1200,6 +1200,129 @@ button.direct-donation-card:hover {
   background: transparent;
 }
 
+.blackbox-quick-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: -5px;
+}
+
+.developer-tools .blackbox-quick-actions button {
+  justify-self: auto;
+  min-width: 0;
+  height: 24px;
+  padding: 0 9px;
+  font-size: 9px;
+}
+
+.blackbox-quick-actions span {
+  color: #777;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.blackbox-settings {
+  display: grid;
+  align-content: start;
+  height: 100%;
+  gap: 12px;
+  color: #eef1f2;
+}
+
+.blackbox-settings-description {
+  max-width: 540px;
+  margin: 0;
+  color: #aeb6ba;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.blackbox-setting-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.blackbox-setting-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.blackbox-setting-grid label > span {
+  color: #cbd1d4;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.blackbox-setting-grid select {
+  width: 100%;
+  height: 31px;
+  padding: 0 7px;
+  border: 1px solid #596165;
+  border-radius: 3px;
+  color: #f1f3f4;
+  background: #171a1b;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.blackbox-settings-summary {
+  display: flex;
+  gap: 16px;
+  color: #8f999e;
+  font-size: 10px;
+}
+
+.blackbox-settings-error {
+  color: #e4a1a1;
+  font-size: 10px;
+}
+
+.blackbox-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: auto;
+}
+
+.blackbox-settings-actions button {
+  min-width: 104px;
+  height: 29px;
+  padding: 0 12px;
+  border: 1px solid #f1f3f4;
+  border-radius: 3px;
+  color: #101214;
+  background: #f1f3f4;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.blackbox-settings-actions button.secondary {
+  border-color: #666f73;
+  color: #c2c8cb;
+  background: transparent;
+}
+
+.blackbox-settings-actions button:hover:not(:disabled) {
+  color: #f1f3f4;
+  background: transparent;
+}
+
+.blackbox-settings-actions button.secondary:hover:not(:disabled) {
+  border-color: #f1f3f4;
+  color: #f1f3f4;
+}
+
+.blackbox-settings-actions button:disabled {
+  border-color: #4c5356;
+  color: #737c80;
+  background: transparent;
+}
+
 .turbo-key-picker {
   display: grid;
   grid-template-rows: auto auto auto;

@@ -141,6 +141,7 @@ async function uploadTurboKeyHelper() {
 }
 
 await run("npm", ["run", "native:radeon"])
+await run("npm", ["run", "native:recorder"])
 await run("npm", ["run", "native:turbo-key"])
 await run("npm", ["run", "app:build"])
 const builderArguments = [

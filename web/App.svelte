@@ -11,6 +11,13 @@
     defaultTurboKeyIntervalMs,
     turboKeyIntervalOptions,
   } from "../src/turbo-key-settings.mjs"
+  import {
+    blackboxCapacityOptions,
+    blackboxClipDurationOptions,
+    blackboxCodecOptions,
+    blackboxFrameRateOptions,
+    defaultBlackboxSetting,
+  } from "../src/blackbox-settings.mjs"
   import creatorChannelAvatarUrl from "./creator-channel-avatar.jpg"
   import directDonationLogoUrl from "./direct-donation-logo.svg"
   import GameWave from "./GameWave.svelte"
@@ -155,6 +162,26 @@
   let turboTermsModalVisible = false
   let turboTermsModalCloseSignal = 0
   let turboInstallAction = null
+  let blackboxSettingLoaded = false
+  let blackboxEnabled = false
+  let blackboxRunning = false
+  let blackboxRecording = false
+  let blackboxWaitingForGame = false
+  let blackboxClipInProgress = false
+  let blackboxAction = null
+  let blackboxNotice = ""
+  let blackboxCodec = defaultBlackboxSetting.codec
+  let blackboxCapacityGb = defaultBlackboxSetting.capacityGb
+  let blackboxClipSeconds = defaultBlackboxSetting.clipSeconds
+  let blackboxFps = defaultBlackboxSetting.fps
+  let blackboxBytesUsed = 0
+  let blackboxDroppedFrames = 0
+  let blackboxShortcutAvailable = false
+  let blackboxLatestClip = null
+  let blackboxDraft = { ...defaultBlackboxSetting }
+  let blackboxModalVisible = false
+  let blackboxModalCloseSignal = 0
+  let blackboxEnableAfterSettings = false
   let closeModalVisible = false
   let closeModalCloseSignal = 0
   let optimizationModalVisible = false
@@ -772,6 +799,8 @@
       if (!radeonGlobalAction) closeRadeonGlobalModal("cancel")
     } else if (turboTermsModalVisible) {
       if (!turboInstallAction) turboTermsModalCloseSignal++
+    } else if (blackboxModalVisible) {
+      if (!blackboxAction) blackboxModalCloseSignal++
     } else if (turboKeyModalVisible) {
       if (turboKeyAction !== "keys") turboKeyModalCloseSignal++
     } else if (conflictModalVisible) {
@@ -824,6 +853,140 @@
     try {
       const state = await window.nogirem.getTurboKeySetting()
       applyTurboKeyState(state)
+    } catch {
+    }
+  }
+
+  function applyBlackboxState(state) {
+    const previousClip = blackboxLatestClip
+    blackboxEnabled = Boolean(state.enabled)
+    blackboxRunning = Boolean(state.running)
+    blackboxRecording = Boolean(state.recording)
+    blackboxWaitingForGame = Boolean(state.waitingForGame)
+    blackboxClipInProgress = Boolean(state.clipInProgress)
+    blackboxCodec = state.codec
+    blackboxCapacityGb = state.capacityGb
+    blackboxClipSeconds = state.clipSeconds
+    blackboxFps = state.fps
+    blackboxBytesUsed = Number(state.bytesUsed) || 0
+    blackboxDroppedFrames = Number(state.droppedFrames) || 0
+    blackboxShortcutAvailable = Boolean(state.shortcutAvailable)
+    blackboxLatestClip = state.latestClip
+    if (state.reason) {
+      blackboxNotice = state.reason
+    } else if (state.latestClip && state.latestClip !== previousClip) {
+      blackboxNotice = "클립 저장이 완료되었습니다"
+    }
+  }
+
+  function blackboxUsageText() {
+    const usedGb = blackboxBytesUsed / 1024 ** 3
+    return `${usedGb.toFixed(1)} / ${blackboxCapacityGb} GB`
+  }
+
+  function blackboxDraftEstimatedHours() {
+    const bitrate = blackboxDraft.codec === "hevc"
+      ? (blackboxDraft.fps === 60 ? 8 : 5)
+      : (blackboxDraft.fps === 60 ? 12 : 7)
+    return (blackboxDraft.capacityGb / (bitrate * 0.45)).toFixed(1)
+  }
+
+  function blackboxDescription() {
+    if (!blackboxSettingLoaded) return "녹화 상태를 확인하고 있습니다"
+    if (!blackboxEnabled) return "게임 화면을 청크 단위로 순환 녹화합니다"
+    if (blackboxRecording) return `${blackboxCodec === "hevc" ? "HEVC" : "H.264"} 녹화 중 · ${blackboxUsageText()}`
+    if (blackboxWaitingForGame) return "마비노기 화면을 기다리고 있습니다"
+    return blackboxRunning ? "녹화를 준비하고 있습니다" : "녹화 프로세스를 확인하지 못했습니다"
+  }
+
+  function openBlackboxSettings(enableAfterSettings = false) {
+    if (!blackboxSettingLoaded || blackboxAction) return
+    blackboxEnableAfterSettings = enableAfterSettings
+    blackboxDraft = {
+      enabled: enableAfterSettings || blackboxEnabled,
+      codec: blackboxCodec,
+      capacityGb: blackboxCapacityGb,
+      clipSeconds: blackboxClipSeconds,
+      fps: blackboxFps,
+      chunkSeconds: defaultBlackboxSetting.chunkSeconds,
+    }
+    blackboxModalVisible = true
+  }
+
+  function closeBlackboxSettings() {
+    blackboxModalVisible = false
+    blackboxEnableAfterSettings = false
+  }
+
+  async function toggleBlackbox() {
+    if (!blackboxSettingLoaded || blackboxAction) return
+    if (!blackboxEnabled) {
+      openBlackboxSettings(true)
+      return
+    }
+    blackboxAction = "saving"
+    blackboxNotice = ""
+    try {
+      applyBlackboxState(await window.nogirem.setBlackboxSetting({
+        enabled: false,
+        codec: blackboxCodec,
+        capacityGb: blackboxCapacityGb,
+        clipSeconds: blackboxClipSeconds,
+        fps: blackboxFps,
+      }))
+    } catch (error) {
+      blackboxNotice = messageOf(error)
+    } finally {
+      blackboxAction = null
+    }
+  }
+
+  async function saveBlackboxSettings() {
+    if (blackboxAction) return
+    blackboxAction = "saving"
+    blackboxNotice = ""
+    let saved = false
+    try {
+      applyBlackboxState(await window.nogirem.setBlackboxSetting({
+        ...blackboxDraft,
+        enabled: blackboxEnableAfterSettings || blackboxEnabled,
+      }))
+      saved = true
+      blackboxEnableAfterSettings = false
+    } catch (error) {
+      blackboxNotice = messageOf(error)
+    } finally {
+      blackboxAction = null
+      if (saved) blackboxModalCloseSignal++
+    }
+  }
+
+  async function saveBlackboxClip() {
+    if (blackboxAction || !blackboxRecording || blackboxClipInProgress) return
+    blackboxAction = "clip"
+    blackboxNotice = ""
+    try {
+      applyBlackboxState(await window.nogirem.saveBlackboxClip())
+      blackboxNotice = `최근 약 ${blackboxClipSeconds}초 클립을 저장하고 있습니다`
+    } catch (error) {
+      blackboxNotice = messageOf(error)
+    } finally {
+      blackboxAction = null
+    }
+  }
+
+  async function openBlackboxFolder() {
+    try {
+      await window.nogirem.openBlackboxFolder()
+    } catch (error) {
+      blackboxNotice = messageOf(error)
+    }
+  }
+
+  async function syncBlackboxSetting() {
+    if (!blackboxSettingLoaded || blackboxAction) return
+    try {
+      applyBlackboxState(await window.nogirem.getBlackboxSetting())
     } catch {
     }
   }
@@ -1298,6 +1461,16 @@
       .finally(() => {
         turboKeySettingLoaded = true
       })
+    void window.nogirem.getBlackboxSetting()
+      .then(state => {
+        applyBlackboxState(state)
+      })
+      .catch(error => {
+        blackboxNotice = messageOf(error)
+      })
+      .finally(() => {
+        blackboxSettingLoaded = true
+      })
     void window.nogirem.getLaunchContext()
       .catch(() => ({ startupTray: false }))
       .then(launchContext => {
@@ -1322,9 +1495,13 @@
     const turboKeyTimer = window.setInterval(() => {
       void syncTurboKeySetting()
     }, 1000)
+    const blackboxTimer = window.setInterval(() => {
+      void syncBlackboxSetting()
+    }, 1000)
     return () => {
       window.clearInterval(timer)
       window.clearInterval(turboKeyTimer)
+      window.clearInterval(blackboxTimer)
       window.clearTimeout(startupIdentityTimer)
       window.clearTimeout(leftTopContentTimer)
       window.clearTimeout(creatorNavigationTimer)
@@ -1896,6 +2073,55 @@
                   {#if turboKeyNotice}
                     <span class="developer-tool-status">{turboKeyNotice}</span>
                   {/if}
+                  <div class="developer-tool-row blackbox-tool-row">
+                    <div>
+                      <h2>게임 블랙박스</h2>
+                      <p>{blackboxDescription()}</p>
+                    </div>
+                    <div class="developer-tool-actions">
+                      {#if blackboxEnabled}
+                        <button
+                          class="developer-tool-secondary"
+                          disabled={blackboxAction}
+                          onclick={() => openBlackboxSettings(false)}
+                        >
+                          설정
+                        </button>
+                      {/if}
+                      <button
+                        class:active={blackboxEnabled}
+                        disabled={!blackboxSettingLoaded || blackboxAction}
+                        aria-pressed={blackboxEnabled}
+                        onclick={toggleBlackbox}
+                      >
+                        {blackboxAction === "saving"
+                          ? "저장 중…"
+                          : (blackboxEnabled ? "사용 중" : "사용하기")}
+                      </button>
+                    </div>
+                  </div>
+                  {#if blackboxEnabled}
+                    <div class="blackbox-quick-actions">
+                      <button
+                        disabled={!blackboxRecording || blackboxClipInProgress || blackboxAction}
+                        onclick={saveBlackboxClip}
+                      >
+                        {blackboxClipInProgress ? "클립 저장 중…" : `최근 약 ${blackboxClipSeconds}초 저장`}
+                      </button>
+                      <button
+                        class="developer-tool-secondary"
+                        onclick={openBlackboxFolder}
+                      >
+                        저장 폴더
+                      </button>
+                      <span>
+                        {blackboxShortcutAvailable ? "단축키 Ctrl+Shift+F10 · " : ""}누락 {blackboxDroppedFrames}프레임
+                      </span>
+                    </div>
+                  {/if}
+                  {#if blackboxNotice}
+                    <span class="developer-tool-status">{blackboxNotice}</span>
+                  {/if}
                   <div class="developer-tool-row">
                     <div>
                       <h2>CPU 재정렬</h2>
@@ -2417,6 +2643,79 @@
             설정 완료
           </button>
         </div>
+      </div>
+    </div>
+  </Modal>
+{/if}
+
+{#if blackboxModalVisible}
+  <Modal
+    title="게임 블랙박스 설정"
+    variant="fullscreen"
+    closeSignal={blackboxModalCloseSignal}
+    closeDisabled={Boolean(blackboxAction)}
+    onclose={closeBlackboxSettings}
+  >
+    <div class="blackbox-settings">
+      <p class="blackbox-settings-description">
+        마비노기 창만 최대 1080p로 외부 캡처하여 4초 청크로 순환 저장합니다.
+        녹화 처리가 밀리면 게임 대신 녹화 프레임을 건너뜁니다. 현재는 화면 영상만 저장합니다.
+      </p>
+      <div class="blackbox-setting-grid">
+        <label>
+          <span>영상 코덱</span>
+          <select bind:value={blackboxDraft.codec}>
+            {#each blackboxCodecOptions as codec}
+              <option value={codec}>{codec === "hevc" ? "HEVC · 용량 절약" : "H.264 · 기본 권장"}</option>
+            {/each}
+          </select>
+        </label>
+        <label>
+          <span>프레임</span>
+          <select bind:value={blackboxDraft.fps}>
+            {#each blackboxFrameRateOptions as fps}
+              <option value={fps}>{fps}fps</option>
+            {/each}
+          </select>
+        </label>
+        <label>
+          <span>순환 저장 한도</span>
+          <select bind:value={blackboxDraft.capacityGb}>
+            {#each blackboxCapacityOptions as capacity}
+              <option value={capacity}>{capacity} GB</option>
+            {/each}
+          </select>
+        </label>
+        <label>
+          <span>클립 길이</span>
+          <select bind:value={blackboxDraft.clipSeconds}>
+            {#each blackboxClipDurationOptions as seconds}
+              <option value={seconds}>최근 약 {seconds}초</option>
+            {/each}
+          </select>
+        </label>
+      </div>
+      <div class="blackbox-settings-summary">
+        <span>예상 보존 시간 약 {blackboxDraftEstimatedHours()}시간</span>
+        <span>클립 단축키 Ctrl+Shift+F10 · 충돌 시 화면 버튼 사용</span>
+      </div>
+      {#if blackboxNotice}
+        <span class="blackbox-settings-error">{blackboxNotice}</span>
+      {/if}
+      <div class="blackbox-settings-actions">
+        <button
+          class="secondary"
+          disabled={Boolean(blackboxAction)}
+          onclick={() => blackboxModalCloseSignal++}
+        >
+          취소
+        </button>
+        <button
+          disabled={Boolean(blackboxAction)}
+          onclick={saveBlackboxSettings}
+        >
+          {blackboxAction === "saving" ? "적용 중…" : "설정 완료"}
+        </button>
       </div>
     </div>
   </Modal>

@@ -1,11 +1,18 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-07 00:57
+Last Updated: 2026-09-07 13:30
 
 ## Current Objective
-최신 변경과 터보 키 helper 0.1.5를 포함한 0.2.9를 GitHub에 배포한다.
+고급 기능에서 사용하는 저부하 게임 블랙박스를 0.3.0 기능으로 완성하고 실제 설치본 검증을 준비한다.
 
 ## Current Status
+- 앱 버전은 0.3.0이다. 고급 기능에 기본 비활성화 상태의 게임 블랙박스 UI와 H.264·HEVC, 30·60fps, 20·50·100·200GB, 최근 약 30·60·120초 클립 설정을 추가했다.
+- `recorder-helper.exe`가 Windows Graphics Capture로 마비노기 창을 외부 캡처하고 D3D11에서 원본 비율 최대 1080p NV12로 변환한 뒤 Media Foundation 하드웨어 인코더로 기록한다.
+- 순환 녹화는 4초 MP4 청크이며 용량·디스크 여유 기준을 넘으면 오래된 청크부터 삭제한다. 클립은 hard link로 청크를 보호하고 재인코딩 없이 단일 MP4로 결합한다.
+- 화면 버튼과 `Ctrl+Shift+F10` 전역 단축키로 클립을 저장한다. 단축키 충돌 시 화면 버튼은 계속 사용할 수 있다.
+- 캡처 큐는 최대 3프레임이고 목표 fps보다 빠른 캡처 callback을 사전 제한한다. 혼잡 시 녹화 프레임만 버리며 helper와 인코더 스레드는 `Below Normal` 우선순위를 사용한다.
+- 실제 3440×1440 마비노기 창에서 H.264와 HEVC 청크 생성, 1920×802 비율 축소, H.264 청크 무재인코딩 MP4 결합과 정상 종료를 검증했다.
+- 앱 프로덕션 빌드, 전체 Node 테스트 108개, 네이티브 helper 무경고 Release 빌드와 편집기 lint가 통과했다. 아직 0.3.0 설치본은 패키징하거나 배포하지 않았다.
 - GitHub 정식 Release `v0.2.9`를 게시했다. installer, blockmap, `latest.yml`, 터보 키 helper 0.1.5 네 자산이 모두 업로드됐다.
 - `v0.2.9` 태그는 기능 변경 최종 커밋 `73f8e6071bb87aa0007e64acd06bc5877804d5dd`를 가리킨다.
 - Esc는 터보 키 선택 UI에서 비활성화되고 저장 설정 정규화에서 제거되며 Rust helper도 직접 거부한다.
@@ -180,6 +187,13 @@ Last Updated: 2026-09-07 00:57
 - 프로덕션 빌드, Electron 구문 검사, 전체 테스트 20개와 편집기 린트가 통과했다.
 
 ## Architecture / Important Decisions
+- 블랙박스는 Electron renderer나 게임 주입 방식이 아니라 별도 `native/recorder-helper` 프로세스가 소유한다. Electron은 설정·상태·control JSON과 제한된 IPC만 관리한다.
+- 녹화 경로는 `Windows Graphics Capture → D3D11 texture pool → GPU Video Processor NV12 변환 → Media Foundation 하드웨어 H.264/HEVC → 4초 MP4`다. CPU 화면 readback은 사용하지 않는다.
+- 캡처 callback은 최대 3개의 재사용 texture와 목표 fps 제한만 처리한다. encoder가 밀리면 새 프레임을 폐기해 게임·입력 경로를 기다리게 하지 않는다.
+- 순환 원본은 Windows 동영상 폴더의 `마비노기 렘 블랙박스/Ring`, 사용자 클립은 `Clips`에 저장한다. Clips는 순환 용량에서 제외한다.
+- 클립 요청은 현재 청크를 먼저 확정하고 최근 구간 청크를 hard link로 보호한 뒤 Media Foundation compressed sample을 타임스탬프만 재작성해 단일 MP4로 remux한다.
+- 0.3.0 녹화에는 게임 소리와 마이크가 포함되지 않는다. 오디오는 프로세스별 WASAPI loopback 설계·검증 후 별도 추가해야 한다.
+- recorder helper는 설치본에 내장하고 `asarUnpack`한다. 빌드 전용 공식 C++/WinRT projection은 NuGet 2.0.240111.5를 고정 SHA-256으로 검증해 생성한다.
 - `src/turbo-key-installer.mjs`가 helper 자산명·프로토콜 버전, GitHub Release 조회, SHA-256·PE 검증, AppData 원자 설치와 실행 파일·manifest 제거를 소유한다.
 - 배포본은 현재 앱 버전 태그의 정식 GitHub Release와 고정 자산명만 허용한다. 설치 상태는 `current.json`의 helper·프로토콜 버전과 실행 파일 해시를 실행 전마다 대조한다.
 - `web/TermsModal.svelte`는 고정 header/footer와 부드러운 독립 스크롤 본문을 제공하며 `web/MarkdownBlocks.svelte`가 작동 원리 화면과 약관의 안전한 Markdown 표현을 공유한다. 약관 원문은 `TURBO_KEY_TERMS.md`에서 직접 불러온다.
@@ -303,10 +317,13 @@ Last Updated: 2026-09-07 00:57
 - Windows x64와 Node.js 20 이상만 지원한다.
 - 논리 CPU는 4~52개의 짝수여야 한다.
 - 개발자 CPU 재정렬 기능은 4~52개의 짝수 논리 CPU와 기본 절반 분할 모드에서 허용한다.
-- 코드 주석은 한국어로 작성하고 줄 끝 세미콜론은 사용하지 않는다.
+- 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
-1. 실제 `status.json` 잠금 재현 환경에서 0.2.6 Affinity helper가 종료되지 않고 잠금 해제 후 상태 기록을 복구하는지 확인한다.
+1. `npm run package:win`으로 0.3.0 설치본을 만들고 설치 환경에서 helper 포함·고급 기능 실행·트레이 지속 녹화·업데이트 종료를 확인한다.
+2. NVIDIA·Intel·AMD GPU 각 1대 이상에서 H.264·HEVC 하드웨어 인코더 지원, 장시간 용량 순환과 게임 frametime 영향을 확인한다.
+3. 해상도 변경·최소화·게임 재실행 중 캡처 재연결과 청크 복구를 장시간 수동 검증한다.
+4. 실제 `status.json` 잠금 재현 환경에서 0.2.6 Affinity helper가 종료되지 않고 잠금 해제 후 상태 기록을 복구하는지 확인한다.
 2. 0.2.3 설치본에서 GitHub digest 조회·helper 다운로드·설치·제거·재실행 유지까지 수동 검증한다.
 2. 미설치·설치 성공·파일 변조 상태에서 고급 기능의 조건부 버튼과 약관 모달 스크롤·오류 표시를 개발 앱에서 수동 확인한다.
 3. Radeon 전용 장비에서 전역 설정 확인 모달, 실제 적용과 AMD Software 반영을 수동 검증한다.
@@ -329,6 +346,11 @@ Last Updated: 2026-09-07 00:57
 20. 마비노기 전면 창에서 `2 누름 → 3 누름 → 일반 키 4 누름·해제 → 3 해제 → 2 해제` 순서로 실제 입력 전환을 확인한다.
 
 ## Known Issues
+- 0.3.0 블랙박스는 화면 영상만 저장하며 게임 소리·마이크는 녹음하지 않는다.
+- 클립 시작점은 독립 재생 가능한 4초 청크 경계이므로 설정 시간보다 최대 약 4초 길어질 수 있다.
+- Windows Graphics Capture와 Media Foundation 하드웨어 HEVC 지원은 Windows 버전과 GPU 드라이버에 의존한다. 미지원 장비는 H.264 또는 30fps로 변경해야 한다.
+- helper는 unsigned 화면 녹화 실행 파일이므로 일부 보안 제품의 휴리스틱 탐지 가능성이 있으며 설치본 오탐 여부를 배포 전에 확인해야 한다.
+- 실제 마비노기 창에서 양 코덱과 클립 생성은 확인했지만 장시간 게임 frametime·입력 지연 수치는 아직 계측하지 않았다.
 - 기존 공개 0.2.2 설치본에는 선택 다운로드 UI가 없으므로 새 기능 테스트에는 로컬 최신 패키지가 필요하다.
 - GitHub가 업로드 자산의 `digest`를 제공하기 전에는 안전을 위해 다운로드를 거부한다.
 - 터보 키의 hook·주입·종료·CPU 마스크 복구는 독립 helper로 검증했지만 실제 마비노기와 BlackCipher 환경에서의 입력 수용 여부는 수동 검증이 필요하다.
@@ -367,6 +389,12 @@ Last Updated: 2026-09-07 00:57
 - 시작 트레이 예약 작업의 실제 로그온 실행은 설치본과 Windows 재로그인이 필요해 자동 검증하지 않았다.
 
 ## Key Files
+- `native/recorder-helper/main.cpp`: WGC 캡처, D3D11 변환, 하드웨어 인코딩, 순환 청크와 클립 remux
+- `src/blackbox-settings.mjs`: 블랙박스 기본값·허용 옵션·비트레이트 정규화
+- `electron/main.mjs`: recorder helper 생명주기, 전역 단축키, 설정·상태·클립 IPC
+- `web/App.svelte`: 고급 기능 블랙박스 UI와 전체 화면 설정 모달
+- `scripts/build-recorder-helper.mjs`: 고정 해시 C++/WinRT projection과 recorder helper Release 빌드
+- `test/blackbox.test.mjs`: 설정 및 UI·IPC·패키징 계약 회귀 테스트
 - `src/atomic-json.mjs`: Windows 파일 잠금 재시도와 기존 JSON 대체 처리
 - `src/index.mjs`: CLI와 전체 실행 흐름
 - `src/affinity.mjs`: CPU affinity 적용, 프로세스 탐색, 상태 복구
@@ -1071,6 +1099,9 @@ Last Updated: 2026-09-07 00:57
 - Esc 적용 제외와 키캡 hover 제거를 반영하고 helper 자동 교체 버전을 0.1.5로 올렸다. Rust 테스트 13개, clippy, helper release 빌드, Node 테스트 105개와 Svelte 빌드가 통과했다.
 - 0.2.9 자동 게시에서 installer와 blockmap의 병렬 Release 생성으로 `422 already_exists`가 발생했다. 단일 Release에 최신 네 자산을 `--clobber`로 정리하고 정식 릴리스 노트를 게시했다.
 - 최종 0.2.9 installer는 93,469,213바이트이고 SHA-256은 `7758D27A1F8D8A41744FFD2ED17AA519E4C48DA8DCECE6BA57541B8F7A32BAB0`이다. helper 0.1.5 SHA-256은 `D75A5FB357CCAF2BE9416F298C785C0A998E6AF25871602A109D733D59A2039B`이며 GitHub digest와 일치한다.
+- 0.3.0 게임 블랙박스 네이티브 helper, 고급 기능 설정·상태·클립 UI, Electron IPC와 패키징 빌드를 추가했다.
+- 실제 마비노기 3440×1440 창을 H.264·HEVC 최대 1080p MP4 청크로 녹화하고 H.264 클립을 무재인코딩 결합해 ffprobe로 재생 정보를 확인했다.
+- 0.3.0 버전·사용자 변경 기록·상세 변경 기록을 갱신했으며 패키징과 배포는 수행하지 않았다.
 
 ## Next Recommended Step
-기존 설치본에서 0.2.9 자동 업데이트와 동의가 유지된 터보 키 helper의 0.1.5 자동 교체를 확인한다.
+0.3.0을 패키징하기 전에 개발 앱의 고급 기능에서 H.264 60fps·50GB로 실제 장시간 플레이하며 게임 frametime, 녹화 누락 프레임, 클립 화질과 해상도 변경 복구를 확인한다.

@@ -1,7 +1,7 @@
 {
   "name": "nogirem",
   "productName": "마비노기 렘 부스터",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "private": true,
   "repository": {
     "type": "git",
@@ -14,6 +14,7 @@
     "app:dev": "concurrently --kill-others-on-fail \"vite\" \"wait-on tcp:5173 && electron . --dev\"",
     "app:build": "vite build",
     "native:radeon": "node scripts/build-radeon-helper.mjs",
+    "native:recorder": "node scripts/build-recorder-helper.mjs",
     "native:turbo-key": "node scripts/build-turbo-key.mjs",
     "package:win": "node scripts/package-win.mjs",
     "release:github": "node scripts/package-win.mjs --publish",
@@ -86,6 +87,7 @@
       "electron/**/*",
       "src/**/*",
       "native/radeon-helper/bin/radeon-helper.exe",
+      "native/recorder-helper/bin/recorder-helper.exe",
       "assets/**/*",
       "config.json",
       "icon.ico",
@@ -96,7 +98,8 @@
       "package.json"
     ],
     "asarUnpack": [
-      "native/radeon-helper/bin/radeon-helper.exe"
+      "native/radeon-helper/bin/radeon-helper.exe",
+      "native/recorder-helper/bin/recorder-helper.exe"
     ],
     "win": {
       "icon": "icon.ico",
