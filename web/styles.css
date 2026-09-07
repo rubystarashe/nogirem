@@ -1241,7 +1241,7 @@ button.direct-donation-card:hover {
 
 .developer-tools {
   display: grid;
-  gap: 12px;
+  gap: 18px;
   max-width: 390px;
 }
 
@@ -1264,6 +1264,12 @@ button.direct-donation-card:hover {
   width: 100%;
   align-items: stretch;
   gap: 3px;
+  transition: opacity 180ms ease;
+}
+
+.game-cpu-core-controls.applying {
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 .developer-tools .game-cpu-core-controls button {

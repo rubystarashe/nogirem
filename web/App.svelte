@@ -682,7 +682,6 @@
         data: affinity,
         error: null,
       })
-      gameCpuCoreNotice = `마비노기에 물리 코어 ${gameCoreCount}개를 우선 배정합니다`
     } catch (error) {
       gameCpuCoreNotice = messageOf(error)
     } finally {
@@ -2225,7 +2224,11 @@
                       </p>
                     </div>
                     {#if gameCpuCoreOptions().length}
-                      <div class="game-cpu-core-controls" aria-label="마비노기 CPU 코어 개수">
+                      <div
+                        class="game-cpu-core-controls"
+                        class:applying={gameCpuCoreAction}
+                        aria-label="마비노기 CPU 코어 개수"
+                      >
                         {#each gameCpuCoreOptions() as coreCount}
                           <button
                             class="game-cpu-core-option"
