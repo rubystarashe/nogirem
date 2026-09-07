@@ -890,6 +890,11 @@
     blackboxTransitionPhase = "leave"
   }
 
+  function holdBlackboxTransitionMask() {
+    blackboxTransitionPhase = "hold"
+    if (!blackboxTogglePending) revealBlackboxTransitionTarget()
+  }
+
   function finishBlackboxTransition() {
     blackboxTransitionPhase = "done"
   }
@@ -909,6 +914,7 @@
       }
     } finally {
       blackboxTogglePending = false
+      if (blackboxTransitionPhase === "hold") revealBlackboxTransitionTarget()
     }
   }
 
@@ -1733,7 +1739,7 @@
             >
               <span
                 class="blackbox-text-final"
-                class:concealed={blackboxTransitionPhase === "enter"}
+                class:concealed={["enter", "hold"].includes(blackboxTransitionPhase)}
               >
                 {blackboxSettingLoaded ? blackboxDisplayedText : "블랙박스 확인 중"}
               </span>
@@ -1747,30 +1753,28 @@
                   </span>
                   <span
                     class="blackbox-text-over"
-                    class:active-target={blackboxTransitionToEnabled}
-                    onanimationend={revealBlackboxTransitionTarget}
+                    aria-hidden="true"
+                    onanimationend={holdBlackboxTransitionMask}
+                  >
+                    {blackboxTransitionTo}
+                  </span>
+                {:else if blackboxTransitionPhase === "hold"}
+                  <span
+                    class="blackbox-text-over holding"
+                    aria-hidden="true"
                   >
                     {blackboxTransitionTo}
                   </span>
                 {:else if blackboxTransitionPhase === "leave"}
                   <span
                     class="blackbox-text-over leaving"
-                    class:active-target={blackboxTransitionToEnabled}
+                    aria-hidden="true"
                     onanimationend={finishBlackboxTransition}
                   >
                     {blackboxTransitionTo}
                   </span>
                 {/if}
               {/key}
-              {#if blackboxTogglePending && blackboxTransitionPhase === "done"}
-                <span
-                  class="blackbox-text-pending-mask"
-                  class:active-target={blackboxDisplayedEnabled}
-                  aria-hidden="true"
-                >
-                  {blackboxDisplayedText}
-                </span>
-              {/if}
             </button>
             <button
               class="blackbox-window-link"

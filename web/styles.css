@@ -625,8 +625,7 @@ footer {
 
 .blackbox-text-base,
 .blackbox-text-over,
-.blackbox-text-final,
-.blackbox-text-pending-mask {
+.blackbox-text-final {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -664,29 +663,18 @@ footer {
 .blackbox-text-over {
   z-index: 3;
   padding: 0 3px;
-  color: #e8e8e8;
+  color: transparent;
   background: #171717;
   animation: chicken-text-in 500ms;
 }
 
-.blackbox-text-over.active-target {
-  color: #ffd400;
+.blackbox-text-over.holding {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  animation: none;
 }
 
 .blackbox-text-over.leaving {
   animation: chicken-text-out 500ms both;
-}
-
-.blackbox-text-pending-mask {
-  z-index: 4;
-  padding: 0 3px;
-  color: #e8e8e8;
-  background: #171717;
-  animation: blackbox-pending-mask 1000ms ease-in-out infinite;
-}
-
-.blackbox-text-pending-mask.active-target {
-  color: #ffd400;
 }
 
 .app-version {
@@ -2451,24 +2439,6 @@ button.direct-donation-card:hover {
   }
 
   to {
-    clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
-  }
-}
-
-@keyframes blackbox-pending-mask {
-  0% {
-    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
-  }
-
-  45% {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
-  }
-
-  55% {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
-  }
-
-  100% {
     clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
   }
 }

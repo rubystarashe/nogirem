@@ -83,10 +83,15 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(appSource, /class="blackbox-main-link"/)
   assert.match(appSource, /class="blackbox-window-link"/)
   assert.match(appSource, /onclick=\{toggleMainBlackbox\}/)
-  assert.match(appSource, /blackboxTogglePending && blackboxTransitionPhase === "done"/)
   assert.match(styleSource, /\.blackbox-main-link:disabled \{[\s\S]*opacity: 1/)
-  assert.match(styleSource, /@keyframes blackbox-pending-mask/)
-  assert.match(styleSource, /animation: blackbox-pending-mask 1000ms ease-in-out infinite/)
+  assert.match(
+    appSource,
+    /function holdBlackboxTransitionMask\(\)[\s\S]*blackboxTransitionPhase = "hold"[\s\S]*if \(!blackboxTogglePending\) revealBlackboxTransitionTarget\(\)/,
+  )
+  assert.match(appSource, /blackboxTransitionPhase === "hold"[\s\S]*class="blackbox-text-over holding"/)
+  assert.match(styleSource, /\.blackbox-text-over \{[\s\S]*color: transparent/)
+  assert.match(styleSource, /\.blackbox-text-over\.holding \{[\s\S]*animation: none/)
+  assert.doesNotMatch(styleSource, /blackbox-pending-mask/)
   assert.match(
     appSource,
     /function revealBlackboxTransitionTarget\(\)[\s\S]*blackboxDisplayedText = blackboxTransitionTo[\s\S]*blackboxDisplayedEnabled = blackboxTransitionToEnabled[\s\S]*blackboxTransitionPhase = "leave"/,
