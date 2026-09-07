@@ -2109,6 +2109,21 @@
                 <div class="developer-tools">
                   <div class="developer-tool-row">
                     <div>
+                      <h2>버그 리포트</h2>
+                      <p>문제가 발생한 경우 로그 추출 파일을 전송해 주세요</p>
+                    </div>
+                    <button
+                      disabled={diagnosticLogAction}
+                      onclick={exportDiagnosticLogs}
+                    >
+                      {diagnosticLogAction === "exporting" ? "압축 중…" : "로그 추출"}
+                    </button>
+                  </div>
+                  {#if diagnosticLogNotice}
+                    <span class="developer-tool-status">{diagnosticLogNotice}</span>
+                  {/if}
+                  <div class="developer-tool-row">
+                    <div>
                       <h2>Windows 시작 시 트레이 실행</h2>
                       <p>로그인하면 창과 시작 음악 없이 백그라운드에서 실행합니다</p>
                     </div>
@@ -2254,21 +2269,6 @@
                   {/if}
                   {#if blackboxAudioError}
                     <span class="developer-tool-status">{blackboxAudioError}</span>
-                  {/if}
-                  <div class="developer-tool-row">
-                    <div>
-                      <h2>버그 리포트</h2>
-                      <p>문제가 발생한 경우 프로그램 로그를 추출해 전송해 주세요</p>
-                    </div>
-                    <button
-                      disabled={diagnosticLogAction}
-                      onclick={exportDiagnosticLogs}
-                    >
-                      {diagnosticLogAction === "exporting" ? "압축 중…" : "로그 추출"}
-                    </button>
-                  </div>
-                  {#if diagnosticLogNotice}
-                    <span class="developer-tool-status">{diagnosticLogNotice}</span>
                   {/if}
                   <div class="developer-tool-row">
                     <div>
