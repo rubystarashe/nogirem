@@ -593,7 +593,7 @@ footer {
 }
 
 .blackbox-main-link.active {
-  color: #ffd400;
+  color: #171717;
 }
 
 .blackbox-window-link {
@@ -619,12 +619,12 @@ footer {
 }
 
 .blackbox-window-link.active {
-  color: #ffd400;
+  color: #171717;
   background: transparent;
 }
 
 .blackbox-window-link.active:hover {
-  color: #ffe052;
+  color: #111;
   background: transparent;
 }
 
@@ -637,7 +637,7 @@ footer {
 }
 
 .blackbox-window-link.active svg {
-  background: #171717;
+  background: #ffd400;
 }
 
 .blackbox-icon-mask {
@@ -685,7 +685,7 @@ footer {
 }
 
 .blackbox-main-link.active .blackbox-text-final {
-  background: #171717;
+  background: #ffd400;
   opacity: 1;
 }
 
@@ -703,8 +703,8 @@ footer {
 }
 
 .blackbox-text-base.active-source {
-  color: #ffd400;
-  background: #171717;
+  color: #171717;
+  background: #ffd400;
   opacity: 1;
 }
 
