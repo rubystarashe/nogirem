@@ -4,7 +4,9 @@ import test from "node:test"
 import {
   bitrateForBlackboxSetting,
   defaultBlackboxSetting,
+  maxHeightForBlackboxQuality,
   normalizeBlackboxSetting,
+  resolveAutoBlackboxQuality,
 } from "../src/blackbox-settings.mjs"
 
 const root = new URL("../", import.meta.url)
@@ -24,12 +26,14 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
   assert.deepEqual(normalizeBlackboxSetting({
     enabled: true,
     codec: "hevc",
+    quality: "auto",
     capacityGb: 100,
     clipSeconds: 60,
     fps: 30,
   }), {
     enabled: true,
     codec: "hevc",
+    quality: "auto",
     capacityGb: 100,
     clipSeconds: 60,
     fps: 30,
@@ -38,10 +42,24 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
 })
 
 test("H.264와 HEVC 프리셋은 프레임별 비트레이트를 제공한다", () => {
-  assert.equal(bitrateForBlackboxSetting({ codec: "h264", fps: 60 }), 12)
-  assert.equal(bitrateForBlackboxSetting({ codec: "h264", fps: 30 }), 7)
-  assert.equal(bitrateForBlackboxSetting({ codec: "hevc", fps: 60 }), 8)
-  assert.equal(bitrateForBlackboxSetting({ codec: "hevc", fps: 30 }), 5)
+  assert.equal(bitrateForBlackboxSetting({ codec: "h264", quality: "1080p", fps: 60 }), 12)
+  assert.equal(bitrateForBlackboxSetting({ codec: "h264", quality: "1440p", fps: 60 }), 24)
+  assert.equal(bitrateForBlackboxSetting({ codec: "hevc", quality: "1440p", fps: 60 }), 16)
+  assert.equal(bitrateForBlackboxSetting({ codec: "hevc", quality: "original", fps: 30 }), 14)
+})
+
+test("자동 화질은 CPU와 메모리에 따라 1080p 또는 1440p를 선택한다", () => {
+  assert.equal(resolveAutoBlackboxQuality({
+    logicalCpuCount: 12,
+    totalMemoryBytes: 16 * 1024 ** 3,
+  }), "1440p")
+  assert.equal(resolveAutoBlackboxQuality({
+    logicalCpuCount: 8,
+    totalMemoryBytes: 32 * 1024 ** 3,
+  }), "1080p")
+  assert.equal(maxHeightForBlackboxQuality("1080p"), 1080)
+  assert.equal(maxHeightForBlackboxQuality("1440p"), 1440)
+  assert.equal(maxHeightForBlackboxQuality("original"), 0)
 })
 
 test("고급 기능과 Electron IPC에 블랙박스 제어가 연결된다", async () => {

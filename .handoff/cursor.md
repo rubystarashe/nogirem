@@ -1,13 +1,14 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-07 14:25
+Last Updated: 2026-09-07 14:43
 
 ## Current Objective
 고급 기능에서 사용하는 저부하 게임 블랙박스를 0.3.0 기능으로 완성하고 실제 설치본 검증을 준비한다.
 
 ## Current Status
 - 앱 버전은 0.3.0이다. 고급 기능에 기본 비활성화 상태의 게임 블랙박스 UI와 H.264·HEVC, 30·60fps, 20·50·100·200GB, 최근 약 30·60·120초 클립 설정을 추가했다.
-- `recorder-helper.exe`가 Windows Graphics Capture로 마비노기 창을 외부 캡처하고 D3D11에서 원본 비율 최대 1080p NV12로 변환한 뒤 Media Foundation 하드웨어 인코더로 기록한다.
+- `recorder-helper.exe`가 Windows Graphics Capture로 마비노기 창을 외부 캡처하고 D3D11에서 선택 화질의 원본 비율 NV12로 변환한 뒤 Media Foundation 하드웨어 인코더로 기록한다.
+- 블랙박스 기본 화질은 자동이다. 메모리 16GB·논리 CPU 12개 이상이면 최대 1440p, 그 외에는 최대 1080p를 사용하며 설정에서 1080p·1440p·원본을 직접 선택할 수 있다.
 - 순환 녹화는 4초 MP4 청크이며 용량·디스크 여유 기준을 넘으면 오래된 청크부터 삭제한다. 클립은 hard link로 청크를 보호하고 재인코딩 없이 단일 MP4로 결합한다.
 - 화면 버튼과 `Ctrl+Shift+F10` 전역 단축키로 클립을 저장한다. 단축키 충돌 시 화면 버튼은 계속 사용할 수 있다.
 - 고급 기능의 `영상 추출`은 누른 시점을 고정해 최근 60초를 여는 별도 편집 창이다. `+`로 이전 30초 추가, `++`로 직접 트랙 길이 지정, 추출 길이 설정, 가이드 드래그, 구간 미리보기와 MP4 추출을 지원한다.
@@ -190,6 +191,7 @@ Last Updated: 2026-09-07 14:25
 ## Architecture / Important Decisions
 - 블랙박스는 Electron renderer나 게임 주입 방식이 아니라 별도 `native/recorder-helper` 프로세스가 소유한다. Electron은 설정·상태·control JSON과 제한된 IPC만 관리한다.
 - 녹화 경로는 `Windows Graphics Capture → D3D11 texture pool → GPU Video Processor NV12 변환 → Media Foundation 하드웨어 H.264/HEVC → 4초 MP4`다. CPU 화면 readback은 사용하지 않는다.
+- 자동 화질 판정은 Electron의 논리 CPU 수와 총 메모리를 사용한다. 1440p 60fps 비트레이트는 H.264 24Mbps·HEVC 16Mbps이며 원본보다 작은 캡처 화면을 확대하지 않는다.
 - 캡처 callback은 최대 3개의 재사용 texture와 목표 fps 제한만 처리한다. encoder가 밀리면 새 프레임을 폐기해 게임·입력 경로를 기다리게 하지 않는다.
 - 순환 원본은 Windows 동영상 폴더의 `마비노기 렘 블랙박스/Ring`, 사용자 클립은 `Clips`에 저장한다. Clips는 순환 용량에서 제외한다.
 - 클립 요청은 현재 청크를 먼저 확정하고 최근 구간 청크를 hard link로 보호한 뒤 Media Foundation compressed sample을 타임스탬프만 재작성해 단일 MP4로 remux한다.
@@ -328,7 +330,8 @@ Last Updated: 2026-09-07 14:25
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
-1. 개발 앱에서 실제 `영상 추출` 창을 열어 항상 위·Esc 닫기, 최근 60초 재생, `+`·`++`, 가이드 드래그, 구간 미리보기와 저장 파일 재생을 수동 확인한다.
+1. 개발 앱에서 자동·1080p·1440p·원본 화질 변경 후 helper 재시작과 실제 적용 해상도 표시를 수동 확인한다.
+2. 실제 `영상 추출` 창을 열어 항상 위·Esc 닫기, 최근 60초 재생, `+`·`++`, 가이드 드래그, 구간 미리보기와 저장 파일 재생을 수동 확인한다.
 2. `npm run package:win`으로 0.3.0 설치본을 만들고 설치 환경에서 helper 포함·고급 기능 실행·트레이 지속 녹화·업데이트 종료를 확인한다.
 3. NVIDIA·Intel·AMD GPU 각 1대 이상에서 H.264·HEVC 하드웨어 인코더 지원, 장시간 용량 순환과 게임 frametime 영향을 확인한다.
 4. 해상도 변경·최소화·게임 재실행 중 캡처 재연결과 청크 복구를 장시간 수동 검증한다.
@@ -1114,7 +1117,8 @@ Last Updated: 2026-09-07 14:25
 - 0.2.9 자동 게시에서 installer와 blockmap의 병렬 Release 생성으로 `422 already_exists`가 발생했다. 단일 Release에 최신 네 자산을 `--clobber`로 정리하고 정식 릴리스 노트를 게시했다.
 - 최종 0.2.9 installer는 93,469,213바이트이고 SHA-256은 `7758D27A1F8D8A41744FFD2ED17AA519E4C48DA8DCECE6BA57541B8F7A32BAB0`이다. helper 0.1.5 SHA-256은 `D75A5FB357CCAF2BE9416F298C785C0A998E6AF25871602A109D733D59A2039B`이며 GitHub digest와 일치한다.
 - 0.3.0 게임 블랙박스 네이티브 helper, 고급 기능 설정·상태·클립 UI, Electron IPC와 패키징 빌드를 추가했다.
-- 실제 마비노기 3440×1440 창을 H.264·HEVC 최대 1080p MP4 청크로 녹화하고 H.264 클립을 무재인코딩 결합해 ffprobe로 재생 정보를 확인했다.
+- 블랙박스 자동 화질 판정과 1080p·1440p·원본 선택을 추가하고 해상도별 H.264·HEVC 비트레이트를 상향했다.
+- 실제 마비노기 3440×1440 창을 자동 1440p·H.264 24Mbps 설정으로 녹화해 3440×1440 MP4 청크와 약 18.1Mbps 실효 비트레이트를 ffprobe로 확인했다.
 - 누른 시점을 고정한 최근 60초 영상 추출 편집 창과 트랙 확장·직접 길이·드래그 가이드·구간 미리보기·정확한 길이의 무재인코딩 추출을 추가했다.
 - 편집 창에 항상 위와 Esc 닫기를 적용하고 flush 직후 열린 새 청크를 트랙 입력으로 오인하던 경합을 청크 시작 timestamp 필터로 차단했다.
 - 검토 후 전용 영상 프로토콜, media signature·DTS 검증, 원자 MP4 게시, control 직렬화와 WGC frame pool drain 순서를 보강했다.
@@ -1122,4 +1126,4 @@ Last Updated: 2026-09-07 14:25
 - 0.3.0 버전·사용자 변경 기록·상세 변경 기록을 갱신했으며 패키징과 배포는 수행하지 않았다.
 
 ## Next Recommended Step
-0.3.0을 패키징하기 전에 개발 앱에서 영상 추출 편집 흐름 전체를 수동 확인한 뒤 H.264 60fps·50GB로 장시간 플레이하며 game frametime, 누락 프레임과 해상도 변경 복구를 확인한다.
+0.3.0을 패키징하기 전에 개발 앱에서 자동 화질 표시와 수동 화질 변경을 확인한 뒤 H.264 1440p 60fps·50GB로 장시간 플레이하며 game frametime, 누락 프레임과 해상도 변경 복구를 확인한다.

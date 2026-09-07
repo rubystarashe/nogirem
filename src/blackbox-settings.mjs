@@ -1,10 +1,12 @@
 export const blackboxCodecOptions = ["h264", "hevc"]
+export const blackboxQualityOptions = ["auto", "1080p", "1440p", "original"]
 export const blackboxCapacityOptions = [20, 50, 100, 200]
 export const blackboxClipDurationOptions = [30, 60, 120]
 export const blackboxFrameRateOptions = [30, 60]
 export const defaultBlackboxSetting = Object.freeze({
   enabled: false,
   codec: "h264",
+  quality: "auto",
   capacityGb: 50,
   clipSeconds: 30,
   fps: 60,
@@ -18,8 +20,43 @@ function normalizeOption(value, options, fallback) {
 
 export function bitrateForBlackboxSetting(setting) {
   const normalized = normalizeBlackboxSetting(setting)
-  if (normalized.codec === "hevc") return normalized.fps === 60 ? 8 : 5
-  return normalized.fps === 60 ? 12 : 7
+  const quality = normalized.quality === "auto" ? "1440p" : normalized.quality
+  const rates = {
+    "1080p": {
+      h264: normalized.fps === 60 ? 12 : 7,
+      hevc: normalized.fps === 60 ? 8 : 5,
+    },
+    "1440p": {
+      h264: normalized.fps === 60 ? 24 : 14,
+      hevc: normalized.fps === 60 ? 16 : 10,
+    },
+    original: {
+      h264: normalized.fps === 60 ? 32 : 20,
+      hevc: normalized.fps === 60 ? 22 : 14,
+    },
+  }
+  return rates[quality][normalized.codec]
+}
+
+export function resolveAutoBlackboxQuality({
+  logicalCpuCount = 0,
+  totalMemoryBytes = 0,
+} = {}) {
+  return logicalCpuCount >= 12 && totalMemoryBytes >= 16 * 1024 ** 3
+    ? "1440p"
+    : "1080p"
+}
+
+export function resolveBlackboxQuality(setting, environment) {
+  const normalized = normalizeBlackboxSetting(setting)
+  return normalized.quality === "auto"
+    ? resolveAutoBlackboxQuality(environment)
+    : normalized.quality
+}
+
+export function maxHeightForBlackboxQuality(quality) {
+  if (quality === "original") return 0
+  return quality === "1440p" ? 1440 : 1080
 }
 
 export function normalizeBlackboxSetting(value) {
@@ -29,6 +66,9 @@ export function normalizeBlackboxSetting(value) {
   return {
     enabled: Boolean(value?.enabled),
     codec,
+    quality: blackboxQualityOptions.includes(value?.quality)
+      ? value.quality
+      : defaultBlackboxSetting.quality,
     capacityGb: normalizeOption(
       value?.capacityGb,
       blackboxCapacityOptions,

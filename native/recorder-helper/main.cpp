@@ -62,6 +62,7 @@ struct Options {
   std::wstring codec = L"h264";
   int fps = 60;
   int bitrateMbps = 12;
+  int maxHeight = 1080;
   int chunkSeconds = 4;
   int capacityGb = 50;
   DWORD parentPid = 0;
@@ -297,6 +298,7 @@ Options optionsFromArguments(int count, wchar_t** values) {
   }
   options.fps = integerArgument(arguments, L"fps", 60, 15, 120);
   options.bitrateMbps = integerArgument(arguments, L"bitrate-mbps", 12, 2, 100);
+  options.maxHeight = integerArgument(arguments, L"max-height", 1080, 0, 4320);
   options.chunkSeconds = integerArgument(arguments, L"chunk-seconds", 4, 2, 30);
   options.capacityGb = integerArgument(arguments, L"capacity-gb", 50, 1, 4096);
   options.parentPid = static_cast<DWORD>(
@@ -471,13 +473,12 @@ void pruneRing(const fs::path& directory, std::uint64_t capacityBytes) {
 
 class Nv12Converter {
 public:
-  Nv12Converter(ID3D11Device* device, int width, int height, int fps)
+  Nv12Converter(ID3D11Device* device, int width, int height, int fps, int maxHeight)
     : width_(0),
       height_(0) {
-    const double scale = std::min(
-      1.0,
-      std::min(1920.0 / static_cast<double>(width), 1080.0 / static_cast<double>(height))
-    );
+    const double scale = maxHeight > 0
+      ? std::min(1.0, static_cast<double>(maxHeight) / static_cast<double>(height))
+      : 1.0;
     width_ = std::max<UINT>(2, static_cast<UINT>(width * scale) & ~1u);
     height_ = std::max<UINT>(2, static_cast<UINT>(height * scale) & ~1u);
     check_hresult(device->QueryInterface(IID_PPV_ARGS(&videoDevice_)));
@@ -585,8 +586,9 @@ public:
     int height,
     int fps,
     int bitrateMbps,
+    int maxHeight,
     const std::wstring& codec
-  ) : path_(path), fps_(fps), converter_(device, width, height, fps) {
+  ) : path_(path), fps_(fps), converter_(device, width, height, fps, maxHeight) {
     ComPtr<IMFDXGIDeviceManager> manager;
     UINT resetToken = 0;
     check_hresult(MFCreateDXGIDeviceManager(&resetToken, &manager));
@@ -1221,6 +1223,7 @@ private:
       packet.height,
       options_.fps,
       options_.bitrateMbps,
+      options_.maxHeight,
       options_.codec
     );
     chunkStartedAt_ = packet.capturedAt;

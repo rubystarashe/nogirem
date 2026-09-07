@@ -1240,8 +1240,19 @@ button.direct-donation-card:hover {
 
 .blackbox-setting-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 9px;
+}
+
+.blackbox-setting-grid .quality,
+.blackbox-setting-grid .codec,
+.blackbox-setting-grid .fps {
+  grid-column: span 2;
+}
+
+.blackbox-setting-grid .capacity,
+.blackbox-setting-grid .clip-duration {
+  grid-column: span 3;
 }
 
 .blackbox-setting-grid label {

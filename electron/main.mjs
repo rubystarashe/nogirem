@@ -1,7 +1,7 @@
 import { execFile, spawn } from "node:child_process"
 import { existsSync, unlinkSync } from "node:fs"
 import { copyFile, mkdir, open as openFile, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises"
-import { cpus, tmpdir } from "node:os"
+import { cpus, tmpdir, totalmem } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { promisify } from "node:util"
@@ -50,7 +50,9 @@ import {
 } from "../src/turbo-key-installer.mjs"
 import {
   bitrateForBlackboxSetting,
+  maxHeightForBlackboxQuality,
   normalizeBlackboxSetting,
+  resolveBlackboxQuality,
 } from "../src/blackbox-settings.mjs"
 
 const { autoUpdater } = updaterPackage
@@ -1720,11 +1722,17 @@ async function getBlackboxSetting() {
     readRuntimeStatusJson(paths.statusPath),
   ])
   const setting = normalizeBlackboxSetting(savedSetting)
+  const resolvedQuality = resolveBlackboxQuality(setting, {
+    logicalCpuCount: cpus().length,
+    totalMemoryBytes: totalmem(),
+  })
+  const runtimeSetting = { ...setting, quality: resolvedQuality }
   const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 5000
   const processRunning = Boolean(blackboxProcess && blackboxProcess.exitCode === null)
   const running = setting.enabled && processRunning && statusFresh && Boolean(status?.running)
   return {
     ...setting,
+    resolvedQuality,
     running,
     recording: running && Boolean(status?.recording),
     waitingForGame: running && Boolean(status?.waitingForGame),
@@ -1738,7 +1746,7 @@ async function getBlackboxSetting() {
     latestClip: status?.latestClip ?? null,
     shortcut: "Ctrl+Shift+F10",
     shortcutAvailable: globalShortcut.isRegistered(blackboxShortcut),
-    bitrateMbps: bitrateForBlackboxSetting(setting),
+    bitrateMbps: bitrateForBlackboxSetting(runtimeSetting),
     reason: statusFresh
       ? (status?.error ?? null)
       : (setting.enabled && !running ? "블랙박스 녹화 프로세스가 실행 중이 아닙니다" : null),
@@ -1794,6 +1802,11 @@ async function launchBlackboxHelper(setting) {
     unlink(paths.controlPath).catch(() => {}),
   ])
   const normalized = normalizeBlackboxSetting(setting)
+  const resolvedQuality = resolveBlackboxQuality(normalized, {
+    logicalCpuCount: cpus().length,
+    totalMemoryBytes: totalmem(),
+  })
+  const runtimeSetting = { ...normalized, quality: resolvedQuality }
   const child = spawn(recorderHelperPath, [
     `--status-path=${paths.statusPath}`,
     `--control-path=${paths.controlPath}`,
@@ -1802,7 +1815,8 @@ async function launchBlackboxHelper(setting) {
     `--parent-pid=${process.pid}`,
     `--codec=${normalized.codec}`,
     `--fps=${normalized.fps}`,
-    `--bitrate-mbps=${bitrateForBlackboxSetting(normalized)}`,
+    `--bitrate-mbps=${bitrateForBlackboxSetting(runtimeSetting)}`,
+    `--max-height=${maxHeightForBlackboxQuality(resolvedQuality)}`,
     `--chunk-seconds=${normalized.chunkSeconds}`,
     `--capacity-gb=${normalized.capacityGb}`,
   ], {

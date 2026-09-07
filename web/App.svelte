@@ -12,10 +12,12 @@
     turboKeyIntervalOptions,
   } from "../src/turbo-key-settings.mjs"
   import {
+    bitrateForBlackboxSetting,
     blackboxCapacityOptions,
     blackboxClipDurationOptions,
     blackboxCodecOptions,
     blackboxFrameRateOptions,
+    blackboxQualityOptions,
     defaultBlackboxSetting,
   } from "../src/blackbox-settings.mjs"
   import creatorChannelAvatarUrl from "./creator-channel-avatar.jpg"
@@ -171,6 +173,8 @@
   let blackboxAction = null
   let blackboxNotice = ""
   let blackboxCodec = defaultBlackboxSetting.codec
+  let blackboxQuality = defaultBlackboxSetting.quality
+  let blackboxResolvedQuality = "1440p"
   let blackboxCapacityGb = defaultBlackboxSetting.capacityGb
   let blackboxClipSeconds = defaultBlackboxSetting.clipSeconds
   let blackboxFps = defaultBlackboxSetting.fps
@@ -865,6 +869,10 @@
     blackboxWaitingForGame = Boolean(state.waitingForGame)
     blackboxClipInProgress = Boolean(state.clipInProgress)
     blackboxCodec = state.codec
+    blackboxQuality = state.quality
+    blackboxResolvedQuality = state.resolvedQuality ?? (
+      state.quality === "original" ? "original" : "1440p"
+    )
     blackboxCapacityGb = state.capacityGb
     blackboxClipSeconds = state.clipSeconds
     blackboxFps = state.fps
@@ -885,16 +893,26 @@
   }
 
   function blackboxDraftEstimatedHours() {
-    const bitrate = blackboxDraft.codec === "hevc"
-      ? (blackboxDraft.fps === 60 ? 8 : 5)
-      : (blackboxDraft.fps === 60 ? 12 : 7)
+    const bitrate = bitrateForBlackboxSetting({
+      ...blackboxDraft,
+      quality: blackboxDraft.quality === "auto"
+        ? blackboxResolvedQuality
+        : blackboxDraft.quality,
+    })
     return (blackboxDraft.capacityGb / (bitrate * 0.45)).toFixed(1)
+  }
+
+  function blackboxQualityLabel(quality) {
+    if (quality === "original") return "원본"
+    return quality === "1440p" ? "최대 1440p" : "최대 1080p"
   }
 
   function blackboxDescription() {
     if (!blackboxSettingLoaded) return "녹화 상태를 확인하고 있습니다"
     if (!blackboxEnabled) return "게임 화면을 청크 단위로 순환 녹화합니다"
-    if (blackboxRecording) return `${blackboxCodec === "hevc" ? "HEVC" : "H.264"} 녹화 중 · ${blackboxUsageText()}`
+    if (blackboxRecording) {
+      return `${blackboxCodec === "hevc" ? "HEVC" : "H.264"} · ${blackboxQualityLabel(blackboxResolvedQuality)} 녹화 중 · ${blackboxUsageText()}`
+    }
     if (blackboxWaitingForGame) return "마비노기 화면을 기다리고 있습니다"
     return blackboxRunning ? "녹화를 준비하고 있습니다" : "녹화 프로세스를 확인하지 못했습니다"
   }
@@ -905,6 +923,7 @@
     blackboxDraft = {
       enabled: enableAfterSettings || blackboxEnabled,
       codec: blackboxCodec,
+      quality: blackboxQuality,
       capacityGb: blackboxCapacityGb,
       clipSeconds: blackboxClipSeconds,
       fps: blackboxFps,
@@ -2677,11 +2696,23 @@
   >
     <div class="blackbox-settings">
       <p class="blackbox-settings-description">
-        마비노기 창만 최대 1080p로 외부 캡처하여 4초 청크로 순환 저장합니다.
+        자동 화질은 PC 자원에 따라 최대 1080p 또는 1440p로 설정하며 원본 비율을 유지합니다.
         녹화 처리가 밀리면 게임 대신 녹화 프레임을 건너뜁니다. 현재는 화면 영상만 저장합니다.
       </p>
       <div class="blackbox-setting-grid">
-        <label>
+        <label class="quality">
+          <span>화질</span>
+          <select bind:value={blackboxDraft.quality}>
+            {#each blackboxQualityOptions as quality}
+              <option value={quality}>
+                {quality === "auto"
+                  ? `자동 권장 · ${blackboxQualityLabel(blackboxResolvedQuality)}`
+                  : blackboxQualityLabel(quality)}
+              </option>
+            {/each}
+          </select>
+        </label>
+        <label class="codec">
           <span>영상 코덱</span>
           <select bind:value={blackboxDraft.codec}>
             {#each blackboxCodecOptions as codec}
@@ -2689,7 +2720,7 @@
             {/each}
           </select>
         </label>
-        <label>
+        <label class="fps">
           <span>프레임</span>
           <select bind:value={blackboxDraft.fps}>
             {#each blackboxFrameRateOptions as fps}
@@ -2697,7 +2728,7 @@
             {/each}
           </select>
         </label>
-        <label>
+        <label class="capacity">
           <span>순환 저장 한도</span>
           <select bind:value={blackboxDraft.capacityGb}>
             {#each blackboxCapacityOptions as capacity}
@@ -2705,7 +2736,7 @@
             {/each}
           </select>
         </label>
-        <label>
+        <label class="clip-duration">
           <span>클립 길이</span>
           <select bind:value={blackboxDraft.clipSeconds}>
             {#each blackboxClipDurationOptions as seconds}
@@ -2715,7 +2746,7 @@
         </label>
       </div>
       <div class="blackbox-settings-summary">
-        <span>예상 보존 시간 약 {blackboxDraftEstimatedHours()}시간</span>
+        <span>{blackboxDraft.quality === "auto" ? "자동 판정" : "선택 화질"} · 예상 보존 약 {blackboxDraftEstimatedHours()}시간</span>
         <span>클립 단축키 Ctrl+Shift+F10 · 충돌 시 화면 버튼 사용</span>
       </div>
       {#if blackboxNotice}
