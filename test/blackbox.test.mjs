@@ -79,8 +79,12 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
     readFile(new URL("package.json", root), "utf8"),
   ])
   assert.match(appSource, /class="blackbox-main-link"/)
+  assert.match(appSource, /class="blackbox-window-link"/)
+  assert.match(appSource, /onclick=\{toggleMainBlackbox\}/)
   assert.match(appSource, /openBlackboxManager/)
   assert.doesNotMatch(appSource, /<h2>게임 블랙박스<\/h2>/)
+  assert.match(mainSource, /application:set-blackbox-enabled[\s\S]*\.\.\.current,[\s\S]*enabled: Boolean\(enabled\)/)
+  assert.match(preloadSource, /setBlackboxEnabled/)
   assert.match(mainSource, /function openBlackboxManager\(\)/)
   assert.match(mainSource, /title: "게임 블랙박스 관리"/)
   assert.match(mainSource, /blackbox-manager\.html/)

@@ -3199,6 +3199,16 @@ function registerIpc() {
     }
     return setBlackboxSetting(setting)
   })
+  ipcMain.handle("application:set-blackbox-enabled", async (event, enabled) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 블랙박스 상태 변경 요청입니다")
+    }
+    const current = await getBlackboxSetting()
+    return setBlackboxSetting({
+      ...current,
+      enabled: Boolean(enabled),
+    })
+  })
   ipcMain.handle("application:save-blackbox-clip", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 블랙박스 클립 요청입니다")

@@ -551,22 +551,13 @@ footer {
   color: #f0a44b;
 }
 
-.blackbox-main-link {
+.blackbox-main-controls {
   position: fixed;
-  top: 129px;
+  top: 125px;
   right: 14px;
-  display: block;
-  width: 128px;
-  height: 30px;
-  padding: 0;
-  overflow: visible;
-  border: 0;
-  border-radius: 2px;
-  color: #202020;
-  background: transparent;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
   opacity: 0;
   transform: translateX(12px);
   transition:
@@ -575,28 +566,75 @@ footer {
   -webkit-app-region: no-drag;
 }
 
-.blackbox-main-link.entered {
+.blackbox-main-controls.entered {
   opacity: 1;
   transform: translateX(0);
+}
+
+.blackbox-main-link {
+  position: relative;
+  display: block;
+  width: 142px;
+  height: 38px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 2px;
+  color: #202020;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.blackbox-main-link:disabled {
+  cursor: default;
 }
 
 .blackbox-main-link.active {
   color: #ffd400;
 }
 
+.blackbox-window-link {
+  display: grid;
+  width: 34px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 2px;
+  color: #4c4c4c;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    background 180ms ease;
+}
+
+.blackbox-window-link:hover {
+  color: #111;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.blackbox-window-link svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
 .blackbox-text-base,
 .blackbox-text-over,
 .blackbox-text-final {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 50%;
-  line-height: 30px;
-  transform: translateX(-50%);
+  line-height: 19px;
+  transform: translate(-50%, -50%);
   white-space: nowrap;
 }
 
 .blackbox-text-final {
-  padding: 0 8px;
+  padding: 0 3px;
   color: inherit;
 }
 
@@ -610,7 +648,7 @@ footer {
 
 .blackbox-text-base {
   z-index: 2;
-  padding: 0 8px;
+  padding: 0 3px;
   color: #202020;
   background: transparent;
   animation: chicken-text-out 500ms both;
@@ -623,7 +661,7 @@ footer {
 
 .blackbox-text-over {
   z-index: 3;
-  padding: 0 4px;
+  padding: 0 3px;
   color: #e8e8e8;
   background: #171717;
   animation: chicken-text-in 500ms;

@@ -159,9 +159,10 @@
   let turboInstallAction = null
   let blackboxSettingLoaded = false
   let blackboxEnabled = false
-  let blackboxDisplayedText = "블랙박스 비활성화됨"
-  let blackboxTransitionFrom = "블랙박스 비활성화됨"
-  let blackboxTransitionTo = "블랙박스 비활성화됨"
+  let blackboxTogglePending = false
+  let blackboxDisplayedText = "블랙박스 꺼짐"
+  let blackboxTransitionFrom = "블랙박스 꺼짐"
+  let blackboxTransitionTo = "블랙박스 꺼짐"
   let blackboxTransitionFromEnabled = false
   let blackboxTransitionToEnabled = false
   let blackboxTransitionPhase = "done"
@@ -859,7 +860,7 @@
 
   function applyBlackboxState(state) {
     const nextEnabled = Boolean(state.enabled)
-    const nextText = nextEnabled ? "블랙박스 활성화됨" : "블랙박스 비활성화됨"
+    const nextText = nextEnabled ? "블랙박스 켜짐" : "블랙박스 꺼짐"
     if (blackboxSettingLoaded && nextText !== blackboxDisplayedText) {
       blackboxTransitionFrom = blackboxDisplayedText
       blackboxTransitionTo = nextText
@@ -880,6 +881,24 @@
 
   function finishBlackboxTransition() {
     blackboxTransitionPhase = "done"
+  }
+
+  async function toggleMainBlackbox() {
+    if (!blackboxSettingLoaded || blackboxTogglePending) return
+    const nextEnabled = !blackboxEnabled
+    blackboxTogglePending = true
+    applyBlackboxState({ enabled: nextEnabled })
+    try {
+      applyBlackboxState(await window.nogirem.setBlackboxEnabled(nextEnabled))
+    } catch (error) {
+      console.error("메인 블랙박스 상태 전환 실패", error)
+      try {
+        applyBlackboxState(await window.nogirem.getBlackboxSetting())
+      } catch {
+      }
+    } finally {
+      blackboxTogglePending = false
+    }
   }
 
   async function syncBlackboxSetting() {
@@ -1689,45 +1708,60 @@
                     : "DXVK 업데이트"}
             </span>
           </button>
-          <button
-            class="blackbox-main-link"
-            class:active={blackboxEnabled}
+          <div
+            class="blackbox-main-controls"
             class:entered={leftTopContentEntered}
-            aria-label="게임 블랙박스 관리 열기"
-            onclick={() => window.nogirem.openBlackboxManager()}
           >
-            <span
-              class="blackbox-text-final"
-              class:concealed={blackboxTransitionPhase === "enter"}
+            <button
+              class="blackbox-main-link"
+              class:active={blackboxEnabled}
+              disabled={!blackboxSettingLoaded || blackboxTogglePending}
+              aria-label={blackboxEnabled ? "블랙박스 끄기" : "블랙박스 켜기"}
+              aria-pressed={blackboxEnabled}
+              onclick={toggleMainBlackbox}
             >
-              {blackboxSettingLoaded ? blackboxDisplayedText : "블랙박스 확인 중"}
-            </span>
-            {#key blackboxTransitionId}
-              {#if blackboxTransitionPhase === "enter"}
-                <span
-                  class="blackbox-text-base"
-                  class:active-source={blackboxTransitionFromEnabled}
-                >
-                  {blackboxTransitionFrom}
-                </span>
-                <span
-                  class="blackbox-text-over"
-                  class:active-target={blackboxTransitionToEnabled}
-                  onanimationend={() => blackboxTransitionPhase = "leave"}
-                >
-                  {blackboxTransitionTo}
-                </span>
-              {:else if blackboxTransitionPhase === "leave"}
-                <span
-                  class="blackbox-text-over leaving"
-                  class:active-target={blackboxTransitionToEnabled}
-                  onanimationend={finishBlackboxTransition}
-                >
-                  {blackboxTransitionTo}
-                </span>
-              {/if}
-            {/key}
-          </button>
+              <span
+                class="blackbox-text-final"
+                class:concealed={blackboxTransitionPhase === "enter"}
+              >
+                {blackboxSettingLoaded ? blackboxDisplayedText : "블랙박스 확인 중"}
+              </span>
+              {#key blackboxTransitionId}
+                {#if blackboxTransitionPhase === "enter"}
+                  <span
+                    class="blackbox-text-base"
+                    class:active-source={blackboxTransitionFromEnabled}
+                  >
+                    {blackboxTransitionFrom}
+                  </span>
+                  <span
+                    class="blackbox-text-over"
+                    class:active-target={blackboxTransitionToEnabled}
+                    onanimationend={() => blackboxTransitionPhase = "leave"}
+                  >
+                    {blackboxTransitionTo}
+                  </span>
+                {:else if blackboxTransitionPhase === "leave"}
+                  <span
+                    class="blackbox-text-over leaving"
+                    class:active-target={blackboxTransitionToEnabled}
+                    onanimationend={finishBlackboxTransition}
+                  >
+                    {blackboxTransitionTo}
+                  </span>
+                {/if}
+              {/key}
+            </button>
+            <button
+              class="blackbox-window-link"
+              aria-label="게임 블랙박스 관리 창 열기"
+              onclick={() => window.nogirem.openBlackboxManager()}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14 3h7v7h-2V6.41l-8.29 8.3-1.42-1.42L17.59 5H14V3ZM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+              </svg>
+            </button>
+          </div>
         {/if}
         <button
           class="boost-text-area"
