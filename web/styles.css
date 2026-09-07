@@ -553,7 +553,7 @@ footer {
 
 .blackbox-main-controls {
   position: fixed;
-  top: 125px;
+  top: 123px;
   right: 14px;
   display: flex;
   align-items: center;
@@ -574,21 +574,22 @@ footer {
 .blackbox-main-link {
   position: relative;
   display: block;
-  width: 94px;
-  height: 38px;
+  width: 104px;
+  height: 42px;
   padding: 0;
   overflow: visible;
   border: 0;
   border-radius: 2px;
   color: #202020;
   background: transparent;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .blackbox-main-link:disabled {
   cursor: default;
+  opacity: 1;
 }
 
 .blackbox-main-link.active {
@@ -597,8 +598,8 @@ footer {
 
 .blackbox-window-link {
   display: grid;
-  width: 34px;
-  height: 38px;
+  width: 37px;
+  height: 42px;
   padding: 0;
   place-items: center;
   border: 0;
@@ -617,18 +618,19 @@ footer {
 }
 
 .blackbox-window-link svg {
-  width: 17px;
-  height: 17px;
+  width: 19px;
+  height: 19px;
   fill: currentColor;
 }
 
 .blackbox-text-base,
 .blackbox-text-over,
-.blackbox-text-final {
+.blackbox-text-final,
+.blackbox-text-pending-mask {
   position: absolute;
   top: 50%;
   left: 50%;
-  line-height: 19px;
+  line-height: 21px;
   transform: translate(-50%, -50%);
   white-space: nowrap;
 }
@@ -673,6 +675,18 @@ footer {
 
 .blackbox-text-over.leaving {
   animation: chicken-text-out 500ms both;
+}
+
+.blackbox-text-pending-mask {
+  z-index: 4;
+  padding: 0 3px;
+  color: #e8e8e8;
+  background: #171717;
+  animation: blackbox-pending-mask 1000ms ease-in-out infinite;
+}
+
+.blackbox-text-pending-mask.active-target {
+  color: #ffd400;
 }
 
 .app-version {
@@ -2437,6 +2451,24 @@ button.direct-donation-card:hover {
   }
 
   to {
+    clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
+  }
+}
+
+@keyframes blackbox-pending-mask {
+  0% {
+    clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
+  }
+
+  45% {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  }
+
+  55% {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  }
+
+  100% {
     clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
   }
 }

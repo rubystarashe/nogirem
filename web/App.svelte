@@ -1762,6 +1762,15 @@
                   </span>
                 {/if}
               {/key}
+              {#if blackboxTogglePending && blackboxTransitionPhase === "done"}
+                <span
+                  class="blackbox-text-pending-mask"
+                  class:active-target={blackboxDisplayedEnabled}
+                  aria-hidden="true"
+                >
+                  {blackboxDisplayedText}
+                </span>
+              {/if}
             </button>
             <button
               class="blackbox-window-link"

@@ -65,6 +65,7 @@ test("자동 화질은 CPU와 메모리에 따라 1080p 또는 1440p를 선택�
 test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다", async () => {
   const [
     appSource,
+    styleSource,
     mainSource,
     preloadSource,
     managerPreloadSource,
@@ -72,6 +73,7 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
     packageSource,
   ] = await Promise.all([
     readFile(new URL("web/App.svelte", root), "utf8"),
+    readFile(new URL("web/styles.css", root), "utf8"),
     readFile(new URL("electron/main.mjs", root), "utf8"),
     readFile(new URL("electron/preload.cjs", root), "utf8"),
     readFile(new URL("electron/blackbox-manager-preload.cjs", root), "utf8"),
@@ -81,6 +83,10 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(appSource, /class="blackbox-main-link"/)
   assert.match(appSource, /class="blackbox-window-link"/)
   assert.match(appSource, /onclick=\{toggleMainBlackbox\}/)
+  assert.match(appSource, /blackboxTogglePending && blackboxTransitionPhase === "done"/)
+  assert.match(styleSource, /\.blackbox-main-link:disabled \{[\s\S]*opacity: 1/)
+  assert.match(styleSource, /@keyframes blackbox-pending-mask/)
+  assert.match(styleSource, /animation: blackbox-pending-mask 1000ms ease-in-out infinite/)
   assert.match(
     appSource,
     /function revealBlackboxTransitionTarget\(\)[\s\S]*blackboxDisplayedText = blackboxTransitionTo[\s\S]*blackboxDisplayedEnabled = blackboxTransitionToEnabled[\s\S]*blackboxTransitionPhase = "leave"/,
