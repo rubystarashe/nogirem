@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("blackboxManager", {
     return () => ipcRenderer.removeListener("blackbox-manager:escape-pressed", listener)
   },
   getStatus: () => ipcRenderer.invoke("blackbox-manager:get-status"),
+  chooseRingStorage: () => ipcRenderer.invoke("blackbox-manager:choose-ring-storage"),
   fitMedia: value => ipcRenderer.invoke("blackbox-manager:fit-media", value),
   setPage: page => ipcRenderer.invoke("blackbox-manager:set-page", page),
   setSetting: setting => ipcRenderer.invoke("blackbox-manager:set-setting", setting),

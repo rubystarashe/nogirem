@@ -84,6 +84,8 @@ struct Options {
   fs::path controlPath;
   fs::path metricsPath;
   fs::path storagePath;
+  fs::path ringPath;
+  fs::path clipsPath;
   fs::path gamePath;
   std::wstring codec = L"h264";
   int fps = 60;
@@ -484,6 +486,8 @@ Options optionsFromArguments(int count, wchar_t** values) {
   if (arguments.count(L"control-path")) options.controlPath = arguments.at(L"control-path");
   if (arguments.count(L"metrics-path")) options.metricsPath = arguments.at(L"metrics-path");
   if (arguments.count(L"storage-path")) options.storagePath = arguments.at(L"storage-path");
+  if (arguments.count(L"ring-path")) options.ringPath = arguments.at(L"ring-path");
+  if (arguments.count(L"clips-path")) options.clipsPath = arguments.at(L"clips-path");
   if (arguments.count(L"game-path")) options.gamePath = arguments.at(L"game-path");
   if (arguments.count(L"codec") && lower(arguments.at(L"codec")) == L"hevc") {
     options.codec = L"hevc";
@@ -513,6 +517,8 @@ Options optionsFromArguments(int count, wchar_t** values) {
   if (options.statusPath.empty() || options.controlPath.empty() || options.storagePath.empty()) {
     throw std::runtime_error("필수 실행 경로가 없습니다");
   }
+  if (options.ringPath.empty()) options.ringPath = options.storagePath / L"Ring";
+  if (options.clipsPath.empty()) options.clipsPath = options.storagePath / L"Clips";
   return options;
 }
 
@@ -2004,6 +2010,7 @@ std::vector<fs::path> compatibleChunkSuffix(
 
 void createClip(
   const fs::path& ringDirectory,
+  const fs::path& clipsDirectory,
   int seconds,
   SharedStatus& status
 ) {
@@ -2021,7 +2028,6 @@ void createClip(
       );
       if (sourceFiles.empty()) throw std::runtime_error("저장할 녹화 청크가 없습니다");
       const auto identifier = std::to_wstring(epochMilliseconds());
-      const auto clipsDirectory = ringDirectory.parent_path() / L"Clips";
       const auto stagingDirectory = clipsDirectory / (L".staging-" + identifier);
       fs::create_directories(stagingDirectory);
       std::vector<fs::path> protectedFiles;
@@ -2078,12 +2084,14 @@ public:
   EncoderWorker(
     ComPtr<ID3D11Device> device,
     fs::path ringDirectory,
+    fs::path clipsDirectory,
     RingStorageIndex& ringStorage,
     const Options& options,
     SharedStatus& status,
     RecorderMetrics& metrics
   ) : device_(std::move(device)),
       ringDirectory_(std::move(ringDirectory)),
+      clipsDirectory_(std::move(clipsDirectory)),
       ringStorage_(ringStorage),
       options_(options),
       status_(status),
@@ -2348,7 +2356,7 @@ private:
         if (clipSeconds > 0) {
           if (clipThread_.joinable()) clipThread_.join();
           clipThread_ = std::thread([this, clipSeconds] {
-            createClip(ringDirectory_, clipSeconds, status_);
+            createClip(ringDirectory_, clipsDirectory_, clipSeconds, status_);
           });
         }
         if (hasAudioPacket) {
@@ -2442,6 +2450,7 @@ private:
 
   ComPtr<ID3D11Device> device_;
   fs::path ringDirectory_;
+  fs::path clipsDirectory_;
   RingStorageIndex& ringStorage_;
   Options options_;
   SharedStatus& status_;
@@ -3558,10 +3567,10 @@ int wmain(int count, wchar_t** values) {
     init_apartment(apartment_type::multi_threaded);
     check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
     requireHardwareVideoEncoder(options.codec);
-    fs::create_directories(options.storagePath / L"Ring");
-    fs::create_directories(options.storagePath / L"Clips");
-    removeIncompleteChunks(options.storagePath / L"Ring");
-    RingStorageIndex ringStorage(options.storagePath / L"Ring");
+    fs::create_directories(options.ringPath);
+    fs::create_directories(options.clipsPath);
+    removeIncompleteChunks(options.ringPath);
+    RingStorageIndex ringStorage(options.ringPath);
     status.bytesUsed = ringStorage.bytesUsed();
     status.durationSeconds = ringStorage.durationSeconds();
 
@@ -3571,7 +3580,8 @@ int wmain(int count, wchar_t** values) {
     RecorderMetrics metrics;
     EncoderWorker encoder(
       device,
-      options.storagePath / L"Ring",
+      options.ringPath,
+      options.clipsPath,
       ringStorage,
       options,
       status,

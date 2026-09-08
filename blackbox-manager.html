@@ -281,6 +281,25 @@
         font-size: 10px;
       }
 
+      .storage-path-control {
+        display: grid;
+        width: 280px;
+        grid-template-columns: minmax(0, 1fr) 58px;
+        gap: 7px;
+      }
+
+      .settings .storage-path-input {
+        width: 100%;
+        min-width: 0;
+        cursor: default;
+        text-overflow: ellipsis;
+      }
+
+      .storage-path-button {
+        height: 32px;
+        padding: 0;
+      }
+
       .settings-summary {
         display: flex;
         flex-direction: column;
@@ -821,6 +840,13 @@
             <option value="60">60fps</option>
           </select>
         </label>
+        <label class="storage-path">
+          <span>녹화 저장 위치</span>
+          <div class="storage-path-control">
+            <input class="storage-path-input" type="text" readonly aria-label="녹화 청크 저장 위치" />
+            <button class="action storage-path-button" type="button">변경</button>
+          </div>
+        </label>
         <label class="max-duration">
           <span>최대 녹화 길이</span>
           <div class="duration-inputs">
@@ -900,6 +926,8 @@
       const qualitySelect = document.querySelector(".quality-select")
       const codecSelect = document.querySelector(".codec-select")
       const fpsSelect = document.querySelector(".fps-select")
+      const storagePathInput = document.querySelector(".storage-path-input")
+      const storagePathButton = document.querySelector(".storage-path-button")
       const capacitySelect = document.querySelector(".capacity-select")
       const maxDurationHoursInput = document.querySelector(".max-duration-hours")
       const maxDurationMinutesInput = document.querySelector(".max-duration-minutes")
@@ -1101,6 +1129,7 @@
           codec: codecSelect.value,
           fps: Number(fpsSelect.value),
           maxDurationSeconds: normalizeMaximumDurationInputs(),
+          ringStoragePath: storagePathInput.dataset.path ?? "",
           capacityGb: Number(capacitySelect.value),
           clipSeconds: Number(clipSelect.value),
           chunkSeconds: 10,
@@ -1109,16 +1138,15 @@
       }
 
       function selectedBitrate() {
-        const setting = draftSetting()
-        const quality = setting.quality === "auto"
+        const quality = qualitySelect.value === "auto"
           ? status?.resolvedQuality ?? "1440p"
-          : setting.quality
+          : qualitySelect.value
         const rates = {
-          "1080p": { h264: setting.fps === 60 ? 12 : 7, hevc: setting.fps === 60 ? 8 : 5 },
-          "1440p": { h264: setting.fps === 60 ? 24 : 14, hevc: setting.fps === 60 ? 16 : 10 },
-          original: { h264: setting.fps === 60 ? 32 : 20, hevc: setting.fps === 60 ? 22 : 14 },
+          "1080p": { h264: Number(fpsSelect.value) === 60 ? 12 : 7, hevc: Number(fpsSelect.value) === 60 ? 8 : 5 },
+          "1440p": { h264: Number(fpsSelect.value) === 60 ? 24 : 14, hevc: Number(fpsSelect.value) === 60 ? 16 : 10 },
+          original: { h264: Number(fpsSelect.value) === 60 ? 32 : 20, hevc: Number(fpsSelect.value) === 60 ? 22 : 14 },
         }
-        return rates[quality][setting.codec]
+        return rates[quality][codecSelect.value]
       }
 
       function renderSettingSummary() {
@@ -1136,6 +1164,9 @@
         qualitySelect.value = value.quality
         codecSelect.value = value.codec
         fpsSelect.value = String(value.fps)
+        storagePathInput.dataset.path = value.ringStoragePath ?? ""
+        storagePathInput.value = value.ringStoragePath ?? ""
+        storagePathInput.title = value.ringStoragePath ?? ""
         setMaximumDurationInputs(value.maxDurationSeconds)
         capacitySelect.value = String(value.capacityGb)
         clipSelect.value = String(value.clipSeconds)
@@ -1192,6 +1223,7 @@
       function setBusy(value, text = "", feedback = message) {
         busy = value
         for (const input of settingInputs) input.disabled = value
+        storagePathButton.disabled = value
         if (text) {
           feedback.classList.remove("error")
           feedback.textContent = text
@@ -1332,7 +1364,7 @@
           await refreshClips()
           clipList.scrollTop = scrollTop
           clipMessage.classList.remove("error")
-          clipMessage.textContent = `${clip.name.replace(/\.mp4$/i, "")} 삭제 완료`
+          clipMessage.textContent = ""
         } catch (error) {
           clipMessage.classList.add("error")
           clipMessage.textContent = errorMessage(error)
@@ -1557,10 +1589,22 @@
           renderSettingSummary()
         })
       }
-      maxDurationHoursInput.addEventListener("change", normalizeMaximumDurationInputs)
-      maxDurationMinutesInput.addEventListener("change", normalizeMaximumDurationInputs)
-      maxDurationSecondsInput.addEventListener("change", normalizeMaximumDurationInputs)
-
+      storagePathButton.addEventListener("click", async () => {
+        try {
+          const result = await window.blackboxManager.chooseRingStorage()
+          if (result?.canceled || !result?.ringStoragePath) return
+          storagePathInput.dataset.path = result.ringStoragePath
+          storagePathInput.value = result.ringStoragePath
+          storagePathInput.title = result.ringStoragePath
+          settingsDirty = true
+          saveSettingButton.disabled = busy
+          message.classList.remove("error")
+          message.textContent = "새 저장 위치를 사용하려면 설정 저장을 눌러 주세요"
+        } catch (error) {
+          message.classList.add("error")
+          message.textContent = errorMessage(error)
+        }
+      })
       shortcutInput.addEventListener("focus", () => {
         shortcutInput.classList.add("capturing")
       })

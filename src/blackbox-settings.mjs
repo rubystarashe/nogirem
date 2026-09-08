@@ -12,6 +12,7 @@ export const defaultBlackboxSetting = Object.freeze({
   quality: "auto",
   capacityGb: 50,
   maxDurationSeconds: 3600,
+  ringStoragePath: "",
   clipSeconds: 30,
   fps: 60,
   chunkSeconds: 10,
@@ -157,6 +158,9 @@ export function normalizeBlackboxSetting(value) {
       defaultBlackboxSetting.capacityGb,
     ),
     maxDurationSeconds: normalizeMaximumDuration(value?.maxDurationSeconds),
+    ringStoragePath: typeof value?.ringStoragePath === "string"
+      ? value.ringStoragePath.trim()
+      : defaultBlackboxSetting.ringStoragePath,
     clipSeconds: normalizeOption(
       value?.clipSeconds,
       blackboxClipDurationOptions,

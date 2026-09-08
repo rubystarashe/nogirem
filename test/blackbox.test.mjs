@@ -34,6 +34,7 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     quality: "auto",
     capacityGb: 100,
     maxDurationSeconds: 3600,
+    ringStoragePath: "",
     clipSeconds: 60,
     fps: 30,
   }), {
@@ -43,6 +44,7 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     quality: "auto",
     capacityGb: 100,
     maxDurationSeconds: 3600,
+    ringStoragePath: "",
     clipSeconds: 60,
     fps: 30,
     chunkSeconds: 10,
@@ -58,6 +60,9 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
   assert.equal(normalizeBlackboxSetting({
     maxDurationSeconds: 30,
   }).maxDurationSeconds, 60)
+  assert.equal(normalizeBlackboxSetting({
+    ringStoragePath: " D:\\Blackbox\\Ring ",
+  }).ringStoragePath, "D:\\Blackbox\\Ring")
 })
 
 test("빠른 클립 저장 단축키는 지원하는 키 조합만 정규화한다", () => {
@@ -193,6 +198,7 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(managerSource, /const scrollTop = clipList\.scrollTop[\s\S]*clipList\.scrollTop = scrollTop/)
   assert.doesNotMatch(managerSource, /<footer class="actions">/)
   assert.match(managerPreloadSource, /blackbox-manager:set-setting/)
+  assert.match(managerPreloadSource, /chooseRingStorage/)
   assert.match(managerPreloadSource, /saveClip: requestedName/)
   assert.match(managerPreloadSource, /onSaveClipRequested/)
   assert.match(managerPreloadSource, /blackbox-manager:set-enabled/)
@@ -251,7 +257,7 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(mainSource, /application:get-blackbox-setting/)
   assert.match(mainSource, /application:save-blackbox-clip/)
   assert.match(mainSource, /application:clear-blackbox-recording/)
-  assert.match(mainSource, /rm\(join\(paths\.storagePath, "Ring"\)/)
+  assert.match(mainSource, /rm\(ringStoragePath, \{ recursive: true, force: true \}\)/)
   assert.match(mainSource, /저장된 클립은 삭제하지 않습니다/)
   assert.match(preloadSource, /getBlackboxSetting/)
   assert.match(preloadSource, /clearBlackboxRecording/)
@@ -284,7 +290,10 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(managerSource, /class="shortcut-input"[\s\S]*readonly/)
   assert.match(managerSource, /최대 녹화 길이[\s\S]*class="max-duration-hours"[\s\S]*value="1"[\s\S]*class="max-duration-minutes"[\s\S]*value="0"[\s\S]*class="max-duration-seconds"[\s\S]*value="0"/)
   assert.match(managerSource, /녹화 용량 한도/)
+  assert.match(managerSource, /녹화 저장 위치[\s\S]*class="storage-path-input"[\s\S]*class="action storage-path-button"/)
   assert.match(managerSource, /maxDurationSeconds: normalizeMaximumDurationInputs\(\)/)
+  assert.match(managerSource, /ringStoragePath: storagePathInput\.dataset\.path/)
+  assert.doesNotMatch(managerSource, /maxDurationHoursInput\.addEventListener\("change", normalizeMaximumDurationInputs\)/)
   assert.match(managerSource, /function shortcutFromKeyboardEvent\(event\)/)
   assert.match(managerSource, /shortcutInput\.dataset\.accelerator = accelerator/)
   assert.match(managerSource, /Pause: "Pause"/)
@@ -292,9 +301,9 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /closeWindowOnEscape\(window, "blackbox-manager:escape-pressed"\)/)
   assert.match(managerSource, /단축키를 다른 프로그램이 사용 중입니다/)
   assert.match(mainSource, /let activeBlackboxShortcut = null/)
-  assert.match(mainSource, /async function refreshBlackboxStorageSummary\(\)/)
+  assert.match(mainSource, /async function refreshBlackboxStorageSummary\([^)]*\)/)
   assert.match(mainSource, /"--mode=summary"/)
-  assert.match(mainSource, /const storedStatus = !processRunning && blackboxStorageSummary/)
+  assert.match(mainSource, /const storedStatus = \([\s\S]*!processRunning[\s\S]*blackboxStorageSummaryPath === ringStoragePath/)
   assert.match(mainSource, /registerBlackboxShortcut\(setting\.shortcut\)/)
   assert.match(mainSource, /nativeBlackboxShortcutVirtualKeys[\s\S]*\["Pause", 0x13\]/)
   assert.match(mainSource, /`--shortcut-vk=\$\{nativeBlackboxShortcutVirtualKeys\.get\(normalized\.shortcut\) \?\? 0\}`/)
@@ -389,7 +398,8 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(managerSource, /window\.blackboxManager\.setPage\(page\)/)
   assert.match(mainSource, /function setBlackboxManagerPage\(page\)/)
   assert.match(mainSource, /compact \? 540/)
-  assert.match(mainSource, /compact \? 760/)
+  assert.match(mainSource, /compact \? 820/)
+  assert.doesNotMatch(editorScript, /trackHoursInput\.addEventListener\("change", normalizeTrackLengthInputs\)/)
   assert.match(editorScript, /function fitCurrentMedia\(\)/)
   assert.match(editorScript, /page: "extract"/)
   assert.match(managerSource, /page: "clips"/)
@@ -444,7 +454,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /blackbox-editor:extract-progress/)
   assert.match(mainSource, /type: "black"/)
   assert.match(mainSource, /"--mode=compose"/)
-  assert.match(mainSource, /"--mode=compose"[\s\S]*`--ring-path=\$\{join\(getBlackboxPaths\(\)\.storagePath, "Ring"\)\}`/)
+  assert.match(mainSource, /"--mode=compose"[\s\S]*`--ring-path=\$\{resolveBlackboxRingStoragePath\(/)
   assert.doesNotMatch(mainSource, /"--mode=compose"[\s\S]{0,200}`--input=/)
   assert.doesNotMatch(editorScript, /previewSelection/)
   assert.match(editorScript, /extractButton\.addEventListener\("click", openExportModal\)/)
@@ -495,6 +505,11 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /newestStarted - chunks_\.front\(\)\.started\s*>= maxDurationMilliseconds/)
   assert.match(nativeSource, /std::atomic_uint64_t droppedFrames = 0/)
   assert.match(mainSource, /metricsPath: join\(directory, "recorder-metrics\.log"\)/)
+  assert.match(mainSource, /blackbox-manager:choose-ring-storage/)
+  assert.match(mainSource, /function resolveBlackboxRingStoragePath\(/)
+  assert.match(mainSource, /`--ring-path=\$\{ringStoragePath\}`/)
+  assert.match(nativeSource, /options\.ringPath/)
+  assert.match(nativeSource, /options\.clipsPath/)
   assert.match(
     mainSource,
     /spawn\(recorderHelperPath,[\s\S]*`--metrics-path=\$\{paths\.metricsPath\}`/,

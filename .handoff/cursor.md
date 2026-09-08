@@ -1,12 +1,14 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-09 05:44
+Last Updated: 2026-09-09 06:03
 
 ## Current Objective
 0.3.0의 블랙박스와 CPU 코어 배정 기능을 완성하고 실제 설치본 검증을 준비한다.
 
 ## Current Status
-- 클립 삭제 확인은 오류가 발생하던 Electron 확인창 호출 대신 관리 창 내부 웹 모달에서 처리한다. main IPC는 경로 검증과 삭제만 수행하며 목록 갱신 뒤 기존 스크롤 위치를 복원한다.
+- 녹화 설정에서 순환 청크 저장 드라이브·폴더를 선택한다. 선택 위치 아래 `마비노기 렘 블랙박스\Ring`을 사용하고 저장 클립은 기존 동영상 폴더의 `Clips`에 유지한다. 기존 Ring 데이터는 자동 이동하지 않는다.
+- 최대 녹화 길이와 `++` 블랙박스 조회 길이는 입력 칸을 수정·비우는 동안 값을 되채우거나 환산하지 않고 각각 설정 저장·조회 적용 시점에만 검증한다.
+- 클립 삭제 확인은 오류가 발생하던 Electron 확인창 호출 대신 관리 창 내부 웹 모달에서 처리한다. main IPC는 경로 검증과 삭제만 수행하며 목록 갱신 뒤 기존 스크롤 위치를 복원하고 완료 문구는 표시하지 않는다.
 - 설정 저장 결과는 녹화 설정 페이지의 저장 버튼 왼쪽에만 표시하고 빈 공통 하단 영역은 제거했다.
 - recorder helper가 1분마다 private/working set·프로세스 GPU 메모리·표본 인코딩 시간·청크 finalize 시간·영상/오디오 큐 최대 깊이·구간 dropped frame을 `blackbox/recorder-metrics.log`에 저부하 기록한다. 로그는 4MB에서 1회 회전하며 진단 ZIP 수집 대상이다.
 - 꺼짐 상태 Ring 집계용 native `summary`를 구현하고도 `wmain`의 utility 허용 모드 목록에서 누락해 종료 코드 1이 반복되던 문제를 수정했다. 실제 실행 결과는 9,041,585,304바이트·3,355.061초이며 실패 시 재시도 폭주는 30초 backoff로 제한한다.
@@ -237,6 +239,7 @@ Last Updated: 2026-09-09 05:44
 - 프로덕션 빌드, Electron 구문 검사, 전체 테스트 20개와 편집기 린트가 통과했다.
 
 ## Architecture / Important Decisions
+- `ringStoragePath`는 recorder 전용 순환 청크 경로다. main이 폴더 선택창 결과만 일시 승인하고 설정 변경 IPC에서 현재 경로 또는 승인 경로인지 검증한다. native helper는 `--ring-path`와 `--clips-path`를 분리해 다른 드라이브의 Ring에서도 기존 Clips 위치로 저장한다.
 - 블랙박스는 Electron renderer나 게임 주입 방식이 아니라 별도 `native/recorder-helper` 프로세스가 소유한다. Electron은 설정·상태·control JSON과 제한된 IPC만 관리한다.
 - 녹화 경로는 `Windows Graphics Capture → D3D11 texture pool → GPU Video Processor NV12 변환 → Media Foundation 하드웨어 H.264/HEVC → 4초 MP4`다. CPU 화면 readback은 사용하지 않는다.
 - 게임 소리는 `ActivateAudioInterfaceAsync → process loopback → PCM 48kHz stereo → Media Foundation AAC` 경로로 같은 MP4에 기록한다. 캡처는 Audio MMCSS에서 복사·enqueue만 하고 AAC 인코딩은 기존 Below Normal encoder thread에서 실행한다.
@@ -390,6 +393,8 @@ Last Updated: 2026-09-09 05:44
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. 녹화 설정에서 다른 드라이브를 선택·저장한 뒤 helper가 새 `Ring`에 청크를 만들고 조회·비우기·클립 저장이 새 위치를 사용하는지 수동 확인한다. 기존 Ring은 자동 이동되지 않는다.
+1. 최대 녹화 길이와 `++` 조회 길이의 시간 값을 모두 지운 뒤 새 숫자를 입력할 때 기본값이 중간에 재생성되지 않고 저장·적용 시에만 정규화되는지 확인한다.
 1. 저장 클립 삭제 내부 모달의 취소·확인과 삭제 뒤 목록 스크롤 유지, 녹화 설정 저장 문구의 버튼 왼쪽 배치를 개발 앱에서 수동 확인한다.
 1. 실제 게임을 1시간 이상 녹화한 뒤 `blackbox/recorder-metrics.log`에서 메모리·GPU 메모리·인코딩/finalize 시간·큐 깊이·dropped frame의 시간 증가 추세를 비교한다.
 1. 녹화 설정 페이지가 540×760px에서 스크롤·우측 빈 여백 없이 모두 보이는지, Esc 사용 안 함과 Pause/Break 입력·재실행 유지·게임 중 모달 호출을 수동 확인한다.
@@ -536,6 +541,9 @@ Last Updated: 2026-09-09 05:44
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 최대 녹화 길이의 개별 `change` 정규화와 설정 요약 계산의 간접 정규화를 제거하고, `++` 조회 길이도 적용 전에는 입력값을 건드리지 않도록 변경했다.
+- recorder의 Ring과 Clips 경로를 분리하고 녹화 설정에 안전한 폴더 선택 IPC를 추가했다. 선택한 위치는 저장 시 영구 반영하고 상태 집계·편집·추출·전체 비우기도 같은 Ring을 사용한다.
+- 저장 클립 삭제 후 하단에 남던 `파일명 삭제 완료` 문구를 제거했다. 삭제 실패 오류만 클립 페이지에 표시한다.
 - 오류가 발생하던 정의되지 않은 Electron 삭제 확인 함수 의존성을 제거했다. 저장 클립 삭제는 관리 창 웹 모달에서 확인하고 삭제 완료·실패 후 기존 목록 스크롤 위치를 복원한다.
 - 설정 저장 결과 문구를 설정 페이지의 저장 버튼 왼쪽으로 제한하고 공통 하단 여백을 제거했다.
 - recorder helper에 분당 성능 JSON 로그를 추가했다. 프레임 인코딩 시간은 초당 한 프레임만 표본화하고 나머지 카운터는 relaxed atomic 최대·누적값으로 수집해 녹화 hot path 부하를 제한한다.
@@ -1307,4 +1315,4 @@ Last Updated: 2026-09-09 05:44
 - 빠른 저장 단축키에서 Esc를 사용 안 함으로 처리하고 Pause/Break를 native `VK_PAUSE` 감지로 지원했으며, 저장 클립 열기를 탐색기 파일 선택으로 변경했다. 설정 저장의 남은 4초 청크 값도 10초로 통일했다.
 
 ## Next Recommended Step
-개발 앱을 완전히 재시작해 저장 클립 삭제 모달·스크롤 유지·설정 저장 문구 배치를 확인하고, 게임 녹화 1분 뒤 `recorder-metrics.log` 첫 JSON 행이 생성되는지 확인한다.
+개발 앱을 완전히 재시작해 최대 녹화·조회 길이 입력을 비운 뒤 재입력하고, 다른 드라이브를 선택·저장한 다음 새 Ring 청크 생성과 기존 Clips 유지를 확인한다.

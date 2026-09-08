@@ -854,10 +854,6 @@ document.addEventListener("pointerdown", event => {
   }
 })
 
-trackHoursInput.addEventListener("change", normalizeTrackLengthInputs)
-trackMinutesInput.addEventListener("change", normalizeTrackLengthInputs)
-trackSecondsInput.addEventListener("change", normalizeTrackLengthInputs)
-
 directLengthForm.addEventListener("submit", event => {
   event.preventDefault()
   directLengthForm.classList.remove("visible")

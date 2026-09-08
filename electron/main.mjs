@@ -2,7 +2,7 @@ import { execFile, spawn } from "node:child_process"
 import { createReadStream, existsSync, readFileSync, unlinkSync } from "node:fs"
 import { access, copyFile, mkdir, open as openFile, readFile, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises"
 import { arch, cpus, freemem, platform, release, tmpdir, totalmem, type, uptime } from "node:os"
-import { basename, dirname, join, resolve } from "node:path"
+import { basename, dirname, isAbsolute, join, resolve } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { Readable } from "node:stream"
 import { promisify } from "node:util"
@@ -189,6 +189,8 @@ let blackboxStorageSummary = null
 let blackboxStorageSummaryPromise = null
 let blackboxStorageSummaryGeneration = 0
 let blackboxStorageSummaryRetryAt = 0
+let blackboxStorageSummaryPath = ""
+let approvedBlackboxRingStoragePath = ""
 let activeBlackboxShortcut = null
 const nativeBlackboxShortcutVirtualKeys = new Map([
   ["Pause", 0x13],
@@ -232,6 +234,13 @@ function getBlackboxPaths() {
 
 function getNetworkStatePath() {
   return join(app.getPath("userData"), "network", "fast-ping-original.json")
+}
+
+function resolveBlackboxRingStoragePath(setting, paths = getBlackboxPaths()) {
+  const requestedPath = String(setting?.ringStoragePath ?? "").trim()
+  return requestedPath && isAbsolute(requestedPath)
+    ? resolve(requestedPath)
+    : join(paths.storagePath, "Ring")
 }
 
 async function localVideoResponse(filePath, request) {
@@ -2033,6 +2042,7 @@ async function getBlackboxSetting() {
     readRuntimeStatusJson(paths.statusPath),
   ])
   const setting = normalizeBlackboxSetting(savedSetting)
+  const ringStoragePath = resolveBlackboxRingStoragePath(setting, paths)
   const resolvedQuality = resolveBlackboxQuality(setting, {
     logicalCpuCount: cpus().length,
     totalMemoryBytes: totalmem(),
@@ -2043,14 +2053,21 @@ async function getBlackboxSetting() {
   const running = setting.enabled && processRunning && statusFresh && Boolean(status?.running)
   if (
     !processRunning
-    && !blackboxStorageSummary
+    && (
+      !blackboxStorageSummary
+      || blackboxStorageSummaryPath !== ringStoragePath
+    )
     && Date.now() >= blackboxStorageSummaryRetryAt
   ) {
-    void refreshBlackboxStorageSummary().catch(error => {
+    void refreshBlackboxStorageSummary(ringStoragePath).catch(error => {
       console.error("블랙박스 저장 현황 갱신 실패", error)
     })
   }
-  const storedStatus = !processRunning && blackboxStorageSummary
+  const storedStatus = (
+    !processRunning
+    && blackboxStorageSummary
+    && blackboxStorageSummaryPath === ringStoragePath
+  )
     ? blackboxStorageSummary
     : status
   const bytesUsed = Number(storedStatus?.bytesUsed) || 0
@@ -2075,6 +2092,7 @@ async function getBlackboxSetting() {
     width: Number(status?.width) || 0,
     height: Number(status?.height) || 0,
     storagePath: paths.storagePath,
+    ringStoragePath,
     latestClip: blackboxLatestClipOverride ?? status?.latestClip ?? null,
     shortcut: setting.shortcut
       ? setting.shortcut
@@ -2095,13 +2113,20 @@ async function getBlackboxSetting() {
   }
 }
 
-async function refreshBlackboxStorageSummary() {
+async function refreshBlackboxStorageSummary(requestedRingStoragePath = "") {
   if (blackboxStorageSummaryPromise) return blackboxStorageSummaryPromise
   const generation = blackboxStorageSummaryGeneration
   blackboxStorageSummaryPromise = (async () => {
+    let ringStoragePath = requestedRingStoragePath
+    if (!ringStoragePath) {
+      const setting = normalizeBlackboxSetting(
+        await readJson(getBlackboxPaths().settingsPath),
+      )
+      ringStoragePath = resolveBlackboxRingStoragePath(setting)
+    }
     const output = await runRecorderUtility([
       "--mode=summary",
-      `--ring-path=${join(getBlackboxPaths().storagePath, "Ring")}`,
+      `--ring-path=${ringStoragePath}`,
     ])
     const summary = JSON.parse(output)
     const nextSummary = {
@@ -2110,6 +2135,7 @@ async function refreshBlackboxStorageSummary() {
     }
     if (generation === blackboxStorageSummaryGeneration) {
       blackboxStorageSummary = nextSummary
+      blackboxStorageSummaryPath = ringStoragePath
       blackboxStorageSummaryRetryAt = 0
     }
     return nextSummary
@@ -2198,6 +2224,7 @@ async function launchBlackboxHelper(setting) {
     unlink(paths.controlPath).catch(() => {}),
   ])
   const normalized = normalizeBlackboxSetting(setting)
+  const ringStoragePath = resolveBlackboxRingStoragePath(normalized, paths)
   const resolvedQuality = resolveBlackboxQuality(normalized, {
     logicalCpuCount: cpus().length,
     totalMemoryBytes: totalmem(),
@@ -2209,6 +2236,8 @@ async function launchBlackboxHelper(setting) {
     `--control-path=${paths.controlPath}`,
     `--metrics-path=${paths.metricsPath}`,
     `--storage-path=${paths.storagePath}`,
+    `--ring-path=${ringStoragePath}`,
+    `--clips-path=${join(paths.storagePath, "Clips")}`,
     `--game-path=${activeMabinogiExecutablePath ?? ""}`,
     `--parent-pid=${process.pid}`,
     `--codec=${normalized.codec}`,
@@ -2289,11 +2318,24 @@ async function stopBlackboxHelper() {
 async function setBlackboxSetting(value) {
   const paths = getBlackboxPaths()
   const setting = normalizeBlackboxSetting(value)
+  const currentSetting = normalizeBlackboxSetting(await readJson(paths.settingsPath))
+  const currentRingStoragePath = resolveBlackboxRingStoragePath(currentSetting, paths)
+  const nextRingStoragePath = resolveBlackboxRingStoragePath(setting, paths)
+  if (
+    nextRingStoragePath !== currentRingStoragePath
+    && nextRingStoragePath !== approvedBlackboxRingStoragePath
+  ) {
+    throw new Error("녹화 청크 저장 위치를 다시 선택해 주세요")
+  }
   await stopBlackboxHelper()
   await writeJsonAtomic(paths.settingsPath, {
     ...setting,
     updatedAt: Date.now(),
   })
+  approvedBlackboxRingStoragePath = ""
+  blackboxStorageSummaryGeneration += 1
+  blackboxStorageSummary = null
+  blackboxStorageSummaryPath = ""
   if (!setting.enabled) return getBlackboxSetting()
   try {
     return await launchBlackboxHelper(setting)
@@ -2304,6 +2346,33 @@ async function setBlackboxSetting(value) {
       updatedAt: Date.now(),
     })
     throw error
+  }
+}
+
+async function chooseBlackboxRingStoragePath(parentWindow) {
+  approvedBlackboxRingStoragePath = ""
+  const current = await getBlackboxSetting()
+  const currentPath = resolveBlackboxRingStoragePath(current)
+  const selection = await dialog.showOpenDialog(parentWindow, {
+    title: "녹화 청크를 저장할 드라이브 또는 폴더 선택",
+    defaultPath: dirname(currentPath),
+    buttonLabel: "이 위치 사용",
+    properties: ["openDirectory", "createDirectory"],
+  })
+  if (selection.canceled || !selection.filePaths[0]) return { canceled: true }
+
+  const selectedPath = resolve(selection.filePaths[0])
+  const selectedName = basename(selectedPath).toLowerCase()
+  const ringStoragePath = selectedName === "ring"
+    ? selectedPath
+    : selectedName === "마비노기 렘 블랙박스"
+      ? join(selectedPath, "Ring")
+      : join(selectedPath, "마비노기 렘 블랙박스", "Ring")
+  await mkdir(ringStoragePath, { recursive: true })
+  approvedBlackboxRingStoragePath = ringStoragePath
+  return {
+    canceled: false,
+    ringStoragePath,
   }
 }
 
@@ -2363,15 +2432,17 @@ async function clearBlackboxRecording() {
   return queueBlackboxControlOperation(async () => {
     const paths = getBlackboxPaths()
     const state = await getBlackboxSetting()
+    const ringStoragePath = resolveBlackboxRingStoragePath(state, paths)
     if (!state.running) {
-      await rm(join(paths.storagePath, "Ring"), { recursive: true, force: true })
-      await mkdir(join(paths.storagePath, "Ring"), { recursive: true })
+      await rm(ringStoragePath, { recursive: true, force: true })
+      await mkdir(ringStoragePath, { recursive: true })
       await unlink(paths.statusPath).catch(() => {})
       blackboxStorageSummaryGeneration += 1
       blackboxStorageSummary = {
         bytesUsed: 0,
         durationSeconds: 0,
       }
+      blackboxStorageSummaryPath = ringStoragePath
       return {
         ...await getBlackboxSetting(),
         cleared: true,
@@ -2490,7 +2561,9 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
   const seconds = Math.max(30, Math.min(21600, Math.round(Number(requestedSeconds) || 900)))
   return queueBlackboxEditorOperation(session, async () => {
     if (session.closed) throw new Error("블랙박스 편집 창이 닫혔습니다")
-    const ringDirectory = join(getBlackboxPaths().storagePath, "Ring")
+    const ringDirectory = resolveBlackboxRingStoragePath(
+      await getBlackboxSetting(),
+    )
     const metadataOutput = await runRecorderUtility([
       "--mode=index",
       `--ring-path=${ringDirectory}`,
@@ -2642,7 +2715,7 @@ async function extractBlackboxEditorRange(session, value, onProgress = null) {
     onProgress?.(1)
     await runRecorderUtility([
       "--mode=compose",
-      `--ring-path=${join(getBlackboxPaths().storagePath, "Ring")}`,
+      `--ring-path=${resolveBlackboxRingStoragePath(await getBlackboxSetting())}`,
       `--anchor-ms=${session.anchorAt}`,
       `--seconds=${session.trackSeconds}`,
       `--output=${outputPath}`,
@@ -2810,7 +2883,7 @@ function setBlackboxManagerPage(page) {
   const preferred = blackboxManagerPreferredSize ?? readBlackboxManagerSize()
   const compact = page === "settings"
   const targetWidth = Math.min(workArea.width, compact ? 540 : Math.max(900, preferred.width))
-  const targetHeight = Math.min(workArea.height, compact ? 760 : Math.max(680, preferred.height))
+  const targetHeight = Math.min(workArea.height, compact ? 820 : Math.max(680, preferred.height))
   blackboxManagerActivePage = page
   window.setMinimumSize(compact ? 520 : 900, compact ? 720 : 680)
   const targetX = Math.max(
@@ -4331,6 +4404,13 @@ function registerIpc() {
       throw new Error("허용되지 않은 블랙박스 상태 요청입니다")
     }
     return getBlackboxSetting()
+  })
+  ipcMain.handle("blackbox-manager:choose-ring-storage", event => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 녹화 청크 저장 위치 요청입니다")
+    }
+    return chooseBlackboxRingStoragePath(window)
   })
   ipcMain.handle("blackbox-manager:fit-media", (event, value) => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
