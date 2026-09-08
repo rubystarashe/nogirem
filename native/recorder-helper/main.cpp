@@ -1068,103 +1068,89 @@ void checkReaderFlags(DWORD flags) {
   }
 }
 
+LONGLONG compressedMediaDuration(const fs::path& input) {
+  auto reader = createCompressedVideoReader(input);
+  PROPVARIANT presentationDuration;
+  PropVariantInit(&presentationDuration);
+  const auto presentationResult = reader->GetPresentationAttribute(
+    static_cast<DWORD>(MF_SOURCE_READER_MEDIASOURCE),
+    MF_PD_DURATION,
+    &presentationDuration
+  );
+  LONGLONG duration = 0;
+  if (SUCCEEDED(presentationResult)) {
+    if (presentationDuration.vt == VT_UI8) {
+      duration = static_cast<LONGLONG>(presentationDuration.uhVal.QuadPart);
+    } else if (presentationDuration.vt == VT_I8) {
+      duration = presentationDuration.hVal.QuadPart;
+    }
+  }
+  PropVariantClear(&presentationDuration);
+  if (duration > 0) return duration;
+
+  ComPtr<IMFMediaType> mediaType;
+  check_hresult(reader->GetCurrentMediaType(
+    static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+    &mediaType
+  ));
+  const auto signature = mediaSignature(mediaType.Get());
+  const LONGLONG defaultDuration = fallbackSampleDuration(signature);
+  LONGLONG firstTime = -1;
+  LONGLONG fileEnd = 0;
+  while (true) {
+    DWORD actualStream = 0;
+    DWORD flags = 0;
+    LONGLONG timestamp = 0;
+    ComPtr<IMFSample> sample;
+    check_hresult(reader->ReadSample(
+      static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+      0,
+      &actualStream,
+      &flags,
+      &timestamp,
+      &sample
+    ));
+    checkReaderFlags(flags);
+    if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+    if (!sample) continue;
+    if (firstTime < 0) firstTime = timestamp;
+    LONGLONG sampleDuration = 0;
+    if (FAILED(sample->GetSampleDuration(&sampleDuration)) || sampleDuration <= 0) {
+      sampleDuration = defaultDuration;
+    }
+    fileEnd = std::max(
+      fileEnd,
+      std::max<LONGLONG>(0, timestamp - firstTime) + sampleDuration
+    );
+  }
+  return fileEnd;
+}
+
+/*
+  각 Ring 청크는 독립 재생 가능한 MP4로 확정되므로 첫 영상 sample이
+  디코딩 시작점이다. 편집 시작점은 청크 경계로 내리고 실제 표시는
+  requestedStart 기준 timestamp를 유지해 전체 sample 사전 탐색을 피한다.
+*/
 LONGLONG findCleanRangeStart(
   const std::vector<fs::path>& inputs,
   LONGLONG requestedStart
 ) {
   if (requestedStart <= 0) return 0;
   LONGLONG inputOffset = 0;
-  LONGLONG cleanStart = 0;
   for (const auto& input : inputs) {
-    auto reader = createCompressedVideoReader(input);
-    ComPtr<IMFMediaType> mediaType;
-    check_hresult(reader->GetCurrentMediaType(
-      static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
-      &mediaType
-    ));
-    const auto signature = mediaSignature(mediaType.Get());
-    const LONGLONG defaultDuration = fallbackSampleDuration(signature);
-    LONGLONG firstTime = -1;
-    LONGLONG fileEnd = inputOffset;
-    while (true) {
-      DWORD actualStream = 0;
-      DWORD flags = 0;
-      LONGLONG timestamp = 0;
-      ComPtr<IMFSample> sample;
-      check_hresult(reader->ReadSample(
-        static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
-        0,
-        &actualStream,
-        &flags,
-        &timestamp,
-        &sample
-      ));
-      checkReaderFlags(flags);
-      if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
-      if (!sample) continue;
-      if (firstTime < 0) firstTime = timestamp;
-      LONGLONG duration = 0;
-      if (FAILED(sample->GetSampleDuration(&duration)) || duration <= 0) {
-        duration = defaultDuration;
-      }
-      const LONGLONG globalTime =
-        inputOffset + std::max<LONGLONG>(0, timestamp - firstTime);
-      UINT32 cleanPoint = FALSE;
-      if (
-        globalTime <= requestedStart
-        && SUCCEEDED(sample->GetUINT32(MFSampleExtension_CleanPoint, &cleanPoint))
-        && cleanPoint
-      ) {
-        cleanStart = globalTime;
-      }
-      fileEnd = std::max(fileEnd, globalTime + duration);
-    }
-    inputOffset = fileEnd;
+    const auto inputDuration = compressedMediaDuration(input);
+    if (inputOffset + inputDuration > requestedStart) return inputOffset;
+    inputOffset += inputDuration;
   }
-  return cleanStart;
+  return std::max<LONGLONG>(0, inputOffset);
 }
 
 LONGLONG combinedMediaDuration(const std::vector<fs::path>& inputs) {
-  LONGLONG inputOffset = 0;
+  LONGLONG duration = 0;
   for (const auto& input : inputs) {
-    auto reader = createCompressedVideoReader(input);
-    ComPtr<IMFMediaType> mediaType;
-    check_hresult(reader->GetCurrentMediaType(
-      static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
-      &mediaType
-    ));
-    const LONGLONG defaultDuration =
-      fallbackSampleDuration(mediaSignature(mediaType.Get()));
-    LONGLONG firstTime = -1;
-    LONGLONG fileEnd = inputOffset;
-    while (true) {
-      DWORD actualStream = 0;
-      DWORD flags = 0;
-      LONGLONG timestamp = 0;
-      ComPtr<IMFSample> sample;
-      check_hresult(reader->ReadSample(
-        static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
-        0,
-        &actualStream,
-        &flags,
-        &timestamp,
-        &sample
-      ));
-      checkReaderFlags(flags);
-      if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
-      if (!sample) continue;
-      if (firstTime < 0) firstTime = timestamp;
-      LONGLONG duration = 0;
-      if (FAILED(sample->GetSampleDuration(&duration)) || duration <= 0) {
-        duration = defaultDuration;
-      }
-      const auto globalTime =
-        inputOffset + std::max<LONGLONG>(0, timestamp - firstTime);
-      fileEnd = std::max(fileEnd, globalTime + duration);
-    }
-    inputOffset = fileEnd;
+    duration += compressedMediaDuration(input);
   }
-  return inputOffset;
+  return duration;
 }
 
 bool remuxChunks(

@@ -57,16 +57,13 @@ const editorBridge = embedded
 
 document.body.classList.toggle("embedded", embedded)
 
-let requestedTrackSeconds = 30
+let requestedTrackSeconds = 60
 let duration = 0
 let selectionStart = 0
 let selectionDuration = 30
 let initialTrackLoaded = false
 let busy = true
-let dragging = false
-let dragOffset = 0
-let guidePointerStartX = 0
-let guideMoved = false
+let timelineInteraction = null
 let previewingSelection = false
 let lastOutputPath = ""
 
@@ -168,7 +165,7 @@ async function applyTrack(result, preserveFromEnd = 0) {
 }
 
 async function changeTrackSeconds(seconds) {
-  const normalized = Math.max(30, Math.min(21600, Math.round(Number(seconds) || 30)))
+  const normalized = Math.max(30, Math.min(21600, Math.round(Number(seconds) || 60)))
   const preserveFromEnd = Math.max(0, duration - selectionStart - selectionDuration)
   setBusy(true, `같은 기준 시점에서 최근 ${formatTime(normalized)} 영상을 준비하고 있습니다`)
   setNotice("")
@@ -187,7 +184,7 @@ async function changeTrackSeconds(seconds) {
 }
 
 function seekFromPointer(event) {
-  if (!duration) return
+  if (!duration || busy) return
   const bounds = timeline.getBoundingClientRect()
   const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
   video.currentTime = ratio * duration
@@ -195,20 +192,95 @@ function seekFromPointer(event) {
   renderTimeline()
 }
 
-function updateGuideFromPointer(event) {
-  if (!dragging || !duration) return
-  if (Math.abs(event.clientX - guidePointerStartX) >= 3) guideMoved = true
+function beginTimelineInteraction(event) {
+  if (!duration || busy || event.button !== 0) return
+  event.preventDefault()
+  const timelineBounds = timeline.getBoundingClientRect()
+  const guideBounds = guide.getBoundingClientRect()
+  const edgeSize = Math.min(10, Math.max(6, guideBounds.width / 4))
+  const pointerSeconds = (event.clientX - timelineBounds.left)
+    / timelineBounds.width
+    * duration
+  const insideGuide = event.clientX >= guideBounds.left
+    && event.clientX <= guideBounds.right
+  let mode = "seek"
+  if (Math.abs(event.clientX - guideBounds.left) <= edgeSize) {
+    mode = "resize-start"
+  } else if (Math.abs(event.clientX - guideBounds.right) <= edgeSize) {
+    mode = "resize-end"
+  } else if (insideGuide && selectionDuration < duration - 0.01) {
+    mode = "pending-move"
+  }
+
+  timelineInteraction = {
+    mode,
+    pointerId: event.pointerId,
+    pointerStartX: event.clientX,
+    pointerStartSeconds: pointerSeconds,
+    originalStart: selectionStart,
+    originalDuration: selectionDuration,
+  }
+  timeline.setPointerCapture?.(event.pointerId)
+  if (mode === "seek" || mode === "pending-move") seekFromPointer(event)
+  else guide.classList.add("dragging")
+}
+
+function updateTimelineInteraction(event) {
+  const interaction = timelineInteraction
+  if (!interaction || !duration || event.pointerId !== interaction.pointerId) return
   const bounds = timeline.getBoundingClientRect()
-  const pointerSeconds = (event.clientX - bounds.left) / bounds.width * duration
-  selectionStart = pointerSeconds - dragOffset
+  const pointerSeconds = Math.max(
+    0,
+    Math.min(duration, (event.clientX - bounds.left) / bounds.width * duration),
+  )
+  let mode = interaction.mode
+  if (mode === "seek") return
+  if (mode === "pending-move") {
+    if (Math.abs(event.clientX - interaction.pointerStartX) < 6) return
+    mode = "move"
+    interaction.mode = mode
+    guide.classList.add("dragging")
+  }
+
+  if (mode === "resize-start") {
+    const selectionEnd = interaction.originalStart + interaction.originalDuration
+    selectionStart = Math.max(0, Math.min(selectionEnd - 1, pointerSeconds))
+    selectionDuration = selectionEnd - selectionStart
+  } else if (mode === "resize-end") {
+    const selectionEnd = Math.max(
+      interaction.originalStart + 1,
+      Math.min(duration, pointerSeconds),
+    )
+    selectionStart = interaction.originalStart
+    selectionDuration = selectionEnd - selectionStart
+  } else if (mode === "move") {
+    const delta = pointerSeconds - interaction.pointerStartSeconds
+    selectionStart = Math.max(
+      0,
+      Math.min(
+        duration - interaction.originalDuration,
+        interaction.originalStart + delta,
+      ),
+    )
+    selectionDuration = interaction.originalDuration
+  }
+
   clampSelection()
+  video.pause()
   video.currentTime = selectionStart
+  previewingSelection = false
   renderTimeline()
 }
 
-function stopGuideDrag(event) {
-  if (dragging && !guideMoved && event) seekFromPointer(event)
-  dragging = false
+function endTimelineInteraction(event) {
+  if (
+    !timelineInteraction
+    || (event && event.pointerId !== timelineInteraction.pointerId)
+  ) return
+  if (event && timeline.hasPointerCapture?.(event.pointerId)) {
+    timeline.releasePointerCapture(event.pointerId)
+  }
+  timelineInteraction = null
   guide.classList.remove("dragging")
 }
 
@@ -285,28 +357,10 @@ async function togglePlayback() {
 playToggle.addEventListener("click", togglePlayback)
 video.addEventListener("click", togglePlayback)
 
-timeline.addEventListener("pointerdown", event => {
-  if (event.target === guide || guide.contains(event.target)) return
-  seekFromPointer(event)
-})
-
-guide.addEventListener("pointerdown", event => {
-  if (!duration || busy) return
-  event.preventDefault()
-  event.stopPropagation()
-  const bounds = timeline.getBoundingClientRect()
-  const pointerSeconds = (event.clientX - bounds.left) / bounds.width * duration
-  dragOffset = pointerSeconds - selectionStart
-  guidePointerStartX = event.clientX
-  guideMoved = false
-  dragging = true
-  guide.classList.add("dragging")
-  video.pause()
-})
-
-window.addEventListener("pointermove", updateGuideFromPointer)
-window.addEventListener("pointerup", stopGuideDrag)
-window.addEventListener("pointercancel", () => stopGuideDrag())
+timeline.addEventListener("pointerdown", beginTimelineInteraction)
+window.addEventListener("pointermove", updateTimelineInteraction)
+window.addEventListener("pointerup", endTimelineInteraction)
+window.addEventListener("pointercancel", () => endTimelineInteraction())
 
 window.addEventListener("keydown", event => {
   if (

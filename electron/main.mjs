@@ -2226,7 +2226,7 @@ async function prepareBlackboxEditorSession(session) {
     session.preparePromise = (async () => {
       await mkdir(session.directory, { recursive: true })
       await flushBlackboxForEditor(session.flushRequestId)
-      return createBlackboxEditorTrack(session, 30)
+      return createBlackboxEditorTrack(session, 60)
     })()
   }
   return session.preparePromise
@@ -4181,7 +4181,7 @@ function createBlackboxEditorSession() {
     preparePromise: null,
     trackPath: null,
     trackFiles: new Map(),
-    trackSeconds: 30,
+    trackSeconds: 60,
     closed: false,
   }
   blackboxEditorSession = session

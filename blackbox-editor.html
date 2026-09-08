@@ -21,7 +21,7 @@
 
       <section class="preview">
         <video preload="auto"></video>
-        <div class="loading-state"><span>누른 시점을 기준으로 최근 30초 영상을 준비하고 있습니다</span></div>
+        <div class="loading-state"><span>누른 시점을 기준으로 최근 1분 영상을 준비하고 있습니다</span></div>
         <div class="empty-state"></div>
       </section>
 
@@ -33,7 +33,7 @@
             <form class="direct-length">
               <label for="track-seconds">전체 트랙 길이</label>
               <div class="number-row">
-                <input id="track-seconds" type="number" min="30" max="21600" step="1" value="30" />
+                <input id="track-seconds" type="number" min="30" max="21600" step="1" value="60" />
                 <button class="compact-button" type="submit">적용</button>
               </div>
             </form>
@@ -41,7 +41,7 @@
 
           <div class="timeline-column">
             <div class="time-labels">
-              <span class="track-start">-00:30</span>
+              <span class="track-start">-01:00</span>
               <span>편집 창을 연 시점</span>
             </div>
             <div class="timeline" role="slider" aria-label="영상 재생 위치" tabindex="-1">
