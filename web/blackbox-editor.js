@@ -15,6 +15,7 @@ const trackSecondsInput = document.querySelector("#track-seconds")
 const trackStatus = document.querySelector(".track-status")
 const trackUsage = document.querySelector(".track-usage")
 const trackDuration = document.querySelector(".track-duration")
+const extractMinutesInput = document.querySelector("#extract-minutes")
 const extractSecondsInput = document.querySelector("#extract-seconds")
 const gapPolicySelect = document.querySelector(".gap-policy")
 const playbackSpeedSelect = document.querySelector(".playback-speed")
@@ -122,6 +123,23 @@ function normalizeTrackLengthInputs() {
   return setTrackLengthInputs(seconds >= 60 ? seconds : minutes * 60 + seconds)
 }
 
+function setExtractDurationInputs(totalSeconds) {
+  const numeric = Number(totalSeconds)
+  const normalized = Math.max(
+    1,
+    Math.round(Number.isFinite(numeric) ? numeric : 60),
+  )
+  extractMinutesInput.value = String(Math.floor(normalized / 60))
+  extractSecondsInput.value = String(normalized % 60)
+  return normalized
+}
+
+function normalizeExtractDurationInputs() {
+  const minutes = Math.max(0, Math.round(Number(extractMinutesInput.value) || 0))
+  const seconds = Math.max(0, Math.round(Number(extractSecondsInput.value) || 0))
+  return setExtractDurationInputs(seconds >= 60 ? seconds : minutes * 60 + seconds)
+}
+
 function formatRecordedDuration(seconds) {
   const totalMinutes = Math.floor(Math.max(0, Number(seconds) || 0) / 60)
   if (totalMinutes < 1) return `${Math.floor(Math.max(0, Number(seconds) || 0))}초`
@@ -151,6 +169,7 @@ function setBusy(value, text = "") {
   directTimeButton.disabled = value
   trackMinutesInput.disabled = value
   trackSecondsInput.disabled = value
+  extractMinutesInput.disabled = value
   extractSecondsInput.disabled = value
   gapPolicySelect.disabled = value
   playbackSpeedSelect.disabled = value
@@ -196,8 +215,8 @@ function clampSelection() {
     0,
     Math.min(total - selectionDuration, selectionStart),
   )
-  extractSecondsInput.value = String(Math.round(selectionDuration * 10) / 10)
-  extractSecondsInput.max = String(Math.max(1, Math.floor(total)))
+  setExtractDurationInputs(selectionDuration)
+  extractMinutesInput.max = String(Math.max(0, Math.floor(total / 60)))
 }
 
 function renderTimeline() {
@@ -712,11 +731,14 @@ window.addEventListener("message", event => {
   }
 })
 
-extractSecondsInput.addEventListener("change", () => {
-  selectionDuration = Number(extractSecondsInput.value) || 1
+function applyExtractDurationInputs() {
+  selectionDuration = normalizeExtractDurationInputs()
   clampSelection()
   setTimelineCursor(selectionStart)
-})
+}
+
+extractMinutesInput.addEventListener("change", applyExtractDurationInputs)
+extractSecondsInput.addEventListener("change", applyExtractDurationInputs)
 
 playbackSpeedSelect.addEventListener("change", () => {
   video.playbackRate = selectedPlaybackSpeed()
@@ -727,7 +749,7 @@ playbackSpeedSelect.addEventListener("change", () => {
 })
 
 addTimeButton.addEventListener("click", () => {
-  void changeTrackSeconds(requestedTrackSeconds + 30)
+  void changeTrackSeconds(requestedTrackSeconds + 300)
 })
 
 directTimeButton.addEventListener("click", () => {

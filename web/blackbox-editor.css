@@ -215,11 +215,11 @@ video {
 
 .timeline-layout {
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr) 176px;
+  grid-template-columns: 114px auto minmax(0, 1fr);
   grid-template-areas:
     "timeline timeline timeline"
     "controls playback extract";
-  column-gap: 14px;
+  column-gap: 8px;
   row-gap: 12px;
   align-items: center;
 }
@@ -475,7 +475,7 @@ video {
 }
 
 .range-time {
-  margin-left: auto;
+  margin-left: 8px;
   color: #79c789;
 }
 
@@ -495,7 +495,7 @@ video {
 }
 
 .extract-duration input {
-  width: 72px;
+  width: 54px;
 }
 
 .export-modal {
@@ -629,7 +629,7 @@ video {
 
 @media (max-width: 860px) {
   .timeline-layout {
-    grid-template-columns: 96px minmax(0, 1fr) 132px;
-    gap: 10px;
+    grid-template-columns: 114px auto minmax(0, 1fr);
+    gap: 8px;
   }
 }

@@ -217,14 +217,16 @@
 
       .settings {
         display: block;
+        width: min(480px, 100%);
         margin-top: 10px;
       }
 
       .settings label {
-        display: flex;
+        display: grid;
+        grid-template-columns: 110px 280px;
         min-width: 0;
         align-items: center;
-        justify-content: space-between;
+        justify-content: start;
         gap: 18px;
         padding: 13px 4px;
         border-bottom: 1px solid #292f32;
@@ -237,7 +239,7 @@
       }
 
       .settings select {
-        width: min(280px, 55%);
+        width: 280px;
         height: 32px;
         padding: 0 9px;
         border: 1px solid #41484c;
@@ -254,8 +256,8 @@
 
       .settings-summary {
         display: flex;
-        justify-content: space-between;
-        gap: 20px;
+        flex-direction: column;
+        gap: 5px;
         padding: 13px 4px;
         border-bottom: 1px solid #292f32;
         color: #7f898e;
@@ -463,6 +465,7 @@
       }
 
       .settings-page .page-actions {
+        width: min(480px, 100%);
         justify-content: flex-end;
       }
 
@@ -1212,15 +1215,19 @@
         }
         if (page === "clips") {
           void refreshClips()
-          if (clipVideo.readyState >= 1) fitSavedClipMedia()
-        } else if (page === "extract") {
-          window.requestAnimationFrame(() => {
-            extractFrame.contentWindow.postMessage({
-              source: "blackbox-manager-command",
-              command: "fit-media",
-            }, "*")
-          })
         }
+        void window.blackboxManager.setPage(page).then(() => {
+          if (page === "clips" && clipVideo.readyState >= 1) {
+            fitSavedClipMedia()
+          } else if (page === "extract") {
+            window.requestAnimationFrame(() => {
+              extractFrame.contentWindow.postMessage({
+                source: "blackbox-manager-command",
+                command: "fit-media",
+              }, "*")
+            })
+          }
+        })
       }
 
       for (const tab of pageTabs) {

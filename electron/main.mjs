@@ -2679,6 +2679,43 @@ function saveBlackboxManagerSize(size) {
   })
 }
 
+function setBlackboxManagerPage(page) {
+  const window = blackboxManagerWindow
+  if (!window || window.isDestroyed()) return false
+  if (!["extract", "clips", "settings"].includes(page)) {
+    throw new Error("허용되지 않은 블랙박스 관리 페이지입니다")
+  }
+  const bounds = window.getBounds()
+  const workArea = screen.getDisplayMatching(bounds).workArea
+  const preferred = blackboxManagerPreferredSize ?? readBlackboxManagerSize()
+  const compact = page === "settings"
+  const targetWidth = Math.min(workArea.width, compact ? 720 : Math.max(900, preferred.width))
+  const targetHeight = Math.min(workArea.height, compact ? 680 : Math.max(680, preferred.height))
+  blackboxManagerActivePage = page
+  window.setMinimumSize(compact ? 680 : 900, compact ? 620 : 680)
+  const targetX = Math.max(
+    workArea.x,
+    Math.min(
+      workArea.x + workArea.width - targetWidth,
+      Math.round(bounds.x - (targetWidth - bounds.width) / 2),
+    ),
+  )
+  const targetY = Math.max(
+    workArea.y,
+    Math.min(
+      workArea.y + workArea.height - targetHeight,
+      Math.round(bounds.y - (targetHeight - bounds.height) / 2),
+    ),
+  )
+  window.setBounds({
+    x: targetX,
+    y: targetY,
+    width: targetWidth,
+    height: targetHeight,
+  }, true)
+  return true
+}
+
 function fitBlackboxManagerToMedia(value) {
   const window = blackboxManagerWindow
   if (!window || window.isDestroyed()) return false
@@ -4125,6 +4162,12 @@ function registerIpc() {
       throw new Error("허용되지 않은 블랙박스 창 크기 요청입니다")
     }
     return fitBlackboxManagerToMedia(value)
+  })
+  ipcMain.handle("blackbox-manager:set-page", (event, page) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 페이지 변경 요청입니다")
+    }
+    return setBlackboxManagerPage(page)
   })
   ipcMain.handle("blackbox-manager:set-setting", (event, setting) => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {

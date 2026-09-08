@@ -289,7 +289,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorScript, /!value\?\.running[\s\S]*!value\?\.recording/)
   assert.match(editorScript, /void retryTrackWhenRecordingStarts\(event\.data\.value\)/)
   assert.match(managerSource, /running: value\.running,[\s\S]*recording: value\.recording/)
-  assert.match(editorSource, /class="compact-button add-time"[^>]*>\+</)
+  assert.match(editorSource, /class="compact-button add-time"[^>]*>\+5</)
   assert.match(editorSource, /class="compact-button direct-time"[^>]*>\+\+</)
   assert.match(editorSource, /track-length-buttons[\s\S]*direct-time[\s\S]*add-time/)
   assert.match(editorSource, /블랙박스 조회 길이/)
@@ -301,10 +301,11 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorSource, /class="track-gaps"/)
   assert.match(
     editorSource,
-    /<footer class="actions">[\s\S]*class="track-status"[\s\S]*track-duration[\s\S]*track-usage[\s\S]*MP4 추출/,
+    /<footer class="actions">[\s\S]*class="track-status"[\s\S]*track-duration[\s\S]*track-usage[\s\S]*클립 저장하기/,
   )
   assert.doesNotMatch(editorSource, /preview-range/)
-  assert.match(editorSource, /id="extract-seconds"[^>]*value="60"/)
+  assert.match(editorSource, /id="extract-minutes"[^>]*value="1"[\s\S]*>분<\/span>/)
+  assert.match(editorSource, /id="extract-seconds"[^>]*value="0"[\s\S]*>초<\/span>[\s\S]*class="range-time"/)
   assert.match(editorScript, /let selectionDuration = 60/)
   assert.match(editorScript, /selectionDuration = Math\.min\(60, timelineDuration\)/)
   assert.match(editorScript, /현재 \$\{\(bytesUsed \/ 1024 \*\* 3\)\.toFixed\(1\)\} \/ 최대 \$\{capacityGb\}GB/)
@@ -313,8 +314,14 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorStyle, /\.track-length-buttons \{[\s\S]*grid-template-columns: 54px 54px;/)
   assert.match(editorStyle, /\.track-status \{[\s\S]*display: flex;[\s\S]*font-size: 12px;/)
   assert.match(editorStyle, /\.extract-duration \{[\s\S]*display: flex;/)
-  assert.match(editorScript, /requestedTrackSeconds \+ 30/)
+  assert.match(editorScript, /requestedTrackSeconds \+ 300/)
   assert.match(editorScript, /function normalizeTrackLengthInputs\(\)/)
+  assert.match(editorScript, /function normalizeExtractDurationInputs\(\)/)
+  assert.match(editorStyle, /grid-template-columns: 114px auto minmax\(0, 1fr\)/)
+  assert.match(managerSource, /\.settings \{[\s\S]*width: min\(480px, 100%\)/)
+  assert.match(managerSource, /window\.blackboxManager\.setPage\(page\)/)
+  assert.match(mainSource, /function setBlackboxManagerPage\(page\)/)
+  assert.match(mainSource, /compact \? 720/)
   assert.match(editorScript, /function fitCurrentMedia\(\)/)
   assert.match(editorScript, /page: "extract"/)
   assert.match(managerSource, /page: "clips"/)
