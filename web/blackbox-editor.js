@@ -1,5 +1,6 @@
 const editor = document.querySelector(".editor")
 const video = document.querySelector("video")
+const preview = document.querySelector(".preview")
 const loadingState = document.querySelector(".loading-state span")
 const emptyState = document.querySelector(".empty-state")
 const closeButton = document.querySelector(".window-close")
@@ -9,6 +10,9 @@ const directTimeButton = document.querySelector(".direct-time")
 const directLengthForm = document.querySelector(".direct-length")
 const trackMinutesInput = document.querySelector("#track-minutes")
 const trackSecondsInput = document.querySelector("#track-seconds")
+const trackStatus = document.querySelector(".track-status")
+const trackUsage = document.querySelector(".track-usage")
+const trackDuration = document.querySelector(".track-duration")
 const extractSecondsInput = document.querySelector("#extract-seconds")
 const timeline = document.querySelector(".timeline")
 const trackGapsLayer = document.querySelector(".track-gaps")
@@ -51,6 +55,7 @@ window.addEventListener("message", event => {
 const editorBridge = embedded
   ? {
       getSession: () => requestParent("getSession"),
+      fitMedia: value => requestParent("fitMedia", value),
       setTrackSeconds: seconds => requestParent("setTrackSeconds", seconds),
       extract: range => requestParent("extract", range),
       showOutput: outputPath => requestParent("showOutput", outputPath),
@@ -96,6 +101,24 @@ function normalizeTrackLengthInputs() {
   const minutes = Math.max(0, Math.round(Number(trackMinutesInput.value) || 0))
   const seconds = Math.max(0, Math.round(Number(trackSecondsInput.value) || 0))
   return setTrackLengthInputs(seconds >= 60 ? seconds : minutes * 60 + seconds)
+}
+
+function formatRecordedDuration(seconds) {
+  const totalMinutes = Math.floor(Math.max(0, Number(seconds) || 0) / 60)
+  if (totalMinutes < 1) return `${Math.floor(Math.max(0, Number(seconds) || 0))}초`
+  if (totalMinutes < 60) return `${totalMinutes}분`
+  return `${Math.floor(totalMinutes / 60)}시간 ${totalMinutes % 60}분`
+}
+
+function renderManagerStatus(value) {
+  const bytesUsed = Math.max(0, Number(value?.bytesUsed) || 0)
+  const capacityGb = Math.max(0, Number(value?.capacityGb) || 0)
+  const durationSeconds = Math.max(0, Number(value?.durationSeconds) || 0)
+  trackUsage.textContent = `${(bytesUsed / 1024 ** 3).toFixed(1)} / ${capacityGb} GB`
+  trackDuration.textContent = durationSeconds > 0
+    ? `${formatRecordedDuration(durationSeconds)} 누적`
+    : "녹화된 영상 없음"
+  trackStatus.hidden = false
 }
 
 function setNotice(text = "", error = false) {
@@ -154,6 +177,20 @@ function renderTrackGaps() {
   }
 }
 
+function fitCurrentMedia() {
+  if (video.videoWidth <= 0 || video.videoHeight <= 0) return
+  const viewportWidth = preview.clientWidth
+  const viewportHeight = preview.clientHeight
+  preview.classList.add("media-ready")
+  preview.style.setProperty("--media-aspect", `${video.videoWidth} / ${video.videoHeight}`)
+  void editorBridge.fitMedia?.({
+    mediaWidth: video.videoWidth,
+    mediaHeight: video.videoHeight,
+    viewportWidth,
+    viewportHeight,
+  })
+}
+
 function loadVideo(url, preserveFromEnd = 0) {
   return new Promise((resolve, reject) => {
     const cleanup = () => {
@@ -167,6 +204,7 @@ function loadVideo(url, preserveFromEnd = 0) {
         reject(new Error("재생 가능한 영상 길이를 확인하지 못했습니다"))
         return
       }
+      fitCurrentMedia()
       if (!initialTrackLoaded) {
         selectionDuration = Math.min(30, duration)
         initialTrackLoaded = true
@@ -423,10 +461,21 @@ window.addEventListener("keydown", event => {
 
 window.addEventListener("message", event => {
   if (
+    embedded
+    && event.source === window.parent
+    && event.data?.source === "blackbox-manager-status"
+  ) {
+    renderManagerStatus(event.data.value)
+  } else if (
     event.data?.source === "blackbox-manager-command"
     && event.data.command === "toggle-playback"
   ) {
     void togglePlayback()
+  } else if (
+    event.data?.source === "blackbox-manager-command"
+    && event.data.command === "fit-media"
+  ) {
+    fitCurrentMedia()
   }
 })
 

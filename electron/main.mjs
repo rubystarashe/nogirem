@@ -8,7 +8,7 @@ import { Readable } from "node:stream"
 import { promisify } from "node:util"
 import { fileURLToPath } from "node:url"
 import { randomUUID } from "node:crypto"
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, net, protocol, shell, Tray } from "electron"
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, net, protocol, screen, shell, Tray } from "electron"
 import updaterPackage from "electron-updater"
 import {
   ensureFastPingForPrimaryInterface,
@@ -2350,7 +2350,7 @@ async function listBlackboxClips() {
   return clips.sort((left, right) => right.modifiedAt - left.modifiedAt)
 }
 
-async function openBlackboxClip(fileName) {
+function blackboxClipPath(fileName) {
   if (
     typeof fileName !== "string"
     || basename(fileName) !== fileName
@@ -2358,11 +2358,113 @@ async function openBlackboxClip(fileName) {
   ) {
     throw new Error("허용되지 않은 블랙박스 클립 요청입니다")
   }
-  const clipPath = join(getBlackboxPaths().storagePath, "Clips", fileName)
+  return join(getBlackboxPaths().storagePath, "Clips", fileName)
+}
+
+async function openBlackboxClip(fileName) {
+  const clipPath = blackboxClipPath(fileName)
   const clipStat = await stat(clipPath)
   if (!clipStat.isFile()) throw new Error("저장된 클립을 찾지 못했습니다")
   const error = await shell.openPath(clipPath)
   if (error) throw new Error(error)
+  return true
+}
+
+async function renameBlackboxClip(fileName, requestedName) {
+  const sourcePath = blackboxClipPath(fileName)
+  const baseName = String(requestedName ?? "").trim().replace(/\.mp4$/i, "")
+  if (
+    !baseName
+    || baseName.length > 120
+    || /[<>:"/\\|?*\u0000-\u001f]/.test(baseName)
+    || /[. ]$/.test(baseName)
+    || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(baseName)
+  ) {
+    throw new Error("클립 이름에 사용할 수 없는 문자가 있습니다")
+  }
+  const nextName = `${baseName}.mp4`
+  const destinationPath = blackboxClipPath(nextName)
+  if (sourcePath === destinationPath) return { name: nextName }
+  await access(sourcePath)
+  if (sourcePath.toLowerCase() === destinationPath.toLowerCase()) {
+    const temporaryPath = `${sourcePath}.${randomUUID()}.rename`
+    await rename(sourcePath, temporaryPath)
+    try {
+      await rename(temporaryPath, destinationPath)
+    } catch (error) {
+      await rename(temporaryPath, sourcePath).catch(() => {})
+      throw error
+    }
+    return { name: nextName }
+  }
+  try {
+    await access(destinationPath)
+    throw new Error("같은 이름의 클립이 이미 있습니다")
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error
+  }
+  await rename(sourcePath, destinationPath)
+  return { name: nextName }
+}
+
+async function deleteBlackboxClip(fileName) {
+  const clipPath = blackboxClipPath(fileName)
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await unlink(clipPath)
+      return true
+    } catch (error) {
+      if (!["EBUSY", "EPERM"].includes(error?.code) || attempt === 4) throw error
+      await delay(100)
+    }
+  }
+  return true
+}
+
+function fitBlackboxManagerToMedia(value) {
+  const window = blackboxManagerWindow
+  if (!window || window.isDestroyed()) return false
+  const mediaWidth = Number(value?.mediaWidth)
+  const mediaHeight = Number(value?.mediaHeight)
+  const viewportWidth = Number(value?.viewportWidth)
+  const viewportHeight = Number(value?.viewportHeight)
+  if (
+    !Number.isFinite(mediaWidth)
+    || !Number.isFinite(mediaHeight)
+    || !Number.isFinite(viewportWidth)
+    || !Number.isFinite(viewportHeight)
+    || mediaWidth <= 0
+    || mediaHeight <= 0
+    || viewportWidth < 100
+    || viewportHeight < 100
+  ) return false
+
+  const ratio = Math.max(0.5, Math.min(4, mediaWidth / mediaHeight))
+  const bounds = window.getBounds()
+  const workArea = screen.getDisplayMatching(bounds).workArea
+  const desiredViewportWidth = viewportHeight * ratio
+  const targetWidth = Math.max(
+    900,
+    Math.min(workArea.width, Math.round(bounds.width + desiredViewportWidth - viewportWidth)),
+  )
+  const targetHeight = Math.min(bounds.height, workArea.height)
+  const targetX = Math.max(
+    workArea.x,
+    Math.min(
+      workArea.x + workArea.width - targetWidth,
+      Math.round(bounds.x - (targetWidth - bounds.width) / 2),
+    ),
+  )
+  const targetY = Math.max(
+    workArea.y,
+    Math.min(workArea.y + workArea.height - targetHeight, bounds.y),
+  )
+  window.setBounds({
+    x: targetX,
+    y: targetY,
+    width: targetWidth,
+    height: targetHeight,
+  }, true)
   return true
 }
 
@@ -3686,6 +3788,12 @@ function registerIpc() {
     }
     return getBlackboxSetting()
   })
+  ipcMain.handle("blackbox-manager:fit-media", (event, value) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 창 크기 요청입니다")
+    }
+    return fitBlackboxManagerToMedia(value)
+  })
   ipcMain.handle("blackbox-manager:set-setting", (event, setting) => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
       throw new Error("허용되지 않은 블랙박스 설정 요청입니다")
@@ -3758,6 +3866,32 @@ function registerIpc() {
       throw new Error("허용되지 않은 블랙박스 클립 열기 요청입니다")
     }
     return openBlackboxClip(fileName)
+  })
+  ipcMain.handle("blackbox-manager:rename-clip", (event, fileName, nextName) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 클립 이름 변경 요청입니다")
+    }
+    return renameBlackboxClip(fileName, nextName)
+  })
+  ipcMain.handle("blackbox-manager:delete-clip", async (event, fileName) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 클립 삭제 요청입니다")
+    }
+    blackboxClipPath(fileName)
+    const confirmation = await showMessageBoxWhilePrimaryHidden(window, {
+      type: "warning",
+      title: "저장된 클립 삭제",
+      message: "선택한 클립을 삭제할까요?",
+      detail: fileName,
+      buttons: ["취소", "삭제"],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    })
+    if (confirmation.response !== 1) return { canceled: true }
+    await deleteBlackboxClip(fileName)
+    return { canceled: false }
   })
   ipcMain.handle("blackbox-manager:open-folder", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {

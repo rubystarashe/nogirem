@@ -22,11 +22,13 @@
       }
 
       button,
+      input,
       select {
         font: inherit;
       }
 
       button:focus,
+      input:focus,
       select:focus {
         outline: none;
       }
@@ -130,29 +132,10 @@
         background: #e39a42;
       }
 
-      .heading-usage {
-        position: relative;
-        z-index: 1;
-        min-width: 180px;
-        padding-top: 16px;
-        text-align: right;
-      }
-
-      .heading-usage .usage-value {
-        display: block;
-        margin: 0 0 3px;
-        font-size: 13px;
-      }
-
-      .heading-usage .usage-detail {
-        color: #8f989d;
-        font-size: 9px;
-      }
-
       .watermark {
         position: absolute;
         top: -29px;
-        right: 205px;
+        right: 55px;
         width: 88px;
         opacity: 0.06;
         pointer-events: none;
@@ -432,7 +415,7 @@
 
       .clips-page.active {
         display: grid;
-        grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.8fr);
+        grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.5fr);
         gap: 10px;
       }
 
@@ -449,6 +432,13 @@
         overflow: hidden;
         place-items: center;
         background: #080a0b;
+      }
+
+      .clip-preview.media-ready {
+        height: auto;
+        max-height: 100%;
+        align-self: center;
+        aspect-ratio: var(--media-aspect);
       }
 
       .clip-preview > * {
@@ -513,14 +503,13 @@
       .clip-item {
         display: grid;
         width: 100%;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) 36px;
         gap: 4px 8px;
         padding: 8px;
         border: 1px solid transparent;
         border-radius: 7px;
         color: #dfe3e5;
         background: transparent;
-        cursor: pointer;
         text-align: left;
       }
 
@@ -536,10 +525,55 @@
 
       .clip-name {
         overflow: hidden;
+        padding: 0;
+        border: 0;
+        color: #dfe3e5;
+        background: transparent;
+        cursor: text;
         font-size: 10px;
         font-weight: 700;
+        text-align: left;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .clip-name:hover {
+        text-decoration: underline;
+      }
+
+      .clip-name-input {
+        min-width: 0;
+        height: 24px;
+        padding: 0 6px;
+        border: 1px solid #667076;
+        border-radius: 5px;
+        color: #f3f5f7;
+        background: #101214;
+        font-size: 10px;
+      }
+
+      .clip-meta {
+        display: flex;
+        gap: 8px;
+        cursor: pointer;
+      }
+
+      .clip-delete {
+        grid-row: 1 / span 2;
+        grid-column: 2;
+        align-self: stretch;
+        padding: 0;
+        border: 0;
+        border-radius: 5px;
+        color: #899297;
+        background: transparent;
+        cursor: pointer;
+        font-size: 9px;
+      }
+
+      .clip-delete:hover {
+        color: #f0a19a;
+        background: rgba(164, 67, 59, 0.18);
       }
 
       .clip-time,
@@ -603,10 +637,6 @@
             </div>
             <p class="description">녹화된 구간을 확인하고 원하는 부분을 별도 클립으로 저장합니다.</p>
           </div>
-          <div class="heading-usage">
-            <strong class="usage-value">0.0 / 50 GB</strong>
-            <span class="usage-detail">녹화된 영상 없음</span>
-          </div>
         </div>
       </header>
       <nav class="page-tabs" aria-label="블랙박스 관리 메뉴">
@@ -622,16 +652,16 @@
         ></iframe>
       </section>
       <section class="page clips-page" data-page-panel="clips">
-        <div class="clip-preview">
-          <video class="saved-clip-video" controls preload="metadata" hidden></video>
-          <p class="clip-empty">저장된 클립을 선택하면 이곳에서 바로 확인할 수 있습니다</p>
-        </div>
         <div class="clip-browser">
           <header class="clip-browser-header">
             <strong>저장된 클립</strong>
             <span class="clip-count">불러오는 중</span>
           </header>
           <div class="clip-list"></div>
+        </div>
+        <div class="clip-preview">
+          <video class="saved-clip-video" controls preload="metadata" hidden></video>
+          <p class="clip-empty">저장된 클립을 선택하면 이곳에서 바로 확인할 수 있습니다</p>
         </div>
       </section>
       <section class="page settings-page" data-page-panel="settings">
@@ -699,8 +729,6 @@
       const closeButton = document.querySelector(".window-close")
       const recordingState = document.querySelector(".recording-state")
       const recordingBadge = document.querySelector(".recording-badge")
-      const usageValue = document.querySelector(".usage-value")
-      const usageDetail = document.querySelector(".usage-detail")
       const qualitySelect = document.querySelector(".quality-select")
       const codecSelect = document.querySelector(".codec-select")
       const fpsSelect = document.querySelector(".fps-select")
@@ -733,6 +761,7 @@
       let settingsDirty = false
       let previousClip = null
       let selectedClipName = ""
+      let availableClips = []
 
       function errorMessage(error) {
         return error?.message?.replace(/^Error invoking remote method '[^']+': Error: /, "")
@@ -817,10 +846,14 @@
           recordingBadge.className = `recording-badge ${value.running ? "warning" : ""}`
         }
 
-        usageValue.textContent = `${(value.bytesUsed / 1024 ** 3).toFixed(1)} / ${value.capacityGb} GB`
-        usageDetail.textContent = value.durationSeconds > 0
-          ? `약 ${formatDuration(value.durationSeconds)} 누적`
-          : "녹화된 영상 없음"
+        extractFrame.contentWindow.postMessage({
+          source: "blackbox-manager-status",
+          value: {
+            bytesUsed: value.bytesUsed,
+            capacityGb: value.capacityGb,
+            durationSeconds: value.durationSeconds,
+          },
+        }, "*")
 
         toggleRecordingButton.textContent = !value.featureEnabled
           ? "사용 설정 필요"
@@ -890,10 +923,36 @@
           : `${megabytes.toFixed(1)} MB`
       }
 
+      function fitSavedClipMedia() {
+        if (!clipVideo.videoWidth || !clipVideo.videoHeight) return
+        const preview = clipVideo.closest(".clip-preview")
+        const viewportWidth = preview.clientWidth
+        const viewportHeight = preview.clientHeight
+        preview.classList.add("media-ready")
+        preview.style.setProperty(
+          "--media-aspect",
+          `${clipVideo.videoWidth} / ${clipVideo.videoHeight}`,
+        )
+        void window.blackboxManager.fitMedia({
+          mediaWidth: clipVideo.videoWidth,
+          mediaHeight: clipVideo.videoHeight,
+          viewportWidth,
+          viewportHeight,
+        })
+      }
+
+      function releaseClipVideo() {
+        clipVideo.pause()
+        clipVideo.removeAttribute("src")
+        clipVideo.load()
+        clipVideo.hidden = true
+        clipEmpty.hidden = false
+      }
+
       function selectClip(clip, item) {
         selectedClipName = clip.name
-        for (const button of clipList.querySelectorAll(".clip-item")) {
-          button.classList.toggle("active", button === item)
+        for (const candidate of clipList.querySelectorAll(".clip-item")) {
+          candidate.classList.toggle("active", candidate === item)
         }
         clipVideo.src = clip.videoUrl
         clipVideo.hidden = false
@@ -901,7 +960,64 @@
         clipVideo.load()
       }
 
+      function beginClipRename(clip, item, nameButton) {
+        selectClip(clip, item)
+        const input = document.createElement("input")
+        input.className = "clip-name-input"
+        input.type = "text"
+        input.maxLength = 120
+        input.value = clip.name.replace(/\.mp4$/i, "")
+        nameButton.replaceWith(input)
+        input.focus()
+        input.select()
+        let finished = false
+        const finish = async save => {
+          if (finished) return
+          finished = true
+          if (!save || input.value.trim() === clip.name.replace(/\.mp4$/i, "")) {
+            renderClips(availableClips)
+            return
+          }
+          try {
+            const result = await window.blackboxManager.renameClip(clip.name, input.value)
+            selectedClipName = result.name
+            await refreshClips()
+          } catch (error) {
+            message.classList.add("error")
+            message.textContent = errorMessage(error)
+            renderClips(availableClips)
+          }
+        }
+        input.addEventListener("click", event => event.stopPropagation())
+        input.addEventListener("blur", () => void finish(true))
+        input.addEventListener("keydown", event => {
+          event.stopPropagation()
+          if (event.key === "Enter") {
+            event.preventDefault()
+            void finish(true)
+          } else if (event.key === "Escape") {
+            event.preventDefault()
+            void finish(false)
+          }
+        })
+      }
+
+      async function removeClip(clip) {
+        const wasSelected = selectedClipName === clip.name
+        if (wasSelected) releaseClipVideo()
+        try {
+          const result = await window.blackboxManager.deleteClip(clip.name)
+          if (!result.canceled && wasSelected) selectedClipName = ""
+          await refreshClips()
+        } catch (error) {
+          message.classList.add("error")
+          message.textContent = errorMessage(error)
+          await refreshClips()
+        }
+      }
+
       function renderClips(clips) {
+        availableClips = clips
         clipList.replaceChildren()
         clipCount.textContent = `${clips.length}개`
         if (!clips.length) {
@@ -909,14 +1025,13 @@
           empty.className = "clip-empty"
           empty.textContent = "저장된 클립이 없습니다"
           clipList.append(empty)
-          clipVideo.removeAttribute("src")
-          clipVideo.hidden = true
-          clipEmpty.hidden = false
+          releaseClipVideo()
           selectedClipName = ""
           return
         }
 
         let currentDate = ""
+        let selectedClipFound = false
         for (const clip of clips) {
           const date = new Date(clip.modifiedAt)
           const dateLabel = date.toLocaleDateString("ko-KR", {
@@ -933,12 +1048,12 @@
             clipList.append(heading)
           }
 
-          const item = document.createElement("button")
-          item.type = "button"
+          const item = document.createElement("div")
           item.className = "clip-item"
-          const name = document.createElement("span")
-          name.className = "clip-name"
-          name.textContent = clip.name.replace(/\.mp4$/i, "")
+          const nameButton = document.createElement("button")
+          nameButton.type = "button"
+          nameButton.className = "clip-name"
+          nameButton.textContent = clip.name.replace(/\.mp4$/i, "")
           const size = document.createElement("span")
           size.className = "clip-size"
           size.textContent = formatFileSize(clip.size)
@@ -949,14 +1064,37 @@
             minute: "2-digit",
             second: "2-digit",
           })
-          item.append(name, size, time)
-          item.addEventListener("click", () => selectClip(clip, item))
-          item.addEventListener("dblclick", () => {
+          const meta = document.createElement("span")
+          meta.className = "clip-meta"
+          meta.append(time, size)
+          const deleteButton = document.createElement("button")
+          deleteButton.type = "button"
+          deleteButton.className = "clip-delete"
+          deleteButton.textContent = "삭제"
+          item.append(nameButton, meta, deleteButton)
+          item.addEventListener("click", event => {
+            if (event.target === nameButton || event.target === deleteButton) return
+            selectClip(clip, item)
+          })
+          item.addEventListener("dblclick", event => {
+            if (event.target === nameButton || event.target === deleteButton) return
             void window.blackboxManager.openClip(clip.name)
           })
+          nameButton.addEventListener("click", event => {
+            event.stopPropagation()
+            beginClipRename(clip, item, nameButton)
+          })
+          deleteButton.addEventListener("click", event => {
+            event.stopPropagation()
+            void removeClip(clip)
+          })
           clipList.append(item)
-          if (clip.name === selectedClipName) selectClip(clip, item)
+          if (clip.name === selectedClipName) {
+            selectedClipFound = true
+            selectClip(clip, item)
+          }
         }
+        if (selectedClipName && !selectedClipFound) releaseClipVideo()
       }
 
       async function refreshClips() {
@@ -977,12 +1115,27 @@
         for (const panel of pagePanels) {
           panel.classList.toggle("active", panel.dataset.pagePanel === page)
         }
-        if (page === "clips") void refreshClips()
+        if (page === "clips") {
+          void refreshClips()
+          if (clipVideo.readyState >= 1) fitSavedClipMedia()
+        } else if (page === "extract") {
+          window.requestAnimationFrame(() => {
+            extractFrame.contentWindow.postMessage({
+              source: "blackbox-manager-command",
+              command: "fit-media",
+            }, "*")
+          })
+        }
       }
 
       for (const tab of pageTabs) {
         tab.addEventListener("click", () => showPage(tab.dataset.page))
       }
+
+      clipVideo.addEventListener("loadedmetadata", fitSavedClipMedia)
+      extractFrame.addEventListener("load", () => {
+        if (status) render(status)
+      })
 
       window.addEventListener("keydown", event => {
         if (
@@ -1006,6 +1159,7 @@
         const methods = window.blackboxManager.editor
         const allowedMethods = new Set([
           "getSession",
+          "fitMedia",
           "setTrackSeconds",
           "extract",
           "showOutput",
