@@ -443,10 +443,10 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /status\.bytesUsed = ringStorage\.bytesUsed\(\)/)
   assert.doesNotMatch(nativeSource, /status\.bytesUsed = directoryBytes/)
   assert.doesNotMatch(nativeSource, /pruneRing\(/)
-  assert.match(nativeSource, /exactAudioRange\s*\?\s*requestedStart/)
+  assert.match(nativeSource, /const LONGLONG audioRequestedStart = requestedDuration == LLONG_MAX\s*\? 0\s*:\s*requestedStart;/)
   assert.match(
     nativeSource,
-    /piece\.start,[\s\S]*piece\.duration,[\s\S]*false,[\s\S]*1\.0,[\s\S]*true/,
+    /piece\.start,[\s\S]*piece\.duration,[\s\S]*false,[\s\S]*1\.0/,
   )
   assert.match(nativeSource, /MF_READWRITE_DISABLE_CONVERTERS/)
   assert.match(nativeSource, /MFSampleExtension_DecodeTimestamp/)
@@ -470,7 +470,11 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /duration \+= compressedMediaDuration\(input\)/)
   assert.match(nativeSource, /createPcmAudioReader/)
   assert.match(nativeSource, /createAacAudioType/)
-  assert.match(nativeSource, /combinedDecodedAudioDuration/)
+  assert.doesNotMatch(nativeSource, /combinedDecodedAudioDuration/)
+  assert.match(nativeSource, /const LONGLONG fileStart = outputTime;/)
+  assert.match(nativeSource, /const LONGLONG globalTime = fileStart \+ relativeTime;/)
+  assert.match(nativeSource, /relativeTime \+ 2500000ll < fileAudioTime/)
+  assert.match(nativeSource, /const auto mappedOutputTime = std::max<LONGLONG>/)
   assert.match(nativeSource, /sample->DeleteItem\(MFSampleExtension_DecodeTimestamp\)/)
   assert.match(nativeSource, /TrackTimelineMetadata trackTimelineMetadata\(/)
   assert.match(nativeSource, /continuityToleranceSeconds = 1\.5/)

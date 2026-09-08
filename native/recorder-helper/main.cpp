@@ -1329,37 +1329,6 @@ LONGLONG combinedMediaDuration(const std::vector<fs::path>& inputs) {
   return duration;
 }
 
-LONGLONG combinedDecodedAudioDuration(const std::vector<fs::path>& inputs) {
-  LONGLONG duration = 0;
-  for (const auto& input : inputs) {
-    auto reader = createPcmAudioReader(input);
-    if (!reader) continue;
-    while (true) {
-      DWORD actualStream = 0;
-      DWORD flags = 0;
-      LONGLONG timestamp = 0;
-      ComPtr<IMFSample> sample;
-      check_hresult(reader->ReadSample(
-        static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
-        0,
-        &actualStream,
-        &flags,
-        &timestamp,
-        &sample
-      ));
-      checkReaderFlags(flags);
-      if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
-      if (!sample) continue;
-      LONGLONG sampleDuration = 0;
-      if (FAILED(sample->GetSampleDuration(&sampleDuration)) || sampleDuration <= 0) {
-        sampleDuration = 1024ll * 10000000ll / AudioSampleRate;
-      }
-      duration += sampleDuration;
-    }
-  }
-  return duration;
-}
-
 ComPtr<IMFSample> retimePcmSample(
   IMFSample* sample,
   double playbackRate,
@@ -1418,8 +1387,7 @@ bool remuxChunks(
   LONGLONG requestedStart = 0,
   LONGLONG requestedDuration = LLONG_MAX,
   bool allowFormatChanges = false,
-  double playbackRate = 1.0,
-  bool exactAudioRange = false
+  double playbackRate = 1.0
 ) {
   if (inputs.empty()) return false;
   const LONGLONG effectiveStart = findCleanRangeStart(inputs, requestedStart);
@@ -1428,14 +1396,7 @@ bool remuxChunks(
     : requestedStart + requestedDuration;
   const LONGLONG audioRequestedStart = requestedDuration == LLONG_MAX
     ? 0
-    : (
-        exactAudioRange
-          ? requestedStart
-          : std::max<LONGLONG>(
-              0,
-              combinedDecodedAudioDuration(inputs) - requestedDuration
-            )
-      );
+    : requestedStart;
   const LONGLONG audioRequestedEnd = requestedDuration == LLONG_MAX
     ? LLONG_MAX
     : audioRequestedStart + requestedDuration;
@@ -1443,7 +1404,6 @@ bool remuxChunks(
   DWORD sinkStream = 0;
   std::optional<DWORD> sinkAudioStream;
   LONGLONG outputTime = 0;
-  LONGLONG audioOutputTime = 0;
   LONGLONG retimedAudioOutputTime = 0;
   std::optional<MediaSignature> expectedSignature;
 
@@ -1506,6 +1466,7 @@ bool remuxChunks(
       check_hresult(sink->BeginWriting());
     }
 
+    const LONGLONG fileStart = outputTime;
     LONGLONG firstTime = -1;
     LONGLONG fileEnd = outputTime;
     while (true) {
@@ -1568,6 +1529,7 @@ bool remuxChunks(
         signature.audioSampleRate > 0
           ? 1024ll * 10000000ll / signature.audioSampleRate
           : 1024ll * 10000000ll / AudioSampleRate;
+      LONGLONG fileAudioTime = 0;
       while (true) {
         DWORD actualStream = 0;
         DWORD flags = 0;
@@ -1588,16 +1550,34 @@ bool remuxChunks(
         if (FAILED(sample->GetSampleDuration(&duration)) || duration <= 0) {
           duration = defaultAudioDuration;
         }
-        const LONGLONG globalTime = audioOutputTime;
-        audioOutputTime += duration;
+        LONGLONG relativeTime = timestamp;
+        if (
+          relativeTime < 0
+          || relativeTime + 2500000ll < fileAudioTime
+          || relativeTime > fileAudioTime + 2500000ll
+        ) {
+          relativeTime = fileAudioTime;
+        }
+        const LONGLONG globalTime = fileStart + relativeTime;
+        fileAudioTime = std::max(fileAudioTime, relativeTime + duration);
         if (globalTime + duration <= audioRequestedStart) continue;
         if (globalTime >= audioRequestedEnd) break;
         sample = retimePcmSample(sample.Get(), playbackRate, duration);
-        check_hresult(sample->SetSampleTime(retimedAudioOutputTime));
+        const auto mappedOutputTime = std::max<LONGLONG>(
+          0,
+          static_cast<LONGLONG>(std::llround(
+            (globalTime - audioRequestedStart) / playbackRate
+          ))
+        );
+        const auto sampleTime = std::max(
+          retimedAudioOutputTime,
+          mappedOutputTime
+        );
+        check_hresult(sample->SetSampleTime(sampleTime));
         check_hresult(sample->SetSampleDuration(duration));
         sample->DeleteItem(MFSampleExtension_DecodeTimestamp);
         check_hresult(sink->WriteSample(*sinkAudioStream, sample.Get()));
-        retimedAudioOutputTime += duration;
+        retimedAudioOutputTime = sampleTime + duration;
       }
     }
   }
@@ -1612,8 +1592,7 @@ bool remuxChunksAtomically(
   LONGLONG requestedStart = 0,
   LONGLONG requestedDuration = LLONG_MAX,
   bool allowFormatChanges = false,
-  double playbackRate = 1.0,
-  bool exactAudioRange = false
+  double playbackRate = 1.0
 ) {
   auto partial = output;
   partial += L".partial.mp4";
@@ -1626,8 +1605,7 @@ bool remuxChunksAtomically(
       requestedStart,
       requestedDuration,
       allowFormatChanges,
-      playbackRate,
-      exactAudioRange
+      playbackRate
     )) return false;
     fs::remove(output, cleanupError);
     fs::rename(partial, output);
@@ -3024,8 +3002,7 @@ void composeExtraction(
         piece.start,
         piece.duration,
         false,
-        1.0,
-        true
+        1.0
       )) {
         throw std::runtime_error("녹화된 영상 구간을 준비하지 못했습니다");
       }
@@ -3096,8 +3073,7 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
           0,
           timelineMetadata.mediaDuration,
           false,
-          1.0,
-          true
+          1.0
         )) {
           throw std::runtime_error("편집 트랙을 만들지 못했습니다");
         }
