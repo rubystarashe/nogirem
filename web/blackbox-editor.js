@@ -66,6 +66,8 @@ document.body.classList.toggle("embedded", embedded)
 
 let requestedTrackSeconds = 900
 let duration = 0
+let timelineDuration = 0
+let trackSegments = []
 let selectionStart = 0
 let selectionDuration = 30
 let initialTrackLoaded = false
@@ -141,38 +143,95 @@ function setBusy(value, text = "") {
   }
 }
 
-function clampSelection() {
-  selectionDuration = Math.max(1, Math.min(duration || 1, selectionDuration))
-  selectionStart = Math.max(
+function segmentAtTimelineTime(time, nearest = false) {
+  if (!trackSegments.length) return null
+  const direct = trackSegments.find(segment => (
+    time >= segment.timelineStart
+    && time <= segment.timelineStart + segment.duration
+  ))
+  if (direct || !nearest) return direct ?? null
+  return trackSegments.reduce((closest, segment) => {
+    const end = segment.timelineStart + segment.duration
+    const distance = time < segment.timelineStart
+      ? segment.timelineStart - time
+      : Math.max(0, time - end)
+    return !closest || distance < closest.distance
+      ? { segment, distance }
+      : closest
+  }, null)?.segment ?? null
+}
+
+function timelineTimeToMediaTime(time) {
+  const segment = segmentAtTimelineTime(time, true)
+  if (!segment) return 0
+  return segment.mediaStart + Math.max(
     0,
-    Math.min(Math.max(0, duration - selectionDuration), selectionStart),
+    Math.min(segment.duration, time - segment.timelineStart),
+  )
+}
+
+function mediaTimeToTimelineTime(time) {
+  if (!trackSegments.length) return Math.max(0, Number(time) || 0)
+  const segment = trackSegments.find((candidate, index) => (
+    time >= candidate.mediaStart
+    && (
+      time < candidate.mediaStart + candidate.duration
+      || (
+        index === trackSegments.length - 1
+        && time <= candidate.mediaStart + candidate.duration + 0.05
+      )
+    )
+  )) ?? trackSegments.at(-1)
+  return segment.timelineStart + Math.max(
+    0,
+    Math.min(segment.duration, time - segment.mediaStart),
+  )
+}
+
+function clampSelection(targetSegment = null) {
+  const segment = targetSegment
+    ?? segmentAtTimelineTime(selectionStart + selectionDuration / 2, true)
+  if (!segment) {
+    selectionStart = 0
+    selectionDuration = Math.max(1, Math.min(duration || 1, selectionDuration))
+    return
+  }
+  selectionDuration = Math.max(1, Math.min(segment.duration, selectionDuration))
+  selectionStart = Math.max(
+    segment.timelineStart,
+    Math.min(
+      segment.timelineStart + segment.duration - selectionDuration,
+      selectionStart,
+    ),
   )
   extractSecondsInput.value = String(Math.round(selectionDuration * 10) / 10)
-  extractSecondsInput.max = String(Math.max(1, Math.floor(duration)))
+  extractSecondsInput.max = String(Math.max(1, Math.floor(segment.duration)))
 }
 
 function renderTimeline() {
-  const total = Math.max(duration, 0.001)
+  const total = Math.max(timelineDuration || duration, 0.001)
   clampSelection()
   guide.style.left = `${selectionStart / total * 100}%`
   guide.style.width = `${selectionDuration / total * 100}%`
-  playhead.style.left = `${Math.min(total, video.currentTime || 0) / total * 100}%`
-  currentTime.textContent = `${formatTime(video.currentTime)} / ${formatTime(duration)}`
+  const timelineTime = mediaTimeToTimelineTime(video.currentTime || 0)
+  playhead.style.left = `${Math.min(total, timelineTime) / total * 100}%`
+  currentTime.textContent = `${formatTime(timelineTime)} / ${formatTime(total)}`
   rangeTime.textContent = `${formatTime(selectionStart)} — ${formatTime(selectionStart + selectionDuration)}`
-  trackStart.textContent = `-${formatTime(duration)}`
+  trackStart.textContent = `-${formatTime(total)}`
 }
 
 function renderTrackGaps() {
   trackGapsLayer.replaceChildren()
-  if (!duration) return
+  const total = timelineDuration || duration
+  if (!total) return
   for (const gap of trackGaps) {
-    const start = Math.max(0, Math.min(duration, Number(gap?.startSeconds) || 0))
+    const start = Math.max(0, Math.min(total, Number(gap?.startSeconds) || 0))
     const gapDuration = Math.max(0, Number(gap?.durationSeconds) || 0)
-    if (!gapDuration || start >= duration) continue
+    if (!gapDuration || start >= total) continue
     const element = document.createElement("span")
     element.className = "track-gap"
-    element.style.left = `${start / duration * 100}%`
-    element.style.width = `${Math.min(gapDuration, duration - start) / duration * 100}%`
+    element.style.left = `${start / total * 100}%`
+    element.style.width = `${Math.min(gapDuration, total - start) / total * 100}%`
     trackGapsLayer.append(element)
   }
 }
@@ -206,12 +265,29 @@ function loadVideo(url, preserveFromEnd = 0) {
         return
       }
       fitCurrentMedia()
-      if (!initialTrackLoaded) {
-        selectionDuration = Math.min(30, duration)
-        initialTrackLoaded = true
+      if (!trackSegments.length) {
+        timelineDuration = duration
+        trackSegments = [{
+          timelineStart: 0,
+          mediaStart: 0,
+          duration,
+        }]
       }
-      selectionStart = Math.max(0, duration - preserveFromEnd - selectionDuration)
-      video.currentTime = selectionStart
+      if (!initialTrackLoaded) {
+        const latestSegment = trackSegments.at(-1)
+        selectionDuration = Math.min(30, latestSegment.duration)
+        selectionStart = latestSegment.timelineStart
+          + latestSegment.duration
+          - selectionDuration
+        initialTrackLoaded = true
+      } else {
+        selectionStart = Math.max(
+          0,
+          timelineDuration - preserveFromEnd - selectionDuration,
+        )
+        clampSelection()
+      }
+      video.currentTime = timelineTimeToMediaTime(selectionStart)
       renderTimeline()
       resolve()
     }
@@ -229,6 +305,19 @@ function loadVideo(url, preserveFromEnd = 0) {
 async function applyTrack(result, preserveFromEnd = 0) {
   requestedTrackSeconds = result.requestedSeconds
   trackGaps = Array.isArray(result.gaps) ? result.gaps : []
+  timelineDuration = Math.max(
+    0,
+    Number(result.timelineDurationSeconds) || requestedTrackSeconds,
+  )
+  trackSegments = Array.isArray(result.segments)
+    ? result.segments
+        .map(segment => ({
+          timelineStart: Math.max(0, Number(segment?.timelineStartSeconds) || 0),
+          mediaStart: Math.max(0, Number(segment?.mediaStartSeconds) || 0),
+          duration: Math.max(0, Number(segment?.durationSeconds) || 0),
+        }))
+        .filter(segment => segment.duration >= 1)
+    : []
   setTrackLengthInputs(requestedTrackSeconds)
   anchorTime.textContent = `${new Date(result.anchorAt).toLocaleTimeString("ko-KR")} 기준`
   await loadVideo(result.videoUrl, preserveFromEnd)
@@ -239,7 +328,10 @@ async function applyTrack(result, preserveFromEnd = 0) {
 
 async function changeTrackSeconds(seconds) {
   const normalized = Math.max(30, Math.min(21600, Math.round(Number(seconds) || 900)))
-  const preserveFromEnd = Math.max(0, duration - selectionStart - selectionDuration)
+  const preserveFromEnd = Math.max(
+    0,
+    timelineDuration - selectionStart - selectionDuration,
+  )
   setBusy(true, `같은 기준 시점에서 최근 ${formatTime(normalized)} 영상을 준비하고 있습니다`)
   setNotice("")
   video.pause()
@@ -260,12 +352,17 @@ function seekFromPointer(event) {
   if (!duration || busy) return
   const bounds = timeline.getBoundingClientRect()
   const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
-  const targetTime = ratio * duration
-  video.currentTime = targetTime
+  const targetTime = ratio * timelineDuration
+  const targetSegment = segmentAtTimelineTime(targetTime, true)
+  const snappedTime = Math.max(
+    targetSegment.timelineStart,
+    Math.min(targetSegment.timelineStart + targetSegment.duration, targetTime),
+  )
+  video.currentTime = timelineTimeToMediaTime(snappedTime)
   previewingSelection = (
     !video.paused
-    && targetTime >= selectionStart
-    && targetTime < selectionStart + selectionDuration
+    && snappedTime >= selectionStart
+    && snappedTime < selectionStart + selectionDuration
   )
   renderTimeline()
 }
@@ -278,7 +375,7 @@ function beginTimelineInteraction(event) {
   const edgeSize = Math.min(10, Math.max(6, guideBounds.width / 4))
   const pointerSeconds = (event.clientX - timelineBounds.left)
     / timelineBounds.width
-    * duration
+    * timelineDuration
   const insideGuide = event.clientX >= guideBounds.left
     && event.clientX <= guideBounds.right
   let mode = "seek"
@@ -309,7 +406,10 @@ function updateTimelineInteraction(event) {
   const bounds = timeline.getBoundingClientRect()
   const pointerSeconds = Math.max(
     0,
-    Math.min(duration, (event.clientX - bounds.left) / bounds.width * duration),
+    Math.min(
+      timelineDuration,
+      (event.clientX - bounds.left) / bounds.width * timelineDuration,
+    ),
   )
   let mode = interaction.mode
   if (mode === "seek") return
@@ -322,30 +422,39 @@ function updateTimelineInteraction(event) {
 
   if (mode === "resize-start") {
     const selectionEnd = interaction.originalStart + interaction.originalDuration
-    selectionStart = Math.max(0, Math.min(selectionEnd - 1, pointerSeconds))
+    const segment = segmentAtTimelineTime(interaction.originalStart, true)
+    selectionStart = Math.max(
+      segment.timelineStart,
+      Math.min(selectionEnd - 1, pointerSeconds),
+    )
     selectionDuration = selectionEnd - selectionStart
   } else if (mode === "resize-end") {
+    const segment = segmentAtTimelineTime(interaction.originalStart, true)
     const selectionEnd = Math.max(
       interaction.originalStart + 1,
-      Math.min(duration, pointerSeconds),
+      Math.min(segment.timelineStart + segment.duration, pointerSeconds),
     )
     selectionStart = interaction.originalStart
     selectionDuration = selectionEnd - selectionStart
   } else if (mode === "move") {
     const delta = pointerSeconds - interaction.pointerStartSeconds
+    const targetCenter = interaction.originalStart
+      + interaction.originalDuration / 2
+      + delta
+    const segment = segmentAtTimelineTime(targetCenter, true)
+    selectionDuration = Math.min(interaction.originalDuration, segment.duration)
     selectionStart = Math.max(
-      0,
+      segment.timelineStart,
       Math.min(
-        duration - interaction.originalDuration,
+        segment.timelineStart + segment.duration - selectionDuration,
         interaction.originalStart + delta,
       ),
     )
-    selectionDuration = interaction.originalDuration
   }
 
   clampSelection()
   video.pause()
-  video.currentTime = selectionStart
+  video.currentTime = timelineTimeToMediaTime(selectionStart)
   previewingSelection = false
   renderTimeline()
 }
@@ -365,7 +474,7 @@ function endTimelineInteraction(event) {
 async function previewSelection() {
   if (!duration || busy) return
   previewingSelection = true
-  video.currentTime = selectionStart
+  video.currentTime = timelineTimeToMediaTime(selectionStart)
   try {
     await video.play()
   } catch (error) {
@@ -381,7 +490,7 @@ async function extractSelection() {
   showOutputButton.classList.remove("visible")
   try {
     const result = await editorBridge.extract({
-      startSeconds: selectionStart,
+      startSeconds: timelineTimeToMediaTime(selectionStart),
       durationSeconds: selectionDuration,
     })
     lastOutputPath = result.outputPath
@@ -395,12 +504,13 @@ async function extractSelection() {
 }
 
 video.addEventListener("timeupdate", () => {
+  const timelineTime = mediaTimeToTimelineTime(video.currentTime)
   if (
     previewingSelection
-    && video.currentTime >= selectionStart + selectionDuration
+    && timelineTime >= selectionStart + selectionDuration
   ) {
     video.pause()
-    video.currentTime = selectionStart
+    video.currentTime = timelineTimeToMediaTime(selectionStart)
     previewingSelection = false
   }
   renderTimeline()
@@ -421,15 +531,17 @@ async function togglePlayback() {
   if (video.paused) {
     if (video.currentTime >= duration) video.currentTime = 0
     const selectionEnd = selectionStart + selectionDuration
+    const timelineTime = mediaTimeToTimelineTime(video.currentTime)
     if (
-      video.currentTime >= selectionEnd - 0.01
-      && video.currentTime <= selectionEnd + 0.05
+      timelineTime >= selectionEnd - 0.01
+      && timelineTime <= selectionEnd + 0.05
     ) {
-      video.currentTime = selectionStart
+      video.currentTime = timelineTimeToMediaTime(selectionStart)
     }
+    const playbackTimelineTime = mediaTimeToTimelineTime(video.currentTime)
     previewingSelection = (
-      video.currentTime >= selectionStart - 0.01
-      && video.currentTime < selectionEnd - 0.01
+      playbackTimelineTime >= selectionStart - 0.01
+      && playbackTimelineTime < selectionEnd - 0.01
     )
     try {
       await video.play()
@@ -483,7 +595,7 @@ window.addEventListener("message", event => {
 extractSecondsInput.addEventListener("change", () => {
   selectionDuration = Number(extractSecondsInput.value) || 1
   clampSelection()
-  video.currentTime = selectionStart
+  video.currentTime = timelineTimeToMediaTime(selectionStart)
   renderTimeline()
 })
 

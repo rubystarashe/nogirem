@@ -34,6 +34,7 @@
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <locale>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -1471,7 +1472,7 @@ std::vector<fs::path> selectAnchoredChunks(
   int seconds
 ) {
   auto chunks = completedChunks(directory);
-  const auto earliest = anchorMilliseconds - static_cast<std::int64_t>(seconds + 4) * 1000;
+  const auto earliest = anchorMilliseconds - static_cast<std::int64_t>(seconds) * 1000;
   chunks.erase(
     std::remove_if(chunks.begin(), chunks.end(), [&](const fs::path& path) {
       const auto modified = fileModifiedMilliseconds(path);
@@ -1481,6 +1482,96 @@ std::vector<fs::path> selectAnchoredChunks(
     chunks.end()
   );
   return chunks;
+}
+
+struct TrackTimelineMetadata {
+  std::string json;
+  LONGLONG mediaDuration;
+};
+
+TrackTimelineMetadata trackTimelineMetadata(
+  const std::vector<fs::path>& chunks,
+  std::int64_t anchorMilliseconds,
+  int seconds
+) {
+  struct Segment {
+    double timelineStart;
+    double mediaStart;
+    double duration;
+  };
+
+  const auto windowStart =
+    anchorMilliseconds - static_cast<std::int64_t>(seconds) * 1000;
+  constexpr double continuityToleranceSeconds = 1.5;
+  std::vector<Segment> segments;
+  double mediaCursor = 0.0;
+  LONGLONG mediaDuration = 0;
+  double previousTimelineEnd = 0.0;
+  double previousRawTimelineEnd = 0.0;
+
+  for (const auto& chunk : chunks) {
+    const auto started = chunkStartedMilliseconds(chunk);
+    const auto durationTicks = compressedMediaDuration(chunk);
+    const auto duration = static_cast<double>(durationTicks) / 10000000.0;
+    if (started <= 0 || duration <= 0.0) continue;
+    const auto rawTimelineStart =
+      static_cast<double>(started - windowStart) / 1000.0;
+    double timelineStart = std::clamp(
+      rawTimelineStart,
+      0.0,
+      static_cast<double>(seconds)
+    );
+    if (!segments.empty()) {
+      const auto rawGap = rawTimelineStart - previousRawTimelineEnd;
+      timelineStart = rawGap <= continuityToleranceSeconds
+        ? previousTimelineEnd
+        : previousTimelineEnd + rawGap;
+    }
+    const auto visibleDuration = std::min(
+      duration,
+      std::max(0.0, static_cast<double>(seconds) - timelineStart)
+    );
+    if (visibleDuration > 0.0) {
+      segments.push_back({ timelineStart, mediaCursor, visibleDuration });
+      previousTimelineEnd = timelineStart + visibleDuration;
+    }
+    previousRawTimelineEnd = rawTimelineStart + duration;
+    mediaDuration += durationTicks;
+    mediaCursor += duration;
+  }
+
+  std::ostringstream output;
+  output.imbue(std::locale::classic());
+  output << std::fixed << std::setprecision(3);
+  output << "{\"timelineDurationSeconds\":" << seconds
+    << ",\"mediaDurationSeconds\":" << mediaCursor
+    << ",\"segments\":[";
+  for (std::size_t index = 0; index < segments.size(); ++index) {
+    if (index > 0) output << ',';
+    const auto& segment = segments[index];
+    output << "{\"timelineStartSeconds\":" << segment.timelineStart
+      << ",\"mediaStartSeconds\":" << segment.mediaStart
+      << ",\"durationSeconds\":" << segment.duration << '}';
+  }
+  output << "],\"gaps\":[";
+  double gapStart = 0.0;
+  bool firstGap = true;
+  for (const auto& segment : segments) {
+    if (segment.timelineStart > gapStart + 0.01) {
+      if (!firstGap) output << ',';
+      output << "{\"startSeconds\":" << gapStart
+        << ",\"durationSeconds\":" << segment.timelineStart - gapStart << '}';
+      firstGap = false;
+    }
+    gapStart = std::max(gapStart, segment.timelineStart + segment.duration);
+  }
+  if (gapStart < static_cast<double>(seconds) - 0.01) {
+    if (!firstGap) output << ',';
+    output << "{\"startSeconds\":" << gapStart
+      << ",\"durationSeconds\":" << static_cast<double>(seconds) - gapStart << '}';
+  }
+  output << "]}";
+  return { output.str(), mediaDuration };
 }
 
 std::vector<fs::path> compatibleChunkSuffix(
@@ -2513,7 +2604,7 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
         epochMilliseconds()
       );
       const int seconds = std::clamp(
-        static_cast<int>(wideInteger(arguments, L"seconds", 60)),
+        static_cast<int>(wideInteger(arguments, L"seconds", 900)),
         30,
         21600
       );
@@ -2524,24 +2615,20 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
       ));
       if (chunks.empty()) throw std::runtime_error("편집할 녹화 청크가 없습니다");
       fs::create_directories(outputPath.parent_path());
-      const auto totalDuration = combinedMediaDuration(chunks);
-      const auto requestedDuration = std::min<LONGLONG>(
-        totalDuration,
-        static_cast<LONGLONG>(seconds) * 10000000ll
-      );
-      const auto requestedStart = std::max<LONGLONG>(
-        0,
-        totalDuration - requestedDuration
+      const auto timelineMetadata = trackTimelineMetadata(
+        chunks,
+        anchorMilliseconds,
+        seconds
       );
       if (!remuxChunksAtomically(
         chunks,
         outputPath,
-        requestedStart,
-        requestedDuration
+        0,
+        timelineMetadata.mediaDuration
       )) {
         throw std::runtime_error("편집 트랙을 만들지 못했습니다");
       }
-      std::cout << "{\"gaps\":[]}\n";
+      std::cout << timelineMetadata.json << '\n';
     } else if (mode == L"extract") {
       const fs::path inputPath = arguments.at(L"input");
       const fs::path outputPath = arguments.at(L"output");

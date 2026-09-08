@@ -2287,10 +2287,20 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
     if (!outputStat.isFile() || outputStat.size === 0) {
       throw new Error("편집 트랙에 재생할 영상이 없습니다")
     }
+    let metadata = {}
+    try {
+      metadata = JSON.parse(metadataOutput)
+    } catch {
+      metadata = {}
+    }
     const previousTrackPath = session.trackPath
     const trackId = randomUUID()
     session.trackPath = outputPath
     session.trackSeconds = seconds
+    session.trackMediaSeconds = Math.max(
+      0,
+      Number(metadata.mediaDurationSeconds) || seconds,
+    )
     session.trackFiles.set(trackId, outputPath)
     if (previousTrackPath && previousTrackPath !== outputPath) {
       setTimeout(() => {
@@ -2302,14 +2312,12 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
     }
     return {
       anchorAt: session.anchorAt,
-      gaps: (() => {
-        try {
-          const parsed = JSON.parse(metadataOutput)
-          return Array.isArray(parsed?.gaps) ? parsed.gaps : []
-        } catch {
-          return []
-        }
-      })(),
+      gaps: Array.isArray(metadata.gaps) ? metadata.gaps : [],
+      segments: Array.isArray(metadata.segments) ? metadata.segments : [],
+      timelineDurationSeconds: Math.max(
+        0,
+        Number(metadata.timelineDurationSeconds) || seconds,
+      ),
       requestedSeconds: seconds,
       videoUrl: `nogirem-blackbox://editor/${session.id}/${trackId}?v=${outputStat.mtimeMs}`,
     }
@@ -2334,7 +2342,7 @@ async function extractBlackboxEditorRange(session, value) {
     if (session.closed || !session.trackPath) {
       throw new Error("먼저 편집 트랙을 준비하세요")
     }
-    if (startSeconds + durationSeconds > session.trackSeconds + 0.5) {
+    if (startSeconds + durationSeconds > session.trackMediaSeconds + 0.5) {
       throw new Error("선택한 추출 구간이 편집 트랙을 벗어났습니다")
     }
     const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
@@ -4543,6 +4551,7 @@ function createBlackboxEditorSession() {
     trackPath: null,
     trackFiles: new Map(),
     trackSeconds: 900,
+    trackMediaSeconds: 0,
     closed: false,
   }
   blackboxEditorSession = session
