@@ -57,13 +57,16 @@ const editorBridge = embedded
 
 document.body.classList.toggle("embedded", embedded)
 
-let requestedTrackSeconds = 60
+let requestedTrackSeconds = 30
 let duration = 0
 let selectionStart = 0
 let selectionDuration = 30
+let initialTrackLoaded = false
 let busy = true
 let dragging = false
 let dragOffset = 0
+let guidePointerStartX = 0
+let guideMoved = false
 let previewingSelection = false
 let lastOutputPath = ""
 
@@ -135,6 +138,10 @@ function loadVideo(url, preserveFromEnd = 0) {
         reject(new Error("재생 가능한 영상 길이를 확인하지 못했습니다"))
         return
       }
+      if (!initialTrackLoaded) {
+        selectionDuration = Math.min(30, duration)
+        initialTrackLoaded = true
+      }
       selectionStart = Math.max(0, duration - preserveFromEnd - selectionDuration)
       video.currentTime = selectionStart
       renderTimeline()
@@ -161,7 +168,7 @@ async function applyTrack(result, preserveFromEnd = 0) {
 }
 
 async function changeTrackSeconds(seconds) {
-  const normalized = Math.max(30, Math.min(21600, Math.round(Number(seconds) || 60)))
+  const normalized = Math.max(30, Math.min(21600, Math.round(Number(seconds) || 30)))
   const preserveFromEnd = Math.max(0, duration - selectionStart - selectionDuration)
   setBusy(true, `같은 기준 시점에서 최근 ${formatTime(normalized)} 영상을 준비하고 있습니다`)
   setNotice("")
@@ -190,6 +197,7 @@ function seekFromPointer(event) {
 
 function updateGuideFromPointer(event) {
   if (!dragging || !duration) return
+  if (Math.abs(event.clientX - guidePointerStartX) >= 3) guideMoved = true
   const bounds = timeline.getBoundingClientRect()
   const pointerSeconds = (event.clientX - bounds.left) / bounds.width * duration
   selectionStart = pointerSeconds - dragOffset
@@ -198,7 +206,8 @@ function updateGuideFromPointer(event) {
   renderTimeline()
 }
 
-function stopGuideDrag() {
+function stopGuideDrag(event) {
+  if (dragging && !guideMoved && event) seekFromPointer(event)
   dragging = false
   guide.classList.remove("dragging")
 }
@@ -209,7 +218,8 @@ async function previewSelection() {
   video.currentTime = selectionStart
   try {
     await video.play()
-  } catch {
+  } catch (error) {
+    setNotice(`영상을 재생할 수 없습니다: ${messageOf(error)}`, true)
   }
 }
 
@@ -256,18 +266,24 @@ video.addEventListener("pause", () => {
   playToggle.setAttribute("aria-label", "재생")
 })
 
-playToggle.addEventListener("click", async () => {
+async function togglePlayback() {
+  if (!duration || busy) return
   previewingSelection = false
   if (video.paused) {
     if (video.currentTime >= duration) video.currentTime = 0
     try {
       await video.play()
-    } catch {
+      setNotice("")
+    } catch (error) {
+      setNotice(`영상을 재생할 수 없습니다: ${messageOf(error)}`, true)
     }
   } else {
     video.pause()
   }
-})
+}
+
+playToggle.addEventListener("click", togglePlayback)
+video.addEventListener("click", togglePlayback)
 
 timeline.addEventListener("pointerdown", event => {
   if (event.target === guide || guide.contains(event.target)) return
@@ -281,6 +297,8 @@ guide.addEventListener("pointerdown", event => {
   const bounds = timeline.getBoundingClientRect()
   const pointerSeconds = (event.clientX - bounds.left) / bounds.width * duration
   dragOffset = pointerSeconds - selectionStart
+  guidePointerStartX = event.clientX
+  guideMoved = false
   dragging = true
   guide.classList.add("dragging")
   video.pause()
@@ -288,7 +306,25 @@ guide.addEventListener("pointerdown", event => {
 
 window.addEventListener("pointermove", updateGuideFromPointer)
 window.addEventListener("pointerup", stopGuideDrag)
-window.addEventListener("pointercancel", stopGuideDrag)
+window.addEventListener("pointercancel", () => stopGuideDrag())
+
+window.addEventListener("keydown", event => {
+  if (
+    event.code !== "Space"
+    || ["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(event.target?.tagName)
+  ) return
+  event.preventDefault()
+  void togglePlayback()
+})
+
+window.addEventListener("message", event => {
+  if (
+    event.data?.source === "blackbox-manager-command"
+    && event.data.command === "toggle-playback"
+  ) {
+    void togglePlayback()
+  }
+})
 
 extractSecondsInput.addEventListener("change", () => {
   selectionDuration = Number(extractSecondsInput.value) || 1

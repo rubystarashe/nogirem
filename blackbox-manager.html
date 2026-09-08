@@ -78,10 +78,81 @@
         margin-bottom: 14px;
       }
 
+      .heading-line {
+        display: flex;
+        min-height: 58px;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .heading-copy {
+        min-width: 0;
+      }
+
+      .heading-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .recording-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        color: #899297;
+        font-size: 10px;
+        font-weight: 750;
+        white-space: nowrap;
+      }
+
+      .recording-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #697176;
+      }
+
+      .recording-badge.ready {
+        color: #72cf85;
+      }
+
+      .recording-badge.ready .recording-dot {
+        background: #5dcc73;
+        box-shadow: 0 0 0 3px rgba(93, 204, 115, 0.1);
+      }
+
+      .recording-badge.warning {
+        color: #e39a42;
+      }
+
+      .recording-badge.warning .recording-dot {
+        background: #e39a42;
+      }
+
+      .heading-usage {
+        position: relative;
+        z-index: 1;
+        min-width: 180px;
+        padding-top: 16px;
+        text-align: right;
+      }
+
+      .heading-usage .usage-value {
+        display: block;
+        margin: 0 0 3px;
+        font-size: 13px;
+      }
+
+      .heading-usage .usage-detail {
+        color: #8f989d;
+        font-size: 9px;
+      }
+
       .watermark {
         position: absolute;
         top: -29px;
-        right: 12px;
+        right: 205px;
         width: 88px;
         opacity: 0.06;
         pointer-events: none;
@@ -520,27 +591,24 @@
     <main class="manager">
       <header class="heading">
         <img class="watermark" src="./logo2-white-transparent.png" alt="" draggable="false" />
-        <p class="eyebrow">GAME BLACK BOX</p>
-        <h1>게임 블랙박스 관리</h1>
-        <p class="description">마비노기 화면과 게임 소리를 순환 녹화하고 원하는 구간을 별도 클립으로 저장합니다.</p>
+        <div class="heading-line">
+          <div class="heading-copy">
+            <p class="eyebrow">GAME BLACK BOX</p>
+            <div class="heading-title">
+              <h1>게임 블랙박스 관리</h1>
+              <span class="recording-badge">
+                <i class="recording-dot"></i>
+                <strong class="recording-state">확인 중</strong>
+              </span>
+            </div>
+            <p class="description">녹화된 구간을 확인하고 원하는 부분을 별도 클립으로 저장합니다.</p>
+          </div>
+          <div class="heading-usage">
+            <strong class="usage-value">0.0 / 50 GB</strong>
+            <span class="usage-detail">녹화된 영상 없음</span>
+          </div>
+        </div>
       </header>
-      <section class="status-grid" aria-label="블랙박스 상태">
-        <article class="status-card">
-          <span class="status-label">녹화 상태</span>
-          <strong class="status-value recording-state">확인 중</strong>
-          <span class="status-detail recording-detail">녹화 프로세스를 확인하고 있습니다</span>
-        </article>
-        <article class="status-card">
-          <span class="status-label">순환 녹화</span>
-          <strong class="status-value usage-value">0.0 / 50 GB</strong>
-          <span class="status-detail usage-detail">녹화된 영상 없음</span>
-        </article>
-        <article class="status-card">
-          <span class="status-label">게임 소리</span>
-          <strong class="status-value audio-state">대기 중</strong>
-          <span class="status-detail audio-detail">마비노기 소리만 녹화합니다</span>
-        </article>
-      </section>
       <nav class="page-tabs" aria-label="블랙박스 관리 메뉴">
         <button class="page-tab active" type="button" data-page="extract">영상 추출</button>
         <button class="page-tab" type="button" data-page="clips">저장된 클립</button>
@@ -630,11 +698,9 @@
     <script>
       const closeButton = document.querySelector(".window-close")
       const recordingState = document.querySelector(".recording-state")
-      const recordingDetail = document.querySelector(".recording-detail")
+      const recordingBadge = document.querySelector(".recording-badge")
       const usageValue = document.querySelector(".usage-value")
       const usageDetail = document.querySelector(".usage-detail")
-      const audioState = document.querySelector(".audio-state")
-      const audioDetail = document.querySelector(".audio-detail")
       const qualitySelect = document.querySelector(".quality-select")
       const codecSelect = document.querySelector(".codec-select")
       const fpsSelect = document.querySelector(".fps-select")
@@ -738,40 +804,23 @@
         previousClip = value.latestClip
         initializeSettings(value)
         if (value.recording) {
-          recordingState.textContent = "순환 녹화 중"
-          recordingState.className = "status-value recording-state ready"
-          recordingDetail.textContent = `${value.width || 0}×${value.height || 0} · ${value.fps}fps · ${
-            value.codec === "hevc" ? "HEVC" : "H.264"
-          }`
+          recordingState.textContent = "녹화 중"
+          recordingBadge.className = "recording-badge ready"
         } else if (!value.enabled) {
           recordingState.textContent = "사용 안 함"
-          recordingState.className = "status-value recording-state"
-          recordingDetail.textContent = "설정을 확인한 뒤 사용할 수 있습니다"
+          recordingBadge.className = "recording-badge"
         } else if (value.waitingForGame) {
           recordingState.textContent = "게임 실행 대기"
-          recordingState.className = "status-value recording-state warning"
-          recordingDetail.textContent = "마비노기 화면을 기다리고 있습니다"
+          recordingBadge.className = "recording-badge warning"
         } else {
-          recordingState.textContent = value.running ? "녹화 준비 중" : "실행 확인 필요"
-          recordingState.className = `status-value recording-state ${value.running ? "warning" : ""}`
-          recordingDetail.textContent = value.reason || "녹화 프로세스를 확인하고 있습니다"
+          recordingState.textContent = value.running ? "녹화 준비 중" : "확인 필요"
+          recordingBadge.className = `recording-badge ${value.running ? "warning" : ""}`
         }
 
         usageValue.textContent = `${(value.bytesUsed / 1024 ** 3).toFixed(1)} / ${value.capacityGb} GB`
         usageDetail.textContent = value.durationSeconds > 0
           ? `약 ${formatDuration(value.durationSeconds)} 누적`
           : "녹화된 영상 없음"
-
-        if (value.audioRecording) {
-          const gain = Number(value.audioGainDb || 0).toFixed(1)
-          audioState.textContent = "게임 소리 녹화 중"
-          audioState.className = "status-value audio-state ready"
-          audioDetail.textContent = `자동 조정 ${value.audioGainDb > 0 ? "+" : ""}${gain}dB`
-        } else {
-          audioState.textContent = value.recording ? "영상만 녹화 중" : "대기 중"
-          audioState.className = `status-value audio-state ${value.audioError ? "warning" : ""}`
-          audioDetail.textContent = value.audioError || "마비노기 소리만 녹화합니다"
-        }
 
         toggleRecordingButton.textContent = !value.featureEnabled
           ? "사용 설정 필요"
@@ -934,6 +983,19 @@
       for (const tab of pageTabs) {
         tab.addEventListener("click", () => showPage(tab.dataset.page))
       }
+
+      window.addEventListener("keydown", event => {
+        if (
+          event.code !== "Space"
+          || document.body.dataset.page !== "extract"
+          || ["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(event.target?.tagName)
+        ) return
+        event.preventDefault()
+        extractFrame.contentWindow.postMessage({
+          source: "blackbox-manager-command",
+          command: "toggle-playback",
+        }, "*")
+      })
 
       window.addEventListener("message", async event => {
         const data = event.data
