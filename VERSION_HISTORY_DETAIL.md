@@ -42,6 +42,8 @@
 - 편집·저장 클립 프로토콜에 단일 byte-range 요청을 처리하는 `206 Partial Content`, `Content-Range`, `Accept-Ranges` 응답을 구현해 대용량 MP4 전체 로드 전에도 재생·시간 이동 지원
 - 각 4초 MP4가 별도 AAC 인코더를 시작하며 만드는 첫 1024-sample priming frame을 청크 결합 시 제거하고 이후 오디오 timestamp를 한 frame 당겨 주기적인 약 20ms 무음 제거
 - 기존 60초 편집 트랙에서 약 4초마다 반복되던 20~27ms 디지털 무음과 수정 트랙의 연속 오디오 packet timestamp를 ffmpeg·ffprobe로 비교 검증
+- 편집 창을 열 때 작성 중인 4초 청크를 강제로 확정하던 대기를 제거하고 최신 확정 청크 종료 시점을 기준으로 즉시 트랙 생성 시작
+- 지속 녹화 helper는 `Below Normal`을 유지하되 사용자가 요청한 트랙 생성·추출 utility는 `Normal` 우선순위로 분리해 녹화 중 60초 트랙 준비를 약 6.6초에서 1.4초로 단축
 - 별도 `recorder-helper.exe`가 마비노기 `Client.exe` 창을 Windows Graphics Capture로 외부 캡처하며 게임 프로세스 주입이나 렌더링 hook은 사용하지 않음
 - Windows 프로세스별 WASAPI loopback으로 `Client.exe`와 자식 프로세스의 출력 소리만 48kHz 스테레오 PCM으로 캡처하고 AAC 192kbps로 MP4에 기록
 - 프로세스별 loopback 공식 지원 기준인 Windows 빌드 20348 이상에서 사용하며 미지원 환경은 영상 녹화를 유지하고 오디오 부분 실패를 표시

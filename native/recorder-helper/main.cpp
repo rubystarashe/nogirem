@@ -2422,7 +2422,7 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
   const auto mode = arguments.at(L"mode");
   init_apartment(apartment_type::multi_threaded);
   check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
-  SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+  SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
   try {
     if (mode == L"track") {
       const fs::path ringPath = arguments.at(L"ring-path");

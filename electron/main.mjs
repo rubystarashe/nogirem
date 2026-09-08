@@ -2202,22 +2202,21 @@ async function runRecorderUtility(argumentsList) {
   }
 }
 
-async function flushBlackboxForEditor(requestId) {
-  return queueBlackboxControlOperation(async () => {
-    const state = await getBlackboxSetting()
-    if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
-    if (!state.recording) throw new Error("편집할 마비노기 녹화 화면이 아직 없습니다")
-    await writeJsonAtomic(getBlackboxPaths().controlPath, {
-      command: "flush",
-      requestId,
-      requestedAt: Date.now(),
-    })
-    const status = await waitForBlackboxStatus(
-      value => Number(value?.flushCompletedId) === requestId,
-      8000,
-    )
-    if (!status) throw new Error("현재 녹화 구간을 편집 트랙으로 확정하지 못했습니다")
-  })
+async function latestCompletedBlackboxAnchor() {
+  const state = await getBlackboxSetting()
+  if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
+  if (!state.recording) throw new Error("편집할 마비노기 녹화 화면이 아직 없습니다")
+
+  const ringDirectory = join(getBlackboxPaths().storagePath, "Ring")
+  const names = await readdir(ringDirectory)
+  let latestStartedAt = 0
+  for (const name of names) {
+    const match = /^chunk-(\d+)\.mp4$/.exec(name)
+    if (!match) continue
+    latestStartedAt = Math.max(latestStartedAt, Number(match[1]))
+  }
+  if (!latestStartedAt) throw new Error("편집할 녹화 구간이 아직 준비되지 않았습니다")
+  return Math.min(Date.now(), latestStartedAt + 5000)
 }
 
 function queueBlackboxEditorOperation(session, operation) {
@@ -2272,7 +2271,7 @@ async function prepareBlackboxEditorSession(session) {
   if (!session.preparePromise) {
     session.preparePromise = (async () => {
       await mkdir(session.directory, { recursive: true })
-      await flushBlackboxForEditor(session.flushRequestId)
+      session.anchorAt = await latestCompletedBlackboxAnchor()
       return createBlackboxEditorTrack(session, 60)
     })()
   }
@@ -4222,7 +4221,6 @@ function createBlackboxEditorSession() {
   const session = {
     id: identifier,
     anchorAt: Date.now(),
-    flushRequestId: Date.now() * 1000 + Math.floor(Math.random() * 1000),
     directory: join(getBlackboxPaths().storagePath, "Editor", identifier),
     operation: Promise.resolve(),
     preparePromise: null,
