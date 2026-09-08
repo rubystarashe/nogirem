@@ -1021,8 +1021,13 @@
       }
 
       function fitSavedClipMedia() {
-        if (!clipVideo.videoWidth || !clipVideo.videoHeight) return
+        if (
+          document.body.dataset.page !== "clips"
+          || !clipVideo.videoWidth
+          || !clipVideo.videoHeight
+        ) return
         const preview = clipVideo.closest(".clip-preview")
+        preview.classList.remove("media-ready")
         const viewportWidth = preview.clientWidth
         const viewportHeight = preview.clientHeight
         preview.classList.add("media-ready")
@@ -1218,7 +1223,9 @@
         }
         void window.blackboxManager.setPage(page).then(() => {
           if (page === "clips" && clipVideo.readyState >= 1) {
-            fitSavedClipMedia()
+            window.requestAnimationFrame(() => {
+              window.requestAnimationFrame(fitSavedClipMedia)
+            })
           } else if (page === "extract") {
             window.requestAnimationFrame(() => {
               extractFrame.contentWindow.postMessage({

@@ -208,6 +208,9 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(managerSource, /function removeClip\(clip\)/)
   assert.match(managerSource, /!selectedClipName && clip === clips\[0\]/)
   assert.match(managerSource, /clipVideo\.addEventListener\("loadedmetadata", fitSavedClipMedia\)/)
+  assert.match(managerSource, /document\.body\.dataset\.page !== "clips"/)
+  assert.match(managerSource, /preview\.classList\.remove\("media-ready"\)[\s\S]*preview\.clientWidth[\s\S]*preview\.classList\.add\("media-ready"\)/)
+  assert.match(managerSource, /window\.requestAnimationFrame\(\(\) => \{\s*window\.requestAnimationFrame\(fitSavedClipMedia\)/)
   assert.match(managerSource, /source: "blackbox-manager-status"/)
   const managerScript = managerSource.match(/<script>([\s\S]*)<\/script>/)?.[1]
   assert.ok(managerScript)
