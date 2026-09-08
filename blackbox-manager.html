@@ -306,6 +306,10 @@
         color: #ef847b;
       }
 
+      .message:empty {
+        display: none;
+      }
+
       .page-actions {
         display: flex;
         align-items: center;
@@ -363,7 +367,8 @@
         cursor: default;
       }
 
-      .clip-save-modal {
+      .clip-save-modal,
+      .clip-delete-modal {
         position: fixed;
         z-index: 30;
         inset: 0;
@@ -373,11 +378,13 @@
         backdrop-filter: blur(2px);
       }
 
-      .clip-save-modal[hidden] {
+      .clip-save-modal[hidden],
+      .clip-delete-modal[hidden] {
         display: none;
       }
 
-      .clip-save-dialog {
+      .clip-save-dialog,
+      .clip-delete-dialog {
         display: grid;
         width: min(380px, calc(100vw - 40px));
         gap: 13px;
@@ -388,7 +395,8 @@
         box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
       }
 
-      .clip-save-dialog h2 {
+      .clip-save-dialog h2,
+      .clip-delete-dialog h2 {
         margin: 0;
         color: #edf0f1;
         font-size: 17px;
@@ -399,6 +407,14 @@
         gap: 7px;
         color: #b7bec1;
         font-size: 11px;
+      }
+
+      .clip-delete-description {
+        margin: 0;
+        color: #b7bec1;
+        font-size: 11px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
       }
 
       .clip-save-name {
@@ -494,6 +510,23 @@
       .settings-page .page-actions {
         width: min(480px, 100%);
         justify-content: flex-end;
+      }
+
+      .settings-page .message {
+        min-width: 0;
+        min-height: 0;
+        margin: 0 auto 0 4px;
+        padding: 0;
+        overflow: hidden;
+        background: transparent;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .clip-browser > .message {
+        margin: 0;
+        border-radius: 0;
+        border-top: 1px solid #30363a;
       }
 
       .clip-preview,
@@ -756,6 +789,7 @@
             <button class="action save-clip clip-save-header" type="button">클립 저장</button>
           </header>
           <div class="clip-list"></div>
+          <p class="message clip-message" role="status"></p>
         </div>
         <div class="clip-preview">
           <video class="saved-clip-video" controls preload="metadata" hidden></video>
@@ -831,10 +865,10 @@
         </div>
       </section>
         <div class="page-actions">
+          <p class="message settings-message" role="status"></p>
           <button class="action save-setting settings-action" type="button">설정 저장</button>
         </div>
       </section>
-      <p class="message" role="status"></p>
     </main>
     <div class="clip-save-modal" hidden>
       <form class="clip-save-dialog">
@@ -846,6 +880,16 @@
         <div class="clip-save-actions">
           <button class="action clip-save-cancel" type="button">취소</button>
           <button class="action primary clip-save-confirm" type="submit">저장</button>
+        </div>
+      </form>
+    </div>
+    <div class="clip-delete-modal" hidden>
+      <form class="clip-delete-dialog">
+        <h2>저장된 클립 삭제</h2>
+        <p class="clip-delete-description"></p>
+        <div class="clip-save-actions">
+          <button class="action clip-delete-cancel" type="button">취소</button>
+          <button class="action danger clip-delete-confirm" type="submit">삭제</button>
         </div>
       </form>
     </div>
@@ -863,7 +907,8 @@
       const clipSelect = document.querySelector(".clip-select")
       const shortcutInput = document.querySelector(".shortcut-input")
       const qualitySummary = document.querySelector(".quality-summary")
-      const message = document.querySelector(".message")
+      const message = document.querySelector(".settings-message")
+      const clipMessage = document.querySelector(".clip-message")
       const saveClipButton = document.querySelector(".save-clip")
       const saveSettingButton = document.querySelector(".save-setting")
       const pageTabs = [...document.querySelectorAll(".page-tab")]
@@ -877,6 +922,10 @@
       const clipSaveDialog = document.querySelector(".clip-save-dialog")
       const clipSaveNameInput = document.querySelector(".clip-save-name")
       const clipSaveCancelButton = document.querySelector(".clip-save-cancel")
+      const clipDeleteModal = document.querySelector(".clip-delete-modal")
+      const clipDeleteDialog = document.querySelector(".clip-delete-dialog")
+      const clipDeleteDescription = document.querySelector(".clip-delete-description")
+      const clipDeleteCancelButton = document.querySelector(".clip-delete-cancel")
       const settingInputs = [
         qualitySelect,
         codecSelect,
@@ -895,6 +944,7 @@
       let previousClip = null
       let selectedClipName = ""
       let availableClips = []
+      let pendingDeleteClip = null
 
       function errorMessage(error) {
         return error?.message?.replace(/^Error invoking remote method '[^']+': Error: /, "")
@@ -924,6 +974,19 @@
       function closeClipSaveModal() {
         if (busy) return
         clipSaveModal.hidden = true
+      }
+
+      function openClipDeleteModal(clip) {
+        pendingDeleteClip = clip
+        clipDeleteDescription.textContent = `${clip.name} 파일을 삭제할까요?`
+        clipDeleteModal.hidden = false
+        clipDeleteCancelButton.focus()
+      }
+
+      function closeClipDeleteModal() {
+        if (busy) return
+        pendingDeleteClip = null
+        clipDeleteModal.hidden = true
       }
 
       function formatDuration(seconds) {
@@ -1118,20 +1181,20 @@
         renderSettingSummary()
 
         if (value.latestClip && value.latestClip !== oldClip) {
-          message.classList.remove("error")
-          message.textContent = "최근 클립 저장이 완료되었습니다"
+          clipMessage.classList.remove("error")
+          clipMessage.textContent = "최근 클립 저장이 완료되었습니다"
         } else if (value.reason) {
           message.classList.add("error")
           message.textContent = value.reason
         }
       }
 
-      function setBusy(value, text = "") {
+      function setBusy(value, text = "", feedback = message) {
         busy = value
         for (const input of settingInputs) input.disabled = value
         if (text) {
-          message.classList.remove("error")
-          message.textContent = text
+          feedback.classList.remove("error")
+          feedback.textContent = text
         }
         if (status) render(status)
       }
@@ -1147,22 +1210,22 @@
         }
       }
 
-      async function runAction(text, action, successText = "") {
-        setBusy(true, text)
+      async function runAction(text, action, successText = "", feedback = message) {
+        setBusy(true, text, feedback)
         try {
           const result = await action()
           if (result && typeof result === "object" && "enabled" in result) render(result)
           if (successText) {
-            message.classList.remove("error")
-            message.textContent = successText
+            feedback.classList.remove("error")
+            feedback.textContent = successText
           }
           return result
         } catch (error) {
-          message.classList.add("error")
-          message.textContent = errorMessage(error)
+          feedback.classList.add("error")
+          feedback.textContent = errorMessage(error)
           return null
         } finally {
-          setBusy(false)
+          setBusy(false, "", feedback)
           void refreshStatus(true)
         }
       }
@@ -1240,8 +1303,8 @@
             selectedClipName = result.name
             await refreshClips()
           } catch (error) {
-            message.classList.add("error")
-            message.textContent = errorMessage(error)
+            clipMessage.classList.add("error")
+            clipMessage.textContent = errorMessage(error)
             renderClips(availableClips)
           }
         }
@@ -1260,16 +1323,21 @@
       }
 
       async function removeClip(clip) {
+        const scrollTop = clipList.scrollTop
         const wasSelected = selectedClipName === clip.name
         if (wasSelected) releaseClipVideo()
         try {
-          const result = await window.blackboxManager.deleteClip(clip.name)
-          if (!result.canceled && wasSelected) selectedClipName = ""
+          await window.blackboxManager.deleteClip(clip.name)
+          if (wasSelected) selectedClipName = ""
           await refreshClips()
+          clipList.scrollTop = scrollTop
+          clipMessage.classList.remove("error")
+          clipMessage.textContent = `${clip.name.replace(/\.mp4$/i, "")} 삭제 완료`
         } catch (error) {
-          message.classList.add("error")
-          message.textContent = errorMessage(error)
+          clipMessage.classList.add("error")
+          clipMessage.textContent = errorMessage(error)
           await refreshClips()
+          clipList.scrollTop = scrollTop
         }
       }
 
@@ -1343,7 +1411,7 @@
           })
           deleteButton.addEventListener("click", event => {
             event.stopPropagation()
-            void removeClip(clip)
+            openClipDeleteModal(clip)
           })
           clipList.append(item)
           if (clip.name === selectedClipName || (!selectedClipName && clip === clips[0])) {
@@ -1359,8 +1427,8 @@
           renderClips(await window.blackboxManager.listClips())
         } catch (error) {
           clipCount.textContent = "불러오기 실패"
-          message.classList.add("error")
-          message.textContent = errorMessage(error)
+          clipMessage.classList.add("error")
+          clipMessage.textContent = errorMessage(error)
         }
       }
 
@@ -1406,6 +1474,11 @@
           event.stopPropagation()
           disableShortcut()
           shortcutInput.blur()
+          return
+        }
+        if (event.code === "Escape" && !clipDeleteModal.hidden) {
+          event.preventDefault()
+          closeClipDeleteModal()
           return
         }
         if (event.code === "Escape" && !clipSaveModal.hidden) {
@@ -1526,6 +1599,10 @@
           shortcutInput.blur()
           return
         }
+        if (!clipDeleteModal.hidden) {
+          closeClipDeleteModal()
+          return
+        }
         if (!clipSaveModal.hidden) {
           closeClipSaveModal()
           return
@@ -1557,6 +1634,17 @@
       clipSaveModal.addEventListener("pointerdown", event => {
         if (!clipSaveDialog.contains(event.target)) closeClipSaveModal()
       })
+      clipDeleteCancelButton.addEventListener("click", closeClipDeleteModal)
+      clipDeleteModal.addEventListener("pointerdown", event => {
+        if (!clipDeleteDialog.contains(event.target)) closeClipDeleteModal()
+      })
+      clipDeleteDialog.addEventListener("submit", event => {
+        event.preventDefault()
+        const clip = pendingDeleteClip
+        pendingDeleteClip = null
+        clipDeleteModal.hidden = true
+        if (clip) void removeClip(clip)
+      })
       clipSaveDialog.addEventListener("submit", async event => {
         event.preventDefault()
         const clipName = clipSaveNameInput.value.trim()
@@ -1566,6 +1654,7 @@
           `최근 약 ${status.clipSeconds}초 클립을 저장하고 있습니다`,
           () => window.blackboxManager.saveClip(clipName),
           "최근 클립을 저장했습니다",
+          clipMessage,
         )
         if (result) await refreshClips()
       })

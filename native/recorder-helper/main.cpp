@@ -6,11 +6,13 @@
 #include <d3d10_1.h>
 #include <d3d11.h>
 #include <dxgi1_2.h>
+#include <dxgi1_4.h>
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
 #include <mmdeviceapi.h>
 #include <propvarutil.h>
+#include <psapi.h>
 #include <shlwapi.h>
 #include <wrl.h>
 #include <wrl/implements.h>
@@ -80,6 +82,7 @@ constexpr double AudioGainReleaseSeconds = 2.5;
 struct Options {
   fs::path statusPath;
   fs::path controlPath;
+  fs::path metricsPath;
   fs::path storagePath;
   fs::path gamePath;
   std::wstring codec = L"h264";
@@ -114,6 +117,79 @@ struct SharedStatus {
   int width = 0;
   int height = 0;
   int fps = 60;
+};
+
+struct RecorderMetricsSnapshot {
+  std::uint64_t encodeSamples = 0;
+  std::uint64_t encodeMicroseconds = 0;
+  std::uint64_t maximumEncodeMicroseconds = 0;
+  std::uint64_t finalizeSamples = 0;
+  std::uint64_t finalizeMicroseconds = 0;
+  std::uint64_t maximumFinalizeMicroseconds = 0;
+  std::uint64_t maximumVideoQueueDepth = 0;
+  std::uint64_t maximumAudioQueueFrames = 0;
+};
+
+class RecorderMetrics {
+public:
+  void recordEncode(std::uint64_t microseconds) {
+    encodeSamples_.fetch_add(1, std::memory_order_relaxed);
+    encodeMicroseconds_.fetch_add(microseconds, std::memory_order_relaxed);
+    updateMaximum(maximumEncodeMicroseconds_, microseconds);
+  }
+
+  void recordFinalize(std::uint64_t microseconds) {
+    finalizeSamples_.fetch_add(1, std::memory_order_relaxed);
+    finalizeMicroseconds_.fetch_add(microseconds, std::memory_order_relaxed);
+    updateMaximum(maximumFinalizeMicroseconds_, microseconds);
+  }
+
+  void observeVideoQueue(std::size_t depth) {
+    updateMaximum(maximumVideoQueueDepth_, depth);
+  }
+
+  void observeAudioQueue(std::size_t frames) {
+    updateMaximum(maximumAudioQueueFrames_, frames);
+  }
+
+  RecorderMetricsSnapshot takeSnapshot() {
+    return {
+      encodeSamples_.exchange(0, std::memory_order_relaxed),
+      encodeMicroseconds_.exchange(0, std::memory_order_relaxed),
+      maximumEncodeMicroseconds_.exchange(0, std::memory_order_relaxed),
+      finalizeSamples_.exchange(0, std::memory_order_relaxed),
+      finalizeMicroseconds_.exchange(0, std::memory_order_relaxed),
+      maximumFinalizeMicroseconds_.exchange(0, std::memory_order_relaxed),
+      maximumVideoQueueDepth_.exchange(0, std::memory_order_relaxed),
+      maximumAudioQueueFrames_.exchange(0, std::memory_order_relaxed),
+    };
+  }
+
+private:
+  static void updateMaximum(
+    std::atomic_uint64_t& target,
+    std::uint64_t value
+  ) {
+    auto current = target.load(std::memory_order_relaxed);
+    while (
+      current < value
+      && !target.compare_exchange_weak(
+        current,
+        value,
+        std::memory_order_relaxed
+      )
+    ) {
+    }
+  }
+
+  std::atomic_uint64_t encodeSamples_ = 0;
+  std::atomic_uint64_t encodeMicroseconds_ = 0;
+  std::atomic_uint64_t maximumEncodeMicroseconds_ = 0;
+  std::atomic_uint64_t finalizeSamples_ = 0;
+  std::atomic_uint64_t finalizeMicroseconds_ = 0;
+  std::atomic_uint64_t maximumFinalizeMicroseconds_ = 0;
+  std::atomic_uint64_t maximumVideoQueueDepth_ = 0;
+  std::atomic_uint64_t maximumAudioQueueFrames_ = 0;
 };
 
 class TexturePool {
@@ -406,6 +482,7 @@ Options optionsFromArguments(int count, wchar_t** values) {
   Options options;
   if (arguments.count(L"status-path")) options.statusPath = arguments.at(L"status-path");
   if (arguments.count(L"control-path")) options.controlPath = arguments.at(L"control-path");
+  if (arguments.count(L"metrics-path")) options.metricsPath = arguments.at(L"metrics-path");
   if (arguments.count(L"storage-path")) options.storagePath = arguments.at(L"storage-path");
   if (arguments.count(L"game-path")) options.gamePath = arguments.at(L"game-path");
   if (arguments.count(L"codec") && lower(arguments.at(L"codec")) == L"hevc") {
@@ -2003,12 +2080,14 @@ public:
     fs::path ringDirectory,
     RingStorageIndex& ringStorage,
     const Options& options,
-    SharedStatus& status
+    SharedStatus& status,
+    RecorderMetrics& metrics
   ) : device_(std::move(device)),
       ringDirectory_(std::move(ringDirectory)),
       ringStorage_(ringStorage),
       options_(options),
       status_(status),
+      metrics_(metrics),
       thread_([this] { run(); }) {
   }
 
@@ -2020,6 +2099,7 @@ public:
     std::lock_guard lock(mutex_);
     if (stopping_ || failed_ || queue_.size() >= MaximumQueuedFrames) return false;
     queue_.push(std::move(packet));
+    metrics_.observeVideoQueue(queue_.size());
     condition_.notify_one();
     return true;
   }
@@ -2035,6 +2115,7 @@ public:
     ) return false;
     queuedAudioFrames_ += packet.frameCount;
     audioQueue_.push(std::move(packet));
+    metrics_.observeAudioQueue(queuedAudioFrames_);
     condition_.notify_one();
     return true;
   }
@@ -2130,7 +2211,15 @@ private:
       finalPath
     ]() mutable {
       try {
+        const auto finalizeStartedAt = std::chrono::steady_clock::now();
         writer->finalize();
+        metrics_.recordFinalize(
+          static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(
+              std::chrono::steady_clock::now() - finalizeStartedAt
+            ).count()
+          )
+        );
         writer.reset();
         std::error_code error;
         if (!fs::exists(path, error) || fs::file_size(path, error) == 0) {
@@ -2313,7 +2402,23 @@ private:
           const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
             packet.capturedAt - *chunkStartedAt_
           ).count() / 100;
+          const bool sampleEncodeTime = framesUntilEncodeSample_ <= 0;
+          const auto encodeStartedAt = sampleEncodeTime
+            ? std::chrono::steady_clock::now()
+            : std::chrono::steady_clock::time_point{};
           writer_->write(packet.texture.Get(), std::max<LONGLONG>(0, elapsed));
+          if (sampleEncodeTime) {
+            metrics_.recordEncode(
+              static_cast<std::uint64_t>(
+                std::chrono::duration_cast<std::chrono::microseconds>(
+                  std::chrono::steady_clock::now() - encodeStartedAt
+                ).count()
+              )
+            );
+            framesUntilEncodeSample_ = std::max(1, options_.fps) - 1;
+          } else {
+            --framesUntilEncodeSample_;
+          }
           currentChunkDurationSeconds_ = static_cast<double>(elapsed) / 10000000.0;
         }
       } catch (const hresult_error& error) {
@@ -2340,6 +2445,7 @@ private:
   RingStorageIndex& ringStorage_;
   Options options_;
   SharedStatus& status_;
+  RecorderMetrics& metrics_;
   std::mutex mutex_;
   std::condition_variable condition_;
   std::queue<FramePacket> queue_;
@@ -2351,6 +2457,7 @@ private:
   int clipSeconds_ = 0;
   std::uint64_t flushRequestId_ = 0;
   std::uint64_t clearRequestId_ = 0;
+  int framesUntilEncodeSample_ = 0;
   std::thread thread_;
   std::thread clipThread_;
   std::thread writerPublisherThread_;
@@ -2860,6 +2967,95 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
     << "\"updatedAt\":" << epochMilliseconds()
     << "}";
   writeTextAtomic(options.statusPath, output.str());
+}
+
+void appendRecorderMetrics(
+  const fs::path& path,
+  const RecorderMetricsSnapshot& metrics,
+  ID3D11Device* device,
+  bool recording,
+  std::uint64_t droppedFrames,
+  std::uint64_t bytesUsed,
+  double durationSeconds
+) {
+  if (path.empty()) return;
+
+  PROCESS_MEMORY_COUNTERS_EX processMemory{};
+  processMemory.cb = sizeof(processMemory);
+  GetProcessMemoryInfo(
+    GetCurrentProcess(),
+    reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&processMemory),
+    sizeof(processMemory)
+  );
+
+  std::uint64_t localGpuBytes = 0;
+  std::uint64_t nonLocalGpuBytes = 0;
+  ComPtr<IDXGIDevice> dxgiDevice;
+  ComPtr<IDXGIAdapter> adapter;
+  ComPtr<IDXGIAdapter3> adapter3;
+  if (
+    device
+    && SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&dxgiDevice)))
+    && SUCCEEDED(dxgiDevice->GetAdapter(&adapter))
+    && SUCCEEDED(adapter.As(&adapter3))
+  ) {
+    DXGI_QUERY_VIDEO_MEMORY_INFO memoryInfo{};
+    if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(
+      0,
+      DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
+      &memoryInfo
+    ))) localGpuBytes = memoryInfo.CurrentUsage;
+    if (SUCCEEDED(adapter3->QueryVideoMemoryInfo(
+      0,
+      DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL,
+      &memoryInfo
+    ))) nonLocalGpuBytes = memoryInfo.CurrentUsage;
+  }
+
+  std::error_code error;
+  fs::create_directories(path.parent_path(), error);
+  error.clear();
+  const auto metricsFileSize = fs::file_size(path, error);
+  if (!error && metricsFileSize >= 4 * Megabyte) {
+    error.clear();
+    const auto previousPath = fs::path(path.wstring() + L".previous");
+    fs::remove(previousPath, error);
+    error.clear();
+    fs::rename(path, previousPath, error);
+  }
+
+  const double averageEncodeMilliseconds = metrics.encodeSamples > 0
+    ? static_cast<double>(metrics.encodeMicroseconds)
+      / static_cast<double>(metrics.encodeSamples) / 1000.0
+    : 0;
+  const double averageFinalizeMilliseconds = metrics.finalizeSamples > 0
+    ? static_cast<double>(metrics.finalizeMicroseconds)
+      / static_cast<double>(metrics.finalizeSamples) / 1000.0
+    : 0;
+
+  std::ofstream output(path, std::ios::binary | std::ios::app);
+  if (!output) return;
+  output << std::fixed << std::setprecision(3)
+    << "{\"timestampMs\":" << epochMilliseconds()
+    << ",\"recording\":" << (recording ? "true" : "false")
+    << ",\"privateBytes\":" << processMemory.PrivateUsage
+    << ",\"workingSetBytes\":" << processMemory.WorkingSetSize
+    << ",\"gpuLocalBytes\":" << localGpuBytes
+    << ",\"gpuNonLocalBytes\":" << nonLocalGpuBytes
+    << ",\"encodeSamples\":" << metrics.encodeSamples
+    << ",\"averageEncodeMs\":" << averageEncodeMilliseconds
+    << ",\"maximumEncodeMs\":"
+    << static_cast<double>(metrics.maximumEncodeMicroseconds) / 1000.0
+    << ",\"finalizeSamples\":" << metrics.finalizeSamples
+    << ",\"averageFinalizeMs\":" << averageFinalizeMilliseconds
+    << ",\"maximumFinalizeMs\":"
+    << static_cast<double>(metrics.maximumFinalizeMicroseconds) / 1000.0
+    << ",\"maximumVideoQueueDepth\":" << metrics.maximumVideoQueueDepth
+    << ",\"maximumAudioQueueFrames\":" << metrics.maximumAudioQueueFrames
+    << ",\"droppedFrames\":" << droppedFrames
+    << ",\"ringBytes\":" << bytesUsed
+    << ",\"ringDurationSeconds\":" << durationSeconds
+    << "}\n";
 }
 
 struct ControlCommand {
@@ -3372,16 +3568,20 @@ int wmain(int count, wchar_t** values) {
     ComPtr<ID3D11Device> device;
     ComPtr<ID3D11DeviceContext> context;
     const auto winrtDevice = createWinrtDevice(device, context);
+    RecorderMetrics metrics;
     EncoderWorker encoder(
       device,
       options.storagePath / L"Ring",
       ringStorage,
       options,
-      status
+      status,
+      metrics
     );
     std::unique_ptr<WindowCapture> capture;
     std::unique_ptr<ProcessAudioCapture> audioCapture;
     auto lastStatusWrite = std::chrono::steady_clock::now() - 2s;
+    auto lastMetricsWrite = std::chrono::steady_clock::now();
+    auto lastDroppedFrames = status.droppedFrames.load();
     auto nextCaptureAttempt = std::chrono::steady_clock::now();
     auto captureRetryDelay = 500ms;
     bool shortcutPressed = false;
@@ -3480,6 +3680,32 @@ int wmain(int count, wchar_t** values) {
         } catch (...) {
         }
         lastStatusWrite = now;
+      }
+      if (now - lastMetricsWrite >= 1min) {
+        bool recording = false;
+        std::uint64_t bytesUsed = 0;
+        double durationSeconds = 0;
+        {
+          std::lock_guard lock(status.mutex);
+          recording = status.recording;
+          bytesUsed = status.bytesUsed;
+          durationSeconds = status.durationSeconds;
+        }
+        const auto currentDroppedFrames = status.droppedFrames.load();
+        try {
+          appendRecorderMetrics(
+            options.metricsPath,
+            metrics.takeSnapshot(),
+            device.Get(),
+            recording,
+            currentDroppedFrames - lastDroppedFrames,
+            bytesUsed,
+            durationSeconds
+          );
+        } catch (...) {
+        }
+        lastDroppedFrames = currentDroppedFrames;
+        lastMetricsWrite = now;
       }
       std::this_thread::sleep_for(100ms);
     }

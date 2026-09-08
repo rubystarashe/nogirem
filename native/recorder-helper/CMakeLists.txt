@@ -31,6 +31,7 @@ target_link_libraries(recorder-helper PRIVATE
   mfuuid
   mmdevapi
   ole32
+  psapi
   shlwapi
 )
 

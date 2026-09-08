@@ -179,6 +179,7 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.doesNotMatch(managerSource, /class="audio-state"/)
   assert.doesNotMatch(managerSource, />전체 비우기</)
   assert.match(managerSource, /class="clip-save-modal" hidden/)
+  assert.match(managerSource, /class="clip-delete-modal" hidden/)
   assert.match(managerSource, /class="action save-clip clip-save-header"/)
   assert.match(managerSource, /return `\$\{highest \+ 1\}번째 클립`/)
   assert.match(managerSource, /clipSaveNameInput\.value\.trim\(\)[\s\S]*clipSaveModal\.dataset\.fallbackName/)
@@ -187,6 +188,9 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(managerSource, /\.settings label \{[\s\S]*display: flex[\s\S]*border-bottom/)
   assert.doesNotMatch(managerSource, /class="action primary toggle-recording"/)
   assert.match(managerSource, /\.settings-page \.page-actions \{[\s\S]*justify-content: flex-end/)
+  assert.match(managerSource, /class="message settings-message"[\s\S]*class="action save-setting/)
+  assert.match(managerSource, /function openClipDeleteModal\(clip\)/)
+  assert.match(managerSource, /const scrollTop = clipList\.scrollTop[\s\S]*clipList\.scrollTop = scrollTop/)
   assert.doesNotMatch(managerSource, /<footer class="actions">/)
   assert.match(managerPreloadSource, /blackbox-manager:set-setting/)
   assert.match(managerPreloadSource, /saveClip: requestedName/)
@@ -211,7 +215,11 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(mainSource, /value\.latestClip !== previousStatus\?\.latestClip/)
   assert.match(mainSource, /120000/)
   assert.match(mainSource, /async function deleteBlackboxClip\(fileName\)/)
-  assert.match(mainSource, /message: "선택한 클립을 삭제할까요\?"/)
+  assert.doesNotMatch(mainSource, /message: "선택한 클립을 삭제할까요\?"/)
+  assert.match(
+    mainSource,
+    /blackbox-manager:delete-clip[\s\S]*blackboxClipPath\(fileName\)[\s\S]*deleteBlackboxClip\(fileName\)/,
+  )
   assert.doesNotMatch(managerSource, /showMessageDialog/)
   assert.match(mainSource, /같은 이름의 클립이 이미 있습니다/)
   assert.match(mainSource, /windowStatePath: join\(directory, "window\.json"\)/)
@@ -486,6 +494,17 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /const auto reserve = Gigabyte;/)
   assert.match(nativeSource, /newestStarted - chunks_\.front\(\)\.started\s*>= maxDurationMilliseconds/)
   assert.match(nativeSource, /std::atomic_uint64_t droppedFrames = 0/)
+  assert.match(mainSource, /metricsPath: join\(directory, "recorder-metrics\.log"\)/)
+  assert.match(
+    mainSource,
+    /spawn\(recorderHelperPath,[\s\S]*`--metrics-path=\$\{paths\.metricsPath\}`/,
+  )
+  assert.match(nativeSource, /class RecorderMetrics/)
+  assert.match(nativeSource, /if \(now - lastMetricsWrite >= 1min\)/)
+  assert.match(nativeSource, /GetProcessMemoryInfo\(/)
+  assert.match(nativeSource, /QueryVideoMemoryInfo\(/)
+  assert.match(nativeSource, /maximumVideoQueueDepth/)
+  assert.match(nativeSource, /maximumAudioQueueFrames/)
   assert.match(nativeSource, /const auto bytesUsed = ringStorage_\.publish\(/)
   assert.match(nativeSource, /status\.bytesUsed = ringStorage\.bytesUsed\(\)/)
   assert.doesNotMatch(nativeSource, /status\.bytesUsed = directoryBytes/)

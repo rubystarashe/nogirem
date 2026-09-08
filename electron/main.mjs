@@ -224,6 +224,7 @@ function getBlackboxPaths() {
     settingsPath: join(directory, "settings.json"),
     statusPath: join(directory, "status.json"),
     controlPath: join(directory, "control.json"),
+    metricsPath: join(directory, "recorder-metrics.log"),
     windowStatePath: join(directory, "window.json"),
     storagePath: join(app.getPath("videos"), "마비노기 렘 블랙박스"),
   }
@@ -2206,6 +2207,7 @@ async function launchBlackboxHelper(setting) {
   const child = spawn(recorderHelperPath, [
     `--status-path=${paths.statusPath}`,
     `--control-path=${paths.controlPath}`,
+    `--metrics-path=${paths.metricsPath}`,
     `--storage-path=${paths.storagePath}`,
     `--game-path=${activeMabinogiExecutablePath ?? ""}`,
     `--parent-pid=${process.pid}`,
@@ -4443,19 +4445,8 @@ function registerIpc() {
       throw new Error("허용되지 않은 블랙박스 클립 삭제 요청입니다")
     }
     blackboxClipPath(fileName)
-    const confirmation = await showMessageBoxWhilePrimaryHidden(window, {
-      type: "warning",
-      title: "저장된 클립 삭제",
-      message: "선택한 클립을 삭제할까요?",
-      detail: fileName,
-      buttons: ["취소", "삭제"],
-      defaultId: 0,
-      cancelId: 0,
-      noLink: true,
-    })
-    if (confirmation.response !== 1) return { canceled: true }
     await deleteBlackboxClip(fileName)
-    return { canceled: false }
+    return { deleted: true }
   })
   ipcMain.handle("blackbox-manager:open-folder", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
