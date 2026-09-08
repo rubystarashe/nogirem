@@ -1371,17 +1371,24 @@ bool remuxChunks(
   LONGLONG requestedStart = 0,
   LONGLONG requestedDuration = LLONG_MAX,
   bool allowFormatChanges = false,
-  double playbackRate = 1.0
+  double playbackRate = 1.0,
+  bool exactAudioRange = false
 ) {
   if (inputs.empty()) return false;
   const LONGLONG effectiveStart = findCleanRangeStart(inputs, requestedStart);
   const LONGLONG requestedEnd = requestedDuration == LLONG_MAX
     ? LLONG_MAX
     : requestedStart + requestedDuration;
-  const LONGLONG decodedAudioDuration = combinedDecodedAudioDuration(inputs);
   const LONGLONG audioRequestedStart = requestedDuration == LLONG_MAX
     ? 0
-    : std::max<LONGLONG>(0, decodedAudioDuration - requestedDuration);
+    : (
+        exactAudioRange
+          ? requestedStart
+          : std::max<LONGLONG>(
+              0,
+              combinedDecodedAudioDuration(inputs) - requestedDuration
+            )
+      );
   const LONGLONG audioRequestedEnd = requestedDuration == LLONG_MAX
     ? LLONG_MAX
     : audioRequestedStart + requestedDuration;
@@ -1558,7 +1565,8 @@ bool remuxChunksAtomically(
   LONGLONG requestedStart = 0,
   LONGLONG requestedDuration = LLONG_MAX,
   bool allowFormatChanges = false,
-  double playbackRate = 1.0
+  double playbackRate = 1.0,
+  bool exactAudioRange = false
 ) {
   auto partial = output;
   partial += L".partial.mp4";
@@ -1571,7 +1579,8 @@ bool remuxChunksAtomically(
       requestedStart,
       requestedDuration,
       allowFormatChanges,
-      playbackRate
+      playbackRate,
+      exactAudioRange
     )) return false;
     fs::remove(output, cleanupError);
     fs::rename(partial, output);
@@ -2944,7 +2953,10 @@ void composeExtraction(
         { inputPath },
         partPath,
         piece.start,
-        piece.duration
+        piece.duration,
+        false,
+        1.0,
+        true
       )) {
         throw std::runtime_error("녹화된 영상 구간을 준비하지 못했습니다");
       }
@@ -3008,7 +3020,10 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
         chunks,
         outputPath,
         0,
-        timelineMetadata.mediaDuration
+        timelineMetadata.mediaDuration,
+        false,
+        1.0,
+        true
       )) {
         throw std::runtime_error("편집 트랙을 만들지 못했습니다");
       }

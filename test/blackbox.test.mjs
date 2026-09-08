@@ -340,6 +340,11 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /status\.bytesUsed = ringStorage\.bytesUsed\(\)/)
   assert.doesNotMatch(nativeSource, /status\.bytesUsed = directoryBytes/)
   assert.doesNotMatch(nativeSource, /pruneRing\(/)
+  assert.match(nativeSource, /exactAudioRange\s*\?\s*requestedStart/)
+  assert.match(
+    nativeSource,
+    /piece\.start,[\s\S]*piece\.duration,[\s\S]*false,[\s\S]*1\.0,[\s\S]*true/,
+  )
   assert.match(nativeSource, /MF_READWRITE_DISABLE_CONVERTERS/)
   assert.match(nativeSource, /MFSampleExtension_DecodeTimestamp/)
   assert.match(nativeSource, /AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK/)
