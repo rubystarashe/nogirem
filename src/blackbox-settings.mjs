@@ -3,7 +3,7 @@ export const blackboxQualityOptions = ["auto", "1080p", "1440p", "original"]
 export const blackboxCapacityOptions = [20, 50, 100, 200]
 export const blackboxClipDurationOptions = [30, 60, 120]
 export const blackboxFrameRateOptions = [30, 60]
-export const blackboxFeatureAvailable = false
+export const blackboxFeatureAvailable = true
 export const defaultBlackboxSetting = Object.freeze({
   featureEnabled: false,
   enabled: false,

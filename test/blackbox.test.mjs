@@ -13,7 +13,7 @@ import {
 const root = new URL("../", import.meta.url)
 
 test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사용한다", () => {
-  assert.equal(blackboxFeatureAvailable, false)
+  assert.equal(blackboxFeatureAvailable, true)
   assert.deepEqual(normalizeBlackboxSetting(null), defaultBlackboxSetting)
   assert.deepEqual(normalizeBlackboxSetting({
     enabled: true,
@@ -91,7 +91,10 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(appSource, /class="blackbox-main-link"/)
   assert.match(appSource, /class="blackbox-window-link"/)
   assert.match(appSource, /\{#if blackboxFeatureAvailable && blackboxFeatureEnabled\}[\s\S]*class="blackbox-main-controls"/)
-  assert.match(appSource, /<h2>게임 블랙박스<\/h2>[\s\S]*<button[\s\S]*disabled[\s\S]*준비중/)
+  assert.match(
+    appSource,
+    /<h2>게임 블랙박스<\/h2>[\s\S]*onclick=\{toggleBlackboxFeature\}[\s\S]*blackboxFeatureEnabled \? "사용 중" : "사용하기"/,
+  )
   assert.match(appSource, /onclick=\{toggleMainBlackbox\}/)
   assert.match(
     appSource,

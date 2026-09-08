@@ -2296,10 +2296,13 @@
                     </div>
                     <button
                       class:active={blackboxFeatureAvailable && blackboxFeatureEnabled}
-                      disabled
-                      aria-pressed="false"
+                      disabled={!blackboxSettingLoaded || blackboxFeatureAction}
+                      aria-pressed={blackboxFeatureEnabled}
+                      onclick={toggleBlackboxFeature}
                     >
-                      준비중
+                      {blackboxFeatureAction === "saving"
+                        ? "저장 중…"
+                        : (blackboxFeatureEnabled ? "사용 중" : "사용하기")}
                     </button>
                   </div>
                   {#if blackboxFeatureNotice}
