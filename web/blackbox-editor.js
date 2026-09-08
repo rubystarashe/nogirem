@@ -184,6 +184,7 @@ function fitCurrentMedia() {
   preview.classList.add("media-ready")
   preview.style.setProperty("--media-aspect", `${video.videoWidth} / ${video.videoHeight}`)
   void editorBridge.fitMedia?.({
+    page: "extract",
     mediaWidth: video.videoWidth,
     mediaHeight: video.videoHeight,
     viewportWidth,

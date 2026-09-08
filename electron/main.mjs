@@ -122,6 +122,7 @@ let characterGuideWindow = null
 let dxvkManagerWindow = null
 let dxvkGuideWindow = null
 let blackboxManagerWindow = null
+let blackboxManagerPreferredSize = null
 let blackboxEditorWindow = null
 let blackboxEditorSession = null
 let applicationTray = null
@@ -2465,12 +2466,12 @@ function readBlackboxManagerSize() {
       && saved.width >= 900
       && saved.height >= 680
     ) {
-      return { width: saved.width, height: saved.height }
+      return { width: saved.width, height: saved.height, customized: true }
     }
   } catch {
-    return { width: 1040, height: 760 }
+    return { width: 1040, height: 760, customized: false }
   }
-  return { width: 1040, height: 760 }
+  return { width: 1040, height: 760, customized: false }
 }
 
 function fitBlackboxManagerToMedia(value) {
@@ -2492,21 +2493,42 @@ function fitBlackboxManagerToMedia(value) {
   ) return false
 
   const ratio = Math.max(0.5, Math.min(4, mediaWidth / mediaHeight))
+  const page = value?.page === "clips" ? "clips" : "extract"
   const bounds = window.getBounds()
   const workArea = screen.getDisplayMatching(bounds).workArea
   const widthOverhead = Math.max(0, bounds.width - viewportWidth)
   const heightOverhead = Math.max(0, bounds.height - viewportHeight)
-  const desiredViewportHeight = viewportWidth / ratio
-  let targetWidth = Math.min(bounds.width, workArea.width)
-  let targetHeight = Math.round(heightOverhead + desiredViewportHeight)
-  if (targetHeight > workArea.height) {
-    const availableViewportHeight = Math.max(100, workArea.height - heightOverhead)
-    const constrainedViewportWidth = availableViewportHeight * ratio
+  let targetWidth
+  let targetHeight
+  if (page === "clips") {
+    const desiredViewportWidth = viewportHeight * ratio
     targetWidth = Math.max(
       900,
-      Math.min(targetWidth, Math.round(widthOverhead + constrainedViewportWidth)),
+      Math.min(workArea.width, Math.round(widthOverhead + desiredViewportWidth)),
     )
-    targetHeight = workArea.height
+    targetHeight = Math.min(bounds.height, workArea.height)
+  } else if (blackboxManagerPreferredSize) {
+    targetWidth = Math.max(
+      900,
+      Math.min(workArea.width, blackboxManagerPreferredSize.width),
+    )
+    targetHeight = Math.max(
+      680,
+      Math.min(workArea.height, blackboxManagerPreferredSize.height),
+    )
+  } else {
+    const desiredViewportHeight = viewportWidth / ratio
+    targetWidth = Math.min(bounds.width, workArea.width)
+    targetHeight = Math.round(heightOverhead + desiredViewportHeight)
+    if (targetHeight > workArea.height) {
+      const availableViewportHeight = Math.max(100, workArea.height - heightOverhead)
+      const constrainedViewportWidth = availableViewportHeight * ratio
+      targetWidth = Math.max(
+        900,
+        Math.min(targetWidth, Math.round(widthOverhead + constrainedViewportWidth)),
+      )
+      targetHeight = workArea.height
+    }
   }
   targetHeight = Math.max(680, Math.min(workArea.height, targetHeight))
   const targetX = Math.max(
@@ -4185,6 +4207,9 @@ function openBlackboxManager() {
   const workArea = screen.getDisplayMatching(referenceBounds).workArea
   const initialWidth = Math.max(900, Math.min(workArea.width, savedSize.width))
   const initialHeight = Math.max(680, Math.min(workArea.height, savedSize.height))
+  blackboxManagerPreferredSize = savedSize.customized
+    ? { width: initialWidth, height: initialHeight }
+    : null
   const window = new BrowserWindow({
     width: initialWidth,
     height: initialHeight,
@@ -4253,6 +4278,7 @@ function openBlackboxManager() {
       width: Math.max(900, Math.round(newBounds.width)),
       height: Math.max(680, Math.round(newBounds.height)),
     }
+    blackboxManagerPreferredSize = { ...lastUserSize }
     clearTimeout(sizeSaveTimer)
     sizeSaveTimer = setTimeout(saveUserSize, 200)
   })

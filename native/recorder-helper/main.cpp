@@ -1240,47 +1240,6 @@ LONGLONG combinedDecodedAudioDuration(const std::vector<fs::path>& inputs) {
   return duration;
 }
 
-std::int64_t chunkStartedMilliseconds(const fs::path& path);
-
-std::string trackGapsJson(
-  const std::vector<fs::path>& inputs,
-  LONGLONG requestedStart,
-  LONGLONG requestedDuration
-) {
-  std::ostringstream json;
-  json << "{\"gaps\":[";
-  bool firstGap = true;
-  LONGLONG mediaOffset = 0;
-  for (std::size_t index = 0; index + 1 < inputs.size(); ++index) {
-    const auto mediaDuration = compressedMediaDuration(inputs[index]);
-    const auto currentStartedAt = chunkStartedMilliseconds(inputs[index]);
-    const auto nextStartedAt = chunkStartedMilliseconds(inputs[index + 1]);
-    const auto wallDuration = std::max<LONGLONG>(
-      0,
-      (nextStartedAt - currentStartedAt) * 10000ll
-    );
-    const auto missingDuration = wallDuration - mediaDuration;
-    const auto outputPosition = mediaOffset + mediaDuration - requestedStart;
-    if (
-      missingDuration >= 5000000ll
-      && outputPosition >= 0
-      && outputPosition < requestedDuration
-    ) {
-      if (!firstGap) json << ",";
-      json << "{\"startSeconds\":"
-           << std::fixed << std::setprecision(3)
-           << static_cast<double>(outputPosition) / 10000000.0
-           << ",\"durationSeconds\":"
-           << static_cast<double>(missingDuration) / 10000000.0
-           << "}";
-      firstGap = false;
-    }
-    mediaOffset += mediaDuration;
-  }
-  json << "]}";
-  return json.str();
-}
-
 bool remuxChunks(
   const std::vector<fs::path>& inputs,
   const fs::path& output,
@@ -2582,11 +2541,7 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
       )) {
         throw std::runtime_error("편집 트랙을 만들지 못했습니다");
       }
-      std::cout << trackGapsJson(
-        chunks,
-        requestedStart,
-        requestedDuration
-      ) << "\n";
+      std::cout << "{\"gaps\":[]}\n";
     } else if (mode == L"extract") {
       const fs::path inputPath = arguments.at(L"input");
       const fs::path outputPath = arguments.at(L"output");
