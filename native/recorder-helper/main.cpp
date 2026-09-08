@@ -1383,9 +1383,9 @@ LONGLONG combinedMediaDuration(const std::vector<fs::path>& inputs) {
 ComPtr<IMFSample> retimePcmSample(
   IMFSample* sample,
   double playbackRate,
-  LONGLONG& duration
+  LONGLONG& duration,
+  LONGLONG maximumInputDuration = LLONG_MAX
 ) {
-  if (std::abs(playbackRate - 1.0) < 0.001) return sample;
   ComPtr<IMFMediaBuffer> inputBuffer;
   check_hresult(sample->ConvertToContiguousBuffer(&inputBuffer));
   BYTE* inputData = nullptr;
@@ -1396,9 +1396,30 @@ ComPtr<IMFSample> retimePcmSample(
     check_hresult(inputBuffer->Unlock());
     return sample;
   }
+  const auto maximumInputFrames = maximumInputDuration == LLONG_MAX
+    ? static_cast<std::uint64_t>(inputFrames)
+    : static_cast<std::uint64_t>(std::max<LONGLONG>(
+      0,
+      maximumInputDuration * AudioSampleRate / 10000000ll
+    ));
+  const auto usableInputFrames = std::min<std::uint64_t>(
+    inputFrames,
+    maximumInputFrames
+  );
+  if (
+    usableInputFrames == inputFrames
+    && std::abs(playbackRate - 1.0) < 0.001
+  ) {
+    check_hresult(inputBuffer->Unlock());
+    return sample;
+  }
+  if (usableInputFrames == 0) {
+    check_hresult(inputBuffer->Unlock());
+    return {};
+  }
   const auto outputFrames = std::max<std::uint64_t>(
     1,
-    static_cast<std::uint64_t>(std::llround(inputFrames / playbackRate))
+    static_cast<std::uint64_t>(std::llround(usableInputFrames / playbackRate))
   );
   ComPtr<IMFMediaBuffer> outputBuffer;
   check_hresult(MFCreateMemoryBuffer(
@@ -1409,7 +1430,7 @@ ComPtr<IMFSample> retimePcmSample(
   check_hresult(outputBuffer->Lock(&outputData, nullptr, nullptr));
   for (std::uint64_t index = 0; index < outputFrames; ++index) {
     const auto sourceIndex = std::min<std::uint64_t>(
-      inputFrames - 1,
+      usableInputFrames - 1,
       static_cast<std::uint64_t>(index * playbackRate)
     );
     std::memcpy(
@@ -1432,13 +1453,16 @@ ComPtr<IMFSample> retimePcmSample(
   return outputSample;
 }
 
+using RemuxProgress = std::function<void(std::size_t, std::size_t)>;
+
 bool remuxChunks(
   const std::vector<fs::path>& inputs,
   const fs::path& output,
   LONGLONG requestedStart = 0,
   LONGLONG requestedDuration = LLONG_MAX,
   bool allowFormatChanges = false,
-  double playbackRate = 1.0
+  double playbackRate = 1.0,
+  RemuxProgress onProgress = {}
 ) {
   if (inputs.empty()) return false;
   const LONGLONG effectiveStart = findCleanRangeStart(inputs, requestedStart);
@@ -1478,6 +1502,13 @@ bool remuxChunks(
       throw std::runtime_error("해상도 또는 인코딩 형식이 다른 청크는 결합할 수 없습니다");
     }
     expectedSignature = signature;
+    const auto fileDuration = compressedMediaDuration(inputs[fileIndex]);
+    if (outputTime + fileDuration <= effectiveStart) {
+      outputTime += fileDuration;
+      if (onProgress) onProgress(fileIndex + 1, inputs.size());
+      continue;
+    }
+    if (outputTime >= requestedEnd) break;
     const LONGLONG defaultDuration = fallbackSampleDuration(signature);
     ComPtr<IMFSourceReader> audioReader;
     if (signature.hasAudio) audioReader = createPcmAudioReader(inputs[fileIndex]);
@@ -1613,7 +1644,18 @@ bool remuxChunks(
         fileAudioTime = std::max(fileAudioTime, relativeTime + duration);
         if (globalTime + duration <= audioRequestedStart) continue;
         if (globalTime >= audioRequestedEnd) break;
-        sample = retimePcmSample(sample.Get(), playbackRate, duration);
+        const auto availableInputDuration = std::min(
+          fileEnd,
+          audioRequestedEnd
+        ) - globalTime;
+        if (availableInputDuration <= 0) break;
+        sample = retimePcmSample(
+          sample.Get(),
+          playbackRate,
+          duration,
+          availableInputDuration
+        );
+        if (!sample) break;
         const auto mappedOutputTime = std::max<LONGLONG>(
           0,
           static_cast<LONGLONG>(std::llround(
@@ -1631,6 +1673,7 @@ bool remuxChunks(
         retimedAudioOutputTime = sampleTime + duration;
       }
     }
+    if (onProgress) onProgress(fileIndex + 1, inputs.size());
   }
   if (!sink) return false;
   check_hresult(sink->Finalize());
@@ -1643,7 +1686,8 @@ bool remuxChunksAtomically(
   LONGLONG requestedStart = 0,
   LONGLONG requestedDuration = LLONG_MAX,
   bool allowFormatChanges = false,
-  double playbackRate = 1.0
+  double playbackRate = 1.0,
+  RemuxProgress onProgress = {}
 ) {
   auto partial = output;
   partial += L".partial.mp4";
@@ -1656,7 +1700,8 @@ bool remuxChunksAtomically(
       requestedStart,
       requestedDuration,
       allowFormatChanges,
-      playbackRate
+      playbackRate,
+      onProgress
     )) return false;
     fs::remove(output, cleanupError);
     fs::rename(partial, output);
@@ -3032,11 +3077,42 @@ void createBlackVideo(
 }
 
 void composeExtraction(
-  const fs::path& inputPath,
+  const std::vector<fs::path>& inputPaths,
   const fs::path& outputPath,
   const std::vector<CompositionPiece>& pieces,
   double playbackRate
 ) {
+  if (inputPaths.empty()) {
+    throw std::runtime_error("추출할 녹화 청크가 없습니다");
+  }
+  if (
+    pieces.size() == 1
+    && !pieces.front().black
+    && std::abs(playbackRate - 1.0) < 0.001
+  ) {
+    int lastProgress = -1;
+    if (!remuxChunksAtomically(
+      inputPaths,
+      outputPath,
+      pieces.front().start,
+      pieces.front().duration,
+      false,
+      1.0,
+      [&lastProgress](std::size_t completed, std::size_t total) {
+        const auto progress = static_cast<int>(
+          static_cast<double>(completed) * 100.0
+          / std::max<std::size_t>(1, total)
+        );
+        if (progress <= lastProgress) return;
+        lastProgress = progress;
+        std::cerr << "PROGRESS " << progress << '\n';
+      }
+    )) {
+      throw std::runtime_error("선택한 녹화 구간을 저장하지 못했습니다");
+    }
+    std::cerr << "PROGRESS 100\n";
+    return;
+  }
   const auto stagingDirectory = outputPath.parent_path()
     / (L".compose-" + std::to_wstring(epochMilliseconds()));
   fs::create_directories(stagingDirectory);
@@ -3047,14 +3123,29 @@ void composeExtraction(
         / (L"part-" + std::to_wstring(index) + L".mp4");
       const auto& piece = pieces[index];
       if (piece.black) {
-        createBlackVideo(inputPath, partPath, piece.duration);
+        createBlackVideo(inputPaths.front(), partPath, piece.duration);
       } else if (!remuxChunksAtomically(
-        { inputPath },
+        inputPaths,
         partPath,
         piece.start,
         piece.duration,
         false,
-        1.0
+        1.0,
+        [index, &pieces, lastProgress = -1](
+          std::size_t completed,
+          std::size_t total
+        ) mutable {
+          const auto pieceProgress = static_cast<double>(completed)
+            / std::max<std::size_t>(1, total);
+          const auto overallProgress = static_cast<int>(
+            (static_cast<double>(index) + pieceProgress)
+            * 80.0
+            / std::max<std::size_t>(1, pieces.size())
+          );
+          if (overallProgress <= lastProgress) return;
+          lastProgress = overallProgress;
+          std::cerr << "PROGRESS " << overallProgress << '\n';
+        }
       )) {
         throw std::runtime_error("녹화된 영상 구간을 준비하지 못했습니다");
       }
@@ -3131,8 +3222,14 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
         }
       }
       std::cout << timelineMetadata.json << '\n';
+    } else if (mode == L"summary") {
+      RingStorageIndex ringStorage(arguments.at(L"ring-path"));
+      std::cout
+        << "{\"bytesUsed\":" << ringStorage.bytesUsed()
+        << ",\"durationSeconds\":" << std::fixed << std::setprecision(3)
+        << ringStorage.durationSeconds()
+        << "}\n";
     } else if (mode == L"compose") {
-      const fs::path inputPath = arguments.at(L"input");
       const fs::path outputPath = arguments.at(L"output");
       const auto pieces = parseCompositionPieces(arguments.at(L"pieces"));
       const auto playbackRate = static_cast<double>(std::clamp<std::int64_t>(
@@ -3140,8 +3237,30 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
         250,
         4000
       )) / 1000.0;
+      std::vector<fs::path> inputs;
+      const auto input = arguments.find(L"input");
+      if (input != arguments.end()) {
+        inputs.push_back(input->second);
+      } else {
+        const fs::path ringPath = arguments.at(L"ring-path");
+        const auto anchorMilliseconds = wideInteger(
+          arguments,
+          L"anchor-ms",
+          epochMilliseconds()
+        );
+        const int seconds = std::clamp(
+          static_cast<int>(wideInteger(arguments, L"seconds", 900)),
+          30,
+          21600
+        );
+        inputs = compatibleChunkSuffix(selectAnchoredChunks(
+          ringPath,
+          anchorMilliseconds,
+          seconds
+        ));
+      }
       fs::create_directories(outputPath.parent_path());
-      composeExtraction(inputPath, outputPath, pieces, playbackRate);
+      composeExtraction(inputs, outputPath, pieces, playbackRate);
     } else if (mode == L"extract") {
       const fs::path inputPath = arguments.at(L"input");
       const fs::path outputPath = arguments.at(L"output");

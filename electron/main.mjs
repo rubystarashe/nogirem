@@ -185,6 +185,9 @@ let blackboxProcess = null
 let blackboxControlOperation = Promise.resolve()
 let lastBlackboxClipRequestedAt = 0
 let blackboxLatestClipOverride = null
+let blackboxStorageSummary = null
+let blackboxStorageSummaryPromise = null
+let blackboxStorageSummaryGeneration = 0
 let activeBlackboxShortcut = null
 const internalWindowsClosedForTray = new WeakSet()
 let primaryRendererRecoveryMode = false
@@ -2033,7 +2036,15 @@ async function getBlackboxSetting() {
   const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 5000
   const processRunning = Boolean(blackboxProcess && blackboxProcess.exitCode === null)
   const running = setting.enabled && processRunning && statusFresh && Boolean(status?.running)
-  const bytesUsed = Number(status?.bytesUsed) || 0
+  if (!processRunning && !blackboxStorageSummary) {
+    void refreshBlackboxStorageSummary().catch(error => {
+      console.error("블랙박스 저장 현황 갱신 실패", error)
+    })
+  }
+  const storedStatus = !processRunning && blackboxStorageSummary
+    ? blackboxStorageSummary
+    : status
+  const bytesUsed = Number(storedStatus?.bytesUsed) || 0
   if (blackboxLatestClipOverride && !existsSync(blackboxLatestClipOverride)) {
     blackboxLatestClipOverride = null
   }
@@ -2048,7 +2059,7 @@ async function getBlackboxSetting() {
     waitingForGame: running && Boolean(status?.waitingForGame),
     clipInProgress: running && Boolean(status?.clipInProgress),
     bytesUsed,
-    durationSeconds: Number(status?.durationSeconds) || 0,
+    durationSeconds: Number(storedStatus?.durationSeconds) || 0,
     capacityBytes: setting.capacityGb * 1024 ** 3,
     maxDurationSeconds: setting.maxDurationSeconds,
     droppedFrames: Number(status?.droppedFrames) || 0,
@@ -2066,6 +2077,31 @@ async function getBlackboxSetting() {
     reason: statusFresh
       ? (status?.error ?? null)
       : (setting.enabled && !running ? "블랙박스 녹화 프로세스가 실행 중이 아닙니다" : null),
+  }
+}
+
+async function refreshBlackboxStorageSummary() {
+  if (blackboxStorageSummaryPromise) return blackboxStorageSummaryPromise
+  const generation = blackboxStorageSummaryGeneration
+  blackboxStorageSummaryPromise = (async () => {
+    const output = await runRecorderUtility([
+      "--mode=summary",
+      `--ring-path=${join(getBlackboxPaths().storagePath, "Ring")}`,
+    ])
+    const summary = JSON.parse(output)
+    const nextSummary = {
+      bytesUsed: Math.max(0, Number(summary?.bytesUsed) || 0),
+      durationSeconds: Math.max(0, Number(summary?.durationSeconds) || 0),
+    }
+    if (generation === blackboxStorageSummaryGeneration) {
+      blackboxStorageSummary = nextSummary
+    }
+    return nextSummary
+  })()
+  try {
+    return await blackboxStorageSummaryPromise
+  } finally {
+    blackboxStorageSummaryPromise = null
   }
 }
 
@@ -2172,6 +2208,8 @@ async function launchBlackboxHelper(setting) {
   })
   child.once("exit", () => {
     if (blackboxProcess === child) blackboxProcess = null
+    blackboxStorageSummaryGeneration += 1
+    blackboxStorageSummary = null
     unregisterBlackboxShortcut()
   })
   const status = await waitForBlackboxStatus(
@@ -2296,6 +2334,11 @@ async function clearBlackboxRecording() {
       await rm(join(paths.storagePath, "Ring"), { recursive: true, force: true })
       await mkdir(join(paths.storagePath, "Ring"), { recursive: true })
       await unlink(paths.statusPath).catch(() => {})
+      blackboxStorageSummaryGeneration += 1
+      blackboxStorageSummary = {
+        bytesUsed: 0,
+        durationSeconds: 0,
+      }
       return {
         ...await getBlackboxSetting(),
         cleared: true,
@@ -2521,31 +2564,6 @@ function buildBlackboxExtractionPieces(
   return pieces.filter(piece => piece.duration >= 0.01)
 }
 
-async function ensureBlackboxEditorTrackMedia(session, onProgress = null) {
-  if (session.trackPath && existsSync(session.trackPath)) return session.trackPath
-  const outputPath = join(
-    session.directory,
-    `track-${session.trackSeconds}-${Date.now()}.mp4`,
-  )
-  onProgress?.(1)
-  await runRecorderUtility([
-    "--mode=track",
-    `--ring-path=${join(getBlackboxPaths().storagePath, "Ring")}`,
-    `--output=${outputPath}`,
-    `--anchor-ms=${session.anchorAt}`,
-    `--seconds=${session.trackSeconds}`,
-  ])
-  const outputStat = await stat(outputPath)
-  if (!outputStat.isFile() || outputStat.size === 0) {
-    throw new Error("추출할 편집 트랙을 만들지 못했습니다")
-  }
-  session.trackPath = outputPath
-  const trackId = randomUUID()
-  session.trackFiles.set(trackId, outputPath)
-  onProgress?.(15)
-  return outputPath
-}
-
 async function extractBlackboxEditorRange(session, value, onProgress = null) {
   const startSeconds = Math.max(0, Number(value?.startSeconds) || 0)
   const durationSeconds = Math.max(1, Math.min(21600, Number(value?.durationSeconds) || 30))
@@ -2588,11 +2606,12 @@ async function extractBlackboxEditorRange(session, value, onProgress = null) {
         ? `media:${Math.round(piece.start * 1000)}:${Math.round(piece.duration * 1000)}`
         : `black:${Math.round(piece.duration * 1000)}`
     )).join(";")
-    onProgress?.(0)
-    const trackPath = await ensureBlackboxEditorTrackMedia(session, onProgress)
+    onProgress?.(1)
     await runRecorderUtility([
       "--mode=compose",
-      `--input=${trackPath}`,
+      `--ring-path=${join(getBlackboxPaths().storagePath, "Ring")}`,
+      `--anchor-ms=${session.anchorAt}`,
+      `--seconds=${session.trackSeconds}`,
       `--output=${outputPath}`,
       `--pieces=${encodedPieces}`,
       `--speed-milli=${Math.round(playbackSpeed * 1000)}`,
@@ -2888,7 +2907,10 @@ async function ensureBlackboxStarted() {
     }
     return
   }
-  if (!setting.enabled) return
+  if (!setting.enabled) {
+    await refreshBlackboxStorageSummary()
+    return
+  }
   await launchBlackboxHelper(setting)
 }
 
