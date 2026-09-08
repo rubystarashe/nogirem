@@ -238,7 +238,8 @@
         font-weight: 700;
       }
 
-      .settings select {
+      .settings select,
+      .settings input {
         width: 280px;
         height: 32px;
         padding: 0 9px;
@@ -250,8 +251,18 @@
         font-weight: 700;
       }
 
-      .settings select:focus {
+      .settings input {
+        cursor: pointer;
+      }
+
+      .settings select:focus,
+      .settings input:focus {
         border-color: #747e83;
+      }
+
+      .settings input.capturing {
+        border-color: #d5b657;
+        color: #f0d67e;
       }
 
       .settings-summary {
@@ -777,9 +788,19 @@
             <option value="120">최근 약 120초</option>
           </select>
         </label>
+        <label class="clip-shortcut">
+          <span>빠른 저장 단축키</span>
+          <input
+            class="shortcut-input"
+            type="text"
+            value="Ctrl + Shift + F10"
+            readonly
+            aria-label="빠른 클립 저장 단축키"
+          />
+        </label>
         <div class="settings-summary">
           <span class="quality-summary">자동 판정</span>
-          <span>빠른 저장 단축키 Ctrl+Shift+F10</span>
+          <span>단축키 입력란을 선택한 뒤 원하는 키 조합을 누르세요</span>
         </div>
       </section>
         <div class="page-actions">
@@ -810,6 +831,7 @@
       const fpsSelect = document.querySelector(".fps-select")
       const capacitySelect = document.querySelector(".capacity-select")
       const clipSelect = document.querySelector(".clip-select")
+      const shortcutInput = document.querySelector(".shortcut-input")
       const qualitySummary = document.querySelector(".quality-summary")
       const message = document.querySelector(".message")
       const saveClipButton = document.querySelector(".save-clip")
@@ -831,6 +853,7 @@
         fpsSelect,
         capacitySelect,
         clipSelect,
+        shortcutInput,
       ]
       let status = null
       let busy = false
@@ -882,6 +905,42 @@
         return quality === "1440p" ? "최대 1440p" : "최대 1080p"
       }
 
+      function shortcutFromKeyboardEvent(event) {
+        const modifiers = []
+        if (event.ctrlKey) modifiers.push("CommandOrControl")
+        if (event.altKey) modifiers.push("Alt")
+        if (event.shiftKey) modifiers.push("Shift")
+        if (event.metaKey) modifiers.push("Super")
+        let key = ""
+        if (/^Key[A-Z]$/.test(event.code)) key = event.code.slice(3)
+        else if (/^Digit[0-9]$/.test(event.code)) key = event.code.slice(5)
+        else if (/^F(?:[1-9]|1\d|2[0-4])$/.test(event.code)) key = event.code
+        else {
+          key = {
+            Space: "Space",
+            ArrowUp: "Up",
+            ArrowDown: "Down",
+            ArrowLeft: "Left",
+            ArrowRight: "Right",
+            Insert: "Insert",
+            Delete: "Delete",
+            Home: "Home",
+            End: "End",
+            PageUp: "PageUp",
+            PageDown: "PageDown",
+          }[event.code] ?? ""
+        }
+        if (!modifiers.length || !key) return ""
+        return [...modifiers, key].join("+")
+      }
+
+      function shortcutLabel(accelerator) {
+        return accelerator
+          .replace("CommandOrControl", "Ctrl")
+          .replace("Control", "Ctrl")
+          .replaceAll("+", " + ")
+      }
+
       function draftSetting(enabled = status?.enabled) {
         return {
           featureEnabled: Boolean(status?.featureEnabled),
@@ -892,6 +951,7 @@
           capacityGb: Number(capacitySelect.value),
           clipSeconds: Number(clipSelect.value),
           chunkSeconds: 4,
+          shortcut: shortcutInput.dataset.accelerator,
         }
       }
 
@@ -925,6 +985,8 @@
         fpsSelect.value = String(value.fps)
         capacitySelect.value = String(value.capacityGb)
         clipSelect.value = String(value.clipSeconds)
+        shortcutInput.dataset.accelerator = value.shortcutAccelerator
+        shortcutInput.value = value.shortcut
         settingsInitialized = true
         settingsDirty = false
       }
@@ -1317,13 +1379,49 @@
         })
       }
 
+      shortcutInput.addEventListener("focus", () => {
+        shortcutInput.classList.add("capturing")
+      })
+      shortcutInput.addEventListener("blur", () => {
+        shortcutInput.classList.remove("capturing")
+      })
+      shortcutInput.addEventListener("keydown", event => {
+        event.preventDefault()
+        event.stopPropagation()
+        if (event.code === "Escape") {
+          shortcutInput.blur()
+          return
+        }
+        const accelerator = shortcutFromKeyboardEvent(event)
+        if (!accelerator) {
+          if (["ControlLeft", "ControlRight", "AltLeft", "AltRight", "ShiftLeft", "ShiftRight", "MetaLeft", "MetaRight"].includes(event.code)) return
+          message.classList.add("error")
+          message.textContent = "Ctrl, Alt, Shift 중 하나와 일반 키를 함께 눌러 주세요"
+          return
+        }
+        shortcutInput.dataset.accelerator = accelerator
+        shortcutInput.value = shortcutLabel(accelerator)
+        settingsDirty = true
+        saveSettingButton.disabled = busy
+        message.classList.remove("error")
+        message.textContent = "새 단축키를 사용하려면 설정 저장을 눌러 주세요"
+      })
+
       saveSettingButton.addEventListener("click", async () => {
         const result = await runAction(
           "블랙박스 설정을 저장하고 있습니다",
           () => window.blackboxManager.setSetting(draftSetting()),
-          "블랙박스 설정을 저장했습니다",
         )
-        if (result) settingsDirty = false
+        if (result) {
+          settingsDirty = false
+          if (result.enabled && !result.shortcutAvailable) {
+            message.classList.add("error")
+            message.textContent = `${result.shortcut} 단축키를 다른 프로그램이 사용 중입니다`
+          } else {
+            message.classList.remove("error")
+            message.textContent = "블랙박스 설정을 저장했습니다"
+          }
+        }
       })
 
       saveClipButton.addEventListener("click", () => {

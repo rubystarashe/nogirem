@@ -4,8 +4,10 @@ import test from "node:test"
 import {
   blackboxFeatureAvailable,
   bitrateForBlackboxSetting,
+  defaultBlackboxShortcut,
   defaultBlackboxSetting,
   maxHeightForBlackboxQuality,
+  normalizeBlackboxShortcut,
   normalizeBlackboxSetting,
   resolveAutoBlackboxQuality,
 } from "../src/blackbox-settings.mjs"
@@ -42,11 +44,19 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     clipSeconds: 60,
     fps: 30,
     chunkSeconds: 10,
+    shortcut: defaultBlackboxShortcut,
   })
   assert.equal(normalizeBlackboxSetting({
     featureEnabled: true,
     enabled: false,
   }).featureEnabled, true)
+})
+
+test("빠른 클립 저장 단축키는 지원하는 키 조합만 정규화한다", () => {
+  assert.equal(normalizeBlackboxShortcut("ctrl+alt+k"), "Control+Alt+K")
+  assert.equal(normalizeBlackboxShortcut("CommandOrControl+Shift+F12"), "CommandOrControl+Shift+F12")
+  assert.equal(normalizeBlackboxShortcut("F10"), defaultBlackboxShortcut)
+  assert.equal(normalizeBlackboxShortcut("Ctrl+한"), defaultBlackboxShortcut)
 })
 
 test("H.264와 HEVC 프리셋은 프레임별 비트레이트를 제공한다", () => {
@@ -146,7 +156,7 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(mainSource, /title: "게임 블랙박스 관리"/)
   assert.match(mainSource, /blackbox-manager\.html/)
   assert.match(managerSource, /게임 블랙박스 관리/)
-  assert.match(managerSource, /Ctrl\+Shift\+F10/)
+  assert.match(managerSource, /Ctrl \+ Shift \+ F10/)
   assert.match(managerSource, /data-page="extract">영상 추출/)
   assert.match(managerSource, /data-page="clips">저장된 클립/)
   assert.match(managerSource, /data-page="settings">녹화 설정/)
@@ -250,6 +260,13 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   ])
   assert.match(managerSource, /영상 추출/)
   assert.match(managerSource, /class="extract-frame"[\s\S]*allowfullscreen/)
+  assert.match(managerSource, /class="shortcut-input"[\s\S]*readonly/)
+  assert.match(managerSource, /function shortcutFromKeyboardEvent\(event\)/)
+  assert.match(managerSource, /shortcutInput\.dataset\.accelerator = accelerator/)
+  assert.match(managerSource, /단축키를 다른 프로그램이 사용 중입니다/)
+  assert.match(mainSource, /let activeBlackboxShortcut = null/)
+  assert.match(mainSource, /registerBlackboxShortcut\(setting\.shortcut\)/)
+  assert.match(mainSource, /shortcutAccelerator: setting\.shortcut/)
   assert.match(managerSource, /window\.blackboxManager\.editor/)
   assert.match(mainSource, /blackbox-manager:get-editor-session/)
   assert.match(mainSource, /blackbox-manager:set-enabled/)

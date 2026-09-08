@@ -58,6 +58,7 @@ import {
   blackboxFeatureAvailable,
   bitrateForBlackboxSetting,
   maxHeightForBlackboxQuality,
+  normalizeBlackboxShortcut,
   normalizeBlackboxSetting,
   resolveBlackboxQuality,
 } from "../src/blackbox-settings.mjs"
@@ -184,7 +185,7 @@ let blackboxProcess = null
 let blackboxControlOperation = Promise.resolve()
 let lastBlackboxClipRequestedAt = 0
 let blackboxLatestClipOverride = null
-const blackboxShortcut = "CommandOrControl+Shift+F10"
+let activeBlackboxShortcut = null
 const internalWindowsClosedForTray = new WeakSet()
 let primaryRendererRecoveryMode = false
 let primaryRendererRecoveryInProgress = false
@@ -2054,8 +2055,12 @@ async function getBlackboxSetting() {
     height: Number(status?.height) || 0,
     storagePath: paths.storagePath,
     latestClip: blackboxLatestClipOverride ?? status?.latestClip ?? null,
-    shortcut: "Ctrl+Shift+F10",
-    shortcutAvailable: globalShortcut.isRegistered(blackboxShortcut),
+    shortcut: setting.shortcut
+      .replace("CommandOrControl", "Ctrl")
+      .replace("Control", "Ctrl")
+      .replaceAll("+", " + "),
+    shortcutAccelerator: setting.shortcut,
+    shortcutAvailable: globalShortcut.isRegistered(setting.shortcut),
     bitrateMbps: bitrateForBlackboxSetting(runtimeSetting),
     reason: statusFresh
       ? (status?.error ?? null)
@@ -2064,17 +2069,23 @@ async function getBlackboxSetting() {
 }
 
 function unregisterBlackboxShortcut() {
-  if (globalShortcut.isRegistered(blackboxShortcut)) {
-    globalShortcut.unregister(blackboxShortcut)
+  if (
+    activeBlackboxShortcut
+    && globalShortcut.isRegistered(activeBlackboxShortcut)
+  ) {
+    globalShortcut.unregister(activeBlackboxShortcut)
   }
+  activeBlackboxShortcut = null
 }
 
-function registerBlackboxShortcut() {
+function registerBlackboxShortcut(shortcut) {
   unregisterBlackboxShortcut()
-  const registered = globalShortcut.register(blackboxShortcut, () => {
+  const accelerator = normalizeBlackboxShortcut(shortcut)
+  const registered = globalShortcut.register(accelerator, () => {
     openBlackboxClipSaveDialog()
   })
-  if (!registered) console.error("Ctrl+Shift+F10 블랙박스 단축키를 등록하지 못했습니다")
+  if (registered) activeBlackboxShortcut = accelerator
+  else console.error(`${accelerator} 블랙박스 단축키를 등록하지 못했습니다`)
   return registered
 }
 
@@ -2173,7 +2184,7 @@ async function launchBlackboxHelper(setting) {
       ?? "블랙박스 녹화 프로세스를 시작하지 못했습니다",
     )
   }
-  registerBlackboxShortcut()
+  registerBlackboxShortcut(setting.shortcut)
   return getBlackboxSetting()
 }
 

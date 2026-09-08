@@ -4,6 +4,7 @@ export const blackboxCapacityOptions = [20, 50, 100, 200]
 export const blackboxClipDurationOptions = [30, 60, 120]
 export const blackboxFrameRateOptions = [30, 60]
 export const blackboxFeatureAvailable = true
+export const defaultBlackboxShortcut = "CommandOrControl+Shift+F10"
 export const defaultBlackboxSetting = Object.freeze({
   featureEnabled: false,
   enabled: false,
@@ -13,11 +14,63 @@ export const defaultBlackboxSetting = Object.freeze({
   clipSeconds: 30,
   fps: 60,
   chunkSeconds: 10,
+  shortcut: defaultBlackboxShortcut,
 })
 
 function normalizeOption(value, options, fallback) {
   const normalized = Number(value)
   return options.includes(normalized) ? normalized : fallback
+}
+
+export function normalizeBlackboxShortcut(value) {
+  const tokens = String(value ?? "")
+    .split("+")
+    .map(token => token.trim())
+    .filter(Boolean)
+  const modifierAliases = new Map([
+    ["commandorcontrol", "CommandOrControl"],
+    ["cmdorctrl", "CommandOrControl"],
+    ["control", "Control"],
+    ["ctrl", "Control"],
+    ["alt", "Alt"],
+    ["shift", "Shift"],
+    ["super", "Super"],
+    ["meta", "Super"],
+  ])
+  const modifiers = []
+  let key = ""
+  for (const token of tokens) {
+    const modifier = modifierAliases.get(token.toLowerCase())
+    if (modifier) {
+      if (!modifiers.includes(modifier)) modifiers.push(modifier)
+      continue
+    }
+    if (key) return defaultBlackboxShortcut
+    const upper = token.toUpperCase()
+    if (/^F(?:[1-9]|1\d|2[0-4])$/.test(upper) || /^[A-Z0-9]$/.test(upper)) {
+      key = upper
+      continue
+    }
+    const namedKeys = new Map([
+      ["space", "Space"],
+      ["up", "Up"],
+      ["down", "Down"],
+      ["left", "Left"],
+      ["right", "Right"],
+      ["insert", "Insert"],
+      ["delete", "Delete"],
+      ["home", "Home"],
+      ["end", "End"],
+      ["pageup", "PageUp"],
+      ["pagedown", "PageDown"],
+    ])
+    key = namedKeys.get(token.toLowerCase()) ?? ""
+    if (!key) return defaultBlackboxShortcut
+  }
+  if (!modifiers.length || !key) return defaultBlackboxShortcut
+  const order = ["CommandOrControl", "Control", "Alt", "Shift", "Super"]
+  modifiers.sort((left, right) => order.indexOf(left) - order.indexOf(right))
+  return [...modifiers, key].join("+")
 }
 
 export function bitrateForBlackboxSetting(setting) {
@@ -89,5 +142,6 @@ export function normalizeBlackboxSetting(value) {
       defaultBlackboxSetting.fps,
     ),
     chunkSeconds: defaultBlackboxSetting.chunkSeconds,
+    shortcut: normalizeBlackboxShortcut(value?.shortcut),
   }
 }
