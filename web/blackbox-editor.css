@@ -139,6 +139,21 @@ video {
   display: none;
 }
 
+.preview:fullscreen,
+body.embedded .preview:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  background: #000;
+  aspect-ratio: auto;
+}
+
+.preview:fullscreen .gap-preview {
+  inset: 0;
+}
+
 .empty-state,
 .loading-state {
   position: absolute;

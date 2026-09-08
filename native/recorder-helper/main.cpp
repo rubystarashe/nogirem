@@ -1652,19 +1652,6 @@ std::vector<fs::path> selectRecentChunks(const fs::path& directory, int seconds)
   return { first, chunks.end() };
 }
 
-std::int64_t fileModifiedMilliseconds(const fs::path& path) {
-  WIN32_FILE_ATTRIBUTE_DATA data{};
-  if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data)) return 0;
-  ULARGE_INTEGER ticks{};
-  ticks.LowPart = data.ftLastWriteTime.dwLowDateTime;
-  ticks.HighPart = data.ftLastWriteTime.dwHighDateTime;
-  constexpr std::uint64_t WindowsToUnixEpoch100ns = 116444736000000000ull;
-  if (ticks.QuadPart <= WindowsToUnixEpoch100ns) return 0;
-  return static_cast<std::int64_t>(
-    (ticks.QuadPart - WindowsToUnixEpoch100ns) / 10000ull
-  );
-}
-
 std::int64_t chunkStartedMilliseconds(const fs::path& path) {
   const auto name = path.stem().wstring();
   constexpr std::wstring_view prefix = L"chunk-";
@@ -1685,9 +1672,10 @@ std::vector<fs::path> selectAnchoredChunks(
   const auto earliest = anchorMilliseconds - static_cast<std::int64_t>(seconds) * 1000;
   chunks.erase(
     std::remove_if(chunks.begin(), chunks.end(), [&](const fs::path& path) {
-      const auto modified = fileModifiedMilliseconds(path);
       const auto started = chunkStartedMilliseconds(path);
-      return modified < earliest || started <= 0 || started > anchorMilliseconds;
+      return started <= 0
+        || started < earliest - 30000
+        || started > anchorMilliseconds;
     }),
     chunks.end()
   );
@@ -1733,6 +1721,13 @@ TrackTimelineMetadata trackTimelineMetadata(
     if (started <= 0 || duration <= 0.0) continue;
     const auto rawTimelineStart =
       static_cast<double>(started - windowStart) / 1000.0;
+    const auto rawTimelineEnd = rawTimelineStart + duration;
+    if (rawTimelineEnd <= 0.0 || rawTimelineStart >= static_cast<double>(seconds)) {
+      mediaDuration += durationTicks;
+      mediaCursor += duration;
+      continue;
+    }
+    const auto mediaOffset = std::max(0.0, -rawTimelineStart);
     double timelineStart = std::clamp(
       rawTimelineStart,
       0.0,
@@ -1747,20 +1742,24 @@ TrackTimelineMetadata trackTimelineMetadata(
         : previousTimelineEnd + rawGap;
     }
     const auto visibleDuration = std::min(
-      duration,
+      duration - mediaOffset,
       std::max(0.0, static_cast<double>(seconds) - timelineStart)
     );
     if (visibleDuration > 0.0) {
       visibleChunks.push_back({
         chunk.filename().wstring(),
         timelineStart,
-        mediaCursor,
+        mediaOffset,
         visibleDuration
       });
       if (joinsPreviousSegment) {
         segments.back().duration += visibleDuration;
       } else {
-        segments.push_back({ timelineStart, mediaCursor, visibleDuration });
+        segments.push_back({
+          timelineStart,
+          mediaCursor + mediaOffset,
+          visibleDuration
+        });
       }
       previousTimelineEnd = timelineStart + visibleDuration;
     }
@@ -3080,7 +3079,9 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
           anchorMilliseconds,
           seconds
       ));
-      if (chunks.empty()) throw std::runtime_error("편집할 녹화 청크가 없습니다");
+      if (chunks.empty() && mode == L"track") {
+        throw std::runtime_error("편집할 녹화 청크가 없습니다");
+      }
       const auto timelineMetadata = trackTimelineMetadata(
         chunks,
         anchorMilliseconds,

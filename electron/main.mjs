@@ -2386,17 +2386,7 @@ async function runRecorderUtility(argumentsList, { onProgress = null } = {}) {
 async function latestCompletedBlackboxAnchor() {
   const state = await getBlackboxSetting()
   if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
-
-  const ringDirectory = join(getBlackboxPaths().storagePath, "Ring")
-  const names = await readdir(ringDirectory)
-  let latestStartedAt = 0
-  for (const name of names) {
-    const match = /^chunk-(\d+)\.mp4$/.exec(name)
-    if (!match) continue
-    latestStartedAt = Math.max(latestStartedAt, Number(match[1]))
-  }
-  if (!latestStartedAt) throw new Error("편집할 녹화 구간이 아직 준비되지 않았습니다")
-  return Math.min(Date.now(), latestStartedAt + 5000)
+  return Date.now()
 }
 
 function queueBlackboxEditorOperation(session, operation) {
@@ -2450,12 +2440,11 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
       session.chunkFiles.set(trackId, chunkPath)
       playbackSegments.push({
         timelineStartSeconds: Number(chunk.timelineStartSeconds) || 0,
-        mediaStartSeconds: 0,
+        mediaStartSeconds: Number(chunk.mediaStartSeconds) || 0,
         durationSeconds: Number(chunk.durationSeconds) || 0,
         videoUrl,
       })
     }
-    if (!playbackSegments.length) throw new Error("편집할 녹화 청크가 없습니다")
     if (previousTrackPath) {
       session.trackFiles.clear()
       void unlink(previousTrackPath).catch(() => {})
@@ -2466,7 +2455,7 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
       segments: playbackSegments,
       timelineDurationSeconds: session.trackTimelineSeconds,
       requestedSeconds: seconds,
-      videoUrl: playbackSegments[0].videoUrl,
+      videoUrl: playbackSegments[0]?.videoUrl ?? "",
     }
   })
 }

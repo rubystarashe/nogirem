@@ -707,18 +707,46 @@ window.addEventListener("pointermove", updateTimelineInteraction)
 window.addEventListener("pointerup", endTimelineInteraction)
 window.addEventListener("pointercancel", () => endTimelineInteraction())
 
+function seekTimelineBy(seconds) {
+  if (!duration || busy) return
+  stopTimelinePlayback()
+  previewingSelection = false
+  setTimelineCursor(Math.max(
+    0,
+    Math.min(timelineDuration, timelineCursor + seconds),
+  ))
+}
+
+async function togglePreviewFullscreen() {
+  if (!duration || busy) return
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen()
+    } else {
+      await preview.requestFullscreen()
+    }
+  } catch (error) {
+    setNotice(`전체화면 전환 실패: ${messageOf(error)}`, true)
+  }
+}
+
 window.addEventListener("keydown", event => {
   if (event.code === "Escape" && !exportModal.hidden) {
     event.preventDefault()
     closeExportModal()
     return
   }
-  if (
-    event.code !== "Space"
-    || ["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(event.target?.tagName)
-  ) return
-  event.preventDefault()
-  void togglePlayback()
+  if (["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(event.target?.tagName)) return
+  if (event.code === "ArrowLeft" || event.code === "ArrowRight") {
+    event.preventDefault()
+    seekTimelineBy(event.code === "ArrowLeft" ? -5 : 5)
+  } else if (event.code === "Enter") {
+    event.preventDefault()
+    void togglePreviewFullscreen()
+  } else if (event.code === "Space") {
+    event.preventDefault()
+    void togglePlayback()
+  }
 })
 
 window.addEventListener("message", event => {
