@@ -89,8 +89,9 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
     readFile(new URL("package.json", root), "utf8"),
   ])
   assert.match(appSource, /class="blackbox-main-link"/)
-  assert.match(appSource, /class="blackbox-main-duration">\{blackboxDurationText\(\)\}/)
+  assert.match(appSource, /class="blackbox-main-duration"[\s\S]*class:active=\{blackboxDisplayedEnabled\}[\s\S]*\{blackboxDurationText\(\)\}/)
   assert.match(appSource, /function blackboxDurationText\(\)/)
+  assert.doesNotMatch(appSource, /`블박 \$\{/)
   assert.match(appSource, /class="blackbox-window-link"/)
   assert.match(appSource, /\{#if blackboxFeatureAvailable && blackboxFeatureEnabled\}[\s\S]*class="blackbox-main-controls"/)
   assert.match(
@@ -104,6 +105,7 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   )
   assert.match(styleSource, /\.blackbox-main-link:disabled \{[\s\S]*opacity: 1/)
   assert.match(styleSource, /\.blackbox-main-duration \{[\s\S]*font-size: 9px/)
+  assert.match(styleSource, /\.blackbox-main-duration\.active \{[\s\S]*0\.72[\s\S]*font-weight: 650/)
   assert.match(
     appSource,
     /function holdBlackboxTransitionMask\(\)[\s\S]*blackboxTransitionPhase = "hold"[\s\S]*if \(!blackboxTogglePending\) revealBlackboxTransitionTarget\(\)/,
@@ -155,7 +157,14 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.doesNotMatch(managerSource, /class="status-grid"/)
   assert.doesNotMatch(managerSource, /class="audio-state"/)
   assert.match(managerSource, /전체 비우기/)
+  assert.match(managerSource, /class="clip-save-modal" hidden/)
+  assert.match(managerSource, /return `\$\{highest \+ 1\}번째 클립`/)
+  assert.match(managerSource, /clipSaveNameInput\.value\.trim\(\)[\s\S]*clipSaveModal\.dataset\.fallbackName/)
+  assert.match(managerSource, /window\.blackboxManager\.saveClip\(clipName\)/)
+  assert.match(managerSource, /\.settings \{[\s\S]*grid-template-columns: minmax\(0, 1fr\)/)
+  assert.doesNotMatch(managerSource, /<footer class="actions">/)
   assert.match(managerPreloadSource, /blackbox-manager:set-setting/)
+  assert.match(managerPreloadSource, /saveClip: requestedName/)
   assert.match(managerPreloadSource, /blackbox-manager:set-enabled/)
   assert.match(managerPreloadSource, /onEditorExtractProgress/)
   assert.match(managerPreloadSource, /blackbox-manager:clear-recording/)
@@ -168,6 +177,9 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(mainSource, /function fitBlackboxManagerToMedia\(value\)/)
   assert.match(mainSource, /screen\.getDisplayMatching\(bounds\)\.workArea/)
   assert.match(mainSource, /async function renameBlackboxClip\(fileName, requestedName\)/)
+  assert.match(mainSource, /async function requestBlackboxClip\(requestedName = ""\)/)
+  assert.match(mainSource, /value\.latestClip !== previousStatus\?\.latestClip/)
+  assert.match(mainSource, /120000/)
   assert.match(mainSource, /async function deleteBlackboxClip\(fileName\)/)
   assert.match(mainSource, /같은 이름의 클립이 이미 있습니다/)
   assert.match(mainSource, /windowStatePath: join\(directory, "window\.json"\)/)
@@ -253,6 +265,8 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorSource, /class="gap-policy"/)
   assert.match(editorSource, /건너뛰고 이어붙이기/)
   assert.match(editorSource, /class="playback-speed"/)
+  assert.match(editorSource, /class="export-modal" hidden/)
+  assert.match(editorSource, /<h2>MP4 추출 설정<\/h2>/)
   assert.match(editorScript, /gapPolicy: gapPolicySelect\.value/)
   assert.match(editorScript, /playbackSpeed: selectedPlaybackSpeed\(\)/)
   assert.match(editorScript, /function renderExtractProgress\(progress\)/)
@@ -273,8 +287,12 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorSource, /class="track-gaps"/)
   assert.match(
     editorSource,
-    /<footer class="actions">[\s\S]*class="track-status"[\s\S]*track-duration[\s\S]*track-usage[\s\S]*preview-range[\s\S]*MP4 추출/,
+    /<footer class="actions">[\s\S]*class="track-status"[\s\S]*track-duration[\s\S]*track-usage[\s\S]*MP4 추출/,
   )
+  assert.doesNotMatch(editorSource, /preview-range/)
+  assert.match(editorSource, /id="extract-seconds"[^>]*value="60"/)
+  assert.match(editorScript, /let selectionDuration = 60/)
+  assert.match(editorScript, /selectionDuration = Math\.min\(60, timelineDuration\)/)
   assert.match(editorScript, /현재 \$\{\(bytesUsed \/ 1024 \*\* 3\)\.toFixed\(1\)\} \/ 최대 \$\{capacityGb\}GB/)
   assert.match(editorScript, /\$\{formatRecordedDuration\(durationSeconds\)\} 녹화됨/)
   assert.match(editorStyle, /grid-template-areas:[\s\S]*"timeline timeline timeline"[\s\S]*"controls playback extract"/)
@@ -298,6 +316,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     /document\.addEventListener\("pointerdown"[\s\S]*!directLengthForm\.contains\(event\.target\)[\s\S]*directLengthForm\.classList\.remove\("visible"\)/,
   )
   assert.match(mainSource, /return createBlackboxEditorTrack\(session, 900\)/)
+  assert.match(mainSource, /if \(session\.preparePromise === preparation\) session\.preparePromise = null/)
   assert.match(editorScript, /event\.code !== "Space"/)
   assert.match(editorScript, /function beginTimelineInteraction\(event\)/)
   assert.match(editorScript, /mode = "resize-start"/)
@@ -322,7 +341,9 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /blackbox-editor:extract-progress/)
   assert.match(mainSource, /type: "black"/)
   assert.match(mainSource, /"--mode=compose"/)
-  assert.match(editorScript, /previewSelection/)
+  assert.doesNotMatch(editorScript, /previewSelection/)
+  assert.match(editorScript, /extractButton\.addEventListener\("click", openExportModal\)/)
+  assert.match(editorScript, /exportDialog\.addEventListener\("submit"/)
   assert.match(nativeSource, /mode == L"track"/)
   assert.match(nativeSource, /mode == L"compose"/)
   assert.match(nativeSource, /mode == L"extract"/)

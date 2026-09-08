@@ -182,6 +182,7 @@ let turboKeyInstallationCache = null
 let blackboxProcess = null
 let blackboxControlOperation = Promise.resolve()
 let lastBlackboxClipRequestedAt = 0
+let blackboxLatestClipOverride = null
 const blackboxShortcut = "CommandOrControl+Shift+F10"
 const internalWindowsClosedForTray = new WeakSet()
 let primaryRendererRecoveryMode = false
@@ -1984,6 +1985,9 @@ async function getBlackboxSetting() {
   const processRunning = Boolean(blackboxProcess && blackboxProcess.exitCode === null)
   const running = setting.enabled && processRunning && statusFresh && Boolean(status?.running)
   const bytesUsed = Number(status?.bytesUsed) || 0
+  if (blackboxLatestClipOverride && !existsSync(blackboxLatestClipOverride)) {
+    blackboxLatestClipOverride = null
+  }
   return {
     ...setting,
     resolvedQuality,
@@ -2001,7 +2005,7 @@ async function getBlackboxSetting() {
     width: Number(status?.width) || 0,
     height: Number(status?.height) || 0,
     storagePath: paths.storagePath,
-    latestClip: status?.latestClip ?? null,
+    latestClip: blackboxLatestClipOverride ?? status?.latestClip ?? null,
     shortcut: "Ctrl+Shift+F10",
     shortcutAvailable: globalShortcut.isRegistered(blackboxShortcut),
     bitrateMbps: bitrateForBlackboxSetting(runtimeSetting),
@@ -2168,7 +2172,7 @@ async function setBlackboxEnabled(enabled) {
   })
 }
 
-async function requestBlackboxClip() {
+async function requestBlackboxClip(requestedName = "") {
   return queueBlackboxControlOperation(async () => {
     const requestedAt = Date.now()
     if (requestedAt - lastBlackboxClipRequestedAt < 2000) {
@@ -2177,18 +2181,34 @@ async function requestBlackboxClip() {
     const state = await getBlackboxSetting()
     if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
     if (state.clipInProgress) throw new Error("이전 클립을 저장하고 있습니다")
+    const previousStatus = await readRuntimeStatusJson(getBlackboxPaths().statusPath)
     await writeJsonAtomic(getBlackboxPaths().controlPath, {
       command: "clip",
       seconds: state.clipSeconds,
       requestedAt,
     })
     lastBlackboxClipRequestedAt = requestedAt
-    await waitForBlackboxStatus(
-      value => Boolean(value?.clipInProgress) || (
-        value?.latestClip && value.latestClip !== state.latestClip
+    const completed = await waitForBlackboxStatus(
+      value => (
+        !value?.clipInProgress
+        && value?.latestClip
+        && value.latestClip !== previousStatus?.latestClip
       ),
-      4000,
+      120000,
     )
+    if (!completed?.latestClip) throw new Error("클립 저장이 제한 시간 안에 완료되지 않았습니다")
+    blackboxLatestClipOverride = completed.latestClip
+    if (String(requestedName).trim()) {
+      const renamed = await renameBlackboxClip(
+        basename(completed.latestClip),
+        requestedName,
+      )
+      blackboxLatestClipOverride = join(
+        getBlackboxPaths().storagePath,
+        "Clips",
+        renamed.name,
+      )
+    }
     return getBlackboxSetting()
   })
 }
@@ -2304,7 +2324,6 @@ async function runRecorderUtility(argumentsList, { onProgress = null } = {}) {
 async function latestCompletedBlackboxAnchor() {
   const state = await getBlackboxSetting()
   if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
-  if (!state.recording) throw new Error("편집할 마비노기 녹화 화면이 아직 없습니다")
 
   const ringDirectory = join(getBlackboxPaths().storagePath, "Ring")
   const names = await readdir(ringDirectory)
@@ -2392,11 +2411,15 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
 
 async function prepareBlackboxEditorSession(session) {
   if (!session.preparePromise) {
-    session.preparePromise = (async () => {
+    const preparation = (async () => {
       await mkdir(session.directory, { recursive: true })
       session.anchorAt = await latestCompletedBlackboxAnchor()
       return createBlackboxEditorTrack(session, 900)
     })()
+    session.preparePromise = preparation
+    void preparation.catch(() => {
+      if (session.preparePromise === preparation) session.preparePromise = null
+    })
   }
   return session.preparePromise
 }
@@ -3500,7 +3523,9 @@ async function refreshDxvkRuntimeStatus({ force = false } = {}) {
     }
     return dxvkRuntimeStatus
   })()
-  return dxvkRuntimeCheckPromise
+  const status = await dxvkRuntimeCheckPromise
+  notifyDxvkRuntimeStatusChanged()
+  return status
 }
 
 function notifyDxvkRuntimeStatusChanged() {
@@ -4053,7 +4078,6 @@ function registerIpc() {
     }
     const status = await getDxvkManagerStatus({ checkLatest: true })
     await refreshDxvkRuntimeStatus({ force: true })
-    notifyDxvkRuntimeStatusChanged()
     return status
   })
   ipcMain.handle("dxvk:install-update", async (event, version) => {
@@ -4061,7 +4085,6 @@ function registerIpc() {
       throw new Error("허용되지 않은 DXVK 설치 요청입니다")
     }
     const result = await updateDxvk(version)
-    notifyDxvkRuntimeStatusChanged()
     return result
   })
   ipcMain.handle("blackbox-manager:request-close", event => {
@@ -4089,11 +4112,11 @@ function registerIpc() {
     }
     return setBlackboxSetting(setting)
   })
-  ipcMain.handle("blackbox-manager:save-clip", event => {
+  ipcMain.handle("blackbox-manager:save-clip", (event, requestedName) => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
       throw new Error("허용되지 않은 블랙박스 클립 요청입니다")
     }
-    return requestBlackboxClip()
+    return requestBlackboxClip(requestedName)
   })
   ipcMain.handle("blackbox-manager:clear-recording", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {

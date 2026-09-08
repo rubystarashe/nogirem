@@ -484,8 +484,17 @@
   }
 
   function receiveResult(key, result) {
+    let data = result.data
+    const currentDxvk = services.affinity.data?.dxvk
+    if (
+      key === "affinity"
+      && ["latest", "update-required"].includes(currentDxvk?.state)
+      && data?.dxvk?.state === "checking"
+    ) {
+      data = { ...data, dxvk: currentDxvk }
+    }
     updateService(key, result.ok
-      ? { loading: false, data: result.data, error: null }
+      ? { loading: false, data, error: null }
       : { loading: false, data: null, error: result.error?.message ?? "상태 확인 실패" })
   }
 
@@ -512,8 +521,8 @@
 
   function dxvkLinkState() {
     if (services.affinity.data?.renderer?.mode === "direct3d9") return "not-in-use"
-    if (services.affinity.data?.dxvk?.state === "latest") return "latest"
-    if (services.affinity.data?.dxvk?.state === "update-required") return "update-required"
+    const state = services.affinity.data?.dxvk?.state
+    if (["latest", "update-required", "unavailable"].includes(state)) return state
     return "checking"
   }
 
@@ -996,8 +1005,8 @@
     const hours = Math.floor(totalMinutes / 60)
     const minutes = totalMinutes % 60
     return hours > 0
-      ? `블박 ${hours}시간 ${minutes}분`
-      : `블박 ${minutes}분`
+      ? `${hours}시간 ${minutes}분`
+      : `${minutes}분`
   }
 
   function revealBlackboxTransitionTarget() {
@@ -1831,12 +1840,13 @@
           <button
             class="dxvk-update-link"
             class:ready={dxvkLinkState() === "latest"}
-            class:warning={["not-in-use", "update-required"].includes(dxvkLinkState())}
+            class:warning={["not-in-use", "update-required", "unavailable"].includes(dxvkLinkState())}
+            class:checking={dxvkLinkState() === "checking"}
             class:entered={leftTopContentEntered}
             onclick={openDxvkWindow}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              {#if ["not-in-use", "update-required"].includes(dxvkLinkState())}
+              {#if ["not-in-use", "update-required", "unavailable"].includes(dxvkLinkState())}
                 <path d="M1 21h22L12 2 1 21Zm12-3h-2v2h2v-2Zm0-2h-2v-4h2v4Z" />
               {:else if dxvkLinkState() === "latest"}
                 <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9Z" />
@@ -1851,7 +1861,9 @@
                   ? "Vulkan 업데이트가 필요함"
                   : dxvkLinkState() === "latest"
                     ? "Vulkan 최신버전 사용중"
-                    : "DXVK 업데이트"}
+                    : dxvkLinkState() === "unavailable"
+                      ? "DXVK 상태 확인 불가"
+                      : "DXVK 확인 중"}
             </span>
           </button>
           {#if blackboxFeatureAvailable && blackboxFeatureEnabled}
@@ -1905,7 +1917,10 @@
                 {/if}
               {/key}
               </button>
-              <span class="blackbox-main-duration">{blackboxDurationText()}</span>
+              <span
+                class="blackbox-main-duration"
+                class:active={blackboxDisplayedEnabled}
+              >{blackboxDurationText()}</span>
             </div>
             <button
               class="blackbox-window-link"

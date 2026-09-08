@@ -217,7 +217,7 @@
 
       .settings {
         display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr);
         gap: 8px;
         margin-top: 10px;
         padding: 12px 13px;
@@ -230,17 +230,6 @@
         display: grid;
         min-width: 0;
         gap: 5px;
-      }
-
-      .settings .quality,
-      .settings .codec,
-      .settings .fps {
-        grid-column: span 2;
-      }
-
-      .settings .capacity,
-      .settings .clip-duration {
-        grid-column: span 3;
       }
 
       .settings label > span {
@@ -266,7 +255,6 @@
       }
 
       .settings-summary {
-        grid-column: 1 / -1;
         display: flex;
         justify-content: space-between;
         color: #7f898e;
@@ -288,11 +276,12 @@
         color: #ef847b;
       }
 
-      .actions {
+      .page-actions {
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         justify-content: space-between;
-        margin-top: auto;
+        gap: 10px;
+        padding-top: 10px;
       }
 
       .action-group {
@@ -342,6 +331,59 @@
       .action:disabled {
         opacity: 0.38;
         cursor: default;
+      }
+
+      .clip-save-modal {
+        position: fixed;
+        z-index: 30;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(6, 8, 9, 0.72);
+        backdrop-filter: blur(2px);
+      }
+
+      .clip-save-modal[hidden] {
+        display: none;
+      }
+
+      .clip-save-dialog {
+        display: grid;
+        width: min(380px, calc(100vw - 40px));
+        gap: 13px;
+        padding: 22px;
+        border: 1px solid #3a4144;
+        border-radius: 9px;
+        background: #171a1c;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+      }
+
+      .clip-save-dialog h2 {
+        margin: 0;
+        color: #edf0f1;
+        font-size: 17px;
+      }
+
+      .clip-save-dialog label {
+        display: grid;
+        gap: 7px;
+        color: #b7bec1;
+        font-size: 11px;
+      }
+
+      .clip-save-name {
+        height: 34px;
+        padding: 0 10px;
+        border: 1px solid #41484c;
+        border-radius: 6px;
+        color: #eef1f2;
+        background: #222629;
+      }
+
+      .clip-save-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 7px;
       }
 
       .page-tabs {
@@ -416,7 +458,12 @@
       .clips-page.active {
         display: grid;
         grid-template-columns: 290px minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
         gap: 10px;
+      }
+
+      .clips-page .page-actions {
+        grid-column: 1 / -1;
       }
 
       .clip-preview,
@@ -666,6 +713,13 @@
           <video class="saved-clip-video" controls preload="metadata" hidden></video>
           <p class="clip-empty">저장된 클립을 선택하면 이곳에서 바로 확인할 수 있습니다</p>
         </div>
+        <div class="page-actions">
+          <div class="action-group">
+            <button class="action save-clip" type="button">최근 클립 저장</button>
+            <button class="action open-folder" type="button">저장 폴더</button>
+            <button class="action danger clear-recording" type="button">전체 비우기</button>
+          </div>
+        </div>
       </section>
       <section class="page settings-page" data-page-panel="settings">
       <section class="settings" aria-label="블랙박스 설정">
@@ -714,20 +768,26 @@
           <span>빠른 저장 단축키 Ctrl+Shift+F10</span>
         </div>
       </section>
-      </section>
-      <p class="message" role="status"></p>
-      <footer class="actions">
-        <div class="action-group">
-          <button class="action save-clip" type="button">최근 클립 저장</button>
-          <button class="action open-folder" type="button">저장 폴더</button>
-          <button class="action danger clear-recording" type="button">전체 비우기</button>
-        </div>
-        <div class="action-group">
+        <div class="page-actions">
           <button class="action save-setting settings-action" type="button">설정 저장</button>
           <button class="action primary toggle-recording" type="button" disabled>확인 중</button>
         </div>
-      </footer>
+      </section>
+      <p class="message" role="status"></p>
     </main>
+    <div class="clip-save-modal" hidden>
+      <form class="clip-save-dialog">
+        <h2>최근 클립 저장</h2>
+        <label>
+          <span>클립 이름</span>
+          <input class="clip-save-name" type="text" maxlength="120" />
+        </label>
+        <div class="clip-save-actions">
+          <button class="action clip-save-cancel" type="button">취소</button>
+          <button class="action primary clip-save-confirm" type="submit">저장</button>
+        </div>
+      </form>
+    </div>
     <script>
       const closeButton = document.querySelector(".window-close")
       const recordingState = document.querySelector(".recording-state")
@@ -751,6 +811,10 @@
       const clipCount = document.querySelector(".clip-count")
       const clipVideo = document.querySelector(".saved-clip-video")
       const clipEmpty = document.querySelector(".clip-empty")
+      const clipSaveModal = document.querySelector(".clip-save-modal")
+      const clipSaveDialog = document.querySelector(".clip-save-dialog")
+      const clipSaveNameInput = document.querySelector(".clip-save-name")
+      const clipSaveCancelButton = document.querySelector(".clip-save-cancel")
       const settingInputs = [
         qualitySelect,
         codecSelect,
@@ -769,6 +833,30 @@
       function errorMessage(error) {
         return error?.message?.replace(/^Error invoking remote method '[^']+': Error: /, "")
           ?? String(error)
+      }
+
+      function nextClipPlaceholder() {
+        let highest = 0
+        for (const clip of availableClips) {
+          const match = /^(\d+)번째 클립\.mp4$/i.exec(clip.name)
+          if (match) highest = Math.max(highest, Number(match[1]))
+        }
+        return `${highest + 1}번째 클립`
+      }
+
+      async function openClipSaveModal() {
+        await refreshClips()
+        const placeholder = nextClipPlaceholder()
+        clipSaveNameInput.value = ""
+        clipSaveNameInput.placeholder = placeholder
+        clipSaveModal.dataset.fallbackName = placeholder
+        clipSaveModal.hidden = false
+        clipSaveNameInput.focus()
+      }
+
+      function closeClipSaveModal() {
+        if (busy) return
+        clipSaveModal.hidden = true
       }
 
       function formatDuration(seconds) {
@@ -1142,6 +1230,11 @@
       })
 
       window.addEventListener("keydown", event => {
+        if (event.code === "Escape" && !clipSaveModal.hidden) {
+          event.preventDefault()
+          closeClipSaveModal()
+          return
+        }
         if (
           event.code !== "Space"
           || document.body.dataset.page !== "extract"
@@ -1226,11 +1319,23 @@
       })
 
       saveClipButton.addEventListener("click", () => {
-        void runAction(
-          `최근 약 ${status.clipSeconds}초 클립 저장을 요청하고 있습니다`,
-          () => window.blackboxManager.saveClip(),
-          "최근 클립을 저장하고 있습니다",
+        void openClipSaveModal()
+      })
+      clipSaveCancelButton.addEventListener("click", closeClipSaveModal)
+      clipSaveModal.addEventListener("pointerdown", event => {
+        if (!clipSaveDialog.contains(event.target)) closeClipSaveModal()
+      })
+      clipSaveDialog.addEventListener("submit", async event => {
+        event.preventDefault()
+        const clipName = clipSaveNameInput.value.trim()
+          || clipSaveModal.dataset.fallbackName
+        clipSaveModal.hidden = true
+        const result = await runAction(
+          `최근 약 ${status.clipSeconds}초 클립을 저장하고 있습니다`,
+          () => window.blackboxManager.saveClip(clipName),
+          "최근 클립을 저장했습니다",
         )
+        if (result) await refreshClips()
       })
 
       clearRecordingButton.addEventListener("click", async () => {

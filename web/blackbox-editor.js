@@ -26,10 +26,12 @@ const playToggle = document.querySelector(".play-toggle")
 const currentTime = document.querySelector(".current-time")
 const rangeTime = document.querySelector(".range-time")
 const trackStart = document.querySelector(".track-start")
-const previewRangeButton = document.querySelector(".preview-range")
 const extractButton = document.querySelector(".extract")
 const showOutputButton = document.querySelector(".show-output")
 const notice = document.querySelector(".notice")
+const exportModal = document.querySelector(".export-modal")
+const exportDialog = document.querySelector(".export-dialog")
+const exportCancelButton = document.querySelector(".export-cancel")
 const embedded = new URLSearchParams(location.search).has("embedded")
 const parentRequests = new Map()
 let nextParentRequestId = 0
@@ -74,7 +76,7 @@ let duration = 0
 let timelineDuration = 0
 let trackSegments = []
 let selectionStart = 0
-let selectionDuration = 30
+let selectionDuration = 60
 let timelineCursor = 0
 let initialTrackLoaded = false
 let busy = true
@@ -150,7 +152,6 @@ function setBusy(value, text = "") {
   extractSecondsInput.disabled = value
   gapPolicySelect.disabled = value
   playbackSpeedSelect.disabled = value
-  previewRangeButton.disabled = value || !duration
   extractButton.disabled = value || !duration
   if (text) {
     editor.className = "editor loading"
@@ -396,11 +397,8 @@ async function applyTrack(result, preserveFromEnd = 0) {
   setTrackLengthInputs(requestedTrackSeconds)
   anchorTime.textContent = `${new Date(result.anchorAt).toLocaleTimeString("ko-KR")} 기준`
   if (!initialTrackLoaded) {
-    const latestSegment = trackSegments.at(-1)
-    selectionDuration = Math.min(30, latestSegment.duration)
-    selectionStart = latestSegment.timelineStart
-      + latestSegment.duration
-      - selectionDuration
+    selectionDuration = Math.min(60, timelineDuration)
+    selectionStart = Math.max(0, timelineDuration - selectionDuration)
     initialTrackLoaded = true
   } else {
     selectionStart = Math.max(
@@ -547,16 +545,9 @@ function endTimelineInteraction(event) {
   guide.classList.remove("dragging")
 }
 
-async function previewSelection() {
-  if (!duration || busy) return
-  previewingSelection = true
-  stopTimelinePlayback()
-  setTimelineCursor(selectionStart)
-  startTimelinePlayback()
-}
-
 async function extractSelection() {
   if (!duration || busy) return
+  exportModal.hidden = true
   stopTimelinePlayback()
   extracting = true
   extractButton.classList.add("extracting")
@@ -586,6 +577,17 @@ async function extractSelection() {
     extractButton.textContent = "MP4 추출"
     setBusy(false)
   }
+}
+
+function openExportModal() {
+  if (!duration || busy) return
+  exportModal.hidden = false
+  playbackSpeedSelect.focus()
+}
+
+function closeExportModal() {
+  if (extracting) return
+  exportModal.hidden = true
 }
 
 async function togglePlayback() {
@@ -637,6 +639,11 @@ window.addEventListener("pointerup", endTimelineInteraction)
 window.addEventListener("pointercancel", () => endTimelineInteraction())
 
 window.addEventListener("keydown", event => {
+  if (event.code === "Escape" && !exportModal.hidden) {
+    event.preventDefault()
+    closeExportModal()
+    return
+  }
   if (
     event.code !== "Space"
     || ["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(event.target?.tagName)
@@ -715,8 +722,15 @@ directLengthForm.addEventListener("submit", event => {
   void changeTrackSeconds(normalizeTrackLengthInputs())
 })
 
-previewRangeButton.addEventListener("click", previewSelection)
-extractButton.addEventListener("click", extractSelection)
+extractButton.addEventListener("click", openExportModal)
+exportCancelButton.addEventListener("click", closeExportModal)
+exportModal.addEventListener("pointerdown", event => {
+  if (!exportDialog.contains(event.target)) closeExportModal()
+})
+exportDialog.addEventListener("submit", event => {
+  event.preventDefault()
+  void extractSelection()
+})
 showOutputButton.addEventListener("click", () => {
   if (lastOutputPath) void editorBridge.showOutput(lastOutputPath)
 })

@@ -525,6 +525,10 @@ footer {
   color: #e08a24;
 }
 
+.dxvk-update-link.checking svg {
+  color: #777;
+}
+
 .boost-home.paused .character-guide-link,
 .boost-home.paused .dxvk-update-link {
   color: #aaa;
@@ -549,6 +553,10 @@ footer {
 
 .boost-home.paused .dxvk-update-link.warning svg {
   color: #f0a44b;
+}
+
+.boost-home.paused .dxvk-update-link.checking svg {
+  color: #aaa;
 }
 
 .blackbox-main-controls {
@@ -586,6 +594,11 @@ footer {
   line-height: 12px;
   text-align: right;
   white-space: nowrap;
+}
+
+.blackbox-main-duration.active {
+  color: rgba(32, 32, 32, 0.72);
+  font-weight: 650;
 }
 
 .blackbox-main-link {

@@ -5,7 +5,7 @@ contextBridge.exposeInMainWorld("blackboxManager", {
   getStatus: () => ipcRenderer.invoke("blackbox-manager:get-status"),
   fitMedia: value => ipcRenderer.invoke("blackbox-manager:fit-media", value),
   setSetting: setting => ipcRenderer.invoke("blackbox-manager:set-setting", setting),
-  saveClip: () => ipcRenderer.invoke("blackbox-manager:save-clip"),
+  saveClip: requestedName => ipcRenderer.invoke("blackbox-manager:save-clip", requestedName),
   clearRecording: () => ipcRenderer.invoke("blackbox-manager:clear-recording"),
   openEditor: () => ipcRenderer.invoke("blackbox-manager:open-editor"),
   openFolder: () => ipcRenderer.invoke("blackbox-manager:open-folder"),

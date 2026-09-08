@@ -77,30 +77,9 @@
 
           <div class="extract-duration">
             <label for="extract-seconds">추출 영상 길이</label>
-            <input id="extract-seconds" type="number" min="1" max="60" step="1" value="30" />
+            <input id="extract-seconds" type="number" min="1" max="60" step="1" value="60" />
             <span>초</span>
           </div>
-        </div>
-
-        <div class="export-options">
-          <label>
-            <span>빈 구간</span>
-            <select class="gap-policy">
-              <option value="black">검은 화면으로 유지</option>
-              <option value="skip">건너뛰고 이어붙이기</option>
-            </select>
-          </label>
-          <label>
-            <span>재생속도</span>
-            <select class="playback-speed">
-              <option value="0.5">0.5배</option>
-              <option value="0.75">0.75배</option>
-              <option value="1" selected>1배</option>
-              <option value="1.25">1.25배</option>
-              <option value="1.5">1.5배</option>
-              <option value="2">2배</option>
-            </select>
-          </label>
         </div>
 
         <footer class="actions">
@@ -110,11 +89,38 @@
           </div>
           <span class="notice" role="status"></span>
           <button class="action show-output" type="button">파일 위치</button>
-          <button class="action preview-range" type="button" disabled>선택 구간 미리보기</button>
           <button class="action primary extract" type="button" disabled>MP4 추출</button>
         </footer>
       </section>
     </main>
+
+    <div class="export-modal" hidden>
+      <form class="export-dialog">
+        <h2>MP4 추출 설정</h2>
+        <label>
+          <span>빈 구간</span>
+          <select class="gap-policy">
+            <option value="black">검은 화면으로 유지</option>
+            <option value="skip">건너뛰고 이어붙이기</option>
+          </select>
+        </label>
+        <label>
+          <span>재생속도</span>
+          <select class="playback-speed">
+            <option value="0.5">0.5배</option>
+            <option value="0.75">0.75배</option>
+            <option value="1" selected>1배</option>
+            <option value="1.25">1.25배</option>
+            <option value="1.5">1.5배</option>
+            <option value="2">2배</option>
+          </select>
+        </label>
+        <div class="export-dialog-actions">
+          <button class="action export-cancel" type="button">취소</button>
+          <button class="action primary export-confirm" type="submit">추출 시작</button>
+        </div>
+      </form>
+    </div>
     <script type="module" src="./web/blackbox-editor.js"></script>
   </body>
 </html>

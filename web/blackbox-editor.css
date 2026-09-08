@@ -498,22 +498,48 @@ video {
   width: 72px;
 }
 
-.export-options {
-  display: flex;
-  justify-content: flex-end;
-  gap: 14px;
-  margin-top: 12px;
+.export-modal {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 8, 9, 0.72);
+  backdrop-filter: blur(2px);
 }
 
-.export-options label {
+.export-modal[hidden] {
+  display: none;
+}
+
+.export-dialog {
+  display: grid;
+  width: min(360px, calc(100vw - 40px));
+  gap: 14px;
+  padding: 22px;
+  border: 1px solid #3a4144;
+  border-radius: 9px;
+  background: #171a1c;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+}
+
+.export-dialog h2 {
+  margin: 0 0 3px;
+  color: #edf0f1;
+  font-size: 17px;
+}
+
+.export-dialog label {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 7px;
-  color: #929b9f;
-  font-size: 11px;
+  color: #b7bec1;
+  font-size: 12px;
 }
 
-.export-options select {
+.export-dialog select {
+  width: 190px;
   height: 30px;
   padding: 0 24px 0 9px;
   border: 1px solid #343a3d;
@@ -521,6 +547,13 @@ video {
   color: #d5dadd;
   background: #1b1f21;
   font: inherit;
+}
+
+.export-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .actions {
