@@ -233,7 +233,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorSource, /class="compact-button add-time"[^>]*>\+</)
   assert.match(editorSource, /class="compact-button direct-time"[^>]*>\+\+</)
   assert.match(editorSource, /블랙박스 조회 길이/)
-  assert.match(editorSource, /id="track-minutes"[\s\S]*>분<\/span>/)
+  assert.match(editorSource, /id="track-minutes"[^>]*value="15"[\s\S]*>분<\/span>/)
   assert.match(editorSource, /id="track-seconds"[\s\S]*>초<\/span>/)
   assert.match(editorSource, /class="selection-guide"/)
   assert.match(editorSource, /class="selection-handle start"/)
@@ -251,7 +251,12 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorScript, /Math\.floor\(normalized \/ 60\)/)
   assert.match(editorScript, /normalized % 60/)
   assert.match(editorScript, /requestParent\("getSession"\)/)
-  assert.match(editorScript, /let requestedTrackSeconds = 60/)
+  assert.match(editorScript, /let requestedTrackSeconds = 900/)
+  assert.match(
+    editorScript,
+    /document\.addEventListener\("pointerdown"[\s\S]*!directLengthForm\.contains\(event\.target\)[\s\S]*directLengthForm\.classList\.remove\("visible"\)/,
+  )
+  assert.match(mainSource, /return createBlackboxEditorTrack\(session, 900\)/)
   assert.match(editorScript, /event\.code !== "Space"/)
   assert.match(editorScript, /function beginTimelineInteraction\(event\)/)
   assert.match(editorScript, /mode = "resize-start"/)
@@ -262,7 +267,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorScript, /video\.currentTime < selectionEnd - 0\.01/)
   assert.match(editorScript, /function renderTrackGaps\(\)/)
   assert.match(editorScript, /element\.className = "track-gap"/)
-  assert.match(mainSource, /return createBlackboxEditorTrack\(session, 60\)/)
+  assert.match(mainSource, /return createBlackboxEditorTrack\(session, 900\)/)
   assert.match(mainSource, /const metadataOutput = await runRecorderUtility/)
   assert.match(mainSource, /Array\.isArray\(parsed\?\.gaps\)/)
   assert.match(editorScript, /previewSelection/)

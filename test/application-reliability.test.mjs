@@ -260,10 +260,10 @@ test("부스트 중단은 일부 실행 상태도 원상복구하고 중단 상�
   )
 })
 
-test("Affinity 상태가 오래됐어도 강제 간소화 상태를 직접 확인한다", () => {
+test("강제 간소화 미적용 상태는 빠른 런타임 조회마다 직접 확인한다", () => {
   assert.match(
     electronMain,
-    /const characterSimplification = fresh && status\?\.characterSimplification[\s\S]*: await getCharacterSimplificationStatus\(\)/,
+    /const cachedCharacterSimplification = fresh[\s\S]*const characterSimplification = cachedCharacterSimplification\?\.applied[\s\S]*: await getCharacterSimplificationStatus\(\)/,
   )
   assert.match(
     electronMain,

@@ -1545,8 +1545,11 @@ async function readAffinityRuntimeStatus() {
   const status = await readRuntimeStatusJson(statusPath)
   const fresh = status?.updatedAt
     && Date.now() - status.updatedAt < Math.max(config.pollIntervalMs * 4, 30000)
-  const characterSimplification = fresh && status?.characterSimplification
-    ? status.characterSimplification
+  const cachedCharacterSimplification = fresh
+    ? status?.characterSimplification ?? null
+    : null
+  const characterSimplification = cachedCharacterSimplification?.applied
+    ? cachedCharacterSimplification
     : await getCharacterSimplificationStatus()
   const logicalCpuCount = cpus().length
   const half = logicalCpuCount / 2
@@ -2266,7 +2269,7 @@ function queueBlackboxEditorOperation(session, operation) {
 }
 
 async function createBlackboxEditorTrack(session, requestedSeconds) {
-  const seconds = Math.max(30, Math.min(21600, Math.round(Number(requestedSeconds) || 60)))
+  const seconds = Math.max(30, Math.min(21600, Math.round(Number(requestedSeconds) || 900)))
   return queueBlackboxEditorOperation(session, async () => {
     if (session.closed) throw new Error("블랙박스 편집 창이 닫혔습니다")
     const outputPath = join(
@@ -2318,7 +2321,7 @@ async function prepareBlackboxEditorSession(session) {
     session.preparePromise = (async () => {
       await mkdir(session.directory, { recursive: true })
       session.anchorAt = await latestCompletedBlackboxAnchor()
-      return createBlackboxEditorTrack(session, 60)
+      return createBlackboxEditorTrack(session, 900)
     })()
   }
   return session.preparePromise
@@ -4539,7 +4542,7 @@ function createBlackboxEditorSession() {
     preparePromise: null,
     trackPath: null,
     trackFiles: new Map(),
-    trackSeconds: 60,
+    trackSeconds: 900,
     closed: false,
   }
   blackboxEditorSession = session

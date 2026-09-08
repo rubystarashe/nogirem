@@ -64,7 +64,7 @@ const editorBridge = embedded
 
 document.body.classList.toggle("embedded", embedded)
 
-let requestedTrackSeconds = 60
+let requestedTrackSeconds = 900
 let duration = 0
 let selectionStart = 0
 let selectionDuration = 30
@@ -91,7 +91,7 @@ function formatTime(seconds) {
 }
 
 function setTrackLengthInputs(totalSeconds) {
-  const normalized = Math.max(30, Math.min(21600, Math.round(Number(totalSeconds) || 60)))
+  const normalized = Math.max(30, Math.min(21600, Math.round(Number(totalSeconds) || 900)))
   trackMinutesInput.value = String(Math.floor(normalized / 60))
   trackSecondsInput.value = String(normalized % 60)
   return normalized
@@ -238,7 +238,7 @@ async function applyTrack(result, preserveFromEnd = 0) {
 }
 
 async function changeTrackSeconds(seconds) {
-  const normalized = Math.max(30, Math.min(21600, Math.round(Number(seconds) || 60)))
+  const normalized = Math.max(30, Math.min(21600, Math.round(Number(seconds) || 900)))
   const preserveFromEnd = Math.max(0, duration - selectionStart - selectionDuration)
   setBusy(true, `같은 기준 시점에서 최근 ${formatTime(normalized)} 영상을 준비하고 있습니다`)
   setNotice("")
@@ -496,6 +496,16 @@ directTimeButton.addEventListener("click", () => {
   if (directLengthForm.classList.contains("visible")) {
     trackMinutesInput.focus()
     trackMinutesInput.select()
+  }
+})
+
+document.addEventListener("pointerdown", event => {
+  if (
+    directLengthForm.classList.contains("visible")
+    && !directLengthForm.contains(event.target)
+    && !directTimeButton.contains(event.target)
+  ) {
+    directLengthForm.classList.remove("visible")
   }
 })
 
