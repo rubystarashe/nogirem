@@ -613,7 +613,7 @@
       return "부스트 대기중"
     }
     if (!(services.affinity.data?.running && services.memory.data?.running)) {
-      return "실시간 적용 일시정지됨"
+      return "부스트 적용 중단됨"
     }
     return services.affinity.data?.gameActive || services.memory.data?.gameActive
       ? "실시간 부스트중"
@@ -621,7 +621,7 @@
   }
 
   function isPausedStatus(statusText) {
-    return statusText === "실시간 적용 일시정지됨"
+    return ["부스트 중단중", "부스트 적용 중단됨"].includes(statusText)
   }
 
   function cpuReorderAvailable() {
@@ -1049,7 +1049,8 @@
       return "마비노기를 위해 모든 프로세스를 최적화 하고 있습니다"
     }
     if (statusText === "부스트 대기중") return "마비노기 클라이언트를 기다리고 있습니다"
-    return "적용된 부스트 설정은 여전히 남아있습니다"
+    if (statusText === "부스트 중단중") return "적용한 부스트 설정을 원상복구하고 있습니다"
+    return "부스트 적용이 중단되어 모든 설정을 원상복구했습니다"
   }
 
   function syncConflictWarning(programs = [], boostActive = false) {
@@ -1255,7 +1256,7 @@
       || colorTransition
       || displayedStatusText === "부스트 대기중"
     ) return
-    const enabled = !(services.affinity.data?.running && services.memory.data?.running)
+    const enabled = !(services.affinity.data?.running || services.memory.data?.running)
     const paused = !enabled
     const wave = gameWave?.makeActionWave(event.clientX, event.clientY, paused)
       ?? { duration: paused ? 600 : 3000, radius: paused ? 420 : 600, delay: paused ? 0 : 500 }
@@ -1275,20 +1276,20 @@
 
   async function toggleFrameBoost(waveStarted = false) {
     if (frameBoostAction || (colorTransition && waveStarted !== true)) return
-    const enabled = !(services.affinity.data?.running && services.memory.data?.running)
+    const enabled = !(services.affinity.data?.running || services.memory.data?.running)
     const previousStatusText = displayedStatusText
     const requestedStatusText = enabled
       ? (services.affinity.data?.gameActive || services.memory.data?.gameActive
         ? "실시간 부스트중"
         : "부스트 대기중")
-      : "실시간 적용 일시정지됨"
+      : "부스트 중단중"
     if (waveStarted !== true) {
       visualPaused = !enabled
       colorTransition = null
       gameWave?.setPaused(!enabled)
     }
     animateStatusTransition(previousStatusText, requestedStatusText)
-    frameBoostAction = enabled ? "run" : "pause"
+    frameBoostAction = enabled ? "run" : "stop"
     updateService("affinity", { optimizing: true, error: null })
     updateService("memory", { optimizing: true, error: null })
     try {
@@ -1334,33 +1335,6 @@
         ambientRhythmEnabled && previousStatusText === "실시간 부스트중",
       )
       animateStatusTransition(requestedStatusText, previousStatusText)
-    } finally {
-      frameBoostAction = null
-    }
-  }
-
-  async function resetFrameBoost() {
-    frameBoostAction = "reset"
-    updateService("affinity", { optimizing: true, error: null })
-    updateService("memory", { optimizing: true, error: null })
-    try {
-      const result = await window.nogirem.resetFrameBoost()
-      updateService("affinity", {
-        optimizing: false,
-        loading: false,
-        data: result.affinity,
-        error: null,
-      })
-      updateService("memory", {
-        optimizing: false,
-        loading: false,
-        data: result.memory,
-        error: null,
-      })
-    } catch (error) {
-      const message = messageOf(error)
-      updateService("affinity", { optimizing: false, error: message })
-      updateService("memory", { optimizing: false, error: message })
     } finally {
       frameBoostAction = null
     }
@@ -1701,7 +1675,7 @@
           <span>
             {services.affinity.data?.running && services.memory.data?.running
               ? "실행 중"
-              : "일시정지"}
+              : "적용 중단됨"}
           </span>
         </div>
         <label class="compact-check">
@@ -1720,7 +1694,7 @@
             || colorTransition}
           onclick={toggleFrameBoost}
         >
-          {services.affinity.data?.running || services.memory.data?.running ? "일시정지" : "실행"}
+          {services.affinity.data?.running || services.memory.data?.running ? "부스트 중단" : "실행"}
         </button>
       </div>
 
@@ -1976,7 +1950,7 @@
               {#if statusTransitionPhase === "enter"}
                 <span
                   class="boost-text-base transitioning"
-                  class:paused-source={statusTransitionFrom === "실시간 적용 일시정지됨"}
+                  class:paused-source={isPausedStatus(statusTransitionFrom)}
                 >
                   {statusTransitionFrom}
                 </span>
@@ -2423,7 +2397,7 @@
         {:else if services.affinity.data?.running || services.memory.data?.running}
           <span class="status needed">일부 실행</span>
         {:else}
-          <span class="status idle">일시정지</span>
+          <span class="status idle">적용 중단됨</span>
         {/if}
       </div>
 
@@ -2446,7 +2420,7 @@
               <div>
                 <dt>코어 감시</dt>
                 <dd class:passed={services.affinity.data.running}>
-                  {services.affinity.data.running ? "실행 중" : "일시정지"}
+                  {services.affinity.data.running ? "실행 중" : "중단됨"}
                 </dd>
               </div>
               <div>
@@ -2508,7 +2482,7 @@
               <div>
                 <dt>메모리 감시</dt>
                 <dd class:passed={services.memory.data.running}>
-                  {services.memory.data.running ? "실행 중" : "일시정지"}
+                  {services.memory.data.running ? "실행 중" : "중단됨"}
                 </dd>
                 <dd>{services.memory.data.gameActive ? "게임 감지" : "대기 중"}</dd>
               </div>
@@ -2516,8 +2490,8 @@
           </section>
         </div>
         <p class="notice">
-          실시간 부스트는 Affinity와 메모리 감시를 함께 실행합니다. 일시정지는 두 감시를
-          함께 멈추고 현재 CPU 배치를 유지합니다.
+          실시간 부스트는 Affinity와 메모리 감시를 함께 실행합니다. 부스트 중단은 두 감시를
+          멈추고 적용된 CPU 배치를 원래 상태로 복구합니다.
         </p>
         {#if services.affinity.data.error}
           <p class="error-message">{services.affinity.data.error.message}</p>
@@ -2545,21 +2519,11 @@
         >
           {frameBoostAction === "run"
             ? "실행 중…"
-            : (frameBoostAction === "pause"
-              ? "일시정지 중…"
+            : (frameBoostAction === "stop"
+              ? "부스트 중단중"
               : (services.affinity.data?.running || services.memory.data?.running
-                ? "일시정지"
+                ? "부스트 중단"
                 : "실시간 부스트"))}
-        </button>
-        <button
-          class="danger"
-          disabled={services.affinity.loading
-            || services.memory.loading
-            || services.affinity.optimizing
-            || services.memory.optimizing}
-          onclick={resetFrameBoost}
-        >
-          {frameBoostAction === "reset" ? "정지 중…" : "정지(전체복구)"}
         </button>
       </div>
     </article>

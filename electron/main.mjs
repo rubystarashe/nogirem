@@ -2801,7 +2801,9 @@ async function setFrameBoostEnabled({ enabled, includeNic = false } = {}) {
   updateApplicationTrayIcon()
   try {
     const [affinity, memory] = await Promise.all([
-      setAffinityEnabled({ enabled, includeNic }),
+      enabled
+        ? setAffinityEnabled({ enabled: true, includeNic })
+        : resetAllAffinities(),
       setMemoryEnabled(enabled),
     ])
     return { affinity, memory }
@@ -2894,7 +2896,7 @@ async function runCpuReorder() {
       requestedAt: Date.now(),
     })
 
-    for (let attempt = 0; attempt < 100; attempt++) {
+    for (let attempt = 0; attempt < 450; attempt++) {
       const status = await readRuntimeStatusJson(statusPath)
       if (status?.running === false) throw new Error("Affinity helper가 CPU 재정렬 중 종료되었습니다")
       if (status?.cpuReorder?.requestId === requestId) {
@@ -2905,7 +2907,15 @@ async function runCpuReorder() {
       }
       await delay(100)
     }
-    throw new Error("CPU 재정렬이 제한 시간 안에 완료되지 않았습니다")
+    const finalStatus = await readRuntimeStatusJson(statusPath)
+    if (finalStatus?.cpuReorder?.requestId === requestId) {
+      if (finalStatus.cpuReorder.state === "completed") return readAffinityRuntimeStatus()
+      if (finalStatus.cpuReorder.state === "failed") {
+        throw new Error(finalStatus.cpuReorder.error?.message ?? "CPU 재정렬에 실패했습니다")
+      }
+      throw new Error("CPU 재정렬 원상복구 확인이 지연되고 있습니다")
+    }
+    throw new Error("Affinity helper가 CPU 재정렬 요청에 응답하지 않았습니다")
   })()
 
   try {

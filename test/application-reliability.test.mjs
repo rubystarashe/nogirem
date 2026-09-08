@@ -249,12 +249,14 @@ test("초기 부스트 상태가 확인되기 전에는 일시정지 배경으�
   )
 })
 
-test("부스트 구성 요소가 일부만 실행됐으면 누를 때 나머지를 다시 시작한다", () => {
-  const partialStateCheck = /!\(services\.affinity\.data\?\.running && services\.memory\.data\?\.running\)/g
-  assert.equal(applicationView.match(partialStateCheck)?.length, 3)
-  assert.doesNotMatch(
-    applicationView,
-    /!\(services\.affinity\.data\?\.running \|\| services\.memory\.data\?\.running\)/,
+test("부스트 중단은 일부 실행 상태도 원상복구하고 중단 상태를 단계별 표시한다", () => {
+  const activeStateCheck = /!\(services\.affinity\.data\?\.running \|\| services\.memory\.data\?\.running\)/g
+  assert.equal(applicationView.match(activeStateCheck)?.length, 2)
+  assert.match(applicationView, /"부스트 중단중"/)
+  assert.match(applicationView, /"부스트 적용 중단됨"/)
+  assert.match(
+    electronMain,
+    /enabled[\s\S]*\? setAffinityEnabled\(\{ enabled: true, includeNic \}\)[\s\S]*: resetAllAffinities\(\)/,
   )
 })
 

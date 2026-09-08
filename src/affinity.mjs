@@ -448,7 +448,11 @@ export async function createAffinityManager({
     const { stdout } = await execFileAsync(
       "powershell.exe",
       ["-NoProfile", "-NonInteractive", "-Command", ps],
-      { windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
+      {
+        windowsHide: true,
+        maxBuffer: 16 * 1024 * 1024,
+        timeout: 10000,
+      },
     )
     const value = JSON.parse(stdout || "[]")
     const processes = Array.isArray(value) ? value : [value]
