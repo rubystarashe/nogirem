@@ -38,6 +38,22 @@ input:focus-visible {
   background: #0d0f10;
 }
 
+body.embedded .editor {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+body.embedded .titlebar {
+  display: none;
+}
+
+body.embedded .preview {
+  padding: 12px 14px;
+}
+
+body.embedded .editing-panel {
+  padding: 12px 14px 14px;
+}
+
 .titlebar {
   display: flex;
   align-items: center;

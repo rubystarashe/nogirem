@@ -20,6 +20,42 @@ const previewRangeButton = document.querySelector(".preview-range")
 const extractButton = document.querySelector(".extract")
 const showOutputButton = document.querySelector(".show-output")
 const notice = document.querySelector(".notice")
+const embedded = new URLSearchParams(location.search).has("embedded")
+const parentRequests = new Map()
+let nextParentRequestId = 0
+
+function requestParent(method, value) {
+  const id = ++nextParentRequestId
+  return new Promise((resolve, reject) => {
+    parentRequests.set(id, { resolve, reject })
+    window.parent.postMessage({
+      source: "blackbox-editor",
+      id,
+      method,
+      value,
+    }, "*")
+  })
+}
+
+window.addEventListener("message", event => {
+  const data = event.data
+  if (data?.source !== "blackbox-manager" || !parentRequests.has(data.id)) return
+  const request = parentRequests.get(data.id)
+  parentRequests.delete(data.id)
+  if (data.error) request.reject(new Error(data.error))
+  else request.resolve(data.result)
+})
+
+const editorBridge = embedded
+  ? {
+      getSession: () => requestParent("getSession"),
+      setTrackSeconds: seconds => requestParent("setTrackSeconds", seconds),
+      extract: range => requestParent("extract", range),
+      showOutput: outputPath => requestParent("showOutput", outputPath),
+    }
+  : window.blackboxEditor
+
+document.body.classList.toggle("embedded", embedded)
 
 let requestedTrackSeconds = 60
 let duration = 0
@@ -132,7 +168,7 @@ async function changeTrackSeconds(seconds) {
   video.pause()
   try {
     await applyTrack(
-      await window.blackboxEditor.setTrackSeconds(normalized),
+      await editorBridge.setTrackSeconds(normalized),
       preserveFromEnd,
     )
   } catch (error) {
@@ -184,7 +220,7 @@ async function extractSelection() {
   lastOutputPath = ""
   showOutputButton.classList.remove("visible")
   try {
-    const result = await window.blackboxEditor.extract({
+    const result = await editorBridge.extract({
       startSeconds: selectionStart,
       durationSeconds: selectionDuration,
     })
@@ -282,16 +318,18 @@ directLengthForm.addEventListener("submit", event => {
 previewRangeButton.addEventListener("click", previewSelection)
 extractButton.addEventListener("click", extractSelection)
 showOutputButton.addEventListener("click", () => {
-  if (lastOutputPath) void window.blackboxEditor.showOutput(lastOutputPath)
+  if (lastOutputPath) void editorBridge.showOutput(lastOutputPath)
 })
 closeButton.addEventListener("click", () => {
+  if (embedded) return
   closeButton.disabled = true
-  void window.blackboxEditor.requestClose()
+  void editorBridge.requestClose()
 })
 
 async function initialize() {
   try {
-    await applyTrack(await window.blackboxEditor.getSession())
+    if (!editorBridge) throw new Error("블랙박스 편집 연결을 찾지 못했습니다")
+    await applyTrack(await editorBridge.getSession())
   } catch (error) {
     editor.className = "editor failed"
     emptyState.textContent = messageOf(error)

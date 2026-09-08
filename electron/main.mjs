@@ -1,8 +1,8 @@
 import { execFile, spawn } from "node:child_process"
 import { existsSync, unlinkSync } from "node:fs"
-import { copyFile, mkdir, open as openFile, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises"
+import { copyFile, mkdir, open as openFile, readFile, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises"
 import { arch, cpus, freemem, platform, release, tmpdir, totalmem, type, uptime } from "node:os"
-import { dirname, join, resolve } from "node:path"
+import { basename, dirname, join, resolve } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { promisify } from "node:util"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -219,6 +219,20 @@ function getNetworkStatePath() {
 function registerBlackboxEditorProtocol() {
   protocol.handle("nogirem-blackbox", request => {
     const url = new URL(request.url)
+    if (url.hostname === "clips") {
+      const fileName = decodeURIComponent(url.pathname.slice(1))
+      const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
+      if (
+        !fileName
+        || basename(fileName) !== fileName
+        || !fileName.toLowerCase().endsWith(".mp4")
+      ) {
+        return new Response("허용되지 않은 블랙박스 클립 요청입니다", { status: 404 })
+      }
+      return net.fetch(pathToFileURL(join(clipsDirectory, fileName)).href, {
+        headers: request.headers,
+      })
+    }
     const [sessionId, trackId] = url.pathname.split("/").filter(Boolean)
     const session = blackboxEditorSession
     const trackPath = session?.trackFiles?.get(trackId)
@@ -2263,6 +2277,40 @@ async function openBlackboxFolder() {
   return true
 }
 
+async function listBlackboxClips() {
+  const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
+  await mkdir(clipsDirectory, { recursive: true })
+  const entries = await readdir(clipsDirectory, { withFileTypes: true })
+  const clips = await Promise.all(entries
+    .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(".mp4"))
+    .map(async entry => {
+      const details = await stat(join(clipsDirectory, entry.name))
+      return {
+        name: entry.name,
+        size: details.size,
+        modifiedAt: details.mtimeMs,
+        videoUrl: `nogirem-blackbox://clips/${encodeURIComponent(entry.name)}?v=${details.mtimeMs}`,
+      }
+    }))
+  return clips.sort((left, right) => right.modifiedAt - left.modifiedAt)
+}
+
+async function openBlackboxClip(fileName) {
+  if (
+    typeof fileName !== "string"
+    || basename(fileName) !== fileName
+    || !fileName.toLowerCase().endsWith(".mp4")
+  ) {
+    throw new Error("허용되지 않은 블랙박스 클립 요청입니다")
+  }
+  const clipPath = join(getBlackboxPaths().storagePath, "Clips", fileName)
+  const clipStat = await stat(clipPath)
+  if (!clipStat.isFile()) throw new Error("저장된 클립을 찾지 못했습니다")
+  const error = await shell.openPath(clipPath)
+  if (error) throw new Error(error)
+  return true
+}
+
 async function ensureBlackboxStarted() {
   const setting = normalizeBlackboxSetting(
     await readJson(getBlackboxPaths().settingsPath),
@@ -3608,6 +3656,54 @@ function registerIpc() {
     openBlackboxEditor()
     return true
   })
+  ipcMain.handle("blackbox-manager:get-editor-session", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 편집 세션 요청입니다")
+    }
+    return prepareBlackboxEditorSession(createBlackboxEditorSession())
+  })
+  ipcMain.handle("blackbox-manager:set-track-seconds", (event, seconds) => {
+    if (
+      BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow
+      || !blackboxEditorSession
+    ) {
+      throw new Error("허용되지 않은 블랙박스 편집 트랙 요청입니다")
+    }
+    return createBlackboxEditorTrack(blackboxEditorSession, seconds)
+  })
+  ipcMain.handle("blackbox-manager:extract", (event, range) => {
+    if (
+      BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow
+      || !blackboxEditorSession
+    ) {
+      throw new Error("허용되지 않은 블랙박스 구간 추출 요청입니다")
+    }
+    return extractBlackboxEditorRange(blackboxEditorSession, range)
+  })
+  ipcMain.handle("blackbox-manager:show-output", (event, outputPath) => {
+    const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
+    if (
+      BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow
+      || typeof outputPath !== "string"
+      || resolve(dirname(outputPath)) !== resolve(clipsDirectory)
+    ) {
+      throw new Error("허용되지 않은 블랙박스 파일 위치 요청입니다")
+    }
+    shell.showItemInFolder(outputPath)
+    return true
+  })
+  ipcMain.handle("blackbox-manager:list-clips", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 클립 목록 요청입니다")
+    }
+    return listBlackboxClips()
+  })
+  ipcMain.handle("blackbox-manager:open-clip", (event, fileName) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 클립 열기 요청입니다")
+    }
+    return openBlackboxClip(fileName)
+  })
   ipcMain.handle("blackbox-manager:open-folder", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
       throw new Error("허용되지 않은 블랙박스 폴더 요청입니다")
@@ -3811,11 +3907,13 @@ function openBlackboxManager() {
   }
 
   const window = new BrowserWindow({
-    width: 700,
-    height: 560,
+    width: 1040,
+    height: 760,
+    minWidth: 900,
+    minHeight: 680,
     show: false,
     opacity: 0,
-    resizable: false,
+    resizable: true,
     maximizable: false,
     parent: primaryWindow ?? undefined,
     title: "게임 블랙박스 관리",
@@ -3872,6 +3970,7 @@ function openBlackboxManager() {
     const closedForTray = internalWindowsClosedForTray.delete(window)
     clearInterval(opacityTimer)
     if (blackboxManagerWindow === window) blackboxManagerWindow = null
+    releaseBlackboxEditorSessionIfUnused()
     if (!applicationExitInProgress && !closedForTray) focusPrimaryWindow()
   })
   const builtManagerPath = join(root, "dist", "blackbox-manager.html")
@@ -4068,15 +4167,10 @@ function openCharacterSimplificationGuide() {
     .catch(error => console.error("간소화 안내 오류 화면 로드 실패", error))
 }
 
-function openBlackboxEditor() {
-  if (blackboxEditorWindow && !blackboxEditorWindow.isDestroyed()) {
-    if (blackboxEditorWindow.isMinimized()) blackboxEditorWindow.restore()
-    blackboxEditorWindow.setIgnoreMouseEvents(false)
-    blackboxEditorWindow.show()
-    blackboxEditorWindow.focus()
-    return
+function createBlackboxEditorSession() {
+  if (blackboxEditorSession && !blackboxEditorSession.closed) {
+    return blackboxEditorSession
   }
-
   const identifier = randomUUID()
   const session = {
     id: identifier,
@@ -4091,6 +4185,28 @@ function openBlackboxEditor() {
     closed: false,
   }
   blackboxEditorSession = session
+  return session
+}
+
+function releaseBlackboxEditorSessionIfUnused() {
+  const managerOpen = blackboxManagerWindow && !blackboxManagerWindow.isDestroyed()
+  const editorOpen = blackboxEditorWindow && !blackboxEditorWindow.isDestroyed()
+  if (managerOpen || editorOpen || !blackboxEditorSession) return
+  const session = blackboxEditorSession
+  blackboxEditorSession = null
+  void cleanupBlackboxEditorSession(session)
+}
+
+function openBlackboxEditor() {
+  if (blackboxEditorWindow && !blackboxEditorWindow.isDestroyed()) {
+    if (blackboxEditorWindow.isMinimized()) blackboxEditorWindow.restore()
+    blackboxEditorWindow.setIgnoreMouseEvents(false)
+    blackboxEditorWindow.show()
+    blackboxEditorWindow.focus()
+    return
+  }
+
+  const session = createBlackboxEditorSession()
   const window = new BrowserWindow({
     width: 1100,
     height: 720,
@@ -4123,8 +4239,7 @@ function openBlackboxEditor() {
   window.on("closed", () => {
     const closedForTray = internalWindowsClosedForTray.delete(window)
     if (blackboxEditorWindow === window) blackboxEditorWindow = null
-    if (blackboxEditorSession === session) blackboxEditorSession = null
-    void cleanupBlackboxEditorSession(session)
+    releaseBlackboxEditorSessionIfUnused()
     if (!applicationExitInProgress && !closedForTray) focusPrimaryWindow()
   })
   const builtEditorPath = join(root, "dist", "blackbox-editor.html")

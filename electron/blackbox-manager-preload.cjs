@@ -8,4 +8,16 @@ contextBridge.exposeInMainWorld("blackboxManager", {
   clearRecording: () => ipcRenderer.invoke("blackbox-manager:clear-recording"),
   openEditor: () => ipcRenderer.invoke("blackbox-manager:open-editor"),
   openFolder: () => ipcRenderer.invoke("blackbox-manager:open-folder"),
+  listClips: () => ipcRenderer.invoke("blackbox-manager:list-clips"),
+  openClip: fileName => ipcRenderer.invoke("blackbox-manager:open-clip", fileName),
+  editor: {
+    getSession: () => ipcRenderer.invoke("blackbox-manager:get-editor-session"),
+    setTrackSeconds: seconds => {
+      return ipcRenderer.invoke("blackbox-manager:set-track-seconds", seconds)
+    },
+    extract: range => ipcRenderer.invoke("blackbox-manager:extract", range),
+    showOutput: outputPath => {
+      return ipcRenderer.invoke("blackbox-manager:show-output", outputPath)
+    },
+  },
 })
