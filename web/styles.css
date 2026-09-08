@@ -593,6 +593,7 @@ footer {
   font-size: 9px;
   line-height: 12px;
   text-align: right;
+  transform: translateX(28px);
   white-space: nowrap;
 }
 

@@ -11,6 +11,7 @@ export const defaultBlackboxSetting = Object.freeze({
   codec: "h264",
   quality: "auto",
   capacityGb: 50,
+  maxDurationSeconds: 3600,
   clipSeconds: 30,
   fps: 60,
   chunkSeconds: 10,
@@ -20,6 +21,14 @@ export const defaultBlackboxSetting = Object.freeze({
 function normalizeOption(value, options, fallback) {
   const normalized = Number(value)
   return options.includes(normalized) ? normalized : fallback
+}
+
+function normalizeMaximumDuration(value) {
+  const normalized = Math.round(Number(value))
+  if (!Number.isFinite(normalized)) {
+    return defaultBlackboxSetting.maxDurationSeconds
+  }
+  return Math.max(60, Math.min(7 * 24 * 60 * 60, normalized))
 }
 
 export function normalizeBlackboxShortcut(value) {
@@ -131,6 +140,7 @@ export function normalizeBlackboxSetting(value) {
       blackboxCapacityOptions,
       defaultBlackboxSetting.capacityGb,
     ),
+    maxDurationSeconds: normalizeMaximumDuration(value?.maxDurationSeconds),
     clipSeconds: normalizeOption(
       value?.clipSeconds,
       blackboxClipDurationOptions,

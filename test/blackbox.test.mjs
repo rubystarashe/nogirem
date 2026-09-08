@@ -33,6 +33,7 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     codec: "hevc",
     quality: "auto",
     capacityGb: 100,
+    maxDurationSeconds: 3600,
     clipSeconds: 60,
     fps: 30,
   }), {
@@ -41,6 +42,7 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     codec: "hevc",
     quality: "auto",
     capacityGb: 100,
+    maxDurationSeconds: 3600,
     clipSeconds: 60,
     fps: 30,
     chunkSeconds: 10,
@@ -50,6 +52,12 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     featureEnabled: true,
     enabled: false,
   }).featureEnabled, true)
+  assert.equal(normalizeBlackboxSetting({
+    maxDurationSeconds: 100,
+  }).maxDurationSeconds, 100)
+  assert.equal(normalizeBlackboxSetting({
+    maxDurationSeconds: 30,
+  }).maxDurationSeconds, 60)
 })
 
 test("빠른 클립 저장 단축키는 지원하는 키 조합만 정규화한다", () => {
@@ -114,7 +122,7 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
     /async function syncBlackboxSetting\(\) \{[\s\S]*if \(!blackboxSettingLoaded \|\| blackboxTogglePending\) return/,
   )
   assert.match(styleSource, /\.blackbox-main-link:disabled \{[\s\S]*opacity: 1/)
-  assert.match(styleSource, /\.blackbox-main-duration \{[\s\S]*font-size: 9px/)
+  assert.match(styleSource, /\.blackbox-main-duration \{[\s\S]*font-size: 9px[\s\S]*transform: translateX\(28px\)/)
   assert.match(styleSource, /\.blackbox-main-duration\.active \{[\s\S]*0\.72[\s\S]*font-weight: 650/)
   assert.match(
     appSource,
@@ -261,6 +269,9 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(managerSource, /영상 추출/)
   assert.match(managerSource, /class="extract-frame"[\s\S]*allowfullscreen/)
   assert.match(managerSource, /class="shortcut-input"[\s\S]*readonly/)
+  assert.match(managerSource, /최대 녹화 길이[\s\S]*class="max-duration-minutes"[\s\S]*value="60"[\s\S]*class="max-duration-seconds"[\s\S]*value="0"/)
+  assert.match(managerSource, /녹화 용량 한도/)
+  assert.match(managerSource, /maxDurationSeconds: normalizeMaximumDurationInputs\(\)/)
   assert.match(managerSource, /function shortcutFromKeyboardEvent\(event\)/)
   assert.match(managerSource, /shortcutInput\.dataset\.accelerator = accelerator/)
   assert.match(managerSource, /단축키를 다른 프로그램이 사용 중입니다/)
@@ -439,6 +450,10 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     /capturedAt \+ 1ms < \*nextFrameAt_[\s\S]*\*nextFrameAt_ \+= minimumFrameInterval_[\s\S]*encoder_\.enqueue/,
   )
   assert.match(nativeSource, /class RingStorageIndex/)
+  assert.match(mainSource, /`--max-duration-seconds=\$\{normalized\.maxDurationSeconds\}`/)
+  assert.match(nativeSource, /options\.maxDurationSeconds = integerArgument\(/)
+  assert.match(nativeSource, /const auto reserve = Gigabyte;/)
+  assert.match(nativeSource, /newestStarted - chunks_\.front\(\)\.started\s*>= maxDurationMilliseconds/)
   assert.match(nativeSource, /std::atomic_uint64_t droppedFrames = 0/)
   assert.match(nativeSource, /const auto bytesUsed = ringStorage_\.publish\(/)
   assert.match(nativeSource, /status\.bytesUsed = ringStorage\.bytesUsed\(\)/)

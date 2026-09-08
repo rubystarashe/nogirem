@@ -88,6 +88,7 @@ struct Options {
   int maxHeight = 1080;
   int chunkSeconds = 10;
   int capacityGb = 50;
+  int maxDurationSeconds = 3600;
   DWORD parentPid = 0;
 };
 
@@ -414,6 +415,13 @@ Options optionsFromArguments(int count, wchar_t** values) {
   options.maxHeight = integerArgument(arguments, L"max-height", 1080, 0, 4320);
   options.chunkSeconds = integerArgument(arguments, L"chunk-seconds", 10, 2, 30);
   options.capacityGb = integerArgument(arguments, L"capacity-gb", 50, 1, 4096);
+  options.maxDurationSeconds = integerArgument(
+    arguments,
+    L"max-duration-seconds",
+    3600,
+    60,
+    604800
+  );
   options.parentPid = static_cast<DWORD>(
     integerArgument(arguments, L"parent-pid", 0, 0, INT_MAX)
   );
@@ -617,6 +625,8 @@ void clearRingDirectory(const fs::path& directory) {
   removeIncompleteChunks(directory);
 }
 
+std::int64_t chunkStartedMilliseconds(const fs::path& path);
+
 class RingStorageIndex {
 public:
   explicit RingStorageIndex(fs::path directory)
@@ -630,7 +640,8 @@ public:
 
   std::uint64_t publish(
     const fs::path& path,
-    std::uint64_t capacityBytes
+    std::uint64_t capacityBytes,
+    std::int64_t maxDurationMilliseconds
   ) {
     std::lock_guard lock(mutex_);
     std::error_code sizeError;
@@ -639,19 +650,27 @@ public:
       refreshLocked();
       return bytesUsed_.load();
     }
-    chunks_.push_back({ path, size });
+    const auto started = chunkStartedMilliseconds(path);
+    chunks_.push_back({ path, size, started });
     std::uint64_t total = bytesUsed_.load() + size;
     std::error_code spaceError;
     auto space = fs::space(directory_, spaceError);
-    const auto reserve = std::max<std::uint64_t>(
-      5 * Gigabyte,
-      capacityBytes / 10
-    );
+    const auto reserve = Gigabyte;
+    const auto newestStarted = chunks_.back().started;
     while (
       !chunks_.empty()
       && (
         total > capacityBytes
         || (!spaceError && space.available < reserve)
+        || (
+          chunks_.size() > 1
+          && maxDurationMilliseconds > 0
+          && (
+            chunks_.front().started <= 0
+            || newestStarted - chunks_.front().started
+              >= maxDurationMilliseconds
+          )
+        )
       )
     ) {
       auto entry = std::move(chunks_.front());
@@ -680,6 +699,7 @@ private:
   struct Entry {
     fs::path path;
     std::uint64_t size = 0;
+    std::int64_t started = 0;
   };
 
   void refresh() {
@@ -694,7 +714,11 @@ private:
       std::error_code error;
       const auto size = fs::file_size(path, error);
       if (error) continue;
-      chunks_.push_back({ path, size });
+      chunks_.push_back({
+        path,
+        size,
+        chunkStartedMilliseconds(path)
+      });
       total += size;
     }
     bytesUsed_ = total;
@@ -2042,7 +2066,8 @@ private:
         }
         const auto bytesUsed = ringStorage_.publish(
           finalPath,
-          static_cast<std::uint64_t>(options_.capacityGb) * Gigabyte
+          static_cast<std::uint64_t>(options_.capacityGb) * Gigabyte,
+          static_cast<std::int64_t>(options_.maxDurationSeconds) * 1000
         );
         std::lock_guard lock(status_.mutex);
         status_.bytesUsed = bytesUsed;

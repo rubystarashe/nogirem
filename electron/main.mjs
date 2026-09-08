@@ -2050,6 +2050,7 @@ async function getBlackboxSetting() {
     bytesUsed,
     durationSeconds: Number(status?.durationSeconds) || 0,
     capacityBytes: setting.capacityGb * 1024 ** 3,
+    maxDurationSeconds: setting.maxDurationSeconds,
     droppedFrames: Number(status?.droppedFrames) || 0,
     width: Number(status?.width) || 0,
     height: Number(status?.height) || 0,
@@ -2158,6 +2159,7 @@ async function launchBlackboxHelper(setting) {
     `--max-height=${maxHeightForBlackboxQuality(resolvedQuality)}`,
     `--chunk-seconds=${normalized.chunkSeconds}`,
     `--capacity-gb=${normalized.capacityGb}`,
+    `--max-duration-seconds=${normalized.maxDurationSeconds}`,
     affinityArgument,
   ], {
     windowsHide: true,

@@ -265,6 +265,22 @@
         color: #f0d67e;
       }
 
+      .settings .duration-inputs {
+        display: flex;
+        width: 280px;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .settings .duration-inputs input {
+        width: 82px;
+      }
+
+      .settings .duration-inputs span {
+        color: #9da5a9;
+        font-size: 10px;
+      }
+
       .settings-summary {
         display: flex;
         flex-direction: column;
@@ -771,8 +787,17 @@
             <option value="60">60fps</option>
           </select>
         </label>
+        <label class="max-duration">
+          <span>최대 녹화 길이</span>
+          <div class="duration-inputs">
+            <input class="max-duration-minutes" type="number" min="0" step="1" value="60" aria-label="최대 녹화 길이 분" />
+            <span>분</span>
+            <input class="max-duration-seconds" type="number" min="0" step="1" value="0" aria-label="최대 녹화 길이 초" />
+            <span>초</span>
+          </div>
+        </label>
         <label class="capacity">
-          <span>순환 저장 한도</span>
+          <span>녹화 용량 한도</span>
           <select class="capacity-select">
             <option value="20">20 GB</option>
             <option value="50">50 GB</option>
@@ -830,6 +855,8 @@
       const codecSelect = document.querySelector(".codec-select")
       const fpsSelect = document.querySelector(".fps-select")
       const capacitySelect = document.querySelector(".capacity-select")
+      const maxDurationMinutesInput = document.querySelector(".max-duration-minutes")
+      const maxDurationSecondsInput = document.querySelector(".max-duration-seconds")
       const clipSelect = document.querySelector(".clip-select")
       const shortcutInput = document.querySelector(".shortcut-input")
       const qualitySummary = document.querySelector(".quality-summary")
@@ -851,6 +878,8 @@
         qualitySelect,
         codecSelect,
         fpsSelect,
+        maxDurationMinutesInput,
+        maxDurationSecondsInput,
         capacitySelect,
         clipSelect,
         shortcutInput,
@@ -941,6 +970,28 @@
           .replaceAll("+", " + ")
       }
 
+      function setMaximumDurationInputs(totalSeconds) {
+        const normalized = Math.max(
+          60,
+          Math.min(7 * 24 * 60 * 60, Math.round(Number(totalSeconds) || 3600)),
+        )
+        maxDurationMinutesInput.value = String(Math.floor(normalized / 60))
+        maxDurationSecondsInput.value = String(normalized % 60)
+        return normalized
+      }
+
+      function normalizeMaximumDurationInputs() {
+        const minutes = Math.max(
+          0,
+          Math.round(Number(maxDurationMinutesInput.value) || 0),
+        )
+        const seconds = Math.max(
+          0,
+          Math.round(Number(maxDurationSecondsInput.value) || 0),
+        )
+        return setMaximumDurationInputs(minutes * 60 + seconds)
+      }
+
       function draftSetting(enabled = status?.enabled) {
         return {
           featureEnabled: Boolean(status?.featureEnabled),
@@ -948,6 +999,7 @@
           quality: qualitySelect.value,
           codec: codecSelect.value,
           fps: Number(fpsSelect.value),
+          maxDurationSeconds: normalizeMaximumDurationInputs(),
           capacityGb: Number(capacitySelect.value),
           clipSeconds: Number(clipSelect.value),
           chunkSeconds: 4,
@@ -983,6 +1035,7 @@
         qualitySelect.value = value.quality
         codecSelect.value = value.codec
         fpsSelect.value = String(value.fps)
+        setMaximumDurationInputs(value.maxDurationSeconds)
         capacitySelect.value = String(value.capacityGb)
         clipSelect.value = String(value.clipSeconds)
         shortcutInput.dataset.accelerator = value.shortcutAccelerator
@@ -1386,6 +1439,8 @@
           renderSettingSummary()
         })
       }
+      maxDurationMinutesInput.addEventListener("change", normalizeMaximumDurationInputs)
+      maxDurationSecondsInput.addEventListener("change", normalizeMaximumDurationInputs)
 
       shortcutInput.addEventListener("focus", () => {
         shortcutInput.classList.add("capturing")
