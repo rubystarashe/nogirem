@@ -175,6 +175,11 @@ video {
   display: grid;
 }
 
+.editor.no-recording .empty-state {
+  display: grid;
+  color: #aeb5b9;
+}
+
 .empty-state-content {
   display: flex;
   align-items: center;

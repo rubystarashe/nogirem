@@ -428,6 +428,22 @@ async function applyTrack(result, preserveFromEnd = 0) {
     )
     clampSelection()
   }
+  if (!trackSegments.length) {
+    duration = 0
+    currentVideoUrl = ""
+    video.pause()
+    video.removeAttribute("src")
+    video.load()
+    gapPreview.hidden = false
+    emptyStateMessage.textContent =
+      `최근 ${formatRecordedDuration(requestedTrackSeconds)} 동안 녹화된 영상이 없습니다`
+    enableBlackboxButton.hidden = true
+    setTimelineCursor(selectionStart)
+    renderTrackGaps()
+    editor.className = "editor ready no-recording"
+    setBusy(false)
+    return
+  }
   const initialSegment = segmentAtTimelineTime(selectionStart)
   await loadVideo(initialSegment?.videoUrl || result.videoUrl)
   setTimelineCursor(selectionStart)
