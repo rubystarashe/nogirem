@@ -91,6 +91,7 @@ let lastOutputPath = ""
 let extracting = false
 let currentVideoUrl = ""
 let videoLoadId = 0
+let statusRetrying = false
 
 function messageOf(error) {
   return error?.message?.replace(/^Error invoking remote method '[^']+': Error: /, "")
@@ -628,6 +629,26 @@ async function enableBlackboxFromEditor() {
   }
 }
 
+async function retryTrackWhenRecordingStarts(value) {
+  if (
+    statusRetrying
+    || busy
+    || duration
+    || !value?.running
+    || !value?.recording
+  ) return
+  statusRetrying = true
+  setBusy(true, `최근 ${formatTime(requestedTrackSeconds)} 녹화를 불러오고 있습니다`)
+  setNotice("")
+  try {
+    await applyTrack(await editorBridge.getSession())
+  } catch (error) {
+    renderEditorError(error)
+  } finally {
+    statusRetrying = false
+  }
+}
+
 playToggle.addEventListener("click", togglePlayback)
 enableBlackboxButton.addEventListener("click", enableBlackboxFromEditor)
 video.addEventListener("click", togglePlayback)
@@ -659,6 +680,7 @@ window.addEventListener("message", event => {
     && event.data?.source === "blackbox-manager-status"
   ) {
     renderManagerStatus(event.data.value)
+    void retryTrackWhenRecordingStarts(event.data.value)
   } else if (
     event.data?.source === "blackbox-manager-command"
     && event.data.command === "toggle-playback"

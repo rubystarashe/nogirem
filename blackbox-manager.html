@@ -940,6 +940,8 @@
         extractFrame.contentWindow.postMessage({
           source: "blackbox-manager-status",
           value: {
+            running: value.running,
+            recording: value.recording,
             bytesUsed: value.bytesUsed,
             capacityGb: value.capacityGb,
             durationSeconds: value.durationSeconds,
