@@ -121,9 +121,16 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(appSource, /openBlackboxManager/)
   assert.match(
     mainSource,
-    /application:set-blackbox-feature-enabled[\s\S]*featureEnabled: nextFeatureEnabled,[\s\S]*enabled: nextFeatureEnabled && current\.enabled/,
+    /application:set-blackbox-feature-enabled[\s\S]*featureEnabled: nextFeatureEnabled,[\s\S]*enabled: nextFeatureEnabled/,
   )
-  assert.match(mainSource, /application:set-blackbox-enabled[\s\S]*\.\.\.current,[\s\S]*enabled: Boolean\(enabled\)/)
+  assert.match(
+    appSource,
+    /async function toggleBlackboxFeature\(\)[\s\S]*applyBlackboxState\(\{ featureEnabled: true, enabled: true \}\)[\s\S]*closeCreatorView\(\)/,
+  )
+  assert.match(
+    mainSource,
+    /async function setBlackboxEnabled\(enabled\)[\s\S]*\.\.\.current,[\s\S]*enabled: Boolean\(enabled\)/,
+  )
   assert.match(
     mainSource,
     /async function ensureBlackboxStarted\(\)[\s\S]*if \(!blackboxFeatureAvailable\)[\s\S]*featureEnabled: false,[\s\S]*enabled: false/,
@@ -146,6 +153,7 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.doesNotMatch(managerSource, /class="audio-state"/)
   assert.match(managerSource, /전체 비우기/)
   assert.match(managerPreloadSource, /blackbox-manager:set-setting/)
+  assert.match(managerPreloadSource, /blackbox-manager:set-enabled/)
   assert.match(managerPreloadSource, /blackbox-manager:clear-recording/)
   assert.match(managerPreloadSource, /blackbox-manager:list-clips/)
   assert.match(managerPreloadSource, /blackbox-manager:open-clip/)
@@ -216,6 +224,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(managerSource, /class="extract-frame"/)
   assert.match(managerSource, /window\.blackboxManager\.editor/)
   assert.match(mainSource, /blackbox-manager:get-editor-session/)
+  assert.match(mainSource, /blackbox-manager:set-enabled/)
   assert.match(mainSource, /blackbox-manager:set-track-seconds/)
   assert.match(mainSource, /blackbox-manager:extract/)
   assert.match(mainSource, /title: "블랙박스 영상 추출"[\s\S]*alwaysOnTop: true/)
@@ -231,7 +240,11 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /queueBlackboxControlOperation/)
   assert.match(mainSource, /videoUrl: `nogirem-blackbox:\/\/editor\//)
   assert.match(preloadSource, /blackbox-editor:set-track-seconds/)
+  assert.match(preloadSource, /blackbox-editor:set-enabled/)
   assert.match(preloadSource, /blackbox-editor:extract/)
+  assert.match(editorSource, /class="enable-blackbox"[^>]*hidden>블랙박스 켜기/)
+  assert.match(editorScript, /message !== "블랙박스 녹화가 실행 중이 아닙니다"/)
+  assert.match(editorScript, /await editorBridge\.setEnabled\(true\)/)
   assert.match(editorSource, /class="compact-button add-time"[^>]*>\+</)
   assert.match(editorSource, /class="compact-button direct-time"[^>]*>\+\+</)
   assert.match(editorSource, /track-length-buttons[\s\S]*direct-time[\s\S]*add-time/)

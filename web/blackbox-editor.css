@@ -175,6 +175,33 @@ video {
   display: grid;
 }
 
+.empty-state-content {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.enable-blackbox {
+  height: 36px;
+  padding: 0 18px;
+  border: 1px solid #dfe4e6;
+  border-radius: 7px;
+  color: #111415;
+  background: #edf0f1;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.enable-blackbox:hover:not(:disabled) {
+  background: #fff;
+}
+
+.enable-blackbox:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .editor.failed .loading-state,
 .editor.ready .loading-state {
   display: none;

@@ -2146,6 +2146,17 @@ async function setBlackboxSetting(value) {
   }
 }
 
+async function setBlackboxEnabled(enabled) {
+  const current = await getBlackboxSetting()
+  if (!current.featureEnabled) {
+    throw new Error("고급 기능에서 블랙박스 기능을 먼저 사용 설정해 주세요")
+  }
+  return setBlackboxSetting({
+    ...current,
+    enabled: Boolean(enabled),
+  })
+}
+
 async function requestBlackboxClip() {
   return queueBlackboxControlOperation(async () => {
     const requestedAt = Date.now()
@@ -3754,14 +3765,7 @@ function registerIpc() {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 블랙박스 상태 변경 요청입니다")
     }
-    const current = await getBlackboxSetting()
-    if (!current.featureEnabled) {
-      throw new Error("고급 기능에서 블랙박스 기능을 먼저 사용 설정해 주세요")
-    }
-    return setBlackboxSetting({
-      ...current,
-      enabled: Boolean(enabled),
-    })
+    return setBlackboxEnabled(enabled)
   })
   ipcMain.handle("application:set-blackbox-feature-enabled", async (event, featureEnabled) => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
@@ -3772,7 +3776,7 @@ function registerIpc() {
     return setBlackboxSetting({
       ...current,
       featureEnabled: nextFeatureEnabled,
-      enabled: nextFeatureEnabled && current.enabled,
+      enabled: nextFeatureEnabled,
     })
   })
   ipcMain.handle("application:save-blackbox-clip", event => {
@@ -3815,6 +3819,12 @@ function registerIpc() {
       throw new Error("허용되지 않은 블랙박스 편집 세션 요청입니다")
     }
     return prepareBlackboxEditorSession(blackboxEditorSession)
+  })
+  ipcMain.handle("blackbox-editor:set-enabled", (event, enabled) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxEditorWindow) {
+      throw new Error("허용되지 않은 블랙박스 상태 변경 요청입니다")
+    }
+    return setBlackboxEnabled(enabled)
   })
   ipcMain.handle("blackbox-editor:set-track-seconds", (event, seconds) => {
     if (
@@ -4009,6 +4019,12 @@ function registerIpc() {
       throw new Error("허용되지 않은 블랙박스 편집 세션 요청입니다")
     }
     return prepareBlackboxEditorSession(createBlackboxEditorSession())
+  })
+  ipcMain.handle("blackbox-manager:set-enabled", (event, enabled) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 상태 변경 요청입니다")
+    }
+    return setBlackboxEnabled(enabled)
   })
   ipcMain.handle("blackbox-manager:set-track-seconds", (event, seconds) => {
     if (

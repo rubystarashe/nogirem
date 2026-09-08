@@ -1023,14 +1023,23 @@
 
   async function toggleBlackboxFeature() {
     if (!blackboxSettingLoaded || blackboxFeatureAction) return
+    const nextFeatureEnabled = !blackboxFeatureEnabled
     blackboxFeatureAction = "saving"
     blackboxFeatureNotice = ""
+    if (nextFeatureEnabled) {
+      applyBlackboxState({ featureEnabled: true, enabled: true })
+      closeCreatorView()
+    }
     try {
       applyBlackboxState(
-        await window.nogirem.setBlackboxFeatureEnabled(!blackboxFeatureEnabled),
+        await window.nogirem.setBlackboxFeatureEnabled(nextFeatureEnabled),
       )
     } catch (error) {
       blackboxFeatureNotice = messageOf(error)
+      try {
+        applyBlackboxState(await window.nogirem.getBlackboxSetting())
+      } catch {
+      }
     } finally {
       blackboxFeatureAction = null
     }

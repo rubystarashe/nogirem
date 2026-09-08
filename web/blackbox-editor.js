@@ -3,7 +3,8 @@ const video = document.querySelector("video")
 const preview = document.querySelector(".preview")
 const gapPreview = document.querySelector(".gap-preview")
 const loadingState = document.querySelector(".loading-state span")
-const emptyState = document.querySelector(".empty-state")
+const emptyStateMessage = document.querySelector(".empty-state-content span")
+const enableBlackboxButton = document.querySelector(".enable-blackbox")
 const closeButton = document.querySelector(".window-close")
 const anchorTime = document.querySelector(".anchor-time")
 const addTimeButton = document.querySelector(".add-time")
@@ -56,6 +57,7 @@ window.addEventListener("message", event => {
 const editorBridge = embedded
   ? {
       getSession: () => requestParent("getSession"),
+      setEnabled: enabled => requestParent("setEnabled", enabled),
       fitMedia: value => requestParent("fitMedia", value),
       setTrackSeconds: seconds => requestParent("setTrackSeconds", seconds),
       extract: range => requestParent("extract", range),
@@ -147,6 +149,15 @@ function setBusy(value, text = "") {
     editor.className = "editor loading"
     loadingState.textContent = text
   }
+}
+
+function renderEditorError(error, className = "editor failed") {
+  const message = messageOf(error)
+  editor.className = className
+  emptyStateMessage.textContent = message
+  enableBlackboxButton.hidden = message !== "블랙박스 녹화가 실행 중이 아닙니다"
+  setBusy(false)
+  setNotice(message, true)
 }
 
 function segmentAtTimelineTime(time) {
@@ -373,10 +384,7 @@ async function changeTrackSeconds(seconds) {
       preserveFromEnd,
     )
   } catch (error) {
-    editor.className = duration ? "editor ready" : "editor failed"
-    emptyState.textContent = messageOf(error)
-    setBusy(false)
-    setNotice(messageOf(error), true)
+    renderEditorError(error, duration ? "editor ready" : "editor failed")
   }
 }
 
@@ -543,7 +551,24 @@ async function togglePlayback() {
   startTimelinePlayback()
 }
 
+async function enableBlackboxFromEditor() {
+  if (busy || !editorBridge?.setEnabled) return
+  enableBlackboxButton.disabled = true
+  setBusy(true, "블랙박스 녹화를 시작하고 있습니다")
+  setNotice("")
+  try {
+    await editorBridge.setEnabled(true)
+    loadingState.textContent = `누른 시점을 기준으로 최근 ${formatTime(requestedTrackSeconds)} 영상을 준비하고 있습니다`
+    await applyTrack(await editorBridge.getSession())
+  } catch (error) {
+    renderEditorError(error)
+  } finally {
+    enableBlackboxButton.disabled = false
+  }
+}
+
 playToggle.addEventListener("click", togglePlayback)
+enableBlackboxButton.addEventListener("click", enableBlackboxFromEditor)
 video.addEventListener("click", togglePlayback)
 gapPreview.addEventListener("click", togglePlayback)
 
@@ -634,10 +659,7 @@ async function initialize() {
     if (!editorBridge) throw new Error("블랙박스 편집 연결을 찾지 못했습니다")
     await applyTrack(await editorBridge.getSession())
   } catch (error) {
-    editor.className = "editor failed"
-    emptyState.textContent = messageOf(error)
-    setBusy(false)
-    setNotice(messageOf(error), true)
+    renderEditorError(error)
   }
 }
 

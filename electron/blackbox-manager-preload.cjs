@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("blackboxManager", {
   deleteClip: fileName => ipcRenderer.invoke("blackbox-manager:delete-clip", fileName),
   editor: {
     getSession: () => ipcRenderer.invoke("blackbox-manager:get-editor-session"),
+    setEnabled: enabled => ipcRenderer.invoke("blackbox-manager:set-enabled", enabled),
     fitMedia: value => ipcRenderer.invoke("blackbox-manager:fit-media", value),
     setTrackSeconds: seconds => {
       return ipcRenderer.invoke("blackbox-manager:set-track-seconds", seconds)

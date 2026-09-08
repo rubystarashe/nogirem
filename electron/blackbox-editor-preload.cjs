@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron")
 contextBridge.exposeInMainWorld("blackboxEditor", {
   requestClose: () => ipcRenderer.invoke("blackbox-editor:request-close"),
   getSession: () => ipcRenderer.invoke("blackbox-editor:get-session"),
+  setEnabled: enabled => ipcRenderer.invoke("blackbox-editor:set-enabled", enabled),
   setTrackSeconds: seconds => {
     return ipcRenderer.invoke("blackbox-editor:set-track-seconds", seconds)
   },
