@@ -627,23 +627,13 @@ async function extractSelection() {
 
 function selectionContainsGap() {
   const selectionEnd = selectionStart + selectionDuration
-  let coveredUntil = selectionStart
-  const ranges = trackSegments
-    .map(segment => ({
-      start: Math.max(selectionStart, segment.timelineStart),
-      end: Math.min(
-        selectionEnd,
-        segment.timelineStart + segment.duration,
-      ),
-    }))
-    .filter(range => range.end > range.start)
-    .sort((left, right) => left.start - right.start)
-  for (const range of ranges) {
-    if (range.start > coveredUntil + 0.1) return true
-    coveredUntil = Math.max(coveredUntil, range.end)
-    if (coveredUntil >= selectionEnd - 0.1) return false
-  }
-  return coveredUntil < selectionEnd - 0.1
+  return trackGaps.some(gap => {
+    const gapStart = Math.max(0, Number(gap?.startSeconds) || 0)
+    const gapEnd = gapStart + Math.max(0, Number(gap?.durationSeconds) || 0)
+    const overlapStart = Math.max(selectionStart, gapStart)
+    const overlapEnd = Math.min(selectionEnd, gapEnd)
+    return overlapEnd - overlapStart >= 1
+  })
 }
 
 async function openExportModal() {
