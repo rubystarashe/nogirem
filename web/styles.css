@@ -1346,6 +1346,28 @@ button.direct-donation-card:hover {
   line-height: 1.45;
 }
 
+.cpu-topology-unavailable {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 8px;
+  color: #888;
+  font-size: 10px;
+}
+
+.cpu-topology-unavailable small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #aaa;
+  font-size: 8px;
+}
+
+.developer-tools .cpu-topology-unavailable button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-width: 72px;
+}
+
 .developer-tools h2 {
   margin: 0 0 5px;
   font-size: 14px;

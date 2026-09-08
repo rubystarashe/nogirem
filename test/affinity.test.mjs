@@ -137,7 +137,8 @@ test("사용자가 선택한 물리 코어 수만큼 SMT 스레드를 함께 게
 })
 
 test("CPU 코어 선택 UI와 IPC가 영구 설정 경로에 연결된다", async () => {
-  const [mainSource, preloadSource, appSource, styleSource] = await Promise.all([
+  const [affinitySource, mainSource, preloadSource, appSource, styleSource] = await Promise.all([
+    readFile(new URL("../src/affinity.mjs", import.meta.url), "utf8"),
     readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
     readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
     readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
@@ -146,8 +147,14 @@ test("CPU 코어 선택 UI와 IPC가 영구 설정 경로에 연결된다", asyn
 
   assert.match(mainSource, /game-core-setting\.json/)
   assert.match(mainSource, /optimization:set-game-cpu-core-count/)
+  assert.match(mainSource, /optimization:refresh-game-cpu-core-setting/)
+  assert.match(mainSource, /describeCpuTopologyFailure/)
+  assert.match(mainSource, /failureReason/)
   assert.match(mainSource, /command: "set-game-core-count"/)
   assert.match(preloadSource, /setGameCpuCoreCount/)
+  assert.match(preloadSource, /refreshGameCpuCoreSetting/)
+  assert.match(affinitySource, /topologyError: \{/)
+  assert.match(affinitySource, /message: error\?\.message/)
   assert.match(appSource, /마비노기 CPU 우선 점유 비율 설정/)
   assert.match(appSource, /gameCpuCoreOptions\(\)/)
   assert.match(appSource, /gameCpuCoreColor\(coreCount\)/)
@@ -158,7 +165,11 @@ test("CPU 코어 선택 UI와 IPC가 영구 설정 경로에 연결된다", asyn
   assert.match(appSource, /gameCpuUnavailableCores\(\)/)
   assert.match(appSource, /선택 불가 코어/)
   assert.match(appSource, /코어 개수가 많을수록 마비노기가 더 많은 CPU를 활용하지만/)
+  assert.match(appSource, /retryGameCpuTopology/)
+  assert.match(appSource, /다시 확인/)
+  assert.match(appSource, /failureDetail/)
   assert.match(styleSource, /\.game-cpu-core-controls/)
+  assert.match(styleSource, /\.cpu-topology-unavailable/)
   assert.match(styleSource, /flex: 1 1 0/)
   assert.match(styleSource, /\.game-cpu-core-controls\.applying/)
   assert.match(styleSource, /var\(--allocation-color\)/)

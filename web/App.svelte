@@ -696,6 +696,27 @@
     }
   }
 
+  async function retryGameCpuTopology() {
+    if (gameCpuCoreAction) return
+    gameCpuCoreAction = "refreshing"
+    gameCpuCoreNotice = ""
+    try {
+      const affinity = await window.nogirem.refreshGameCpuCoreSetting()
+      updateService("affinity", {
+        loading: false,
+        data: affinity,
+        error: null,
+      })
+      if (affinity.gameCoreSetting?.supported) {
+        gameCpuCoreNotice = "CPU 코어 구성을 다시 확인했습니다"
+      }
+    } catch (error) {
+      gameCpuCoreNotice = messageOf(error)
+    } finally {
+      gameCpuCoreAction = null
+    }
+  }
+
   async function runCpuReorder() {
     if (!cpuReorderAvailable()) return
     cpuReorderAction = "running"
@@ -2223,9 +2244,24 @@
                         선택한 코어 개수가 많을수록 마비노기가 더 많은 CPU를 활용하지만, 터보 키의 입력 성능과 다른 프로그램들의 성능이 저하될 수 있습니다
                       </small>
                     {:else}
-                      <span class="developer-tool-status">
-                        물리 CPU 코어 구성을 확인할 수 없습니다
-                      </span>
+                      <div class="cpu-topology-unavailable">
+                        <span>
+                          {services.affinity.data?.gameCoreSetting?.failureReason
+                            ?? "물리 CPU 코어 구성을 확인할 수 없습니다"}
+                        </span>
+                        {#if services.affinity.data?.gameCoreSetting?.failureDetail}
+                          <small>
+                            상세: {services.affinity.data.gameCoreSetting.failureDetail}
+                          </small>
+                        {/if}
+                        <button
+                          class="developer-tool-secondary"
+                          disabled={gameCpuCoreAction}
+                          onclick={retryGameCpuTopology}
+                        >
+                          {gameCpuCoreAction === "refreshing" ? "확인 중…" : "다시 확인"}
+                        </button>
+                      </div>
                     {/if}
                   </div>
                   {#if gameCpuCoreNotice}

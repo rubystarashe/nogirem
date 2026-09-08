@@ -349,11 +349,15 @@ export function resolveCpuAllocation(
   }
   try {
     return buildCpuTopologyMasks(queryWindowsCpuSets(), logicalCpuCount, gameCoreCount)
-  } catch {
+  } catch (error) {
     const { allMask, lowerHalfMask, upperHalfMask } = buildCpuHalfMasks(logicalCpuCount)
     const half = logicalCpuCount / 2
     return {
       source: "logical-half-fallback",
+      topologyError: {
+        message: error?.message ?? String(error),
+        logicalCpuCount,
+      },
       allMask,
       gameMask: upperHalfMask,
       backgroundMask: lowerHalfMask,

@@ -1392,6 +1392,31 @@ function getAffinityPaths() {
   }
 }
 
+function describeCpuTopologyFailure(error) {
+  const detail = error?.message ?? ""
+  if (detail.includes("does not match the process affinity group")) {
+    return "Windows CPU 정보와 현재 논리 프로세서 구성이 일치하지 않습니다"
+  }
+  if (detail.includes("size query failed") || detail.includes("GetSystemCpuSetInformation failed")) {
+    const win32Code = detail.match(/Win32 (\d+)/)?.[1]
+    return win32Code
+      ? `Windows CPU 정보 조회에 실패했습니다 (오류 코드 ${win32Code})`
+      : "Windows CPU 정보 조회에 실패했습니다"
+  }
+  if (detail.includes("returned no CPU Sets")) {
+    return "Windows에서 사용할 수 있는 CPU 코어 정보를 반환하지 않았습니다"
+  }
+  if (detail.includes("malformed data")) {
+    return "Windows가 올바르지 않은 CPU 코어 정보를 반환했습니다"
+  }
+  if (detail.includes("Inconsistent efficiency class")) {
+    return "Windows CPU 성능 코어 분류 정보가 일관되지 않습니다"
+  }
+  return detail
+    ? `CPU 코어 구성 분석에 실패했습니다: ${detail}`
+    : "CPU 코어 구성 분석에 실패했습니다"
+}
+
 async function getGameCpuCoreSetting() {
   if (gameCpuCoreSettingCache) return gameCpuCoreSettingCache
   const { gameCoreSettingPath } = getAffinityPaths()
@@ -1413,8 +1438,17 @@ async function getGameCpuCoreSetting() {
     efficiencyCoreCount: allocation.efficiencyCoreCount,
     hybrid: allocation.hybrid,
     customized: requestedGameCoreCount !== null,
+    failureReason: allocation.topologyError
+      ? describeCpuTopologyFailure(allocation.topologyError)
+      : null,
+    failureDetail: allocation.topologyError?.message ?? null,
   }
   return gameCpuCoreSettingCache
+}
+
+async function refreshGameCpuCoreSetting() {
+  gameCpuCoreSettingCache = null
+  return checkAffinity()
 }
 
 function getMabinogiPathStatePath() {
@@ -3444,6 +3478,12 @@ function registerIpc() {
   ipcMain.handle("optimization:refresh-nvidia", () => checkGraphics())
   ipcMain.handle("optimization:refresh-network", () => checkNetwork())
   ipcMain.handle("optimization:refresh-affinity", () => checkAffinity({ refreshNic: true }))
+  ipcMain.handle("optimization:refresh-game-cpu-core-setting", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 CPU 구성 재조회 요청입니다")
+    }
+    return refreshGameCpuCoreSetting()
+  })
   ipcMain.handle("optimization:get-affinity-runtime", async () => {
     const runtime = await readAffinityRuntimeStatus()
     if (
