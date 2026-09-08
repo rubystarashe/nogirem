@@ -123,6 +123,7 @@ let dxvkManagerWindow = null
 let dxvkGuideWindow = null
 let blackboxManagerWindow = null
 let blackboxManagerPreferredSize = null
+let blackboxManagerAutomaticBounds = null
 let blackboxEditorWindow = null
 let blackboxEditorSession = null
 let applicationTray = null
@@ -2535,7 +2536,7 @@ function fitBlackboxManagerToMedia(value) {
     workArea.x,
     Math.min(
       workArea.x + workArea.width - targetWidth,
-      bounds.x,
+      Math.round(bounds.x - (targetWidth - bounds.width) / 2),
     ),
   )
   const targetY = Math.max(
@@ -2545,12 +2546,16 @@ function fitBlackboxManagerToMedia(value) {
       Math.round(bounds.y - (targetHeight - bounds.height) / 2),
     ),
   )
+  blackboxManagerAutomaticBounds = {
+    width: targetWidth,
+    height: targetHeight,
+  }
   window.setBounds({
     x: targetX,
     y: targetY,
     width: targetWidth,
     height: targetHeight,
-  }, true)
+  }, false)
   return true
 }
 
@@ -4242,6 +4247,15 @@ function openBlackboxManager() {
   let sizeSaveTimer = null
   let lastUserSize = null
   let closing = false
+  const rememberUserSize = bounds => {
+    lastUserSize = {
+      width: Math.max(900, Math.round(bounds.width)),
+      height: Math.max(680, Math.round(bounds.height)),
+    }
+    blackboxManagerPreferredSize = { ...lastUserSize }
+    clearTimeout(sizeSaveTimer)
+    sizeSaveTimer = setTimeout(saveUserSize, 200)
+  }
   const saveUserSize = () => {
     if (!lastUserSize) return
     void writeJsonAtomic(getBlackboxPaths().windowStatePath, {
@@ -4274,13 +4288,20 @@ function openBlackboxManager() {
     animateOpacity(0, 1, 300)
   })
   window.on("will-resize", (_event, newBounds) => {
-    lastUserSize = {
-      width: Math.max(900, Math.round(newBounds.width)),
-      height: Math.max(680, Math.round(newBounds.height)),
+    rememberUserSize(newBounds)
+  })
+  window.on("resize", () => {
+    const resizedBounds = window.getBounds()
+    const automatic = blackboxManagerAutomaticBounds
+    blackboxManagerAutomaticBounds = null
+    if (
+      automatic
+      && Math.abs(resizedBounds.width - automatic.width) <= 1
+      && Math.abs(resizedBounds.height - automatic.height) <= 1
+    ) {
+      return
     }
-    blackboxManagerPreferredSize = { ...lastUserSize }
-    clearTimeout(sizeSaveTimer)
-    sizeSaveTimer = setTimeout(saveUserSize, 200)
+    rememberUserSize(resizedBounds)
   })
   window.on("close", event => {
     if (closing) return

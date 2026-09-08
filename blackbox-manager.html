@@ -1093,7 +1093,7 @@
             void removeClip(clip)
           })
           clipList.append(item)
-          if (clip.name === selectedClipName) {
+          if (clip.name === selectedClipName || (!selectedClipName && clip === clips[0])) {
             selectedClipFound = true
             selectClip(clip, item)
           }
