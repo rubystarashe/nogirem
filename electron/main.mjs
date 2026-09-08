@@ -291,6 +291,7 @@ function registerBlackboxEditorProtocol() {
     const [sessionId, trackId] = url.pathname.split("/").filter(Boolean)
     const session = blackboxEditorSession
     const trackPath = session?.trackFiles?.get(trackId)
+      ?? session?.chunkFiles?.get(trackId)
     if (
       url.hostname !== "editor"
       || !session
@@ -2329,21 +2330,13 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
   const seconds = Math.max(30, Math.min(21600, Math.round(Number(requestedSeconds) || 900)))
   return queueBlackboxEditorOperation(session, async () => {
     if (session.closed) throw new Error("블랙박스 편집 창이 닫혔습니다")
-    const outputPath = join(
-      session.directory,
-      `track-${seconds}-${Date.now()}.mp4`,
-    )
+    const ringDirectory = join(getBlackboxPaths().storagePath, "Ring")
     const metadataOutput = await runRecorderUtility([
-      "--mode=track",
-      `--ring-path=${join(getBlackboxPaths().storagePath, "Ring")}`,
-      `--output=${outputPath}`,
+      "--mode=index",
+      `--ring-path=${ringDirectory}`,
       `--anchor-ms=${session.anchorAt}`,
       `--seconds=${seconds}`,
     ])
-    const outputStat = await stat(outputPath)
-    if (!outputStat.isFile() || outputStat.size === 0) {
-      throw new Error("편집 트랙에 재생할 영상이 없습니다")
-    }
     let metadata = {}
     try {
       metadata = JSON.parse(metadataOutput)
@@ -2351,8 +2344,7 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
       metadata = {}
     }
     const previousTrackPath = session.trackPath
-    const trackId = randomUUID()
-    session.trackPath = outputPath
+    session.trackPath = null
     session.trackSeconds = seconds
     session.trackMediaSeconds = Math.max(
       0,
@@ -2365,22 +2357,35 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
     session.trackSegments = Array.isArray(metadata.segments)
       ? metadata.segments
       : []
-    session.trackFiles.set(trackId, outputPath)
-    if (previousTrackPath && previousTrackPath !== outputPath) {
-      setTimeout(() => {
-        for (const [identifier, path] of session.trackFiles) {
-          if (path === previousTrackPath) session.trackFiles.delete(identifier)
-        }
-        void unlink(previousTrackPath).catch(() => {})
-      }, 5000)
+    session.chunkFiles.clear()
+    const playbackSegments = []
+    for (const chunk of Array.isArray(metadata.chunks) ? metadata.chunks : []) {
+      const fileName = typeof chunk?.fileName === "string" ? chunk.fileName : ""
+      if (!/^chunk-\d+\.mp4$/.test(fileName)) continue
+      const chunkPath = join(ringDirectory, fileName)
+      if (!existsSync(chunkPath)) continue
+      const trackId = randomUUID()
+      const videoUrl = `nogirem-blackbox://editor/${session.id}/${trackId}?v=${fileName}`
+      session.chunkFiles.set(trackId, chunkPath)
+      playbackSegments.push({
+        timelineStartSeconds: Number(chunk.timelineStartSeconds) || 0,
+        mediaStartSeconds: 0,
+        durationSeconds: Number(chunk.durationSeconds) || 0,
+        videoUrl,
+      })
+    }
+    if (!playbackSegments.length) throw new Error("편집할 녹화 청크가 없습니다")
+    if (previousTrackPath) {
+      session.trackFiles.clear()
+      void unlink(previousTrackPath).catch(() => {})
     }
     return {
       anchorAt: session.anchorAt,
       gaps: Array.isArray(metadata.gaps) ? metadata.gaps : [],
-      segments: session.trackSegments,
+      segments: playbackSegments,
       timelineDurationSeconds: session.trackTimelineSeconds,
       requestedSeconds: seconds,
-      videoUrl: `nogirem-blackbox://editor/${session.id}/${trackId}?v=${outputStat.mtimeMs}`,
+      videoUrl: playbackSegments[0].videoUrl,
     }
   })
 }
@@ -2429,6 +2434,31 @@ function buildBlackboxExtractionPieces(
   return pieces.filter(piece => piece.duration >= 0.01)
 }
 
+async function ensureBlackboxEditorTrackMedia(session, onProgress = null) {
+  if (session.trackPath && existsSync(session.trackPath)) return session.trackPath
+  const outputPath = join(
+    session.directory,
+    `track-${session.trackSeconds}-${Date.now()}.mp4`,
+  )
+  onProgress?.(1)
+  await runRecorderUtility([
+    "--mode=track",
+    `--ring-path=${join(getBlackboxPaths().storagePath, "Ring")}`,
+    `--output=${outputPath}`,
+    `--anchor-ms=${session.anchorAt}`,
+    `--seconds=${session.trackSeconds}`,
+  ])
+  const outputStat = await stat(outputPath)
+  if (!outputStat.isFile() || outputStat.size === 0) {
+    throw new Error("추출할 편집 트랙을 만들지 못했습니다")
+  }
+  session.trackPath = outputPath
+  const trackId = randomUUID()
+  session.trackFiles.set(trackId, outputPath)
+  onProgress?.(15)
+  return outputPath
+}
+
 async function extractBlackboxEditorRange(session, value, onProgress = null) {
   const startSeconds = Math.max(0, Number(value?.startSeconds) || 0)
   const durationSeconds = Math.max(1, Math.min(21600, Number(value?.durationSeconds) || 30))
@@ -2437,9 +2467,7 @@ async function extractBlackboxEditorRange(session, value, onProgress = null) {
     ? Number(value.playbackSpeed)
     : 1
   return queueBlackboxEditorOperation(session, async () => {
-    if (session.closed || !session.trackPath) {
-      throw new Error("먼저 편집 트랙을 준비하세요")
-    }
+    if (session.closed) throw new Error("먼저 편집 트랙을 준비하세요")
     if (startSeconds + durationSeconds > session.trackTimelineSeconds + 0.5) {
       throw new Error("선택한 추출 구간이 편집 트랙을 벗어났습니다")
     }
@@ -2463,9 +2491,10 @@ async function extractBlackboxEditorRange(session, value, onProgress = null) {
         : `black:${Math.round(piece.duration * 1000)}`
     )).join(";")
     onProgress?.(0)
+    const trackPath = await ensureBlackboxEditorTrackMedia(session, onProgress)
     await runRecorderUtility([
       "--mode=compose",
-      `--input=${session.trackPath}`,
+      `--input=${trackPath}`,
       `--output=${outputPath}`,
       `--pieces=${encodedPieces}`,
       `--speed-milli=${Math.round(playbackSpeed * 1000)}`,
@@ -4676,6 +4705,7 @@ function createBlackboxEditorSession() {
     preparePromise: null,
     trackPath: null,
     trackFiles: new Map(),
+    chunkFiles: new Map(),
     trackSeconds: 900,
     trackMediaSeconds: 0,
     trackTimelineSeconds: 900,

@@ -87,6 +87,8 @@ let playbackStartTimeline = 0
 let trackGaps = []
 let lastOutputPath = ""
 let extracting = false
+let currentVideoUrl = ""
+let videoLoadId = 0
 
 function messageOf(error) {
   return error?.message?.replace(/^Error invoking remote method '[^']+': Error: /, "")
@@ -238,6 +240,10 @@ function syncPreviewToTimeline() {
   }
   const targetMediaTime = segment.mediaStart
     + Math.max(0, Math.min(segment.duration, timelineCursor - segment.timelineStart))
+  if (segment.videoUrl && currentVideoUrl !== segment.videoUrl) {
+    switchSegmentVideo(segment.videoUrl)
+    return
+  }
   if (Math.abs(video.currentTime - targetMediaTime) > 0.12) {
     video.currentTime = targetMediaTime
   }
@@ -249,6 +255,22 @@ function syncPreviewToTimeline() {
       setNotice(`영상을 재생할 수 없습니다: ${messageOf(error)}`, true)
     })
   }
+}
+
+function switchSegmentVideo(url) {
+  const loadId = ++videoLoadId
+  currentVideoUrl = url
+  video.pause()
+  video.src = url
+  video.addEventListener("loadedmetadata", () => {
+    if (loadId !== videoLoadId) return
+    fitCurrentMedia()
+    syncPreviewToTimeline()
+  }, { once: true })
+  video.addEventListener("error", () => {
+    if (loadId === videoLoadId) setNotice("녹화 청크를 재생할 수 없습니다", true)
+  }, { once: true })
+  video.load()
 }
 
 function setTimelineCursor(time) {
@@ -315,41 +337,32 @@ function fitCurrentMedia() {
 
 function loadVideo(url, preserveFromEnd = 0) {
   return new Promise((resolve, reject) => {
+    const loadId = ++videoLoadId
+    currentVideoUrl = url
     const cleanup = () => {
       video.removeEventListener("loadedmetadata", onLoaded)
       video.removeEventListener("error", onError)
     }
     const onLoaded = () => {
       cleanup()
-      duration = Number.isFinite(video.duration) ? video.duration : 0
-      if (!duration) {
+      if (loadId !== videoLoadId) return
+      const mediaDuration = Number.isFinite(video.duration) ? video.duration : 0
+      if (!mediaDuration) {
         reject(new Error("재생 가능한 영상 길이를 확인하지 못했습니다"))
         return
       }
+      duration = timelineDuration || mediaDuration
       fitCurrentMedia()
       if (!trackSegments.length) {
-        timelineDuration = duration
+        timelineDuration = mediaDuration
+        duration = mediaDuration
         trackSegments = [{
           timelineStart: 0,
           mediaStart: 0,
-          duration,
+          duration: mediaDuration,
+          videoUrl: url,
         }]
       }
-      if (!initialTrackLoaded) {
-        const latestSegment = trackSegments.at(-1)
-        selectionDuration = Math.min(30, latestSegment.duration)
-        selectionStart = latestSegment.timelineStart
-          + latestSegment.duration
-          - selectionDuration
-        initialTrackLoaded = true
-      } else {
-        selectionStart = Math.max(
-          0,
-          timelineDuration - preserveFromEnd - selectionDuration,
-        )
-        clampSelection()
-      }
-      setTimelineCursor(selectionStart)
       resolve()
     }
     const onError = () => {
@@ -376,12 +389,29 @@ async function applyTrack(result, preserveFromEnd = 0) {
           timelineStart: Math.max(0, Number(segment?.timelineStartSeconds) || 0),
           mediaStart: Math.max(0, Number(segment?.mediaStartSeconds) || 0),
           duration: Math.max(0, Number(segment?.durationSeconds) || 0),
+          videoUrl: typeof segment?.videoUrl === "string" ? segment.videoUrl : "",
         }))
         .filter(segment => segment.duration >= 1)
     : []
   setTrackLengthInputs(requestedTrackSeconds)
   anchorTime.textContent = `${new Date(result.anchorAt).toLocaleTimeString("ko-KR")} 기준`
-  await loadVideo(result.videoUrl, preserveFromEnd)
+  if (!initialTrackLoaded) {
+    const latestSegment = trackSegments.at(-1)
+    selectionDuration = Math.min(30, latestSegment.duration)
+    selectionStart = latestSegment.timelineStart
+      + latestSegment.duration
+      - selectionDuration
+    initialTrackLoaded = true
+  } else {
+    selectionStart = Math.max(
+      0,
+      timelineDuration - preserveFromEnd - selectionDuration,
+    )
+    clampSelection()
+  }
+  const initialSegment = segmentAtTimelineTime(selectionStart)
+  await loadVideo(initialSegment?.videoUrl || result.videoUrl)
+  setTimelineCursor(selectionStart)
   renderTrackGaps()
   editor.className = "editor ready"
   setBusy(false)

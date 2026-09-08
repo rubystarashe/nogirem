@@ -1662,11 +1662,18 @@ TrackTimelineMetadata trackTimelineMetadata(
     double mediaStart;
     double duration;
   };
+  struct Chunk {
+    std::wstring fileName;
+    double timelineStart;
+    double mediaStart;
+    double duration;
+  };
 
   const auto windowStart =
     anchorMilliseconds - static_cast<std::int64_t>(seconds) * 1000;
   constexpr double continuityToleranceSeconds = 1.5;
   std::vector<Segment> segments;
+  std::vector<Chunk> visibleChunks;
   double mediaCursor = 0.0;
   LONGLONG mediaDuration = 0;
   double previousTimelineEnd = 0.0;
@@ -1697,6 +1704,12 @@ TrackTimelineMetadata trackTimelineMetadata(
       std::max(0.0, static_cast<double>(seconds) - timelineStart)
     );
     if (visibleDuration > 0.0) {
+      visibleChunks.push_back({
+        chunk.filename().wstring(),
+        timelineStart,
+        mediaCursor,
+        visibleDuration
+      });
       if (joinsPreviousSegment) {
         segments.back().duration += visibleDuration;
       } else {
@@ -1721,6 +1734,15 @@ TrackTimelineMetadata trackTimelineMetadata(
     output << "{\"timelineStartSeconds\":" << segment.timelineStart
       << ",\"mediaStartSeconds\":" << segment.mediaStart
       << ",\"durationSeconds\":" << segment.duration << '}';
+  }
+  output << "],\"chunks\":[";
+  for (std::size_t index = 0; index < visibleChunks.size(); ++index) {
+    if (index > 0) output << ',';
+    const auto& chunk = visibleChunks[index];
+    output << "{\"fileName\":\"" << jsonEscape(chunk.fileName) << '"'
+      << ",\"timelineStartSeconds\":" << chunk.timelineStart
+      << ",\"mediaStartSeconds\":" << chunk.mediaStart
+      << ",\"durationSeconds\":" << chunk.duration << '}';
   }
   output << "],\"gaps\":[";
   double gapStart = 0.0;
@@ -2991,9 +3013,8 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
   check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
   SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
   try {
-    if (mode == L"track") {
+    if (mode == L"track" || mode == L"index") {
       const fs::path ringPath = arguments.at(L"ring-path");
-      const fs::path outputPath = arguments.at(L"output");
       const auto anchorMilliseconds = wideInteger(
         arguments,
         L"anchor-ms",
@@ -3010,22 +3031,25 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
           seconds
       ));
       if (chunks.empty()) throw std::runtime_error("편집할 녹화 청크가 없습니다");
-      fs::create_directories(outputPath.parent_path());
       const auto timelineMetadata = trackTimelineMetadata(
         chunks,
         anchorMilliseconds,
         seconds
       );
-      if (!remuxChunksAtomically(
-        chunks,
-        outputPath,
-        0,
-        timelineMetadata.mediaDuration,
-        false,
-        1.0,
-        true
-      )) {
-        throw std::runtime_error("편집 트랙을 만들지 못했습니다");
+      if (mode == L"track") {
+        const fs::path outputPath = arguments.at(L"output");
+        fs::create_directories(outputPath.parent_path());
+        if (!remuxChunksAtomically(
+          chunks,
+          outputPath,
+          0,
+          timelineMetadata.mediaDuration,
+          false,
+          1.0,
+          true
+        )) {
+          throw std::runtime_error("편집 트랙을 만들지 못했습니다");
+        }
       }
       std::cout << timelineMetadata.json << '\n';
     } else if (mode == L"compose") {
@@ -3087,6 +3111,7 @@ int wmain(int count, wchar_t** values) {
     arguments.count(L"mode")
     && (
       arguments.at(L"mode") == L"track"
+      || arguments.at(L"mode") == L"index"
       || arguments.at(L"mode") == L"compose"
       || arguments.at(L"mode") == L"extract"
     )
