@@ -282,6 +282,23 @@ video {
   cursor: grabbing;
 }
 
+.selection-handle {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  cursor: ew-resize;
+}
+
+.selection-handle.start {
+  left: -7px;
+}
+
+.selection-handle.end {
+  right: -7px;
+}
+
 .selection-guide::before,
 .selection-guide::after {
   position: absolute;

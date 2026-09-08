@@ -187,8 +187,13 @@ function seekFromPointer(event) {
   if (!duration || busy) return
   const bounds = timeline.getBoundingClientRect()
   const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
-  video.currentTime = ratio * duration
-  previewingSelection = false
+  const targetTime = ratio * duration
+  video.currentTime = targetTime
+  previewingSelection = (
+    !video.paused
+    && targetTime >= selectionStart
+    && targetTime < selectionStart + selectionDuration
+  )
   renderTimeline()
 }
 
@@ -322,7 +327,7 @@ video.addEventListener("timeupdate", () => {
     && video.currentTime >= selectionStart + selectionDuration
   ) {
     video.pause()
-    video.currentTime = selectionStart
+    video.currentTime = selectionStart + selectionDuration
     previewingSelection = false
   }
   renderTimeline()
@@ -340,9 +345,19 @@ video.addEventListener("pause", () => {
 
 async function togglePlayback() {
   if (!duration || busy) return
-  previewingSelection = false
   if (video.paused) {
     if (video.currentTime >= duration) video.currentTime = 0
+    const selectionEnd = selectionStart + selectionDuration
+    if (
+      video.currentTime >= selectionEnd - 0.01
+      && video.currentTime <= selectionEnd + 0.05
+    ) {
+      video.currentTime = selectionStart
+    }
+    previewingSelection = (
+      video.currentTime >= selectionStart - 0.01
+      && video.currentTime < selectionEnd - 0.01
+    )
     try {
       await video.play()
       setNotice("")
@@ -351,6 +366,7 @@ async function togglePlayback() {
     }
   } else {
     video.pause()
+    previewingSelection = false
   }
 }
 
