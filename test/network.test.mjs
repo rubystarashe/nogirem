@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
 import {
+  checkNetworkConnectivity,
   ensureFastPingForPrimaryInterface,
   ensureTcpAutoTuningNormal,
   isFastPingConfigured,
@@ -199,6 +200,64 @@ test("기본 경로에 대응하는 어댑터가 없으면 패스트핑을 안�
   assert.deepEqual(calls, [false])
 })
 
+test("가상 어댑터나 타사 필터 환경에서는 패스트핑 적용을 차단한다", async () => {
+  const calls = []
+  const result = await ensureFastPingForPrimaryInterface({
+    applyChanges: true,
+    runner: async applyChanges => {
+      calls.push(applyChanges)
+      return {
+        ...baseStatus,
+        compatible: false,
+        compatibilityReason: "타사 네트워크 필터가 연결됨",
+        TcpAckFrequency: null,
+        TCPNoDelay: null,
+      }
+    },
+  })
+
+  assert.equal(result.compatibilityBlocked, true)
+  assert.equal(result.reason, "타사 네트워크 필터가 연결됨")
+  assert.deepEqual(calls, [false])
+})
+
+test("IP·기본 경로·게이트웨이·DNS·HTTPS가 모두 정상이면 연결 정상으로 판정한다", async () => {
+  const result = await checkNetworkConnectivity({
+    runner: async () => ({
+      validIpv4: true,
+      defaultRoute: true,
+      gateway: true,
+      dns: true,
+      https: true,
+    }),
+  })
+
+  assert.equal(result.healthy, true)
+  assert.equal(result.attempts, 1)
+})
+
+test("연결 검사 실패는 지정 횟수만큼 재시도한다", async () => {
+  let calls = 0
+  const result = await checkNetworkConnectivity({
+    attempts: 3,
+    intervalMs: 0,
+    runner: async () => {
+      calls += 1
+      return {
+        validIpv4: true,
+        defaultRoute: true,
+        gateway: true,
+        dns: calls >= 3,
+        https: calls >= 3,
+      }
+    },
+  })
+
+  assert.equal(result.healthy, true)
+  assert.equal(result.attempts, 3)
+  assert.equal(calls, 3)
+})
+
 test("적용 후 값이 다르면 검증 오류를 발생시킨다", async () => {
   const runner = async () => ({
     ...baseStatus,
@@ -328,9 +387,15 @@ test("패스트핑 원본 기록과 기록 없는 기본값 복원이 IPC와 UI�
     electronMain,
     /async function restoreNetworkDirect\(\)[\s\S]*ensureTcpAutoTuningNormal\(\)/,
   )
+  assert.match(electronMain, /async function validateFastPingConnectivityAtStartup\(\)/)
+  assert.match(electronMain, /attempts: 10,[\s\S]*intervalMs: 3000/)
+  assert.match(electronMain, /if \(!connectivity\.healthy && fastPing\.configured\)/)
+  assert.match(electronMain, /showNetworkRollbackDialog/)
+  assert.match(electronMain, /createWindow\(\)[\s\S]*validateFastPingConnectivityAtStartup\(\)/)
   assert.match(electronMain, /optimization:restore-network/)
   assert.match(electronPreload, /restoreNetwork: \(\) => ipcRenderer\.invoke\("optimization:restore-network"\)/)
   assert.match(applicationView, /설정 되돌리기/)
   assert.match(applicationView, /TCP 자동 조정은 유지합니다/)
+  assert.match(applicationView, /앱 시작 시 연결을 검사하며 이상이 반복되면 원래 설정으로 자동 복원/)
   assert.match(applicationStyles, /\.detail-restore/)
 })

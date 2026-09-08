@@ -11,6 +11,7 @@ import { randomUUID } from "node:crypto"
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, net, protocol, screen, shell, Tray } from "electron"
 import updaterPackage from "electron-updater"
 import {
+  checkNetworkConnectivity,
   ensureFastPingForPrimaryInterface,
   ensureTcpAutoTuningNormal,
   restoreFastPingForInterface,
@@ -1300,6 +1301,47 @@ async function checkNetwork() {
     originalStateRecorded: Boolean(originalState),
     optimized: (fastPing.supported === false || fastPing.configured)
       && tcpAutoTuning.optimized,
+  }
+}
+
+async function showNetworkRollbackDialog(message) {
+  const options = {
+    type: "warning",
+    title: "패스트핑 설정 자동 복원",
+    message: "인터넷 연결 이상을 감지했습니다",
+    detail: message,
+    buttons: ["확인"],
+    defaultId: 0,
+    noLink: true,
+  }
+  const window = primaryWindow
+  if (window && !window.isDestroyed()) {
+    await dialog.showMessageBox(window, options)
+  } else {
+    await dialog.showMessageBox(options)
+  }
+}
+
+async function validateFastPingConnectivityAtStartup() {
+  const savedState = await readJson(getNetworkStatePath())
+  if (
+    typeof savedState?.interfaceGuid !== "string"
+    || !Number.isInteger(Number(savedState?.interfaceIndex))
+  ) return
+  const connectivity = await checkNetworkConnectivity({
+    attempts: 10,
+    intervalMs: 3000,
+  })
+  if (connectivity.healthy) return
+  try {
+    await restoreNetwork()
+    await showNetworkRollbackDialog(
+      "앱 시작 검사에서 연결 이상이 반복되어 저장된 어댑터 설정을 원래 값으로 복원하고 네트워크 어댑터를 다시 시작했습니다.",
+    )
+  } catch (error) {
+    await showNetworkRollbackDialog(
+      `자동 복원에 실패했습니다. 네트워크 설정의 '설정 되돌리기'를 실행해 주세요.\n\n${error.message}`,
+    )
   }
 }
 
@@ -3345,6 +3387,16 @@ async function optimizeNetworkDirect() {
   const statePath = argumentValue("network-state-path")
   if (!statePath) throw new Error("패스트핑 원본 설정 저장 경로가 없습니다")
   const beforeFastPing = await ensureFastPingForPrimaryInterface()
+  if (!beforeFastPing.configured && beforeFastPing.current?.compatible === false) {
+    throw new Error(
+      beforeFastPing.current.compatibilityReason
+        ?? "현재 네트워크 환경에는 패스트핑을 적용하지 않습니다",
+    )
+  }
+  const baselineConnectivity = await checkNetworkConnectivity()
+  if (!baselineConnectivity.healthy) {
+    throw new Error("현재 인터넷 연결이 정상적이지 않아 패스트핑을 적용하지 않았습니다")
+  }
   if (
     beforeFastPing.supported !== false
     && !beforeFastPing.configured
@@ -3366,16 +3418,45 @@ async function optimizeNetworkDirect() {
     applyChanges: true,
     restartAfterApply: true,
   })
+  const connectivity = await checkNetworkConnectivity({
+    attempts: 10,
+    intervalMs: 3000,
+  })
+  if (!connectivity.healthy && fastPing.configured) {
+    const savedState = await readJson(statePath)
+    const target = typeof savedState?.interfaceGuid === "string"
+      ? savedState
+      : {
+          interfaceAlias: fastPing.current.interfaceAlias,
+          interfaceIndex: fastPing.current.interfaceIndex,
+          interfaceGuid: fastPing.current.interfaceGuid,
+          TcpAckFrequency: beforeFastPing.current.TcpAckFrequency ?? null,
+          TCPNoDelay: beforeFastPing.current.TCPNoDelay ?? null,
+        }
+    const rollback = await restoreFastPingForInterface(target, {
+      restartAfterRestore: true,
+    })
+    await unlink(statePath).catch(() => {})
+    return {
+      fastPing: rollback,
+      tcpAutoTuning,
+      connectivity,
+      rolledBack: true,
+      optimized: false,
+    }
+  }
   return {
     fastPing,
     tcpAutoTuning,
+    connectivity,
+    rolledBack: false,
     optimized: (fastPing.supported === false || fastPing.configured)
       && tcpAutoTuning.optimized,
   }
 }
 
 async function optimizeNetwork() {
-  return runElevatedOptimization(
+  const result = await runElevatedOptimization(
     "--network-helper",
     "네트워크 최적화 실패",
     [
@@ -3383,6 +3464,12 @@ async function optimizeNetwork() {
       `--network-state-path=${getNetworkStatePath()}`,
     ],
   )
+  if (result.rolledBack) {
+    void showNetworkRollbackDialog(
+      "네트워크 최적화 후 인터넷 연결 이상을 감지해 패스트핑 설정을 원래 값으로 복원했습니다.",
+    )
+  }
+  return result
 }
 
 async function restoreNetworkDirect() {
@@ -3417,6 +3504,7 @@ async function restoreNetworkDirect() {
   const fastPing = await restoreFastPingForInterface(target, {
     restartAfterRestore: true,
   })
+  await unlink(statePath).catch(() => {})
   const tcpAutoTuning = await ensureTcpAutoTuningNormal()
   return {
     fastPing,
@@ -5288,6 +5376,9 @@ async function startApplication() {
   configureApplicationUpdater()
   ensureApplicationTray()
   createWindow()
+  void validateFastPingConnectivityAtStartup().catch(error => {
+    console.error("앱 시작 패스트핑 연결 검사 실패", error)
+  })
 
   void startFocusRequestMonitor()
     .catch(error => console.error("포커스 요청 감시 시작 실패", error))
