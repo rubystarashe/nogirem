@@ -34,6 +34,7 @@ const exportModal = document.querySelector(".export-modal")
 const exportDialog = document.querySelector(".export-dialog")
 const exportCancelButton = document.querySelector(".export-cancel")
 const gapPolicyField = document.querySelector(".gap-policy-field")
+const exportNameInput = document.querySelector(".export-name")
 const embedded = new URLSearchParams(location.search).has("embedded")
 const parentRequests = new Map()
 let nextParentRequestId = 0
@@ -67,6 +68,7 @@ const editorBridge = embedded
       fitMedia: value => requestParent("fitMedia", value),
       setTrackSeconds: seconds => requestParent("setTrackSeconds", seconds),
       extract: range => requestParent("extract", range),
+      suggestClipName: () => requestParent("suggestClipName"),
       showOutput: outputPath => requestParent("showOutput", outputPath),
     }
   : window.blackboxEditor
@@ -188,7 +190,7 @@ function renderExtractProgress(progress) {
   if (!extracting) return
   const normalized = Math.max(0, Math.min(100, Math.round(Number(progress) || 0)))
   extractButton.style.setProperty("--extract-progress", `${normalized}%`)
-  extractButton.textContent = `MP4 추출 ${normalized}%`
+  extractButton.textContent = `저장 중 ${normalized}%`
 }
 
 function renderEditorError(error, className = "editor failed") {
@@ -304,12 +306,11 @@ function setTimelineCursor(time) {
   renderTimeline()
 }
 
-function stopTimelinePlayback({ resetToSelection = false } = {}) {
+function stopTimelinePlayback() {
   timelinePlaying = false
   cancelAnimationFrame(playbackAnimationFrame)
   playbackAnimationFrame = 0
   video.pause()
-  if (resetToSelection) setTimelineCursor(selectionStart)
   renderPlaybackButton()
 }
 
@@ -322,8 +323,9 @@ function updateTimelinePlayback(now) {
     : timelineDuration
   if (timelineCursor >= playbackEnd) {
     timelineCursor = playbackEnd
-    stopTimelinePlayback({ resetToSelection: previewingSelection })
+    stopTimelinePlayback()
     previewingSelection = false
+    syncPreviewToTimeline()
     renderTimeline()
     return
   }
@@ -594,7 +596,7 @@ async function extractSelection() {
   extractButton.classList.add("extracting")
   renderExtractProgress(0)
   setBusy(true)
-  setNotice("선택한 구간을 MP4로 추출하고 있습니다")
+  setNotice("선택한 클립을 저장하고 있습니다")
   lastOutputPath = ""
   showOutputButton.classList.remove("visible")
   try {
@@ -603,6 +605,8 @@ async function extractSelection() {
       durationSeconds: selectionDuration,
       gapPolicy: gapPolicySelect.value,
       playbackSpeed: selectedPlaybackSpeed(),
+      requestedName: exportNameInput.value.trim()
+        || exportNameInput.dataset.fallbackName,
     })
     renderExtractProgress(100)
     await new Promise(resolve => setTimeout(resolve, 250))
@@ -616,22 +620,44 @@ async function extractSelection() {
     extracting = false
     extractButton.classList.remove("extracting")
     extractButton.style.removeProperty("--extract-progress")
-    extractButton.textContent = "MP4 추출"
+    extractButton.textContent = "클립 저장하기"
     setBusy(false)
   }
 }
 
-function openExportModal() {
-  if (!duration || busy) return
+function selectionContainsGap() {
   const selectionEnd = selectionStart + selectionDuration
-  const hasGap = trackGaps.some(gap => {
-    const gapStart = Math.max(0, Number(gap?.startSeconds) || 0)
-    const gapEnd = gapStart + Math.max(0, Number(gap?.durationSeconds) || 0)
-    return gapStart < selectionEnd && gapEnd > selectionStart
-  })
-  gapPolicyField.hidden = !hasGap
+  let coveredUntil = selectionStart
+  const ranges = trackSegments
+    .map(segment => ({
+      start: Math.max(selectionStart, segment.timelineStart),
+      end: Math.min(
+        selectionEnd,
+        segment.timelineStart + segment.duration,
+      ),
+    }))
+    .filter(range => range.end > range.start)
+    .sort((left, right) => left.start - right.start)
+  for (const range of ranges) {
+    if (range.start > coveredUntil + 0.1) return true
+    coveredUntil = Math.max(coveredUntil, range.end)
+    if (coveredUntil >= selectionEnd - 0.1) return false
+  }
+  return coveredUntil < selectionEnd - 0.1
+}
+
+async function openExportModal() {
+  if (!duration || busy) return
+  gapPolicyField.hidden = !selectionContainsGap()
+  exportNameInput.value = ""
+  exportNameInput.placeholder = "클립 이름"
+  exportNameInput.dataset.fallbackName = ""
   exportModal.hidden = false
-  playbackSpeedSelect.focus()
+  exportNameInput.focus()
+  const fallbackName = await editorBridge.suggestClipName().catch(() => "")
+  if (exportModal.hidden || !fallbackName) return
+  exportNameInput.placeholder = fallbackName
+  exportNameInput.dataset.fallbackName = fallbackName
 }
 
 function closeExportModal() {
@@ -762,6 +788,21 @@ window.addEventListener("message", event => {
     && event.data.command === "toggle-playback"
   ) {
     void togglePlayback()
+  } else if (
+    event.data?.source === "blackbox-manager-command"
+    && event.data.command === "seek-backward"
+  ) {
+    seekTimelineBy(-5)
+  } else if (
+    event.data?.source === "blackbox-manager-command"
+    && event.data.command === "seek-forward"
+  ) {
+    seekTimelineBy(5)
+  } else if (
+    event.data?.source === "blackbox-manager-command"
+    && event.data.command === "toggle-fullscreen"
+  ) {
+    void togglePreviewFullscreen()
   } else if (
     event.data?.source === "blackbox-manager-command"
     && event.data.command === "fit-media"

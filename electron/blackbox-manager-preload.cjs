@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld("blackboxManager", {
       return ipcRenderer.invoke("blackbox-manager:set-track-seconds", seconds)
     },
     extract: range => ipcRenderer.invoke("blackbox-manager:extract", range),
+    suggestClipName: () => ipcRenderer.invoke("blackbox-manager:suggest-clip-name"),
     showOutput: outputPath => {
       return ipcRenderer.invoke("blackbox-manager:show-output", outputPath)
     },

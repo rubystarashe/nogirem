@@ -558,15 +558,20 @@ body.embedded .preview:fullscreen {
   font-size: 12px;
 }
 
-.export-dialog select {
+.export-dialog select,
+.export-dialog input {
   width: 190px;
   height: 30px;
-  padding: 0 24px 0 9px;
+  padding: 0 9px;
   border: 1px solid #343a3d;
   border-radius: 6px;
   color: #d5dadd;
   background: #1b1f21;
   font: inherit;
+}
+
+.export-dialog select {
+  padding-right: 24px;
 }
 
 .export-dialog-actions {

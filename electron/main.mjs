@@ -2548,6 +2548,9 @@ async function extractBlackboxEditorRange(session, value, onProgress = null) {
   const startSeconds = Math.max(0, Number(value?.startSeconds) || 0)
   const durationSeconds = Math.max(1, Math.min(21600, Number(value?.durationSeconds) || 30))
   const gapPolicy = value?.gapPolicy === "skip" ? "skip" : "black"
+  const requestedFileName = String(value?.requestedName ?? "").trim()
+    ? normalizeBlackboxClipFileName(value.requestedName)
+    : ""
   const playbackSpeed = [0.5, 0.75, 1, 1.25, 1.5, 2].includes(Number(value?.playbackSpeed))
     ? Number(value.playbackSpeed)
     : 1
@@ -2559,8 +2562,16 @@ async function extractBlackboxEditorRange(session, value, onProgress = null) {
     const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
     const outputPath = join(
       clipsDirectory,
-      `마비노기-추출-${blackboxEditorDateName()}.mp4`,
+      requestedFileName || `마비노기-추출-${blackboxEditorDateName()}.mp4`,
     )
+    if (requestedFileName) {
+      try {
+        await access(outputPath)
+        throw new Error("같은 이름의 클립이 이미 있습니다")
+      } catch (error) {
+        if (error?.code !== "ENOENT") throw error
+      }
+    }
     const pieces = buildBlackboxExtractionPieces(
       session,
       startSeconds,
@@ -2625,6 +2636,30 @@ async function listBlackboxClips() {
   return clips.sort((left, right) => right.modifiedAt - left.modifiedAt)
 }
 
+async function suggestBlackboxClipName() {
+  const clips = await listBlackboxClips()
+  let highest = 0
+  for (const clip of clips) {
+    const match = /^(\d+)번째 클립\.mp4$/i.exec(clip.name)
+    if (match) highest = Math.max(highest, Number(match[1]))
+  }
+  return `${highest + 1}번째 클립`
+}
+
+function normalizeBlackboxClipFileName(requestedName) {
+  const baseName = String(requestedName ?? "").trim().replace(/\.mp4$/i, "")
+  if (
+    !baseName
+    || baseName.length > 120
+    || /[<>:"/\\|?*\u0000-\u001f]/.test(baseName)
+    || /[. ]$/.test(baseName)
+    || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(baseName)
+  ) {
+    throw new Error("클립 이름에 사용할 수 없는 문자가 있습니다")
+  }
+  return `${baseName}.mp4`
+}
+
 function blackboxClipPath(fileName) {
   if (
     typeof fileName !== "string"
@@ -2647,17 +2682,7 @@ async function openBlackboxClip(fileName) {
 
 async function renameBlackboxClip(fileName, requestedName) {
   const sourcePath = blackboxClipPath(fileName)
-  const baseName = String(requestedName ?? "").trim().replace(/\.mp4$/i, "")
-  if (
-    !baseName
-    || baseName.length > 120
-    || /[<>:"/\\|?*\u0000-\u001f]/.test(baseName)
-    || /[. ]$/.test(baseName)
-    || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(baseName)
-  ) {
-    throw new Error("클립 이름에 사용할 수 없는 문자가 있습니다")
-  }
-  const nextName = `${baseName}.mp4`
+  const nextName = normalizeBlackboxClipFileName(requestedName)
   const destinationPath = blackboxClipPath(nextName)
   if (sourcePath === destinationPath) return { name: nextName }
   await access(sourcePath)
@@ -4108,6 +4133,12 @@ function registerIpc() {
       }
     })
   })
+  ipcMain.handle("blackbox-editor:suggest-clip-name", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxEditorWindow) {
+      throw new Error("허용되지 않은 블랙박스 클립 이름 요청입니다")
+    }
+    return suggestBlackboxClipName()
+  })
   ipcMain.handle("blackbox-editor:show-output", async (event, outputPath) => {
     const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
     if (
@@ -4315,6 +4346,12 @@ function registerIpc() {
         event.sender.send("blackbox-editor:extract-progress", progress)
       }
     })
+  })
+  ipcMain.handle("blackbox-manager:suggest-clip-name", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
+      throw new Error("허용되지 않은 블랙박스 클립 이름 요청입니다")
+    }
+    return suggestBlackboxClipName()
   })
   ipcMain.handle("blackbox-manager:show-output", (event, outputPath) => {
     const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")

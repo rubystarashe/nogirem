@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("blackboxEditor", {
     return ipcRenderer.invoke("blackbox-editor:set-track-seconds", seconds)
   },
   extract: range => ipcRenderer.invoke("blackbox-editor:extract", range),
+  suggestClipName: () => ipcRenderer.invoke("blackbox-editor:suggest-clip-name"),
   onExtractProgress: callback => {
     const listener = (_event, progress) => callback(Number(progress) || 0)
     ipcRenderer.on("blackbox-editor:extract-progress", listener)

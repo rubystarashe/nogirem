@@ -1315,15 +1315,22 @@
           closeClipSaveModal()
           return
         }
+        const editorCommand = {
+          ArrowLeft: "seek-backward",
+          ArrowRight: "seek-forward",
+          Enter: "toggle-fullscreen",
+          Space: "toggle-playback",
+        }[event.code]
         if (
-          event.code !== "Space"
+          !editorCommand
           || document.body.dataset.page !== "extract"
-          || ["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(event.target?.tagName)
+          || ["INPUT", "SELECT", "TEXTAREA"].includes(event.target?.tagName)
+          || event.target?.isContentEditable
         ) return
         event.preventDefault()
         extractFrame.contentWindow.postMessage({
           source: "blackbox-manager-command",
-          command: "toggle-playback",
+          command: editorCommand,
         }, "*")
       })
 
@@ -1340,6 +1347,7 @@
           "fitMedia",
           "setTrackSeconds",
           "extract",
+          "suggestClipName",
           "showOutput",
         ])
         try {
