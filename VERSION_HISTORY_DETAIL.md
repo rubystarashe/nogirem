@@ -39,6 +39,9 @@
 - 첫 트랙의 추출 범위를 최근 최대 30초로 다시 초기화해 1초 범위로 축소되는 상태를 복구
 - 재생 버튼과 영상 클릭 및 스페이스 입력을 하나의 재생·일시정지 함수로 통합하고 브라우저 재생 실패 사유를 편집 화면에 표시
 - 상단 상태 카드 3개를 제거하고 타이틀 오른쪽에 녹색 점과 `녹화 중`, 화면 우측 끝에 사용 용량과 누적 길이만 표시
+- 편집·저장 클립 프로토콜에 단일 byte-range 요청을 처리하는 `206 Partial Content`, `Content-Range`, `Accept-Ranges` 응답을 구현해 대용량 MP4 전체 로드 전에도 재생·시간 이동 지원
+- 각 4초 MP4가 별도 AAC 인코더를 시작하며 만드는 첫 1024-sample priming frame을 청크 결합 시 제거하고 이후 오디오 timestamp를 한 frame 당겨 주기적인 약 20ms 무음 제거
+- 기존 60초 편집 트랙에서 약 4초마다 반복되던 20~27ms 디지털 무음과 수정 트랙의 연속 오디오 packet timestamp를 ffmpeg·ffprobe로 비교 검증
 - 별도 `recorder-helper.exe`가 마비노기 `Client.exe` 창을 Windows Graphics Capture로 외부 캡처하며 게임 프로세스 주입이나 렌더링 hook은 사용하지 않음
 - Windows 프로세스별 WASAPI loopback으로 `Client.exe`와 자식 프로세스의 출력 소리만 48kHz 스테레오 PCM으로 캡처하고 AAC 192kbps로 MP4에 기록
 - 프로세스별 loopback 공식 지원 기준인 Windows 빌드 20348 이상에서 사용하며 미지원 환경은 영상 녹화를 유지하고 오디오 부분 실패를 표시

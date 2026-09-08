@@ -1273,6 +1273,8 @@ bool remuxChunks(
         signature.audioSampleRate > 0
           ? 1024ll * 10000000ll / signature.audioSampleRate
           : 1024ll * 10000000ll / AudioSampleRate;
+      // 청크마다 새 AAC 인코더가 만드는 첫 priming frame을 제거한다.
+      bool firstAudioSample = true;
       while (true) {
         DWORD actualStream = 0;
         DWORD flags = 0;
@@ -1290,9 +1292,16 @@ bool remuxChunks(
         if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
         if (!sample) continue;
         if (firstAudioTime < 0) firstAudioTime = timestamp;
+        if (firstAudioSample) {
+          firstAudioSample = false;
+          continue;
+        }
         const LONGLONG duration = defaultAudioDuration;
         const LONGLONG globalTime =
-          fileStart + std::max<LONGLONG>(0, timestamp - firstAudioTime);
+          fileStart + std::max<LONGLONG>(
+            0,
+            timestamp - firstAudioTime - defaultAudioDuration
+          );
         if (globalTime + duration <= effectiveStart) continue;
         if (globalTime >= requestedEnd) break;
         const LONGLONG outputSampleTime = globalTime - requestedStart;

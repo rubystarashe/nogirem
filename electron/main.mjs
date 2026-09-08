@@ -1,11 +1,12 @@
 import { execFile, spawn } from "node:child_process"
-import { existsSync, unlinkSync } from "node:fs"
+import { createReadStream, existsSync, unlinkSync } from "node:fs"
 import { copyFile, mkdir, open as openFile, readFile, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises"
 import { arch, cpus, freemem, platform, release, tmpdir, totalmem, type, uptime } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
+import { Readable } from "node:stream"
 import { promisify } from "node:util"
-import { fileURLToPath, pathToFileURL } from "node:url"
+import { fileURLToPath } from "node:url"
 import { randomUUID } from "node:crypto"
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, net, protocol, shell, Tray } from "electron"
 import updaterPackage from "electron-updater"
@@ -216,8 +217,58 @@ function getNetworkStatePath() {
   return join(app.getPath("userData"), "network", "fast-ping-original.json")
 }
 
+async function localVideoResponse(filePath, request) {
+  const details = await stat(filePath)
+  const fileSize = details.size
+  const rangeHeader = request.headers.get("range")
+  let start = 0
+  let end = fileSize - 1
+  let status = 200
+
+  if (rangeHeader) {
+    const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim())
+    if (!match) {
+      return new Response(null, {
+        status: 416,
+        headers: { "Content-Range": `bytes */${fileSize}` },
+      })
+    }
+    if (match[1]) {
+      start = Number(match[1])
+      if (match[2]) end = Number(match[2])
+    } else if (match[2]) {
+      const suffixLength = Number(match[2])
+      start = Math.max(0, fileSize - suffixLength)
+    }
+    if (
+      !Number.isSafeInteger(start)
+      || !Number.isSafeInteger(end)
+      || start < 0
+      || end < start
+      || start >= fileSize
+    ) {
+      return new Response(null, {
+        status: 416,
+        headers: { "Content-Range": `bytes */${fileSize}` },
+      })
+    }
+    end = Math.min(end, fileSize - 1)
+    status = 206
+  }
+
+  const headers = {
+    "Accept-Ranges": "bytes",
+    "Content-Length": String(end - start + 1),
+    "Content-Type": "video/mp4",
+  }
+  if (status === 206) headers["Content-Range"] = `bytes ${start}-${end}/${fileSize}`
+  if (request.method === "HEAD") return new Response(null, { status, headers })
+  const stream = Readable.toWeb(createReadStream(filePath, { start, end }))
+  return new Response(stream, { status, headers })
+}
+
 function registerBlackboxEditorProtocol() {
-  protocol.handle("nogirem-blackbox", request => {
+  protocol.handle("nogirem-blackbox", async request => {
     const url = new URL(request.url)
     if (url.hostname === "clips") {
       const fileName = decodeURIComponent(url.pathname.slice(1))
@@ -229,9 +280,7 @@ function registerBlackboxEditorProtocol() {
       ) {
         return new Response("허용되지 않은 블랙박스 클립 요청입니다", { status: 404 })
       }
-      return net.fetch(pathToFileURL(join(clipsDirectory, fileName)).href, {
-        headers: request.headers,
-      })
+      return localVideoResponse(join(clipsDirectory, fileName), request)
     }
     const [sessionId, trackId] = url.pathname.split("/").filter(Boolean)
     const session = blackboxEditorSession
@@ -245,9 +294,7 @@ function registerBlackboxEditorProtocol() {
     ) {
       return new Response("허용되지 않은 블랙박스 영상 요청입니다", { status: 404 })
     }
-    return net.fetch(pathToFileURL(trackPath).href, {
-      headers: request.headers,
-    })
+    return localVideoResponse(trackPath, request)
   })
 }
 
