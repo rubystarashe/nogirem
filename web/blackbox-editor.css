@@ -172,7 +172,7 @@ video {
 
 .timeline-layout {
   display: grid;
-  grid-template-columns: 110px minmax(0, 1fr) 176px;
+  grid-template-columns: 190px minmax(0, 1fr) 176px;
   gap: 14px;
   align-items: end;
 }
@@ -180,16 +180,20 @@ video {
 .track-length-controls {
   position: relative;
   display: grid;
+  align-self: start;
   gap: 6px;
+  margin-top: 18px;
 }
 
 .track-status {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin-top: 2px;
   color: #899297;
   font-size: 9px;
   line-height: 1.35;
+  white-space: nowrap;
 }
 
 .track-status[hidden] {
@@ -197,11 +201,12 @@ video {
 }
 
 .track-status strong {
-  overflow: hidden;
   color: #c3c9cc;
   font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.track-length-controls > .compact-button {
+  width: 110px;
 }
 
 .compact-button {

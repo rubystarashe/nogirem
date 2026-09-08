@@ -199,6 +199,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     preloadSource,
     editorSource,
     editorScript,
+    editorStyle,
     nativeSource,
     viteSource,
   ] = await Promise.all([
@@ -207,6 +208,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     readFile(new URL("electron/blackbox-editor-preload.cjs", root), "utf8"),
     readFile(new URL("blackbox-editor.html", root), "utf8"),
     readFile(new URL("web/blackbox-editor.js", root), "utf8"),
+    readFile(new URL("web/blackbox-editor.css", root), "utf8"),
     readFile(new URL("native/recorder-helper/main.cpp", root), "utf8"),
     readFile(new URL("vite.config.mjs", root), "utf8"),
   ])
@@ -239,7 +241,11 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorSource, /class="selection-handle start"/)
   assert.match(editorSource, /class="selection-handle end"/)
   assert.match(editorSource, /class="track-gaps"/)
-  assert.match(editorSource, /class="track-status"/)
+  assert.match(editorSource, /class="track-status"[\s\S]*track-duration[\s\S]*track-usage/)
+  assert.match(editorScript, /현재 \$\{\(bytesUsed \/ 1024 \*\* 3\)\.toFixed\(1\)\} \/ 최대 \$\{capacityGb\}GB/)
+  assert.match(editorScript, /\$\{formatRecordedDuration\(durationSeconds\)\} 녹화됨/)
+  assert.match(editorStyle, /\.track-length-controls \{[\s\S]*align-self: start;[\s\S]*margin-top: 18px;/)
+  assert.match(editorStyle, /\.track-status \{[\s\S]*display: flex;/)
   assert.match(editorScript, /requestedTrackSeconds \+ 30/)
   assert.match(editorScript, /function normalizeTrackLengthInputs\(\)/)
   assert.match(editorScript, /function fitCurrentMedia\(\)/)

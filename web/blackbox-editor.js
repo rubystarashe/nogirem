@@ -114,9 +114,9 @@ function renderManagerStatus(value) {
   const bytesUsed = Math.max(0, Number(value?.bytesUsed) || 0)
   const capacityGb = Math.max(0, Number(value?.capacityGb) || 0)
   const durationSeconds = Math.max(0, Number(value?.durationSeconds) || 0)
-  trackUsage.textContent = `${(bytesUsed / 1024 ** 3).toFixed(1)} / ${capacityGb} GB`
+  trackUsage.textContent = `현재 ${(bytesUsed / 1024 ** 3).toFixed(1)} / 최대 ${capacityGb}GB`
   trackDuration.textContent = durationSeconds > 0
-    ? `${formatRecordedDuration(durationSeconds)} 누적`
+    ? `${formatRecordedDuration(durationSeconds)} 녹화됨`
     : "녹화된 영상 없음"
   trackStatus.hidden = false
 }
