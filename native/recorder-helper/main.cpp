@@ -626,6 +626,18 @@ void clearRingDirectory(const fs::path& directory) {
 }
 
 std::int64_t chunkStartedMilliseconds(const fs::path& path);
+LONGLONG compressedMediaDuration(const fs::path& input);
+
+double completedChunkDurationSeconds(const fs::path& path) {
+  try {
+    return std::max(
+      0.0,
+      static_cast<double>(compressedMediaDuration(path)) / 10000000.0
+    );
+  } catch (...) {
+    return 0;
+  }
+}
 
 class RingStorageIndex {
 public:
@@ -636,6 +648,10 @@ public:
 
   std::uint64_t bytesUsed() const {
     return bytesUsed_.load();
+  }
+
+  double durationSeconds() const {
+    return durationSeconds_.load();
   }
 
   std::uint64_t publish(
@@ -651,8 +667,10 @@ public:
       return bytesUsed_.load();
     }
     const auto started = chunkStartedMilliseconds(path);
-    chunks_.push_back({ path, size, started });
+    const auto duration = completedChunkDurationSeconds(path);
+    chunks_.push_back({ path, size, started, duration });
     std::uint64_t total = bytesUsed_.load() + size;
+    double totalDuration = durationSeconds_.load() + duration;
     std::error_code spaceError;
     auto space = fs::space(directory_, spaceError);
     const auto reserve = Gigabyte;
@@ -678,6 +696,7 @@ public:
       std::error_code removeError;
       if (fs::remove(entry.path, removeError)) {
         total = total >= entry.size ? total - entry.size : 0;
+        totalDuration = std::max(0.0, totalDuration - entry.duration);
         if (!spaceError) space.available += entry.size;
       } else {
         refreshLocked();
@@ -685,6 +704,7 @@ public:
       }
     }
     bytesUsed_ = total;
+    durationSeconds_ = totalDuration;
     return total;
   }
 
@@ -700,6 +720,7 @@ private:
     fs::path path;
     std::uint64_t size = 0;
     std::int64_t started = 0;
+    double duration = 0;
   };
 
   void refresh() {
@@ -710,24 +731,30 @@ private:
   void refreshLocked() {
     chunks_.clear();
     std::uint64_t total = 0;
+    double totalDuration = 0;
     for (const auto& path : completedChunks(directory_)) {
       std::error_code error;
       const auto size = fs::file_size(path, error);
       if (error) continue;
+      const auto duration = completedChunkDurationSeconds(path);
       chunks_.push_back({
         path,
         size,
-        chunkStartedMilliseconds(path)
+        chunkStartedMilliseconds(path),
+        duration
       });
       total += size;
+      totalDuration += duration;
     }
     bytesUsed_ = total;
+    durationSeconds_ = totalDuration;
   }
 
   fs::path directory_;
   mutable std::mutex mutex_;
   std::deque<Entry> chunks_;
   std::atomic_uint64_t bytesUsed_ = 0;
+  std::atomic<double> durationSeconds_ = 0;
 };
 
 class Nv12Converter {
@@ -3212,6 +3239,7 @@ int wmain(int count, wchar_t** values) {
     removeIncompleteChunks(options.storagePath / L"Ring");
     RingStorageIndex ringStorage(options.storagePath / L"Ring");
     status.bytesUsed = ringStorage.bytesUsed();
+    status.durationSeconds = ringStorage.durationSeconds();
 
     ComPtr<ID3D11Device> device;
     ComPtr<ID3D11DeviceContext> context;
@@ -3307,14 +3335,8 @@ int wmain(int count, wchar_t** values) {
       if (now - lastStatusWrite >= 1s) {
         {
           std::lock_guard lock(status.mutex);
-          const double estimatedCompletedSeconds =
-            static_cast<double>(status.bytesUsed) * 8.0
-            / (
-              static_cast<double>(options.bitrateMbps) * 1000000.0
-              + 192000.0
-            );
           status.durationSeconds =
-            estimatedCompletedSeconds + encoder.currentChunkDurationSeconds();
+            ringStorage.durationSeconds() + encoder.currentChunkDurationSeconds();
         }
         try {
           updateStatusFile(options, status);

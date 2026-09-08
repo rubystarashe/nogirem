@@ -452,6 +452,11 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     /capturedAt \+ 1ms < \*nextFrameAt_[\s\S]*\*nextFrameAt_ \+= minimumFrameInterval_[\s\S]*encoder_\.enqueue/,
   )
   assert.match(nativeSource, /class RingStorageIndex/)
+  assert.match(mainSource, /import \{ access, copyFile,[^\n]+ \} from "node:fs\/promises"/)
+  assert.match(nativeSource, /double completedChunkDurationSeconds\(const fs::path& path\)/)
+  assert.match(nativeSource, /durationSeconds_ = totalDuration;/)
+  assert.match(nativeSource, /ringStorage\.durationSeconds\(\) \+ encoder\.currentChunkDurationSeconds\(\)/)
+  assert.doesNotMatch(nativeSource, /estimatedCompletedSeconds/)
   assert.match(mainSource, /`--max-duration-seconds=\$\{normalized\.maxDurationSeconds\}`/)
   assert.match(nativeSource, /options\.maxDurationSeconds = integerArgument\(/)
   assert.match(nativeSource, /const auto reserve = Gigabyte;/)
