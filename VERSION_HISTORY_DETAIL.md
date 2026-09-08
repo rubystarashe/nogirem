@@ -51,6 +51,7 @@
 - 제공된 30초 추출 파일에서 clipping이나 AAC packet 누락 대신 필터 디코딩 시 오디오 timestamp가 반복 역전·중복되는 현상을 확인
 - 청크별 AAC frame 삭제·직접 결합을 제거하고 각 청크를 PCM으로 디코딩한 뒤 연속 sample 시간축으로 AAC를 한 번 다시 생성해 음 깨짐 수정
 - 수정 helper로 30초 트랙과 20초 추출 파일을 생성해 오디오 길이 20.000초, 일반·필터 디코딩 timestamp 경고 0건을 확인
+- `전체 트랙 길이`를 `블랙박스 조회 길이`로 변경하고 분·초 입력을 분리했으며, 초 입력이 60 이상이면 자동으로 분에 올려 `100초 → 1분 40초`처럼 정규화
 - 별도 `recorder-helper.exe`가 마비노기 `Client.exe` 창을 Windows Graphics Capture로 외부 캡처하며 게임 프로세스 주입이나 렌더링 hook은 사용하지 않음
 - Windows 프로세스별 WASAPI loopback으로 `Client.exe`와 자식 프로세스의 출력 소리만 48kHz 스테레오 PCM으로 캡처하고 AAC 192kbps로 MP4에 기록
 - 프로세스별 loopback 공식 지원 기준인 Windows 빌드 20348 이상에서 사용하며 미지원 환경은 영상 녹화를 유지하고 오디오 부분 실패를 표시

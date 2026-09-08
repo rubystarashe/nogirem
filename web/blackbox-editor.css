@@ -204,7 +204,7 @@ video {
   bottom: 0;
   left: 58px;
   display: none;
-  width: 174px;
+  width: 260px;
   padding: 10px;
   border: 1px solid #3a4144;
   border-radius: 8px;
@@ -225,8 +225,14 @@ video {
 
 .number-row {
   display: grid;
-  grid-template-columns: 1fr 40px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto 40px;
   gap: 6px;
+  align-items: center;
+}
+
+.number-row span {
+  color: #a9b0b4;
+  font-size: 11px;
 }
 
 .number-row input,

@@ -7,6 +7,7 @@ const anchorTime = document.querySelector(".anchor-time")
 const addTimeButton = document.querySelector(".add-time")
 const directTimeButton = document.querySelector(".direct-time")
 const directLengthForm = document.querySelector(".direct-length")
+const trackMinutesInput = document.querySelector("#track-minutes")
 const trackSecondsInput = document.querySelector("#track-seconds")
 const extractSecondsInput = document.querySelector("#extract-seconds")
 const timeline = document.querySelector(".timeline")
@@ -84,6 +85,19 @@ function formatTime(seconds) {
     : `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`
 }
 
+function setTrackLengthInputs(totalSeconds) {
+  const normalized = Math.max(30, Math.min(21600, Math.round(Number(totalSeconds) || 60)))
+  trackMinutesInput.value = String(Math.floor(normalized / 60))
+  trackSecondsInput.value = String(normalized % 60)
+  return normalized
+}
+
+function normalizeTrackLengthInputs() {
+  const minutes = Math.max(0, Math.round(Number(trackMinutesInput.value) || 0))
+  const seconds = Math.max(0, Math.round(Number(trackSecondsInput.value) || 0))
+  return setTrackLengthInputs(seconds >= 60 ? seconds : minutes * 60 + seconds)
+}
+
 function setNotice(text = "", error = false) {
   notice.textContent = text
   notice.classList.toggle("error", error)
@@ -93,6 +107,7 @@ function setBusy(value, text = "") {
   busy = value
   addTimeButton.disabled = value
   directTimeButton.disabled = value
+  trackMinutesInput.disabled = value
   trackSecondsInput.disabled = value
   extractSecondsInput.disabled = value
   previewRangeButton.disabled = value || !duration
@@ -175,7 +190,7 @@ function loadVideo(url, preserveFromEnd = 0) {
 async function applyTrack(result, preserveFromEnd = 0) {
   requestedTrackSeconds = result.requestedSeconds
   trackGaps = Array.isArray(result.gaps) ? result.gaps : []
-  trackSecondsInput.value = String(requestedTrackSeconds)
+  setTrackLengthInputs(requestedTrackSeconds)
   anchorTime.textContent = `${new Date(result.anchorAt).toLocaleTimeString("ko-KR")} 기준`
   await loadVideo(result.videoUrl, preserveFromEnd)
   renderTrackGaps()
@@ -429,15 +444,18 @@ addTimeButton.addEventListener("click", () => {
 directTimeButton.addEventListener("click", () => {
   directLengthForm.classList.toggle("visible")
   if (directLengthForm.classList.contains("visible")) {
-    trackSecondsInput.focus()
-    trackSecondsInput.select()
+    trackMinutesInput.focus()
+    trackMinutesInput.select()
   }
 })
+
+trackMinutesInput.addEventListener("change", normalizeTrackLengthInputs)
+trackSecondsInput.addEventListener("change", normalizeTrackLengthInputs)
 
 directLengthForm.addEventListener("submit", event => {
   event.preventDefault()
   directLengthForm.classList.remove("visible")
-  void changeTrackSeconds(trackSecondsInput.value)
+  void changeTrackSeconds(normalizeTrackLengthInputs())
 })
 
 previewRangeButton.addEventListener("click", previewSelection)
