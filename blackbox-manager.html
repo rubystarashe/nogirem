@@ -1190,6 +1190,14 @@
         }
       })
 
+      window.blackboxManager.onEditorExtractProgress(progress => {
+        extractFrame.contentWindow.postMessage({
+          source: "blackbox-manager-command",
+          command: "extract-progress",
+          value: progress,
+        }, "*")
+      })
+
       for (const input of settingInputs) {
         input.addEventListener("change", () => {
           settingsDirty = true

@@ -16,6 +16,8 @@ const trackStatus = document.querySelector(".track-status")
 const trackUsage = document.querySelector(".track-usage")
 const trackDuration = document.querySelector(".track-duration")
 const extractSecondsInput = document.querySelector("#extract-seconds")
+const gapPolicySelect = document.querySelector(".gap-policy")
+const playbackSpeedSelect = document.querySelector(".playback-speed")
 const timeline = document.querySelector(".timeline")
 const trackGapsLayer = document.querySelector(".track-gaps")
 const guide = document.querySelector(".selection-guide")
@@ -84,6 +86,7 @@ let playbackStartedAt = 0
 let playbackStartTimeline = 0
 let trackGaps = []
 let lastOutputPath = ""
+let extracting = false
 
 function messageOf(error) {
   return error?.message?.replace(/^Error invoking remote method '[^']+': Error: /, "")
@@ -143,12 +146,25 @@ function setBusy(value, text = "") {
   trackMinutesInput.disabled = value
   trackSecondsInput.disabled = value
   extractSecondsInput.disabled = value
+  gapPolicySelect.disabled = value
+  playbackSpeedSelect.disabled = value
   previewRangeButton.disabled = value || !duration
   extractButton.disabled = value || !duration
   if (text) {
     editor.className = "editor loading"
     loadingState.textContent = text
   }
+}
+
+function selectedPlaybackSpeed() {
+  return Math.max(0.5, Math.min(2, Number(playbackSpeedSelect.value) || 1))
+}
+
+function renderExtractProgress(progress) {
+  if (!extracting) return
+  const normalized = Math.max(0, Math.min(100, Math.round(Number(progress) || 0)))
+  extractButton.style.setProperty("--extract-progress", `${normalized}%`)
+  extractButton.textContent = `MP4 추출 ${normalized}%`
 }
 
 function renderEditorError(error, className = "editor failed") {
@@ -225,6 +241,7 @@ function syncPreviewToTimeline() {
   if (Math.abs(video.currentTime - targetMediaTime) > 0.12) {
     video.currentTime = targetMediaTime
   }
+  video.playbackRate = selectedPlaybackSpeed()
   if (timelinePlaying && video.paused) {
     void video.play().catch(error => {
       timelinePlaying = false
@@ -254,7 +271,8 @@ function stopTimelinePlayback({ resetToSelection = false } = {}) {
 
 function updateTimelinePlayback(now) {
   if (!timelinePlaying) return
-  timelineCursor = playbackStartTimeline + (now - playbackStartedAt) / 1000
+  timelineCursor = playbackStartTimeline
+    + (now - playbackStartedAt) / 1000 * selectedPlaybackSpeed()
   const playbackEnd = previewingSelection
     ? selectionStart + selectionDuration
     : timelineDuration
@@ -510,6 +528,9 @@ async function previewSelection() {
 async function extractSelection() {
   if (!duration || busy) return
   stopTimelinePlayback()
+  extracting = true
+  extractButton.classList.add("extracting")
+  renderExtractProgress(0)
   setBusy(true)
   setNotice("선택한 구간을 MP4로 추출하고 있습니다")
   lastOutputPath = ""
@@ -518,13 +539,21 @@ async function extractSelection() {
     const result = await editorBridge.extract({
       startSeconds: selectionStart,
       durationSeconds: selectionDuration,
+      gapPolicy: gapPolicySelect.value,
+      playbackSpeed: selectedPlaybackSpeed(),
     })
+    renderExtractProgress(100)
+    await new Promise(resolve => setTimeout(resolve, 250))
     lastOutputPath = result.outputPath
     showOutputButton.classList.add("visible")
     setNotice(`${result.fileName} 저장 완료`)
   } catch (error) {
     setNotice(messageOf(error), true)
   } finally {
+    extracting = false
+    extractButton.classList.remove("extracting")
+    extractButton.style.removeProperty("--extract-progress")
+    extractButton.textContent = "MP4 추출"
     setBusy(false)
   }
 }
@@ -603,6 +632,11 @@ window.addEventListener("message", event => {
     && event.data.command === "fit-media"
   ) {
     fitCurrentMedia()
+  } else if (
+    event.data?.source === "blackbox-manager-command"
+    && event.data.command === "extract-progress"
+  ) {
+    renderExtractProgress(event.data.value)
   }
 })
 
@@ -610,6 +644,14 @@ extractSecondsInput.addEventListener("change", () => {
   selectionDuration = Number(extractSecondsInput.value) || 1
   clampSelection()
   setTimelineCursor(selectionStart)
+})
+
+playbackSpeedSelect.addEventListener("change", () => {
+  video.playbackRate = selectedPlaybackSpeed()
+  if (timelinePlaying) {
+    playbackStartTimeline = timelineCursor
+    playbackStartedAt = performance.now()
+  }
 })
 
 addTimeButton.addEventListener("click", () => {
@@ -653,6 +695,10 @@ closeButton.addEventListener("click", () => {
   closeButton.disabled = true
   void editorBridge.requestClose()
 })
+
+if (!embedded) {
+  editorBridge?.onExtractProgress?.(renderExtractProgress)
+}
 
 async function initialize() {
   try {

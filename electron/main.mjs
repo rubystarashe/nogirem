@@ -1454,6 +1454,14 @@ async function refreshGameCpuCoreSetting() {
   return checkAffinity()
 }
 
+async function getRecorderAffinityArgument() {
+  const setting = await getGameCpuCoreSetting()
+  const allocation = resolveCpuAllocation(cpus().length, {
+    gameCoreCount: setting.supported ? setting.gameCoreCount : null,
+  })
+  return `--affinity-mask=0x${allocation.backgroundMask.toString(16)}`
+}
+
 function getMabinogiPathStatePath() {
   return join(app.getPath("userData"), "game", "path.json")
 }
@@ -2058,6 +2066,7 @@ async function launchBlackboxHelper(setting) {
     logicalCpuCount: cpus().length,
     totalMemoryBytes: totalmem(),
   })
+  const affinityArgument = await getRecorderAffinityArgument()
   const runtimeSetting = { ...normalized, quality: resolvedQuality }
   const child = spawn(recorderHelperPath, [
     `--status-path=${paths.statusPath}`,
@@ -2071,6 +2080,7 @@ async function launchBlackboxHelper(setting) {
     `--max-height=${maxHeightForBlackboxQuality(resolvedQuality)}`,
     `--chunk-seconds=${normalized.chunkSeconds}`,
     `--capacity-gb=${normalized.capacityGb}`,
+    affinityArgument,
   ], {
     windowsHide: true,
     stdio: "ignore",
@@ -2241,17 +2251,53 @@ function blackboxEditorDateName(milliseconds = Date.now()) {
     .replace("T", "-")
 }
 
-async function runRecorderUtility(argumentsList) {
-  try {
-    const result = await execFileAsync(recorderHelperPath, argumentsList, {
+async function runRecorderUtility(argumentsList, { onProgress = null } = {}) {
+  const affinityArgument = await getRecorderAffinityArgument()
+  return new Promise((resolveUtility, rejectUtility) => {
+    const child = spawn(recorderHelperPath, [
+      ...argumentsList,
+      affinityArgument,
+    ], {
       windowsHide: true,
-      maxBuffer: 1024 * 1024,
+      stdio: ["ignore", "pipe", "pipe"],
     })
-    return String(result.stdout ?? "").trim()
-  } catch (error) {
-    const detail = String(error?.stderr ?? error?.message ?? "").trim()
-    throw new Error(detail || "블랙박스 편집 작업을 완료하지 못했습니다")
-  }
+    let stdout = ""
+    let stderr = ""
+    let stderrBuffer = ""
+    const consumeStderrLine = line => {
+      const progress = /^PROGRESS (\d{1,3})$/.exec(line.trim())
+      if (progress) {
+        try {
+          onProgress?.(Math.max(0, Math.min(100, Number(progress[1]))))
+        } catch {
+        }
+      } else if (line) {
+        stderr += `${line}\n`
+      }
+    }
+    child.stdout.on("data", chunk => {
+      stdout += String(chunk)
+      if (stdout.length > 1024 * 1024) child.kill()
+    })
+    child.stderr.on("data", chunk => {
+      stderrBuffer += String(chunk)
+      const lines = stderrBuffer.split(/\r?\n/)
+      stderrBuffer = lines.pop() ?? ""
+      for (const line of lines) consumeStderrLine(line)
+      if (stderr.length > 1024 * 1024) child.kill()
+    })
+    child.once("error", rejectUtility)
+    child.once("close", code => {
+      if (stderrBuffer) consumeStderrLine(stderrBuffer)
+      if (code === 0) {
+        resolveUtility(stdout.trim())
+      } else {
+        rejectUtility(new Error(
+          stderr.trim() || `블랙박스 편집 작업이 종료 코드 ${code}로 실패했습니다`,
+        ))
+      }
+    })
+  })
 }
 
 async function latestCompletedBlackboxAnchor() {
@@ -2350,7 +2396,12 @@ async function prepareBlackboxEditorSession(session) {
   return session.preparePromise
 }
 
-function buildBlackboxExtractionPieces(session, startSeconds, durationSeconds) {
+function buildBlackboxExtractionPieces(
+  session,
+  startSeconds,
+  durationSeconds,
+  gapPolicy = "black",
+) {
   const endSeconds = startSeconds + durationSeconds
   const pieces = []
   let cursor = startSeconds
@@ -2362,7 +2413,7 @@ function buildBlackboxExtractionPieces(session, startSeconds, durationSeconds) {
     if (timelineEnd <= cursor || timelineStart >= endSeconds) continue
     const overlapStart = Math.max(cursor, timelineStart)
     const overlapEnd = Math.min(endSeconds, timelineEnd)
-    if (overlapStart > cursor) {
+    if (overlapStart > cursor && gapPolicy === "black") {
       pieces.push({ type: "black", duration: overlapStart - cursor })
     }
     pieces.push({
@@ -2372,15 +2423,19 @@ function buildBlackboxExtractionPieces(session, startSeconds, durationSeconds) {
     })
     cursor = overlapEnd
   }
-  if (cursor < endSeconds) {
+  if (cursor < endSeconds && gapPolicy === "black") {
     pieces.push({ type: "black", duration: endSeconds - cursor })
   }
   return pieces.filter(piece => piece.duration >= 0.01)
 }
 
-async function extractBlackboxEditorRange(session, value) {
+async function extractBlackboxEditorRange(session, value, onProgress = null) {
   const startSeconds = Math.max(0, Number(value?.startSeconds) || 0)
   const durationSeconds = Math.max(1, Math.min(21600, Number(value?.durationSeconds) || 30))
+  const gapPolicy = value?.gapPolicy === "skip" ? "skip" : "black"
+  const playbackSpeed = [0.5, 0.75, 1, 1.25, 1.5, 2].includes(Number(value?.playbackSpeed))
+    ? Number(value.playbackSpeed)
+    : 1
   return queueBlackboxEditorOperation(session, async () => {
     if (session.closed || !session.trackPath) {
       throw new Error("먼저 편집 트랙을 준비하세요")
@@ -2397,18 +2452,24 @@ async function extractBlackboxEditorRange(session, value) {
       session,
       startSeconds,
       durationSeconds,
+      gapPolicy,
     )
+    if (!pieces.length) {
+      throw new Error("건너뛰기 후 추출할 녹화 영상이 없습니다")
+    }
     const encodedPieces = pieces.map(piece => (
       piece.type === "media"
         ? `media:${Math.round(piece.start * 1000)}:${Math.round(piece.duration * 1000)}`
         : `black:${Math.round(piece.duration * 1000)}`
     )).join(";")
+    onProgress?.(0)
     await runRecorderUtility([
       "--mode=compose",
       `--input=${session.trackPath}`,
       `--output=${outputPath}`,
       `--pieces=${encodedPieces}`,
-    ])
+      `--speed-milli=${Math.round(playbackSpeed * 1000)}`,
+    ], { onProgress })
     return {
       outputPath,
       fileName: outputPath.split(/[\\/]/).at(-1),
@@ -3842,7 +3903,11 @@ function registerIpc() {
     ) {
       throw new Error("허용되지 않은 블랙박스 구간 추출 요청입니다")
     }
-    return extractBlackboxEditorRange(blackboxEditorSession, range)
+    return extractBlackboxEditorRange(blackboxEditorSession, range, progress => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send("blackbox-editor:extract-progress", progress)
+      }
+    })
   })
   ipcMain.handle("blackbox-editor:show-output", async (event, outputPath) => {
     const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
@@ -4042,7 +4107,11 @@ function registerIpc() {
     ) {
       throw new Error("허용되지 않은 블랙박스 구간 추출 요청입니다")
     }
-    return extractBlackboxEditorRange(blackboxEditorSession, range)
+    return extractBlackboxEditorRange(blackboxEditorSession, range, progress => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send("blackbox-editor:extract-progress", progress)
+      }
+    })
   })
   ipcMain.handle("blackbox-manager:show-output", (event, outputPath) => {
     const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")

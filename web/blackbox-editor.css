@@ -498,6 +498,31 @@ video {
   width: 72px;
 }
 
+.export-options {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.export-options label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #929b9f;
+  font-size: 11px;
+}
+
+.export-options select {
+  height: 30px;
+  padding: 0 24px 0 9px;
+  border: 1px solid #343a3d;
+  border-radius: 6px;
+  color: #d5dadd;
+  background: #1b1f21;
+  font: inherit;
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -530,6 +555,17 @@ video {
 
 .action.primary:hover:not(:disabled) {
   background: #fff;
+}
+
+.action.extract.extracting:disabled {
+  opacity: 1;
+  background: linear-gradient(
+    to right,
+    #ffd400 0,
+    #ffd400 var(--extract-progress),
+    #edf0f1 var(--extract-progress),
+    #edf0f1 100%
+  );
 }
 
 .notice {

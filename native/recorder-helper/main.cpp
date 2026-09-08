@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cmath>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -104,7 +105,7 @@ struct SharedStatus {
   double durationSeconds = 0;
   std::uint64_t bytesUsed = 0;
   std::uint64_t capacityBytes = 0;
-  std::uint64_t droppedFrames = 0;
+  std::atomic_uint64_t droppedFrames = 0;
   std::uint64_t flushCompletedId = 0;
   std::uint64_t clearCompletedId = 0;
   int width = 0;
@@ -510,6 +511,7 @@ IDirect3DDevice createWinrtDevice(
   multithread->SetMultithreadProtected(TRUE);
   ComPtr<IDXGIDevice> dxgiDevice;
   check_hresult(device.As(&dxgiDevice));
+  dxgiDevice->SetGPUThreadPriority(-2);
   com_ptr<::IInspectable> inspectable;
   check_hresult(CreateDirect3D11DeviceFromDXGIDevice(dxgiDevice.Get(), inspectable.put()));
   return inspectable.as<IDirect3DDevice>();
@@ -579,38 +581,94 @@ void clearRingDirectory(const fs::path& directory) {
   removeIncompleteChunks(directory);
 }
 
-std::uint64_t directoryBytes(const fs::path& directory) {
-  std::uint64_t total = 0;
-  for (const auto& path : completedChunks(directory)) {
-    std::error_code error;
-    total += fs::file_size(path, error);
+class RingStorageIndex {
+public:
+  explicit RingStorageIndex(fs::path directory)
+    : directory_(std::move(directory)) {
+    refresh();
   }
-  return total;
-}
 
-void pruneRing(const fs::path& directory, std::uint64_t capacityBytes) {
-  auto chunks = completedChunks(directory);
-  std::uint64_t total = 0;
-  for (const auto& path : chunks) {
-    std::error_code error;
-    total += fs::file_size(path, error);
+  std::uint64_t bytesUsed() const {
+    return bytesUsed_.load();
   }
-  std::error_code spaceError;
-  auto space = fs::space(directory, spaceError);
-  const std::uint64_t reserve = std::max<std::uint64_t>(5 * Gigabyte, capacityBytes / 10);
-  for (const auto& path : chunks) {
-    const bool capacityExceeded = total > capacityBytes;
-    const bool reserveExceeded = !spaceError && space.available < reserve;
-    if (!capacityExceeded && !reserveExceeded) break;
+
+  std::uint64_t publish(
+    const fs::path& path,
+    std::uint64_t capacityBytes
+  ) {
+    std::lock_guard lock(mutex_);
     std::error_code sizeError;
     const auto size = fs::file_size(path, sizeError);
-    std::error_code removeError;
-    if (fs::remove(path, removeError)) {
-      if (!sizeError && total >= size) total -= size;
-      if (!spaceError) space.available += size;
+    if (sizeError) {
+      refreshLocked();
+      return bytesUsed_.load();
     }
+    chunks_.push_back({ path, size });
+    std::uint64_t total = bytesUsed_.load() + size;
+    std::error_code spaceError;
+    auto space = fs::space(directory_, spaceError);
+    const auto reserve = std::max<std::uint64_t>(
+      5 * Gigabyte,
+      capacityBytes / 10
+    );
+    while (
+      !chunks_.empty()
+      && (
+        total > capacityBytes
+        || (!spaceError && space.available < reserve)
+      )
+    ) {
+      auto entry = std::move(chunks_.front());
+      chunks_.pop_front();
+      std::error_code removeError;
+      if (fs::remove(entry.path, removeError)) {
+        total = total >= entry.size ? total - entry.size : 0;
+        if (!spaceError) space.available += entry.size;
+      } else {
+        refreshLocked();
+        return bytesUsed_.load();
+      }
+    }
+    bytesUsed_ = total;
+    return total;
   }
-}
+
+  std::uint64_t clear() {
+    std::lock_guard lock(mutex_);
+    clearRingDirectory(directory_);
+    refreshLocked();
+    return bytesUsed_.load();
+  }
+
+private:
+  struct Entry {
+    fs::path path;
+    std::uint64_t size = 0;
+  };
+
+  void refresh() {
+    std::lock_guard lock(mutex_);
+    refreshLocked();
+  }
+
+  void refreshLocked() {
+    chunks_.clear();
+    std::uint64_t total = 0;
+    for (const auto& path : completedChunks(directory_)) {
+      std::error_code error;
+      const auto size = fs::file_size(path, error);
+      if (error) continue;
+      chunks_.push_back({ path, size });
+      total += size;
+    }
+    bytesUsed_ = total;
+  }
+
+  fs::path directory_;
+  mutable std::mutex mutex_;
+  std::deque<Entry> chunks_;
+  std::atomic_uint64_t bytesUsed_ = 0;
+};
 
 class Nv12Converter {
 public:
@@ -1255,12 +1313,65 @@ LONGLONG combinedDecodedAudioDuration(const std::vector<fs::path>& inputs) {
   return duration;
 }
 
+ComPtr<IMFSample> retimePcmSample(
+  IMFSample* sample,
+  double playbackRate,
+  LONGLONG& duration
+) {
+  if (std::abs(playbackRate - 1.0) < 0.001) return sample;
+  ComPtr<IMFMediaBuffer> inputBuffer;
+  check_hresult(sample->ConvertToContiguousBuffer(&inputBuffer));
+  BYTE* inputData = nullptr;
+  DWORD inputBytes = 0;
+  check_hresult(inputBuffer->Lock(&inputData, nullptr, &inputBytes));
+  const auto inputFrames = inputBytes / AudioBlockAlignment;
+  if (inputFrames == 0) {
+    check_hresult(inputBuffer->Unlock());
+    return sample;
+  }
+  const auto outputFrames = std::max<std::uint64_t>(
+    1,
+    static_cast<std::uint64_t>(std::llround(inputFrames / playbackRate))
+  );
+  ComPtr<IMFMediaBuffer> outputBuffer;
+  check_hresult(MFCreateMemoryBuffer(
+    static_cast<DWORD>(outputFrames * AudioBlockAlignment),
+    &outputBuffer
+  ));
+  BYTE* outputData = nullptr;
+  check_hresult(outputBuffer->Lock(&outputData, nullptr, nullptr));
+  for (std::uint64_t index = 0; index < outputFrames; ++index) {
+    const auto sourceIndex = std::min<std::uint64_t>(
+      inputFrames - 1,
+      static_cast<std::uint64_t>(index * playbackRate)
+    );
+    std::memcpy(
+      outputData + index * AudioBlockAlignment,
+      inputData + sourceIndex * AudioBlockAlignment,
+      AudioBlockAlignment
+    );
+  }
+  check_hresult(outputBuffer->Unlock());
+  check_hresult(inputBuffer->Unlock());
+  check_hresult(outputBuffer->SetCurrentLength(
+    static_cast<DWORD>(outputFrames * AudioBlockAlignment)
+  ));
+  ComPtr<IMFSample> outputSample;
+  check_hresult(MFCreateSample(&outputSample));
+  check_hresult(outputSample->AddBuffer(outputBuffer.Get()));
+  duration = static_cast<LONGLONG>(
+    outputFrames * 10000000ull / AudioSampleRate
+  );
+  return outputSample;
+}
+
 bool remuxChunks(
   const std::vector<fs::path>& inputs,
   const fs::path& output,
   LONGLONG requestedStart = 0,
   LONGLONG requestedDuration = LLONG_MAX,
-  bool allowFormatChanges = false
+  bool allowFormatChanges = false,
+  double playbackRate = 1.0
 ) {
   if (inputs.empty()) return false;
   const LONGLONG effectiveStart = findCleanRangeStart(inputs, requestedStart);
@@ -1279,6 +1390,7 @@ bool remuxChunks(
   std::optional<DWORD> sinkAudioStream;
   LONGLONG outputTime = 0;
   LONGLONG audioOutputTime = 0;
+  LONGLONG retimedAudioOutputTime = 0;
   std::optional<MediaSignature> expectedSignature;
 
   for (std::size_t fileIndex = 0; fileIndex < inputs.size(); ++fileIndex) {
@@ -1368,7 +1480,15 @@ bool remuxChunks(
       fileEnd = std::max(fileEnd, globalTime + duration);
       if (globalTime + duration <= effectiveStart) continue;
       if (globalTime >= requestedEnd) break;
-      check_hresult(sample->SetSampleTime(globalTime - requestedStart));
+      const auto outputSampleTime = static_cast<LONGLONG>(
+        std::llround((globalTime - requestedStart) / playbackRate)
+      );
+      const auto outputSampleDuration = std::max<LONGLONG>(
+        1,
+        static_cast<LONGLONG>(std::llround(duration / playbackRate))
+      );
+      check_hresult(sample->SetSampleTime(outputSampleTime));
+      check_hresult(sample->SetSampleDuration(outputSampleDuration));
       UINT64 decodeTimestamp = 0;
       if (SUCCEEDED(sample->GetUINT64(
         MFSampleExtension_DecodeTimestamp,
@@ -1377,9 +1497,12 @@ bool remuxChunks(
         const auto signedDecodeTimestamp = static_cast<LONGLONG>(decodeTimestamp);
         const auto globalDecodeTimestamp =
           outputTime + signedDecodeTimestamp - firstTime;
+        const auto outputDecodeTimestamp = static_cast<LONGLONG>(
+          std::llround((globalDecodeTimestamp - requestedStart) / playbackRate)
+        );
         check_hresult(sample->SetUINT64(
           MFSampleExtension_DecodeTimestamp,
-          static_cast<UINT64>(globalDecodeTimestamp - requestedStart)
+          static_cast<UINT64>(outputDecodeTimestamp)
         ));
       }
       check_hresult(sink->WriteSample(sinkStream, sample.Get()));
@@ -1415,12 +1538,12 @@ bool remuxChunks(
         audioOutputTime += duration;
         if (globalTime + duration <= audioRequestedStart) continue;
         if (globalTime >= audioRequestedEnd) break;
-        const LONGLONG outputSampleTime =
-          std::max<LONGLONG>(0, globalTime - audioRequestedStart);
-        check_hresult(sample->SetSampleTime(outputSampleTime));
+        sample = retimePcmSample(sample.Get(), playbackRate, duration);
+        check_hresult(sample->SetSampleTime(retimedAudioOutputTime));
         check_hresult(sample->SetSampleDuration(duration));
         sample->DeleteItem(MFSampleExtension_DecodeTimestamp);
         check_hresult(sink->WriteSample(*sinkAudioStream, sample.Get()));
+        retimedAudioOutputTime += duration;
       }
     }
   }
@@ -1434,7 +1557,8 @@ bool remuxChunksAtomically(
   const fs::path& output,
   LONGLONG requestedStart = 0,
   LONGLONG requestedDuration = LLONG_MAX,
-  bool allowFormatChanges = false
+  bool allowFormatChanges = false,
+  double playbackRate = 1.0
 ) {
   auto partial = output;
   partial += L".partial.mp4";
@@ -1446,7 +1570,8 @@ bool remuxChunksAtomically(
       partial,
       requestedStart,
       requestedDuration,
-      allowFormatChanges
+      allowFormatChanges,
+      playbackRate
     )) return false;
     fs::remove(output, cleanupError);
     fs::rename(partial, output);
@@ -1716,10 +1841,12 @@ public:
   EncoderWorker(
     ComPtr<ID3D11Device> device,
     fs::path ringDirectory,
+    RingStorageIndex& ringStorage,
     const Options& options,
     SharedStatus& status
   ) : device_(std::move(device)),
       ringDirectory_(std::move(ringDirectory)),
+      ringStorage_(ringStorage),
       options_(options),
       status_(status),
       thread_([this] { run(); }) {
@@ -1814,8 +1941,7 @@ private:
       }
     }
     if (!discarded.empty()) {
-      std::lock_guard lock(status_.mutex);
-      status_.droppedFrames += discarded.size();
+      status_.droppedFrames.fetch_add(discarded.size());
     }
   }
 
@@ -1858,10 +1984,12 @@ private:
           fs::remove(path, error);
           throw std::runtime_error("완성된 녹화 청크를 게시하지 못했습니다");
         }
-        pruneRing(
-          ringDirectory_,
+        const auto bytesUsed = ringStorage_.publish(
+          finalPath,
           static_cast<std::uint64_t>(options_.capacityGb) * Gigabyte
         );
+        std::lock_guard lock(status_.mutex);
+        status_.bytesUsed = bytesUsed;
       } catch (const hresult_error& error) {
         failed_ = true;
         std::lock_guard lock(status_.mutex);
@@ -1962,9 +2090,9 @@ private:
         }
         if (clearRequestId > 0) {
           if (clipThread_.joinable()) clipThread_.join();
-          clearRingDirectory(ringDirectory_);
+          const auto bytesUsed = ringStorage_.clear();
           std::lock_guard lock(status_.mutex);
-          status_.bytesUsed = 0;
+          status_.bytesUsed = bytesUsed;
           status_.clearCompletedId = clearRequestId;
         }
         if (clipSeconds > 0) {
@@ -2016,8 +2144,7 @@ private:
             chunkStartedAt_.reset();
             currentChunkDurationSeconds_ = 0;
             skipPacket = true;
-            std::lock_guard lock(status_.mutex);
-            ++status_.droppedFrames;
+            status_.droppedFrames.fetch_add(1);
           }
         }
         if (!skipPacket) {
@@ -2049,6 +2176,7 @@ private:
 
   ComPtr<ID3D11Device> device_;
   fs::path ringDirectory_;
+  RingStorageIndex& ringStorage_;
   Options options_;
   SharedStatus& status_;
   std::mutex mutex_;
@@ -2434,6 +2562,14 @@ private:
       nextFrameAt_
       && capturedAt + 1ms < *nextFrameAt_
     ) return;
+    if (!nextFrameAt_) {
+      nextFrameAt_ = capturedAt + minimumFrameInterval_;
+    } else {
+      *nextFrameAt_ += minimumFrameInterval_;
+      if (*nextFrameAt_ < capturedAt) {
+        nextFrameAt_ = capturedAt + minimumFrameInterval_;
+      }
+    }
     const auto contentSize = frame.ContentSize();
     using DxgiAccess =
       ::Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess;
@@ -2455,8 +2591,7 @@ private:
     description.MipLevels = 1;
     auto copy = texturePool_->acquire(device_.Get(), description);
     if (!copy) {
-      std::lock_guard lock(status_.mutex);
-      ++status_.droppedFrames;
+      status_.droppedFrames.fetch_add(1);
       return;
     }
     context_->CopyResource(copy.Get(), source.Get());
@@ -2468,18 +2603,8 @@ private:
       static_cast<int>(description.Height)
     };
     if (!encoder_.enqueue(std::move(packet))) {
-      std::lock_guard lock(status_.mutex);
-      ++status_.droppedFrames;
+      status_.droppedFrames.fetch_add(1);
       texturePool_->release(std::move(packet.texture));
-    } else {
-      if (!nextFrameAt_) {
-        nextFrameAt_ = capturedAt + minimumFrameInterval_;
-      } else {
-        *nextFrameAt_ += minimumFrameInterval_;
-        if (*nextFrameAt_ < capturedAt) {
-          nextFrameAt_ = capturedAt + minimumFrameInterval_;
-        }
-      }
     }
     if (
       contentSize.Width > 0
@@ -2533,7 +2658,7 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
     snapshot.durationSeconds = status.durationSeconds;
     snapshot.bytesUsed = status.bytesUsed;
     snapshot.capacityBytes = status.capacityBytes;
-    snapshot.droppedFrames = status.droppedFrames;
+    snapshot.droppedFrames = status.droppedFrames.load();
     snapshot.flushCompletedId = status.flushCompletedId;
     snapshot.clearCompletedId = status.clearCompletedId;
     snapshot.width = status.width;
@@ -2564,7 +2689,7 @@ void updateStatusFile(const Options& options, SharedStatus& status) {
       : "\"" + jsonEscape(snapshot.latestClip) + "\"") << ","
     << "\"bytesUsed\":" << snapshot.bytesUsed << ","
     << "\"capacityBytes\":" << snapshot.capacityBytes << ","
-    << "\"droppedFrames\":" << snapshot.droppedFrames << ","
+    << "\"droppedFrames\":" << snapshot.droppedFrames.load() << ","
     << "\"flushCompletedId\":" << snapshot.flushCompletedId << ","
     << "\"clearCompletedId\":" << snapshot.clearCompletedId << ","
     << "\"width\":" << snapshot.width << ","
@@ -2801,7 +2926,8 @@ void createBlackVideo(
 void composeExtraction(
   const fs::path& inputPath,
   const fs::path& outputPath,
-  const std::vector<CompositionPiece>& pieces
+  const std::vector<CompositionPiece>& pieces,
+  double playbackRate
 ) {
   const auto stagingDirectory = outputPath.parent_path()
     / (L".compose-" + std::to_wstring(epochMilliseconds()));
@@ -2823,10 +2949,22 @@ void composeExtraction(
         throw std::runtime_error("녹화된 영상 구간을 준비하지 못했습니다");
       }
       partPaths.push_back(partPath);
+      const int progress = static_cast<int>(
+        (index + 1) * 80 / std::max<std::size_t>(1, pieces.size())
+      );
+      std::cerr << "PROGRESS " << progress << '\n';
     }
-    if (!remuxChunksAtomically(partPaths, outputPath, 0, LLONG_MAX, true)) {
+    if (!remuxChunksAtomically(
+      partPaths,
+      outputPath,
+      0,
+      LLONG_MAX,
+      true,
+      playbackRate
+    )) {
       throw std::runtime_error("검은 공백을 포함한 영상을 결합하지 못했습니다");
     }
+    std::cerr << "PROGRESS 100\n";
     fs::remove_all(stagingDirectory);
   } catch (...) {
     std::error_code error;
@@ -2839,7 +2977,7 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
   const auto mode = arguments.at(L"mode");
   init_apartment(apartment_type::multi_threaded);
   check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
-  SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
+  SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
   try {
     if (mode == L"track") {
       const fs::path ringPath = arguments.at(L"ring-path");
@@ -2879,8 +3017,13 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
       const fs::path inputPath = arguments.at(L"input");
       const fs::path outputPath = arguments.at(L"output");
       const auto pieces = parseCompositionPieces(arguments.at(L"pieces"));
+      const auto playbackRate = static_cast<double>(std::clamp<std::int64_t>(
+        wideInteger(arguments, L"speed-milli", 1000),
+        250,
+        4000
+      )) / 1000.0;
       fs::create_directories(outputPath.parent_path());
-      composeExtraction(inputPath, outputPath, pieces);
+      composeExtraction(inputPath, outputPath, pieces, playbackRate);
     } else if (mode == L"extract") {
       const fs::path inputPath = arguments.at(L"input");
       const fs::path outputPath = arguments.at(L"output");
@@ -2917,6 +3060,14 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
 
 int wmain(int count, wchar_t** values) {
   const auto arguments = parseArguments(count, values);
+  const auto affinityIterator = arguments.find(L"affinity-mask");
+  if (affinityIterator != arguments.end()) {
+    try {
+      const auto mask = std::stoull(affinityIterator->second, nullptr, 0);
+      if (mask > 0) SetProcessAffinityMask(GetCurrentProcess(), mask);
+    } catch (...) {
+    }
+  }
   if (
     arguments.count(L"mode")
     && (
@@ -2956,11 +3107,19 @@ int wmain(int count, wchar_t** values) {
     fs::create_directories(options.storagePath / L"Ring");
     fs::create_directories(options.storagePath / L"Clips");
     removeIncompleteChunks(options.storagePath / L"Ring");
+    RingStorageIndex ringStorage(options.storagePath / L"Ring");
+    status.bytesUsed = ringStorage.bytesUsed();
 
     ComPtr<ID3D11Device> device;
     ComPtr<ID3D11DeviceContext> context;
     const auto winrtDevice = createWinrtDevice(device, context);
-    EncoderWorker encoder(device, options.storagePath / L"Ring", options, status);
+    EncoderWorker encoder(
+      device,
+      options.storagePath / L"Ring",
+      ringStorage,
+      options,
+      status
+    );
     std::unique_ptr<WindowCapture> capture;
     std::unique_ptr<ProcessAudioCapture> audioCapture;
     auto lastStatusWrite = std::chrono::steady_clock::now() - 2s;
@@ -3024,7 +3183,6 @@ int wmain(int count, wchar_t** values) {
       if (now - lastStatusWrite >= 1s) {
         {
           std::lock_guard lock(status.mutex);
-          status.bytesUsed = directoryBytes(options.storagePath / L"Ring");
           const double estimatedCompletedSeconds =
             static_cast<double>(status.bytesUsed) * 8.0
             / (

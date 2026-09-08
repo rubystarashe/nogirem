@@ -8,6 +8,11 @@ contextBridge.exposeInMainWorld("blackboxEditor", {
     return ipcRenderer.invoke("blackbox-editor:set-track-seconds", seconds)
   },
   extract: range => ipcRenderer.invoke("blackbox-editor:extract", range),
+  onExtractProgress: callback => {
+    const listener = (_event, progress) => callback(Number(progress) || 0)
+    ipcRenderer.on("blackbox-editor:extract-progress", listener)
+    return () => ipcRenderer.removeListener("blackbox-editor:extract-progress", listener)
+  },
   showOutput: outputPath => {
     return ipcRenderer.invoke("blackbox-editor:show-output", outputPath)
   },

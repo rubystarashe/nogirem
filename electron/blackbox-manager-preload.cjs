@@ -15,6 +15,11 @@ contextBridge.exposeInMainWorld("blackboxManager", {
     return ipcRenderer.invoke("blackbox-manager:rename-clip", fileName, nextName)
   },
   deleteClip: fileName => ipcRenderer.invoke("blackbox-manager:delete-clip", fileName),
+  onEditorExtractProgress: callback => {
+    const listener = (_event, progress) => callback(Number(progress) || 0)
+    ipcRenderer.on("blackbox-editor:extract-progress", listener)
+    return () => ipcRenderer.removeListener("blackbox-editor:extract-progress", listener)
+  },
   editor: {
     getSession: () => ipcRenderer.invoke("blackbox-manager:get-editor-session"),
     setEnabled: enabled => ipcRenderer.invoke("blackbox-manager:set-enabled", enabled),

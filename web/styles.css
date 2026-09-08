@@ -556,7 +556,7 @@ footer {
   top: 121px;
   right: 17px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
   opacity: 0;
   transform: translateX(12px);
@@ -569,6 +569,23 @@ footer {
 .blackbox-main-controls.entered {
   opacity: 1;
   transform: translateX(0);
+}
+
+.blackbox-main-status {
+  display: flex;
+  width: 114px;
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.blackbox-main-duration {
+  margin-top: -8px;
+  padding-right: 3px;
+  color: rgba(32, 32, 32, 0.42);
+  font-size: 9px;
+  line-height: 12px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .blackbox-main-link {

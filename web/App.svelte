@@ -165,6 +165,7 @@
   let blackboxFeatureAction = null
   let blackboxFeatureNotice = ""
   let blackboxEnabled = false
+  let blackboxDurationSeconds = 0
   let blackboxTogglePending = false
   let blackboxDisplayedText = "블랙박스 꺼짐"
   let blackboxDisplayedEnabled = false
@@ -963,6 +964,9 @@
     if ("featureEnabled" in state) {
       blackboxFeatureEnabled = Boolean(state.featureEnabled)
     }
+    if ("durationSeconds" in state) {
+      blackboxDurationSeconds = Math.max(0, Number(state.durationSeconds) || 0)
+    }
     const nextEnabled = Boolean(state.enabled)
     const nextText = nextEnabled ? "블랙박스 켜짐" : "블랙박스 꺼짐"
     const visualTarget = blackboxTransitionPhase === "done"
@@ -985,6 +989,15 @@
       blackboxTransitionPhase = "done"
     }
     blackboxEnabled = nextEnabled
+  }
+
+  function blackboxDurationText() {
+    const totalMinutes = Math.floor(blackboxDurationSeconds / 60)
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+    return hours > 0
+      ? `블박 ${hours}시간 ${minutes}분`
+      : `블박 ${minutes}분`
   }
 
   function revealBlackboxTransitionTarget() {
@@ -1846,14 +1859,15 @@
               class="blackbox-main-controls"
               class:entered={leftTopContentEntered}
             >
-            <button
-              class="blackbox-main-link"
-              class:active={blackboxDisplayedEnabled}
-              disabled={!blackboxSettingLoaded || blackboxTogglePending}
-              aria-label={blackboxEnabled ? "블랙박스 끄기" : "블랙박스 켜기"}
-              aria-pressed={blackboxEnabled}
-              onclick={toggleMainBlackbox}
-            >
+            <div class="blackbox-main-status">
+              <button
+                class="blackbox-main-link"
+                class:active={blackboxDisplayedEnabled}
+                disabled={!blackboxSettingLoaded || blackboxTogglePending}
+                aria-label={blackboxEnabled ? "블랙박스 끄기" : "블랙박스 켜기"}
+                aria-pressed={blackboxEnabled}
+                onclick={toggleMainBlackbox}
+              >
               <span
                 class="blackbox-text-final"
                 class:concealed={["enter", "hold"].includes(blackboxTransitionPhase)}
@@ -1890,7 +1904,9 @@
                   </span>
                 {/if}
               {/key}
-            </button>
+              </button>
+              <span class="blackbox-main-duration">{blackboxDurationText()}</span>
+            </div>
             <button
               class="blackbox-window-link"
               class:active={blackboxDisplayedEnabled}
