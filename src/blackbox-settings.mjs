@@ -32,6 +32,7 @@ function normalizeMaximumDuration(value) {
 }
 
 export function normalizeBlackboxShortcut(value) {
+  if (typeof value === "string" && value.trim() === "") return ""
   const tokens = String(value ?? "")
     .split("+")
     .map(token => token.trim())
@@ -72,11 +73,26 @@ export function normalizeBlackboxShortcut(value) {
       ["end", "End"],
       ["pageup", "PageUp"],
       ["pagedown", "PageDown"],
+      ["pause", "Pause"],
+      ["pausebreak", "Pause"],
+      ["printscreen", "PrintScreen"],
+      ["scrolllock", "Scrolllock"],
+      ["numlock", "Numlock"],
+      ["capslock", "Capslock"],
+      ["numadd", "numadd"],
+      ["numsub", "numsub"],
+      ["nummult", "nummult"],
+      ["numdiv", "numdiv"],
+      ["numdec", "numdec"],
     ])
     key = namedKeys.get(token.toLowerCase()) ?? ""
     if (!key) return defaultBlackboxShortcut
   }
-  if (!modifiers.length || !key) return defaultBlackboxShortcut
+  const standaloneKeys = ["Pause", "PrintScreen", "Scrolllock", "Numlock", "Capslock"]
+  if (key === "Pause") return "Pause"
+  if (!key || (!modifiers.length && !standaloneKeys.includes(key))) {
+    return defaultBlackboxShortcut
+  }
   const order = ["CommandOrControl", "Control", "Alt", "Shift", "Super"]
   modifiers.sort((left, right) => order.indexOf(left) - order.indexOf(right))
   return [...modifiers, key].join("+")

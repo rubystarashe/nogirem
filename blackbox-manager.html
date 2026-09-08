@@ -273,7 +273,7 @@
       }
 
       .settings .duration-inputs input {
-        width: 82px;
+        width: 58px;
       }
 
       .settings .duration-inputs span {
@@ -478,7 +478,7 @@
       }
 
       .settings-page {
-        overflow-y: auto;
+        overflow: hidden;
       }
 
       .settings-page .settings {
@@ -790,7 +790,9 @@
         <label class="max-duration">
           <span>최대 녹화 길이</span>
           <div class="duration-inputs">
-            <input class="max-duration-minutes" type="number" min="0" step="1" value="60" aria-label="최대 녹화 길이 분" />
+            <input class="max-duration-hours" type="number" min="0" step="1" value="1" aria-label="최대 녹화 길이 시간" />
+            <span>시간</span>
+            <input class="max-duration-minutes" type="number" min="0" step="1" value="0" aria-label="최대 녹화 길이 분" />
             <span>분</span>
             <input class="max-duration-seconds" type="number" min="0" step="1" value="0" aria-label="최대 녹화 길이 초" />
             <span>초</span>
@@ -825,7 +827,7 @@
         </label>
         <div class="settings-summary">
           <span class="quality-summary">자동 판정</span>
-          <span>단축키 입력란을 선택한 뒤 원하는 키 조합을 누르세요</span>
+          <span>단축키 입력란에서 원하는 키를 누르세요. Esc는 사용 안 함으로 설정합니다</span>
         </div>
       </section>
         <div class="page-actions">
@@ -855,6 +857,7 @@
       const codecSelect = document.querySelector(".codec-select")
       const fpsSelect = document.querySelector(".fps-select")
       const capacitySelect = document.querySelector(".capacity-select")
+      const maxDurationHoursInput = document.querySelector(".max-duration-hours")
       const maxDurationMinutesInput = document.querySelector(".max-duration-minutes")
       const maxDurationSecondsInput = document.querySelector(".max-duration-seconds")
       const clipSelect = document.querySelector(".clip-select")
@@ -878,6 +881,7 @@
         qualitySelect,
         codecSelect,
         fpsSelect,
+        maxDurationHoursInput,
         maxDurationMinutesInput,
         maxDurationSecondsInput,
         capacitySelect,
@@ -957,17 +961,46 @@
             End: "End",
             PageUp: "PageUp",
             PageDown: "PageDown",
+            Pause: "Pause",
+            PrintScreen: "PrintScreen",
+            ScrollLock: "Scrolllock",
+            NumLock: "Numlock",
+            CapsLock: "Capslock",
+            NumpadAdd: "numadd",
+            NumpadSubtract: "numsub",
+            NumpadMultiply: "nummult",
+            NumpadDivide: "numdiv",
+            NumpadDecimal: "numdec",
           }[event.code] ?? ""
         }
-        if (!modifiers.length || !key) return ""
+        const standaloneKeys = [
+          "Pause",
+          "PrintScreen",
+          "Scrolllock",
+          "Numlock",
+          "Capslock",
+        ]
+        if (key === "Pause") return "Pause"
+        if (!key || (!modifiers.length && !standaloneKeys.includes(key))) return ""
         return [...modifiers, key].join("+")
       }
 
       function shortcutLabel(accelerator) {
+        if (!accelerator) return "사용 안 함"
         return accelerator
           .replace("CommandOrControl", "Ctrl")
           .replace("Control", "Ctrl")
           .replaceAll("+", " + ")
+      }
+
+      function disableShortcut() {
+        shortcutInput.dataset.accelerator = ""
+        shortcutInput.value = "사용 안 함"
+        shortcutInput.classList.remove("capturing")
+        settingsDirty = true
+        saveSettingButton.disabled = busy
+        message.classList.remove("error")
+        message.textContent = "단축키를 사용하지 않으려면 설정 저장을 눌러 주세요"
       }
 
       function setMaximumDurationInputs(totalSeconds) {
@@ -975,12 +1008,17 @@
           60,
           Math.min(7 * 24 * 60 * 60, Math.round(Number(totalSeconds) || 3600)),
         )
-        maxDurationMinutesInput.value = String(Math.floor(normalized / 60))
+        maxDurationHoursInput.value = String(Math.floor(normalized / 3600))
+        maxDurationMinutesInput.value = String(Math.floor(normalized % 3600 / 60))
         maxDurationSecondsInput.value = String(normalized % 60)
         return normalized
       }
 
       function normalizeMaximumDurationInputs() {
+        const hours = Math.max(
+          0,
+          Math.round(Number(maxDurationHoursInput.value) || 0),
+        )
         const minutes = Math.max(
           0,
           Math.round(Number(maxDurationMinutesInput.value) || 0),
@@ -989,7 +1027,7 @@
           0,
           Math.round(Number(maxDurationSecondsInput.value) || 0),
         )
-        return setMaximumDurationInputs(minutes * 60 + seconds)
+        return setMaximumDurationInputs(hours * 3600 + minutes * 60 + seconds)
       }
 
       function draftSetting(enabled = status?.enabled) {
@@ -1002,7 +1040,7 @@
           maxDurationSeconds: normalizeMaximumDurationInputs(),
           capacityGb: Number(capacitySelect.value),
           clipSeconds: Number(clipSelect.value),
-          chunkSeconds: 4,
+          chunkSeconds: 10,
           shortcut: shortcutInput.dataset.accelerator,
         }
       }
@@ -1038,8 +1076,8 @@
         setMaximumDurationInputs(value.maxDurationSeconds)
         capacitySelect.value = String(value.capacityGb)
         clipSelect.value = String(value.clipSeconds)
-        shortcutInput.dataset.accelerator = value.shortcutAccelerator
-        shortcutInput.value = value.shortcut
+        shortcutInput.dataset.accelerator = value.shortcutAccelerator ?? ""
+        shortcutInput.value = value.shortcut || "사용 안 함"
         settingsInitialized = true
         settingsDirty = false
       }
@@ -1363,6 +1401,13 @@
       })
 
       window.addEventListener("keydown", event => {
+        if (event.code === "Escape" && document.activeElement === shortcutInput) {
+          event.preventDefault()
+          event.stopPropagation()
+          disableShortcut()
+          shortcutInput.blur()
+          return
+        }
         if (event.code === "Escape" && !clipSaveModal.hidden) {
           event.preventDefault()
           closeClipSaveModal()
@@ -1439,6 +1484,7 @@
           renderSettingSummary()
         })
       }
+      maxDurationHoursInput.addEventListener("change", normalizeMaximumDurationInputs)
       maxDurationMinutesInput.addEventListener("change", normalizeMaximumDurationInputs)
       maxDurationSecondsInput.addEventListener("change", normalizeMaximumDurationInputs)
 
@@ -1452,6 +1498,7 @@
         event.preventDefault()
         event.stopPropagation()
         if (event.code === "Escape") {
+          disableShortcut()
           shortcutInput.blur()
           return
         }
@@ -1468,6 +1515,22 @@
         saveSettingButton.disabled = busy
         message.classList.remove("error")
         message.textContent = "새 단축키를 사용하려면 설정 저장을 눌러 주세요"
+      })
+
+      window.blackboxManager.onEscapePressed(() => {
+        if (
+          document.activeElement === shortcutInput
+          || shortcutInput.classList.contains("capturing")
+        ) {
+          disableShortcut()
+          shortcutInput.blur()
+          return
+        }
+        if (!clipSaveModal.hidden) {
+          closeClipSaveModal()
+          return
+        }
+        void window.blackboxManager.requestClose()
       })
 
       saveSettingButton.addEventListener("click", async () => {

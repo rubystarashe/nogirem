@@ -89,6 +89,7 @@ struct Options {
   int chunkSeconds = 10;
   int capacityGb = 50;
   int maxDurationSeconds = 3600;
+  int shortcutVirtualKey = 0;
   DWORD parentPid = 0;
 };
 
@@ -421,6 +422,13 @@ Options optionsFromArguments(int count, wchar_t** values) {
     3600,
     60,
     604800
+  );
+  options.shortcutVirtualKey = integerArgument(
+    arguments,
+    L"shortcut-vk",
+    0,
+    0,
+    255
   );
   options.parentPid = static_cast<DWORD>(
     integerArgument(arguments, L"parent-pid", 0, 0, INT_MAX)
@@ -3376,9 +3384,18 @@ int wmain(int count, wchar_t** values) {
     auto lastStatusWrite = std::chrono::steady_clock::now() - 2s;
     auto nextCaptureAttempt = std::chrono::steady_clock::now();
     auto captureRetryDelay = 500ms;
+    bool shortcutPressed = false;
 
     while (status.running && processRunning(options.parentPid)) {
       const auto now = std::chrono::steady_clock::now();
+      if (options.shortcutVirtualKey > 0) {
+        const bool pressed =
+          (GetAsyncKeyState(options.shortcutVirtualKey) & 0x8000) != 0;
+        if (pressed && !shortcutPressed) {
+          std::cout << "SHORTCUT\n" << std::flush;
+        }
+        shortcutPressed = pressed;
+      }
       if (const auto control = readControl(options.controlPath)) {
         if (control->command == "stop") {
           status.running = false;

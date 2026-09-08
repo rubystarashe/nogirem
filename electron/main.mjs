@@ -190,6 +190,9 @@ let blackboxStorageSummaryPromise = null
 let blackboxStorageSummaryGeneration = 0
 let blackboxStorageSummaryRetryAt = 0
 let activeBlackboxShortcut = null
+const nativeBlackboxShortcutVirtualKeys = new Map([
+  ["Pause", 0x13],
+])
 const internalWindowsClosedForTray = new WeakSet()
 let primaryRendererRecoveryMode = false
 let primaryRendererRecoveryInProgress = false
@@ -2073,11 +2076,17 @@ async function getBlackboxSetting() {
     storagePath: paths.storagePath,
     latestClip: blackboxLatestClipOverride ?? status?.latestClip ?? null,
     shortcut: setting.shortcut
-      .replace("CommandOrControl", "Ctrl")
-      .replace("Control", "Ctrl")
-      .replaceAll("+", " + "),
+      ? setting.shortcut
+          .replace("CommandOrControl", "Ctrl")
+          .replace("Control", "Ctrl")
+          .replaceAll("+", " + ")
+      : "사용 안 함",
     shortcutAccelerator: setting.shortcut,
-    shortcutAvailable: globalShortcut.isRegistered(setting.shortcut),
+    shortcutAvailable: (
+      !setting.shortcut
+      || nativeBlackboxShortcutVirtualKeys.has(setting.shortcut)
+      || globalShortcut.isRegistered(setting.shortcut)
+    ),
     bitrateMbps: bitrateForBlackboxSetting(runtimeSetting),
     reason: statusFresh
       ? (status?.error ?? null)
@@ -2127,6 +2136,8 @@ function unregisterBlackboxShortcut() {
 function registerBlackboxShortcut(shortcut) {
   unregisterBlackboxShortcut()
   const accelerator = normalizeBlackboxShortcut(shortcut)
+  if (!accelerator) return true
+  if (nativeBlackboxShortcutVirtualKeys.has(accelerator)) return true
   const registered = globalShortcut.register(accelerator, () => {
     openBlackboxClipSaveDialog()
   })
@@ -2205,15 +2216,26 @@ async function launchBlackboxHelper(setting) {
     `--chunk-seconds=${normalized.chunkSeconds}`,
     `--capacity-gb=${normalized.capacityGb}`,
     `--max-duration-seconds=${normalized.maxDurationSeconds}`,
+    `--shortcut-vk=${nativeBlackboxShortcutVirtualKeys.get(normalized.shortcut) ?? 0}`,
     affinityArgument,
   ], {
     windowsHide: true,
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "ignore"],
   })
   blackboxProcess = child
   let spawnError = null
+  let shortcutOutput = ""
   child.once("error", error => {
     spawnError = error
+  })
+  child.stdout.setEncoding("utf8")
+  child.stdout.on("data", output => {
+    shortcutOutput += String(output)
+    const lines = shortcutOutput.split(/\r?\n/)
+    shortcutOutput = lines.pop() ?? ""
+    for (const line of lines) {
+      if (line === "SHORTCUT") openBlackboxClipSaveDialog()
+    }
   })
   child.once("exit", () => {
     if (blackboxProcess === child) blackboxProcess = null
@@ -2705,8 +2727,7 @@ async function openBlackboxClip(fileName) {
   const clipPath = blackboxClipPath(fileName)
   const clipStat = await stat(clipPath)
   if (!clipStat.isFile()) throw new Error("저장된 클립을 찾지 못했습니다")
-  const error = await shell.openPath(clipPath)
-  if (error) throw new Error(error)
+  shell.showItemInFolder(clipPath)
   return true
 }
 
@@ -2786,10 +2807,10 @@ function setBlackboxManagerPage(page) {
   const workArea = screen.getDisplayMatching(bounds).workArea
   const preferred = blackboxManagerPreferredSize ?? readBlackboxManagerSize()
   const compact = page === "settings"
-  const targetWidth = Math.min(workArea.width, compact ? 720 : Math.max(900, preferred.width))
-  const targetHeight = Math.min(workArea.height, compact ? 680 : Math.max(680, preferred.height))
+  const targetWidth = Math.min(workArea.width, compact ? 540 : Math.max(900, preferred.width))
+  const targetHeight = Math.min(workArea.height, compact ? 760 : Math.max(680, preferred.height))
   blackboxManagerActivePage = page
-  window.setMinimumSize(compact ? 680 : 900, compact ? 620 : 680)
+  window.setMinimumSize(compact ? 520 : 900, compact ? 720 : 680)
   const targetX = Math.max(
     workArea.x,
     Math.min(
@@ -4529,11 +4550,15 @@ function disableProductionRefresh(window) {
   })
 }
 
-function closeWindowOnEscape(window) {
+function closeWindowOnEscape(window, rendererEvent = "") {
   window.webContents.on("before-input-event", (event, input) => {
     if (input.type !== "keyDown" || input.key !== "Escape" || input.isAutoRepeat) return
     event.preventDefault()
-    window.close()
+    if (rendererEvent && !window.webContents.isDestroyed()) {
+      window.webContents.send(rendererEvent)
+    } else {
+      window.close()
+    }
   })
 }
 
@@ -4674,7 +4699,7 @@ function openBlackboxManager() {
     },
   })
   disableProductionRefresh(window)
-  closeWindowOnEscape(window)
+  closeWindowOnEscape(window, "blackbox-manager:escape-pressed")
   blackboxManagerWindow = window
   observeInternalWindowVisualActivity(window)
   let opacityTimer = null

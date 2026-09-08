@@ -180,9 +180,9 @@ test("Esc는 최상위 모달과 문서 화면을 닫고 모든 보조 창에도
   )
   assert.match(
     electronMain,
-    /function closeWindowOnEscape\(window\)[\s\S]*input\.type !== "keyDown"[\s\S]*input\.key !== "Escape"[\s\S]*window\.close\(\)/,
+    /function closeWindowOnEscape\(window, rendererEvent = ""\)[\s\S]*input\.type !== "keyDown"[\s\S]*input\.key !== "Escape"[\s\S]*window\.close\(\)/,
   )
-  assert.equal(electronMain.match(/closeWindowOnEscape\(window\)/g)?.length, 6)
+  assert.equal(electronMain.match(/closeWindowOnEscape\(window(?:, "[^"]+")?\)/g)?.length, 5)
 })
 
 test("키보드 입력 후 버튼에 포커스 외곽선을 표시하지 않는다", () => {

@@ -2,6 +2,11 @@ const { contextBridge, ipcRenderer } = require("electron")
 
 contextBridge.exposeInMainWorld("blackboxManager", {
   requestClose: () => ipcRenderer.invoke("blackbox-manager:request-close"),
+  onEscapePressed: callback => {
+    const listener = () => callback()
+    ipcRenderer.on("blackbox-manager:escape-pressed", listener)
+    return () => ipcRenderer.removeListener("blackbox-manager:escape-pressed", listener)
+  },
   getStatus: () => ipcRenderer.invoke("blackbox-manager:get-status"),
   fitMedia: value => ipcRenderer.invoke("blackbox-manager:fit-media", value),
   setPage: page => ipcRenderer.invoke("blackbox-manager:set-page", page),

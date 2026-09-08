@@ -10,11 +10,13 @@ const anchorTime = document.querySelector(".anchor-time")
 const addTimeButton = document.querySelector(".add-time")
 const directTimeButton = document.querySelector(".direct-time")
 const directLengthForm = document.querySelector(".direct-length")
+const trackHoursInput = document.querySelector("#track-hours")
 const trackMinutesInput = document.querySelector("#track-minutes")
 const trackSecondsInput = document.querySelector("#track-seconds")
 const trackStatus = document.querySelector(".track-status")
 const trackUsage = document.querySelector(".track-usage")
 const trackDuration = document.querySelector(".track-duration")
+const extractHoursInput = document.querySelector("#extract-hours")
 const extractMinutesInput = document.querySelector("#extract-minutes")
 const extractSecondsInput = document.querySelector("#extract-seconds")
 const gapPolicySelect = document.querySelector(".gap-policy")
@@ -114,15 +116,17 @@ function formatTime(seconds) {
 
 function setTrackLengthInputs(totalSeconds) {
   const normalized = Math.max(30, Math.min(21600, Math.round(Number(totalSeconds) || 900)))
-  trackMinutesInput.value = String(Math.floor(normalized / 60))
+  trackHoursInput.value = String(Math.floor(normalized / 3600))
+  trackMinutesInput.value = String(Math.floor(normalized % 3600 / 60))
   trackSecondsInput.value = String(normalized % 60)
   return normalized
 }
 
 function normalizeTrackLengthInputs() {
+  const hours = Math.max(0, Math.round(Number(trackHoursInput.value) || 0))
   const minutes = Math.max(0, Math.round(Number(trackMinutesInput.value) || 0))
   const seconds = Math.max(0, Math.round(Number(trackSecondsInput.value) || 0))
-  return setTrackLengthInputs(seconds >= 60 ? seconds : minutes * 60 + seconds)
+  return setTrackLengthInputs(hours * 3600 + minutes * 60 + seconds)
 }
 
 function setExtractDurationInputs(totalSeconds) {
@@ -131,15 +135,17 @@ function setExtractDurationInputs(totalSeconds) {
     1,
     Math.round(Number.isFinite(numeric) ? numeric : 60),
   )
-  extractMinutesInput.value = String(Math.floor(normalized / 60))
+  extractHoursInput.value = String(Math.floor(normalized / 3600))
+  extractMinutesInput.value = String(Math.floor(normalized % 3600 / 60))
   extractSecondsInput.value = String(normalized % 60)
   return normalized
 }
 
 function normalizeExtractDurationInputs() {
+  const hours = Math.max(0, Math.round(Number(extractHoursInput.value) || 0))
   const minutes = Math.max(0, Math.round(Number(extractMinutesInput.value) || 0))
   const seconds = Math.max(0, Math.round(Number(extractSecondsInput.value) || 0))
-  return setExtractDurationInputs(seconds >= 60 ? seconds : minutes * 60 + seconds)
+  return setExtractDurationInputs(hours * 3600 + minutes * 60 + seconds)
 }
 
 function formatRecordedDuration(seconds) {
@@ -169,8 +175,10 @@ function setBusy(value, text = "") {
   busy = value
   addTimeButton.disabled = value
   directTimeButton.disabled = value
+  trackHoursInput.disabled = value
   trackMinutesInput.disabled = value
   trackSecondsInput.disabled = value
+  extractHoursInput.disabled = value
   extractMinutesInput.disabled = value
   extractSecondsInput.disabled = value
   gapPolicySelect.disabled = value
@@ -218,7 +226,7 @@ function clampSelection() {
     Math.min(total - selectionDuration, selectionStart),
   )
   setExtractDurationInputs(selectionDuration)
-  extractMinutesInput.max = String(Math.max(0, Math.floor(total / 60)))
+  extractHoursInput.max = String(Math.max(0, Math.floor(total / 3600)))
 }
 
 function renderTimeline() {
@@ -812,6 +820,7 @@ function applyExtractDurationInputs() {
   setTimelineCursor(selectionStart)
 }
 
+extractHoursInput.addEventListener("change", applyExtractDurationInputs)
 extractMinutesInput.addEventListener("change", applyExtractDurationInputs)
 extractSecondsInput.addEventListener("change", applyExtractDurationInputs)
 
@@ -830,8 +839,8 @@ addTimeButton.addEventListener("click", () => {
 directTimeButton.addEventListener("click", () => {
   directLengthForm.classList.toggle("visible")
   if (directLengthForm.classList.contains("visible")) {
-    trackMinutesInput.focus()
-    trackMinutesInput.select()
+    trackHoursInput.focus()
+    trackHoursInput.select()
   }
 })
 
@@ -845,6 +854,7 @@ document.addEventListener("pointerdown", event => {
   }
 })
 
+trackHoursInput.addEventListener("change", normalizeTrackLengthInputs)
 trackMinutesInput.addEventListener("change", normalizeTrackLengthInputs)
 trackSecondsInput.addEventListener("change", normalizeTrackLengthInputs)
 
