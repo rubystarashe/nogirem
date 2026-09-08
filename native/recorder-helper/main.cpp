@@ -1013,6 +1013,7 @@ struct MediaSignature {
   UINT32 height = 0;
   UINT32 frameRateNumerator = 0;
   UINT32 frameRateDenominator = 0;
+  UINT32 averageBitrate = 12000000;
   std::vector<std::uint8_t> sequenceHeader;
   bool hasAudio = false;
   GUID audioSubtype{};
@@ -1036,6 +1037,7 @@ MediaSignature mediaSignature(IMFMediaType* mediaType) {
     &signature.frameRateNumerator,
     &signature.frameRateDenominator
   ));
+  mediaType->GetUINT32(MF_MT_AVG_BITRATE, &signature.averageBitrate);
   UINT32 headerSize = 0;
   if (
     SUCCEEDED(mediaType->GetBlobSize(MF_MT_MPEG_SEQUENCE_HEADER, &headerSize))
@@ -1104,6 +1106,18 @@ bool sameMediaSignature(const MediaSignature& left, const MediaSignature& right)
       && left.audioSampleRate == right.audioSampleRate
       && left.audioChannels == right.audioChannels
       && left.audioUserData == right.audioUserData
+    ));
+}
+
+bool sameMediaFormat(const MediaSignature& left, const MediaSignature& right) {
+  return left.subtype == right.subtype
+    && left.width == right.width
+    && left.height == right.height
+    && left.hasAudio == right.hasAudio
+    && (!left.hasAudio || (
+      left.audioSubtype == right.audioSubtype
+      && left.audioSampleRate == right.audioSampleRate
+      && left.audioChannels == right.audioChannels
     ));
 }
 
@@ -1245,7 +1259,8 @@ bool remuxChunks(
   const std::vector<fs::path>& inputs,
   const fs::path& output,
   LONGLONG requestedStart = 0,
-  LONGLONG requestedDuration = LLONG_MAX
+  LONGLONG requestedDuration = LLONG_MAX,
+  bool allowFormatChanges = false
 ) {
   if (inputs.empty()) return false;
   const LONGLONG effectiveStart = findCleanRangeStart(inputs, requestedStart);
@@ -1275,7 +1290,14 @@ bool remuxChunks(
       &mediaType
     ));
     const auto signature = mediaSignature(inputs[fileIndex]);
-    if (expectedSignature && !sameMediaSignature(*expectedSignature, signature)) {
+    if (
+      expectedSignature
+      && !(
+        allowFormatChanges
+          ? sameMediaFormat(*expectedSignature, signature)
+          : sameMediaSignature(*expectedSignature, signature)
+      )
+    ) {
       throw std::runtime_error("해상도 또는 인코딩 형식이 다른 청크는 결합할 수 없습니다");
     }
     expectedSignature = signature;
@@ -1411,14 +1433,21 @@ bool remuxChunksAtomically(
   const std::vector<fs::path>& inputs,
   const fs::path& output,
   LONGLONG requestedStart = 0,
-  LONGLONG requestedDuration = LLONG_MAX
+  LONGLONG requestedDuration = LLONG_MAX,
+  bool allowFormatChanges = false
 ) {
   auto partial = output;
   partial += L".partial.mp4";
   std::error_code cleanupError;
   fs::remove(partial, cleanupError);
   try {
-    if (!remuxChunks(inputs, partial, requestedStart, requestedDuration)) return false;
+    if (!remuxChunks(
+      inputs,
+      partial,
+      requestedStart,
+      requestedDuration,
+      allowFormatChanges
+    )) return false;
     fs::remove(output, cleanupError);
     fs::rename(partial, output);
     return true;
@@ -2595,6 +2624,217 @@ std::int64_t wideInteger(
   }
 }
 
+struct CompositionPiece {
+  bool black;
+  LONGLONG start;
+  LONGLONG duration;
+};
+
+std::vector<CompositionPiece> parseCompositionPieces(const std::wstring& value) {
+  std::vector<CompositionPiece> pieces;
+  std::wstringstream stream(value);
+  std::wstring token;
+  while (std::getline(stream, token, L';')) {
+    std::vector<std::wstring> parts;
+    std::wstringstream tokenStream(token);
+    std::wstring part;
+    while (std::getline(tokenStream, part, L':')) parts.push_back(part);
+    try {
+      if (parts.size() == 2 && parts[0] == L"black") {
+        const auto duration = std::stoll(parts[1]) * 10000ll;
+        if (duration > 0) pieces.push_back({ true, 0, duration });
+      } else if (parts.size() == 3 && parts[0] == L"media") {
+        const auto start = std::max<LONGLONG>(0, std::stoll(parts[1]) * 10000ll);
+        const auto duration = std::stoll(parts[2]) * 10000ll;
+        if (duration > 0) pieces.push_back({ false, start, duration });
+      }
+    } catch (...) {
+      throw std::runtime_error("영상 추출 구간 정보가 올바르지 않습니다");
+    }
+  }
+  if (pieces.empty()) throw std::runtime_error("영상 추출 구간이 비어 있습니다");
+  return pieces;
+}
+
+void createBlackVideo(
+  const fs::path& referencePath,
+  const fs::path& outputPath,
+  LONGLONG duration
+) {
+  const auto signature = mediaSignature(referencePath);
+  ComPtr<IMFAttributes> attributes;
+  check_hresult(MFCreateAttributes(&attributes, 2));
+  check_hresult(attributes->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, TRUE));
+  check_hresult(attributes->SetUINT32(MF_SINK_WRITER_DISABLE_THROTTLING, TRUE));
+  ComPtr<IMFSinkWriter> writer;
+  check_hresult(MFCreateSinkWriterFromURL(
+    outputPath.c_str(),
+    nullptr,
+    attributes.Get(),
+    &writer
+  ));
+
+  ComPtr<IMFMediaType> videoOutputType;
+  check_hresult(MFCreateMediaType(&videoOutputType));
+  check_hresult(videoOutputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video));
+  check_hresult(videoOutputType->SetGUID(MF_MT_SUBTYPE, signature.subtype));
+  check_hresult(videoOutputType->SetUINT32(
+    MF_MT_AVG_BITRATE,
+    signature.averageBitrate
+  ));
+  check_hresult(videoOutputType->SetUINT32(
+    MF_MT_INTERLACE_MODE,
+    MFVideoInterlace_Progressive
+  ));
+  check_hresult(MFSetAttributeSize(
+    videoOutputType.Get(),
+    MF_MT_FRAME_SIZE,
+    signature.width,
+    signature.height
+  ));
+  check_hresult(MFSetAttributeRatio(
+    videoOutputType.Get(),
+    MF_MT_FRAME_RATE,
+    signature.frameRateNumerator,
+    signature.frameRateDenominator
+  ));
+  check_hresult(MFSetAttributeRatio(
+    videoOutputType.Get(),
+    MF_MT_PIXEL_ASPECT_RATIO,
+    1,
+    1
+  ));
+  DWORD videoStream = 0;
+  check_hresult(writer->AddStream(videoOutputType.Get(), &videoStream));
+
+  ComPtr<IMFMediaType> videoInputType;
+  check_hresult(MFCreateMediaType(&videoInputType));
+  check_hresult(videoInputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video));
+  check_hresult(videoInputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_NV12));
+  check_hresult(videoInputType->SetUINT32(
+    MF_MT_INTERLACE_MODE,
+    MFVideoInterlace_Progressive
+  ));
+  check_hresult(videoInputType->SetUINT32(MF_MT_DEFAULT_STRIDE, signature.width));
+  check_hresult(MFSetAttributeSize(
+    videoInputType.Get(),
+    MF_MT_FRAME_SIZE,
+    signature.width,
+    signature.height
+  ));
+  check_hresult(MFSetAttributeRatio(
+    videoInputType.Get(),
+    MF_MT_FRAME_RATE,
+    signature.frameRateNumerator,
+    signature.frameRateDenominator
+  ));
+  check_hresult(MFSetAttributeRatio(
+    videoInputType.Get(),
+    MF_MT_PIXEL_ASPECT_RATIO,
+    1,
+    1
+  ));
+  check_hresult(writer->SetInputMediaType(
+    videoStream,
+    videoInputType.Get(),
+    nullptr
+  ));
+
+  std::optional<DWORD> audioStream;
+  if (signature.hasAudio) {
+    DWORD stream = 0;
+    const auto audioOutputType = createAacAudioType();
+    check_hresult(writer->AddStream(audioOutputType.Get(), &stream));
+    const auto audioInputType = createPcmAudioType();
+    check_hresult(writer->SetInputMediaType(
+      stream,
+      audioInputType.Get(),
+      nullptr
+    ));
+    audioStream = stream;
+  }
+  check_hresult(writer->BeginWriting());
+
+  const DWORD yPlaneBytes = signature.width * signature.height;
+  const DWORD videoBytes = yPlaneBytes * 3 / 2;
+  ComPtr<IMFMediaBuffer> videoBuffer;
+  check_hresult(MFCreateMemoryBuffer(videoBytes, &videoBuffer));
+  BYTE* videoData = nullptr;
+  check_hresult(videoBuffer->Lock(&videoData, nullptr, nullptr));
+  std::memset(videoData, 16, yPlaneBytes);
+  std::memset(videoData + yPlaneBytes, 128, videoBytes - yPlaneBytes);
+  check_hresult(videoBuffer->Unlock());
+  check_hresult(videoBuffer->SetCurrentLength(videoBytes));
+  ComPtr<IMFSample> videoSample;
+  check_hresult(MFCreateSample(&videoSample));
+  check_hresult(videoSample->AddBuffer(videoBuffer.Get()));
+  check_hresult(videoSample->SetSampleTime(0));
+  check_hresult(videoSample->SetSampleDuration(duration));
+  check_hresult(writer->WriteSample(videoStream, videoSample.Get()));
+
+  if (audioStream) {
+    constexpr UINT32 audioFrames = 1024;
+    const LONGLONG audioDuration =
+      static_cast<LONGLONG>(audioFrames) * 10000000ll / AudioSampleRate;
+    const DWORD audioBytes = audioFrames * AudioBlockAlignment;
+    for (LONGLONG timestamp = 0; timestamp < duration; timestamp += audioDuration) {
+      ComPtr<IMFMediaBuffer> audioBuffer;
+      check_hresult(MFCreateMemoryBuffer(audioBytes, &audioBuffer));
+      BYTE* audioData = nullptr;
+      check_hresult(audioBuffer->Lock(&audioData, nullptr, nullptr));
+      std::memset(audioData, 0, audioBytes);
+      check_hresult(audioBuffer->Unlock());
+      check_hresult(audioBuffer->SetCurrentLength(audioBytes));
+      ComPtr<IMFSample> audioSample;
+      check_hresult(MFCreateSample(&audioSample));
+      check_hresult(audioSample->AddBuffer(audioBuffer.Get()));
+      check_hresult(audioSample->SetSampleTime(timestamp));
+      check_hresult(audioSample->SetSampleDuration(
+        std::min(audioDuration, duration - timestamp)
+      ));
+      check_hresult(writer->WriteSample(*audioStream, audioSample.Get()));
+    }
+  }
+  check_hresult(writer->Finalize());
+}
+
+void composeExtraction(
+  const fs::path& inputPath,
+  const fs::path& outputPath,
+  const std::vector<CompositionPiece>& pieces
+) {
+  const auto stagingDirectory = outputPath.parent_path()
+    / (L".compose-" + std::to_wstring(epochMilliseconds()));
+  fs::create_directories(stagingDirectory);
+  std::vector<fs::path> partPaths;
+  try {
+    for (std::size_t index = 0; index < pieces.size(); ++index) {
+      const auto partPath = stagingDirectory
+        / (L"part-" + std::to_wstring(index) + L".mp4");
+      const auto& piece = pieces[index];
+      if (piece.black) {
+        createBlackVideo(inputPath, partPath, piece.duration);
+      } else if (!remuxChunksAtomically(
+        { inputPath },
+        partPath,
+        piece.start,
+        piece.duration
+      )) {
+        throw std::runtime_error("녹화된 영상 구간을 준비하지 못했습니다");
+      }
+      partPaths.push_back(partPath);
+    }
+    if (!remuxChunksAtomically(partPaths, outputPath, 0, LLONG_MAX, true)) {
+      throw std::runtime_error("검은 공백을 포함한 영상을 결합하지 못했습니다");
+    }
+    fs::remove_all(stagingDirectory);
+  } catch (...) {
+    std::error_code error;
+    fs::remove_all(stagingDirectory, error);
+    throw;
+  }
+}
+
 int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
   const auto mode = arguments.at(L"mode");
   init_apartment(apartment_type::multi_threaded);
@@ -2635,6 +2875,12 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
         throw std::runtime_error("편집 트랙을 만들지 못했습니다");
       }
       std::cout << timelineMetadata.json << '\n';
+    } else if (mode == L"compose") {
+      const fs::path inputPath = arguments.at(L"input");
+      const fs::path outputPath = arguments.at(L"output");
+      const auto pieces = parseCompositionPieces(arguments.at(L"pieces"));
+      fs::create_directories(outputPath.parent_path());
+      composeExtraction(inputPath, outputPath, pieces);
     } else if (mode == L"extract") {
       const fs::path inputPath = arguments.at(L"input");
       const fs::path outputPath = arguments.at(L"output");
@@ -2673,7 +2919,11 @@ int wmain(int count, wchar_t** values) {
   const auto arguments = parseArguments(count, values);
   if (
     arguments.count(L"mode")
-    && (arguments.at(L"mode") == L"track" || arguments.at(L"mode") == L"extract")
+    && (
+      arguments.at(L"mode") == L"track"
+      || arguments.at(L"mode") == L"compose"
+      || arguments.at(L"mode") == L"extract"
+    )
   ) {
     try {
       return runUtilityMode(arguments);

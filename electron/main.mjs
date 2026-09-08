@@ -2301,6 +2301,13 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
       0,
       Number(metadata.mediaDurationSeconds) || seconds,
     )
+    session.trackTimelineSeconds = Math.max(
+      0,
+      Number(metadata.timelineDurationSeconds) || seconds,
+    )
+    session.trackSegments = Array.isArray(metadata.segments)
+      ? metadata.segments
+      : []
     session.trackFiles.set(trackId, outputPath)
     if (previousTrackPath && previousTrackPath !== outputPath) {
       setTimeout(() => {
@@ -2313,11 +2320,8 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
     return {
       anchorAt: session.anchorAt,
       gaps: Array.isArray(metadata.gaps) ? metadata.gaps : [],
-      segments: Array.isArray(metadata.segments) ? metadata.segments : [],
-      timelineDurationSeconds: Math.max(
-        0,
-        Number(metadata.timelineDurationSeconds) || seconds,
-      ),
+      segments: session.trackSegments,
+      timelineDurationSeconds: session.trackTimelineSeconds,
       requestedSeconds: seconds,
       videoUrl: `nogirem-blackbox://editor/${session.id}/${trackId}?v=${outputStat.mtimeMs}`,
     }
@@ -2335,6 +2339,34 @@ async function prepareBlackboxEditorSession(session) {
   return session.preparePromise
 }
 
+function buildBlackboxExtractionPieces(session, startSeconds, durationSeconds) {
+  const endSeconds = startSeconds + durationSeconds
+  const pieces = []
+  let cursor = startSeconds
+  for (const value of session.trackSegments) {
+    const timelineStart = Math.max(0, Number(value?.timelineStartSeconds) || 0)
+    const mediaStart = Math.max(0, Number(value?.mediaStartSeconds) || 0)
+    const segmentDuration = Math.max(0, Number(value?.durationSeconds) || 0)
+    const timelineEnd = timelineStart + segmentDuration
+    if (timelineEnd <= cursor || timelineStart >= endSeconds) continue
+    const overlapStart = Math.max(cursor, timelineStart)
+    const overlapEnd = Math.min(endSeconds, timelineEnd)
+    if (overlapStart > cursor) {
+      pieces.push({ type: "black", duration: overlapStart - cursor })
+    }
+    pieces.push({
+      type: "media",
+      start: mediaStart + overlapStart - timelineStart,
+      duration: overlapEnd - overlapStart,
+    })
+    cursor = overlapEnd
+  }
+  if (cursor < endSeconds) {
+    pieces.push({ type: "black", duration: endSeconds - cursor })
+  }
+  return pieces.filter(piece => piece.duration >= 0.01)
+}
+
 async function extractBlackboxEditorRange(session, value) {
   const startSeconds = Math.max(0, Number(value?.startSeconds) || 0)
   const durationSeconds = Math.max(1, Math.min(21600, Number(value?.durationSeconds) || 30))
@@ -2342,7 +2374,7 @@ async function extractBlackboxEditorRange(session, value) {
     if (session.closed || !session.trackPath) {
       throw new Error("먼저 편집 트랙을 준비하세요")
     }
-    if (startSeconds + durationSeconds > session.trackMediaSeconds + 0.5) {
+    if (startSeconds + durationSeconds > session.trackTimelineSeconds + 0.5) {
       throw new Error("선택한 추출 구간이 편집 트랙을 벗어났습니다")
     }
     const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
@@ -2350,12 +2382,21 @@ async function extractBlackboxEditorRange(session, value) {
       clipsDirectory,
       `마비노기-추출-${blackboxEditorDateName()}.mp4`,
     )
+    const pieces = buildBlackboxExtractionPieces(
+      session,
+      startSeconds,
+      durationSeconds,
+    )
+    const encodedPieces = pieces.map(piece => (
+      piece.type === "media"
+        ? `media:${Math.round(piece.start * 1000)}:${Math.round(piece.duration * 1000)}`
+        : `black:${Math.round(piece.duration * 1000)}`
+    )).join(";")
     await runRecorderUtility([
-      "--mode=extract",
+      "--mode=compose",
       `--input=${session.trackPath}`,
       `--output=${outputPath}`,
-      `--start-ms=${Math.round(startSeconds * 1000)}`,
-      `--duration-ms=${Math.round(durationSeconds * 1000)}`,
+      `--pieces=${encodedPieces}`,
     ])
     return {
       outputPath,
@@ -4552,6 +4593,8 @@ function createBlackboxEditorSession() {
     trackFiles: new Map(),
     trackSeconds: 900,
     trackMediaSeconds: 0,
+    trackTimelineSeconds: 900,
+    trackSegments: [],
     closed: false,
   }
   blackboxEditorSession = session

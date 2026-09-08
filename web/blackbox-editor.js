@@ -1,6 +1,7 @@
 const editor = document.querySelector(".editor")
 const video = document.querySelector("video")
 const preview = document.querySelector(".preview")
+const gapPreview = document.querySelector(".gap-preview")
 const loadingState = document.querySelector(".loading-state span")
 const emptyState = document.querySelector(".empty-state")
 const closeButton = document.querySelector(".window-close")
@@ -70,10 +71,15 @@ let timelineDuration = 0
 let trackSegments = []
 let selectionStart = 0
 let selectionDuration = 30
+let timelineCursor = 0
 let initialTrackLoaded = false
 let busy = true
 let timelineInteraction = null
 let previewingSelection = false
+let timelinePlaying = false
+let playbackAnimationFrame = 0
+let playbackStartedAt = 0
+let playbackStartTimeline = 0
 let trackGaps = []
 let lastOutputPath = ""
 
@@ -143,69 +149,23 @@ function setBusy(value, text = "") {
   }
 }
 
-function segmentAtTimelineTime(time, nearest = false) {
+function segmentAtTimelineTime(time) {
   if (!trackSegments.length) return null
-  const direct = trackSegments.find(segment => (
+  return trackSegments.find(segment => (
     time >= segment.timelineStart
     && time <= segment.timelineStart + segment.duration
-  ))
-  if (direct || !nearest) return direct ?? null
-  return trackSegments.reduce((closest, segment) => {
-    const end = segment.timelineStart + segment.duration
-    const distance = time < segment.timelineStart
-      ? segment.timelineStart - time
-      : Math.max(0, time - end)
-    return !closest || distance < closest.distance
-      ? { segment, distance }
-      : closest
-  }, null)?.segment ?? null
+  )) ?? null
 }
 
-function timelineTimeToMediaTime(time) {
-  const segment = segmentAtTimelineTime(time, true)
-  if (!segment) return 0
-  return segment.mediaStart + Math.max(
-    0,
-    Math.min(segment.duration, time - segment.timelineStart),
-  )
-}
-
-function mediaTimeToTimelineTime(time) {
-  if (!trackSegments.length) return Math.max(0, Number(time) || 0)
-  const segment = trackSegments.find((candidate, index) => (
-    time >= candidate.mediaStart
-    && (
-      time < candidate.mediaStart + candidate.duration
-      || (
-        index === trackSegments.length - 1
-        && time <= candidate.mediaStart + candidate.duration + 0.05
-      )
-    )
-  )) ?? trackSegments.at(-1)
-  return segment.timelineStart + Math.max(
-    0,
-    Math.min(segment.duration, time - segment.mediaStart),
-  )
-}
-
-function clampSelection(targetSegment = null) {
-  const segment = targetSegment
-    ?? segmentAtTimelineTime(selectionStart + selectionDuration / 2, true)
-  if (!segment) {
-    selectionStart = 0
-    selectionDuration = Math.max(1, Math.min(duration || 1, selectionDuration))
-    return
-  }
-  selectionDuration = Math.max(1, Math.min(segment.duration, selectionDuration))
+function clampSelection() {
+  const total = timelineDuration || duration || 1
+  selectionDuration = Math.max(1, Math.min(total, selectionDuration))
   selectionStart = Math.max(
-    segment.timelineStart,
-    Math.min(
-      segment.timelineStart + segment.duration - selectionDuration,
-      selectionStart,
-    ),
+    0,
+    Math.min(total - selectionDuration, selectionStart),
   )
   extractSecondsInput.value = String(Math.round(selectionDuration * 10) / 10)
-  extractSecondsInput.max = String(Math.max(1, Math.floor(segment.duration)))
+  extractSecondsInput.max = String(Math.max(1, Math.floor(total)))
 }
 
 function renderTimeline() {
@@ -213,9 +173,8 @@ function renderTimeline() {
   clampSelection()
   guide.style.left = `${selectionStart / total * 100}%`
   guide.style.width = `${selectionDuration / total * 100}%`
-  const timelineTime = mediaTimeToTimelineTime(video.currentTime || 0)
-  playhead.style.left = `${Math.min(total, timelineTime) / total * 100}%`
-  currentTime.textContent = `${formatTime(timelineTime)} / ${formatTime(total)}`
+  playhead.style.left = `${Math.min(total, timelineCursor) / total * 100}%`
+  currentTime.textContent = `${formatTime(timelineCursor)} / ${formatTime(total)}`
   rangeTime.textContent = `${formatTime(selectionStart)} — ${formatTime(selectionStart + selectionDuration)}`
   trackStart.textContent = `-${formatTime(total)}`
 }
@@ -234,6 +193,80 @@ function renderTrackGaps() {
     element.style.width = `${Math.min(gapDuration, total - start) / total * 100}%`
     trackGapsLayer.append(element)
   }
+}
+
+function renderPlaybackButton() {
+  playToggle.innerHTML = timelinePlaying
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 5h4v14h-4V5Zm7 0h4v14h-4V5Z"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15L19 12 7 4.5Z"/></svg>'
+  playToggle.setAttribute("aria-label", timelinePlaying ? "일시정지" : "재생")
+}
+
+function syncPreviewToTimeline() {
+  const segment = segmentAtTimelineTime(timelineCursor)
+  gapPreview.hidden = Boolean(segment)
+  if (!segment) {
+    if (!video.paused) video.pause()
+    return
+  }
+  const targetMediaTime = segment.mediaStart
+    + Math.max(0, Math.min(segment.duration, timelineCursor - segment.timelineStart))
+  if (Math.abs(video.currentTime - targetMediaTime) > 0.12) {
+    video.currentTime = targetMediaTime
+  }
+  if (timelinePlaying && video.paused) {
+    void video.play().catch(error => {
+      timelinePlaying = false
+      renderPlaybackButton()
+      setNotice(`영상을 재생할 수 없습니다: ${messageOf(error)}`, true)
+    })
+  }
+}
+
+function setTimelineCursor(time) {
+  timelineCursor = Math.max(
+    0,
+    Math.min(timelineDuration || duration, Number(time) || 0),
+  )
+  syncPreviewToTimeline()
+  renderTimeline()
+}
+
+function stopTimelinePlayback({ resetToSelection = false } = {}) {
+  timelinePlaying = false
+  cancelAnimationFrame(playbackAnimationFrame)
+  playbackAnimationFrame = 0
+  video.pause()
+  if (resetToSelection) setTimelineCursor(selectionStart)
+  renderPlaybackButton()
+}
+
+function updateTimelinePlayback(now) {
+  if (!timelinePlaying) return
+  timelineCursor = playbackStartTimeline + (now - playbackStartedAt) / 1000
+  const playbackEnd = previewingSelection
+    ? selectionStart + selectionDuration
+    : timelineDuration
+  if (timelineCursor >= playbackEnd) {
+    timelineCursor = playbackEnd
+    stopTimelinePlayback({ resetToSelection: previewingSelection })
+    previewingSelection = false
+    renderTimeline()
+    return
+  }
+  syncPreviewToTimeline()
+  renderTimeline()
+  playbackAnimationFrame = requestAnimationFrame(updateTimelinePlayback)
+}
+
+function startTimelinePlayback() {
+  if (timelineCursor >= timelineDuration) timelineCursor = 0
+  timelinePlaying = true
+  playbackStartTimeline = timelineCursor
+  playbackStartedAt = performance.now()
+  renderPlaybackButton()
+  syncPreviewToTimeline()
+  playbackAnimationFrame = requestAnimationFrame(updateTimelinePlayback)
 }
 
 function fitCurrentMedia() {
@@ -287,8 +320,7 @@ function loadVideo(url, preserveFromEnd = 0) {
         )
         clampSelection()
       }
-      video.currentTime = timelineTimeToMediaTime(selectionStart)
-      renderTimeline()
+      setTimelineCursor(selectionStart)
       resolve()
     }
     const onError = () => {
@@ -334,7 +366,7 @@ async function changeTrackSeconds(seconds) {
   )
   setBusy(true, `같은 기준 시점에서 최근 ${formatTime(normalized)} 영상을 준비하고 있습니다`)
   setNotice("")
-  video.pause()
+  stopTimelinePlayback()
   try {
     await applyTrack(
       await editorBridge.setTrackSeconds(normalized),
@@ -353,18 +385,16 @@ function seekFromPointer(event) {
   const bounds = timeline.getBoundingClientRect()
   const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
   const targetTime = ratio * timelineDuration
-  const targetSegment = segmentAtTimelineTime(targetTime, true)
-  const snappedTime = Math.max(
-    targetSegment.timelineStart,
-    Math.min(targetSegment.timelineStart + targetSegment.duration, targetTime),
-  )
-  video.currentTime = timelineTimeToMediaTime(snappedTime)
+  setTimelineCursor(targetTime)
+  if (timelinePlaying) {
+    playbackStartTimeline = timelineCursor
+    playbackStartedAt = performance.now()
+  }
   previewingSelection = (
-    !video.paused
-    && snappedTime >= selectionStart
-    && snappedTime < selectionStart + selectionDuration
+    timelinePlaying
+    && targetTime >= selectionStart
+    && targetTime < selectionStart + selectionDuration
   )
-  renderTimeline()
 }
 
 function beginTimelineInteraction(event) {
@@ -383,7 +413,7 @@ function beginTimelineInteraction(event) {
     mode = "resize-start"
   } else if (Math.abs(event.clientX - guideBounds.right) <= edgeSize) {
     mode = "resize-end"
-  } else if (insideGuide && selectionDuration < duration - 0.01) {
+  } else if (insideGuide && selectionDuration < timelineDuration - 0.01) {
     mode = "pending-move"
   }
 
@@ -422,41 +452,31 @@ function updateTimelineInteraction(event) {
 
   if (mode === "resize-start") {
     const selectionEnd = interaction.originalStart + interaction.originalDuration
-    const segment = segmentAtTimelineTime(interaction.originalStart, true)
-    selectionStart = Math.max(
-      segment.timelineStart,
-      Math.min(selectionEnd - 1, pointerSeconds),
-    )
+    selectionStart = Math.max(0, Math.min(selectionEnd - 1, pointerSeconds))
     selectionDuration = selectionEnd - selectionStart
   } else if (mode === "resize-end") {
-    const segment = segmentAtTimelineTime(interaction.originalStart, true)
     const selectionEnd = Math.max(
       interaction.originalStart + 1,
-      Math.min(segment.timelineStart + segment.duration, pointerSeconds),
+      Math.min(timelineDuration, pointerSeconds),
     )
     selectionStart = interaction.originalStart
     selectionDuration = selectionEnd - selectionStart
   } else if (mode === "move") {
     const delta = pointerSeconds - interaction.pointerStartSeconds
-    const targetCenter = interaction.originalStart
-      + interaction.originalDuration / 2
-      + delta
-    const segment = segmentAtTimelineTime(targetCenter, true)
-    selectionDuration = Math.min(interaction.originalDuration, segment.duration)
+    selectionDuration = interaction.originalDuration
     selectionStart = Math.max(
-      segment.timelineStart,
+      0,
       Math.min(
-        segment.timelineStart + segment.duration - selectionDuration,
+        timelineDuration - selectionDuration,
         interaction.originalStart + delta,
       ),
     )
   }
 
   clampSelection()
-  video.pause()
-  video.currentTime = timelineTimeToMediaTime(selectionStart)
+  stopTimelinePlayback()
+  setTimelineCursor(selectionStart)
   previewingSelection = false
-  renderTimeline()
 }
 
 function endTimelineInteraction(event) {
@@ -474,23 +494,21 @@ function endTimelineInteraction(event) {
 async function previewSelection() {
   if (!duration || busy) return
   previewingSelection = true
-  video.currentTime = timelineTimeToMediaTime(selectionStart)
-  try {
-    await video.play()
-  } catch (error) {
-    setNotice(`영상을 재생할 수 없습니다: ${messageOf(error)}`, true)
-  }
+  stopTimelinePlayback()
+  setTimelineCursor(selectionStart)
+  startTimelinePlayback()
 }
 
 async function extractSelection() {
   if (!duration || busy) return
+  stopTimelinePlayback()
   setBusy(true)
   setNotice("선택한 구간을 MP4로 추출하고 있습니다")
   lastOutputPath = ""
   showOutputButton.classList.remove("visible")
   try {
     const result = await editorBridge.extract({
-      startSeconds: timelineTimeToMediaTime(selectionStart),
+      startSeconds: selectionStart,
       durationSeconds: selectionDuration,
     })
     lastOutputPath = result.outputPath
@@ -503,60 +521,31 @@ async function extractSelection() {
   }
 }
 
-video.addEventListener("timeupdate", () => {
-  const timelineTime = mediaTimeToTimelineTime(video.currentTime)
-  if (
-    previewingSelection
-    && timelineTime >= selectionStart + selectionDuration
-  ) {
-    video.pause()
-    video.currentTime = timelineTimeToMediaTime(selectionStart)
-    previewingSelection = false
-  }
-  renderTimeline()
-})
-
-video.addEventListener("play", () => {
-  playToggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 5h4v14h-4V5Zm7 0h4v14h-4V5Z"/></svg>'
-  playToggle.setAttribute("aria-label", "일시정지")
-})
-
-video.addEventListener("pause", () => {
-  playToggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15L19 12 7 4.5Z"/></svg>'
-  playToggle.setAttribute("aria-label", "재생")
-})
-
 async function togglePlayback() {
   if (!duration || busy) return
-  if (video.paused) {
-    if (video.currentTime >= duration) video.currentTime = 0
-    const selectionEnd = selectionStart + selectionDuration
-    const timelineTime = mediaTimeToTimelineTime(video.currentTime)
-    if (
-      timelineTime >= selectionEnd - 0.01
-      && timelineTime <= selectionEnd + 0.05
-    ) {
-      video.currentTime = timelineTimeToMediaTime(selectionStart)
-    }
-    const playbackTimelineTime = mediaTimeToTimelineTime(video.currentTime)
-    previewingSelection = (
-      playbackTimelineTime >= selectionStart - 0.01
-      && playbackTimelineTime < selectionEnd - 0.01
-    )
-    try {
-      await video.play()
-      setNotice("")
-    } catch (error) {
-      setNotice(`영상을 재생할 수 없습니다: ${messageOf(error)}`, true)
-    }
-  } else {
-    video.pause()
+  if (timelinePlaying) {
+    stopTimelinePlayback()
     previewingSelection = false
+    return
   }
+  const selectionEnd = selectionStart + selectionDuration
+  if (
+    timelineCursor >= selectionEnd - 0.01
+    && timelineCursor <= selectionEnd + 0.05
+  ) {
+    setTimelineCursor(selectionStart)
+  }
+  previewingSelection = (
+    timelineCursor >= selectionStart - 0.01
+    && timelineCursor < selectionEnd - 0.01
+  )
+  setNotice("")
+  startTimelinePlayback()
 }
 
 playToggle.addEventListener("click", togglePlayback)
 video.addEventListener("click", togglePlayback)
+gapPreview.addEventListener("click", togglePlayback)
 
 timeline.addEventListener("pointerdown", beginTimelineInteraction)
 window.addEventListener("pointermove", updateTimelineInteraction)
@@ -595,8 +584,7 @@ window.addEventListener("message", event => {
 extractSecondsInput.addEventListener("change", () => {
   selectionDuration = Number(extractSecondsInput.value) || 1
   clampSelection()
-  video.currentTime = timelineTimeToMediaTime(selectionStart)
-  renderTimeline()
+  setTimelineCursor(selectionStart)
 })
 
 addTimeButton.addEventListener("click", () => {

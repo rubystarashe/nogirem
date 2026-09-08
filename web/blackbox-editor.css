@@ -50,6 +50,10 @@ body.embedded .preview {
   padding: 12px 14px;
 }
 
+body.embedded .gap-preview {
+  inset: 12px 14px;
+}
+
 body.embedded .preview.media-ready {
   width: 100%;
   height: auto;
@@ -124,9 +128,21 @@ video {
   background: #050607;
 }
 
+.gap-preview {
+  position: absolute;
+  z-index: 2;
+  inset: 18px 22px;
+  background: #000;
+}
+
+.gap-preview[hidden] {
+  display: none;
+}
+
 .empty-state,
 .loading-state {
   position: absolute;
+  z-index: 3;
   inset: 0;
   display: grid;
   place-items: center;
@@ -323,8 +339,8 @@ video {
   top: 0;
   bottom: 0;
   min-width: 3px;
-  background: rgba(139, 146, 150, 0.72);
-  box-shadow: inset 1px 0 rgba(216, 220, 222, 0.35), inset -1px 0 rgba(0, 0, 0, 0.35);
+  background: #000;
+  box-shadow: inset 1px 0 rgba(255, 255, 255, 0.08), inset -1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .selection-guide {
