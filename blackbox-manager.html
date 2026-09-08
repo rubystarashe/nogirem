@@ -840,10 +840,14 @@
             <option value="60">60fps</option>
           </select>
         </label>
+        <label class="storage-drive">
+          <span>청크 저장 드라이브</span>
+          <select class="storage-drive-select" aria-label="녹화 청크 저장 드라이브"></select>
+        </label>
         <label class="storage-path">
           <span>녹화 저장 위치</span>
           <div class="storage-path-control">
-            <input class="storage-path-input" type="text" readonly aria-label="녹화 청크 저장 위치" />
+            <input class="storage-path-input" type="text" readonly aria-label="저장된 클립 위치" />
             <button class="action storage-path-button" type="button">변경</button>
           </div>
         </label>
@@ -926,6 +930,7 @@
       const qualitySelect = document.querySelector(".quality-select")
       const codecSelect = document.querySelector(".codec-select")
       const fpsSelect = document.querySelector(".fps-select")
+      const storageDriveSelect = document.querySelector(".storage-drive-select")
       const storagePathInput = document.querySelector(".storage-path-input")
       const storagePathButton = document.querySelector(".storage-path-button")
       const capacitySelect = document.querySelector(".capacity-select")
@@ -958,6 +963,7 @@
         qualitySelect,
         codecSelect,
         fpsSelect,
+        storageDriveSelect,
         maxDurationHoursInput,
         maxDurationMinutesInput,
         maxDurationSecondsInput,
@@ -1129,7 +1135,8 @@
           codec: codecSelect.value,
           fps: Number(fpsSelect.value),
           maxDurationSeconds: normalizeMaximumDurationInputs(),
-          ringStoragePath: storagePathInput.dataset.path ?? "",
+          ringStorageDrive: storageDriveSelect.value,
+          clipStoragePath: storagePathInput.dataset.path ?? "",
           capacityGb: Number(capacitySelect.value),
           clipSeconds: Number(clipSelect.value),
           chunkSeconds: 10,
@@ -1164,9 +1171,27 @@
         qualitySelect.value = value.quality
         codecSelect.value = value.codec
         fpsSelect.value = String(value.fps)
-        storagePathInput.dataset.path = value.ringStoragePath ?? ""
-        storagePathInput.value = value.ringStoragePath ?? ""
-        storagePathInput.title = value.ringStoragePath ?? ""
+        storageDriveSelect.replaceChildren()
+        const drives = Array.isArray(value.storageDrives) ? value.storageDrives : []
+        for (const drive of drives) {
+          const option = document.createElement("option")
+          option.value = drive.id
+          const freeGigabytes = Number(drive.freeBytes || 0) / 1024 ** 3
+          option.textContent = freeGigabytes > 0
+            ? `${drive.id} · ${freeGigabytes.toFixed(1)} GB 여유`
+            : drive.id
+          storageDriveSelect.append(option)
+        }
+        if (![...storageDriveSelect.options].some(option => option.value === value.ringStorageDrive)) {
+          const option = document.createElement("option")
+          option.value = value.ringStorageDrive
+          option.textContent = value.ringStorageDrive
+          storageDriveSelect.append(option)
+        }
+        storageDriveSelect.value = value.ringStorageDrive
+        storagePathInput.dataset.path = value.clipStoragePath ?? ""
+        storagePathInput.value = value.clipStoragePath ?? ""
+        storagePathInput.title = value.clipStoragePath ?? ""
         setMaximumDurationInputs(value.maxDurationSeconds)
         capacitySelect.value = String(value.capacityGb)
         clipSelect.value = String(value.clipSeconds)
@@ -1591,15 +1616,15 @@
       }
       storagePathButton.addEventListener("click", async () => {
         try {
-          const result = await window.blackboxManager.chooseRingStorage()
-          if (result?.canceled || !result?.ringStoragePath) return
-          storagePathInput.dataset.path = result.ringStoragePath
-          storagePathInput.value = result.ringStoragePath
-          storagePathInput.title = result.ringStoragePath
+          const result = await window.blackboxManager.chooseClipStorage()
+          if (result?.canceled || !result?.clipStoragePath) return
+          storagePathInput.dataset.path = result.clipStoragePath
+          storagePathInput.value = result.clipStoragePath
+          storagePathInput.title = result.clipStoragePath
           settingsDirty = true
           saveSettingButton.disabled = busy
           message.classList.remove("error")
-          message.textContent = "새 저장 위치를 사용하려면 설정 저장을 눌러 주세요"
+          message.textContent = "새 클립 저장 위치를 사용하려면 설정 저장을 눌러 주세요"
         } catch (error) {
           message.classList.add("error")
           message.textContent = errorMessage(error)

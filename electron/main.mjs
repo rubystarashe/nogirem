@@ -190,7 +190,9 @@ let blackboxStorageSummaryPromise = null
 let blackboxStorageSummaryGeneration = 0
 let blackboxStorageSummaryRetryAt = 0
 let blackboxStorageSummaryPath = ""
-let approvedBlackboxRingStoragePath = ""
+let approvedBlackboxClipStoragePath = ""
+let blackboxStorageDrives = []
+let blackboxStorageDrivesCheckedAt = 0
 let activeBlackboxShortcut = null
 const nativeBlackboxShortcutVirtualKeys = new Map([
   ["Pause", 0x13],
@@ -237,10 +239,63 @@ function getNetworkStatePath() {
 }
 
 function resolveBlackboxRingStoragePath(setting, paths = getBlackboxPaths()) {
-  const requestedPath = String(setting?.ringStoragePath ?? "").trim()
+  const defaultDrive = /^[A-Za-z]:/.exec(paths.storagePath)?.[0]?.toUpperCase() ?? "C:"
+  const drive = /^[A-Za-z]:$/.test(setting?.ringStorageDrive)
+    ? setting.ringStorageDrive.toUpperCase()
+    : defaultDrive
+  return join(`${drive}\\`, "마비노기 렘 블랙박스", "Ring")
+}
+
+function resolveBlackboxClipStoragePath(setting, paths = getBlackboxPaths()) {
+  const requestedPath = String(setting?.clipStoragePath ?? "").trim()
   return requestedPath && isAbsolute(requestedPath)
     ? resolve(requestedPath)
-    : join(paths.storagePath, "Ring")
+    : join(paths.storagePath, "Clips")
+}
+
+async function listBlackboxStorageDrives() {
+  if (
+    blackboxStorageDrives.length
+    && Date.now() - blackboxStorageDrivesCheckedAt < 5 * 60 * 1000
+  ) return blackboxStorageDrives
+
+  const script = [
+    "$drives = @(Get-CimInstance Win32_LogicalDisk | Where-Object { $_.DriveType -in 2, 3 } | Select-Object DeviceID, FreeSpace)",
+    "$drives | ConvertTo-Json -Compress",
+  ].join("\n")
+  try {
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command", script],
+      { windowsHide: true, timeout: 10000 },
+    )
+    const parsed = JSON.parse(stdout || "[]")
+    blackboxStorageDrives = (Array.isArray(parsed) ? parsed : [parsed])
+      .map(drive => ({
+        id: String(drive?.DeviceID ?? "").toUpperCase(),
+        freeBytes: Math.max(0, Number(drive?.FreeSpace) || 0),
+      }))
+      .filter(drive => /^[A-Z]:$/.test(drive.id))
+      .sort((left, right) => left.id.localeCompare(right.id))
+  } catch {
+    blackboxStorageDrives = []
+  }
+  if (!blackboxStorageDrives.length) {
+    const defaultDrive = /^[A-Za-z]:/.exec(getBlackboxPaths().storagePath)?.[0]?.toUpperCase()
+      ?? "C:"
+    blackboxStorageDrives = [{ id: defaultDrive, freeBytes: 0 }]
+  }
+  blackboxStorageDrivesCheckedAt = Date.now()
+  return blackboxStorageDrives
+}
+
+async function getCurrentBlackboxStorageLocations() {
+  const paths = getBlackboxPaths()
+  const setting = normalizeBlackboxSetting(await readJson(paths.settingsPath))
+  return {
+    ringStoragePath: resolveBlackboxRingStoragePath(setting, paths),
+    clipStoragePath: resolveBlackboxClipStoragePath(setting, paths),
+  }
 }
 
 async function localVideoResponse(filePath, request) {
@@ -298,7 +353,8 @@ function registerBlackboxEditorProtocol() {
     const url = new URL(request.url)
     if (url.hostname === "clips") {
       const fileName = decodeURIComponent(url.pathname.slice(1))
-      const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
+      const { clipStoragePath: clipsDirectory } =
+        await getCurrentBlackboxStorageLocations()
       if (
         !fileName
         || basename(fileName) !== fileName
@@ -2043,6 +2099,8 @@ async function getBlackboxSetting() {
   ])
   const setting = normalizeBlackboxSetting(savedSetting)
   const ringStoragePath = resolveBlackboxRingStoragePath(setting, paths)
+  const clipStoragePath = resolveBlackboxClipStoragePath(setting, paths)
+  const storageDrives = await listBlackboxStorageDrives()
   const resolvedQuality = resolveBlackboxQuality(setting, {
     logicalCpuCount: cpus().length,
     totalMemoryBytes: totalmem(),
@@ -2092,7 +2150,10 @@ async function getBlackboxSetting() {
     width: Number(status?.width) || 0,
     height: Number(status?.height) || 0,
     storagePath: paths.storagePath,
+    storageDrives,
+    ringStorageDrive: /^[A-Za-z]:/.exec(ringStoragePath)?.[0]?.toUpperCase() ?? "C:",
     ringStoragePath,
+    clipStoragePath,
     latestClip: blackboxLatestClipOverride ?? status?.latestClip ?? null,
     shortcut: setting.shortcut
       ? setting.shortcut
@@ -2225,6 +2286,7 @@ async function launchBlackboxHelper(setting) {
   ])
   const normalized = normalizeBlackboxSetting(setting)
   const ringStoragePath = resolveBlackboxRingStoragePath(normalized, paths)
+  const clipStoragePath = resolveBlackboxClipStoragePath(normalized, paths)
   const resolvedQuality = resolveBlackboxQuality(normalized, {
     logicalCpuCount: cpus().length,
     totalMemoryBytes: totalmem(),
@@ -2237,7 +2299,7 @@ async function launchBlackboxHelper(setting) {
     `--metrics-path=${paths.metricsPath}`,
     `--storage-path=${paths.storagePath}`,
     `--ring-path=${ringStoragePath}`,
-    `--clips-path=${join(paths.storagePath, "Clips")}`,
+    `--clips-path=${clipStoragePath}`,
     `--game-path=${activeMabinogiExecutablePath ?? ""}`,
     `--parent-pid=${process.pid}`,
     `--codec=${normalized.codec}`,
@@ -2321,18 +2383,31 @@ async function setBlackboxSetting(value) {
   const currentSetting = normalizeBlackboxSetting(await readJson(paths.settingsPath))
   const currentRingStoragePath = resolveBlackboxRingStoragePath(currentSetting, paths)
   const nextRingStoragePath = resolveBlackboxRingStoragePath(setting, paths)
+  const currentClipStoragePath = resolveBlackboxClipStoragePath(currentSetting, paths)
+  const nextClipStoragePath = resolveBlackboxClipStoragePath(setting, paths)
   if (
     nextRingStoragePath !== currentRingStoragePath
-    && nextRingStoragePath !== approvedBlackboxRingStoragePath
+    && !(await listBlackboxStorageDrives()).some(
+      drive => drive.id === setting.ringStorageDrive,
+    )
   ) {
-    throw new Error("녹화 청크 저장 위치를 다시 선택해 주세요")
+    throw new Error("사용할 수 없는 녹화 청크 저장 드라이브입니다")
+  }
+  if (
+    nextClipStoragePath !== currentClipStoragePath
+    && nextClipStoragePath !== approvedBlackboxClipStoragePath
+  ) {
+    throw new Error("클립 저장 위치를 다시 선택해 주세요")
   }
   await stopBlackboxHelper()
   await writeJsonAtomic(paths.settingsPath, {
     ...setting,
     updatedAt: Date.now(),
   })
-  approvedBlackboxRingStoragePath = ""
+  if (nextClipStoragePath !== currentClipStoragePath) {
+    blackboxLatestClipOverride = null
+  }
+  approvedBlackboxClipStoragePath = ""
   blackboxStorageSummaryGeneration += 1
   blackboxStorageSummary = null
   blackboxStorageSummaryPath = ""
@@ -2349,30 +2424,24 @@ async function setBlackboxSetting(value) {
   }
 }
 
-async function chooseBlackboxRingStoragePath(parentWindow) {
-  approvedBlackboxRingStoragePath = ""
+async function chooseBlackboxClipStoragePath(parentWindow) {
+  approvedBlackboxClipStoragePath = ""
   const current = await getBlackboxSetting()
-  const currentPath = resolveBlackboxRingStoragePath(current)
+  const currentPath = resolveBlackboxClipStoragePath(current)
   const selection = await dialog.showOpenDialog(parentWindow, {
-    title: "녹화 청크를 저장할 드라이브 또는 폴더 선택",
-    defaultPath: dirname(currentPath),
+    title: "저장된 클립 폴더 선택",
+    defaultPath: currentPath,
     buttonLabel: "이 위치 사용",
     properties: ["openDirectory", "createDirectory"],
   })
   if (selection.canceled || !selection.filePaths[0]) return { canceled: true }
 
-  const selectedPath = resolve(selection.filePaths[0])
-  const selectedName = basename(selectedPath).toLowerCase()
-  const ringStoragePath = selectedName === "ring"
-    ? selectedPath
-    : selectedName === "마비노기 렘 블랙박스"
-      ? join(selectedPath, "Ring")
-      : join(selectedPath, "마비노기 렘 블랙박스", "Ring")
-  await mkdir(ringStoragePath, { recursive: true })
-  approvedBlackboxRingStoragePath = ringStoragePath
+  const clipStoragePath = resolve(selection.filePaths[0])
+  await mkdir(clipStoragePath, { recursive: true })
+  approvedBlackboxClipStoragePath = clipStoragePath
   return {
     canceled: false,
-    ringStoragePath,
+    clipStoragePath,
   }
 }
 
@@ -2418,9 +2487,9 @@ async function requestBlackboxClip(requestedName = "") {
         basename(completed.latestClip),
         requestedName,
       )
+      const { clipStoragePath } = await getCurrentBlackboxStorageLocations()
       blackboxLatestClipOverride = join(
-        getBlackboxPaths().storagePath,
-        "Clips",
+        clipStoragePath,
         renamed.name,
       )
     }
@@ -2685,7 +2754,8 @@ async function extractBlackboxEditorRange(session, value, onProgress = null) {
     if (startSeconds + durationSeconds > session.trackTimelineSeconds + 0.5) {
       throw new Error("선택한 추출 구간이 편집 트랙을 벗어났습니다")
     }
-    const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
+    const { clipStoragePath: clipsDirectory } =
+      await getCurrentBlackboxStorageLocations()
     const outputPath = join(
       clipsDirectory,
       requestedFileName || `마비노기-추출-${blackboxEditorDateName()}.mp4`,
@@ -2738,15 +2808,16 @@ async function cleanupBlackboxEditorSession(session) {
 }
 
 async function openBlackboxFolder() {
-  const paths = getBlackboxPaths()
-  await mkdir(join(paths.storagePath, "Clips"), { recursive: true })
-  const error = await shell.openPath(join(paths.storagePath, "Clips"))
+  const { clipStoragePath } = await getCurrentBlackboxStorageLocations()
+  await mkdir(clipStoragePath, { recursive: true })
+  const error = await shell.openPath(clipStoragePath)
   if (error) throw new Error(error)
   return true
 }
 
 async function listBlackboxClips() {
-  const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
+  const { clipStoragePath: clipsDirectory } =
+    await getCurrentBlackboxStorageLocations()
   await mkdir(clipsDirectory, { recursive: true })
   const entries = await readdir(clipsDirectory, { withFileTypes: true })
   const clips = await Promise.all(entries
@@ -2787,7 +2858,7 @@ function normalizeBlackboxClipFileName(requestedName) {
   return `${baseName}.mp4`
 }
 
-function blackboxClipPath(fileName) {
+function blackboxClipPath(fileName, clipsDirectory) {
   if (
     typeof fileName !== "string"
     || basename(fileName) !== fileName
@@ -2795,11 +2866,12 @@ function blackboxClipPath(fileName) {
   ) {
     throw new Error("허용되지 않은 블랙박스 클립 요청입니다")
   }
-  return join(getBlackboxPaths().storagePath, "Clips", fileName)
+  return join(clipsDirectory, fileName)
 }
 
 async function openBlackboxClip(fileName) {
-  const clipPath = blackboxClipPath(fileName)
+  const { clipStoragePath } = await getCurrentBlackboxStorageLocations()
+  const clipPath = blackboxClipPath(fileName, clipStoragePath)
   const clipStat = await stat(clipPath)
   if (!clipStat.isFile()) throw new Error("저장된 클립을 찾지 못했습니다")
   shell.showItemInFolder(clipPath)
@@ -2807,9 +2879,10 @@ async function openBlackboxClip(fileName) {
 }
 
 async function renameBlackboxClip(fileName, requestedName) {
-  const sourcePath = blackboxClipPath(fileName)
+  const { clipStoragePath } = await getCurrentBlackboxStorageLocations()
+  const sourcePath = blackboxClipPath(fileName, clipStoragePath)
   const nextName = normalizeBlackboxClipFileName(requestedName)
-  const destinationPath = blackboxClipPath(nextName)
+  const destinationPath = blackboxClipPath(nextName, clipStoragePath)
   if (sourcePath === destinationPath) return { name: nextName }
   await access(sourcePath)
   if (sourcePath.toLowerCase() === destinationPath.toLowerCase()) {
@@ -2834,7 +2907,8 @@ async function renameBlackboxClip(fileName, requestedName) {
 }
 
 async function deleteBlackboxClip(fileName) {
-  const clipPath = blackboxClipPath(fileName)
+  const { clipStoragePath } = await getCurrentBlackboxStorageLocations()
+  const clipPath = blackboxClipPath(fileName, clipStoragePath)
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
       await unlink(clipPath)
@@ -2883,7 +2957,7 @@ function setBlackboxManagerPage(page) {
   const preferred = blackboxManagerPreferredSize ?? readBlackboxManagerSize()
   const compact = page === "settings"
   const targetWidth = Math.min(workArea.width, compact ? 540 : Math.max(900, preferred.width))
-  const targetHeight = Math.min(workArea.height, compact ? 820 : Math.max(680, preferred.height))
+  const targetHeight = Math.min(workArea.height, compact ? 880 : Math.max(680, preferred.height))
   blackboxManagerActivePage = page
   window.setMinimumSize(compact ? 520 : 900, compact ? 720 : 680)
   const targetX = Math.max(
@@ -4269,7 +4343,8 @@ function registerIpc() {
     return suggestBlackboxClipName()
   })
   ipcMain.handle("blackbox-editor:show-output", async (event, outputPath) => {
-    const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
+    const { clipStoragePath: clipsDirectory } =
+      await getCurrentBlackboxStorageLocations()
     if (
       BrowserWindow.fromWebContents(event.sender) !== blackboxEditorWindow
       || typeof outputPath !== "string"
@@ -4405,12 +4480,12 @@ function registerIpc() {
     }
     return getBlackboxSetting()
   })
-  ipcMain.handle("blackbox-manager:choose-ring-storage", event => {
+  ipcMain.handle("blackbox-manager:choose-clip-storage", event => {
     const window = BrowserWindow.fromWebContents(event.sender)
     if (window !== blackboxManagerWindow) {
-      throw new Error("허용되지 않은 녹화 청크 저장 위치 요청입니다")
+      throw new Error("허용되지 않은 클립 저장 위치 요청입니다")
     }
-    return chooseBlackboxRingStoragePath(window)
+    return chooseBlackboxClipStoragePath(window)
   })
   ipcMain.handle("blackbox-manager:fit-media", (event, value) => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
@@ -4489,8 +4564,9 @@ function registerIpc() {
     }
     return suggestBlackboxClipName()
   })
-  ipcMain.handle("blackbox-manager:show-output", (event, outputPath) => {
-    const clipsDirectory = join(getBlackboxPaths().storagePath, "Clips")
+  ipcMain.handle("blackbox-manager:show-output", async (event, outputPath) => {
+    const { clipStoragePath: clipsDirectory } =
+      await getCurrentBlackboxStorageLocations()
     if (
       BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow
       || typeof outputPath !== "string"
@@ -4524,7 +4600,6 @@ function registerIpc() {
     if (window !== blackboxManagerWindow) {
       throw new Error("허용되지 않은 블랙박스 클립 삭제 요청입니다")
     }
-    blackboxClipPath(fileName)
     await deleteBlackboxClip(fileName)
     return { deleted: true }
   })

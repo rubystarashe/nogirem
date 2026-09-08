@@ -12,7 +12,8 @@ export const defaultBlackboxSetting = Object.freeze({
   quality: "auto",
   capacityGb: 50,
   maxDurationSeconds: 3600,
-  ringStoragePath: "",
+  ringStorageDrive: "",
+  clipStoragePath: "",
   clipSeconds: 30,
   fps: 60,
   chunkSeconds: 10,
@@ -145,6 +146,13 @@ export function normalizeBlackboxSetting(value) {
     ? value.codec
     : defaultBlackboxSetting.codec
   const enabled = Boolean(value?.enabled)
+  const legacyDrive = typeof value?.ringStoragePath === "string"
+    ? /^([A-Za-z]:)[\\/]/.exec(value.ringStoragePath.trim())?.[1] ?? ""
+    : ""
+  const requestedDrive = String(value?.ringStorageDrive ?? legacyDrive).trim()
+  const ringStorageDrive = /^[A-Za-z]:$/.test(requestedDrive)
+    ? requestedDrive.toUpperCase()
+    : defaultBlackboxSetting.ringStorageDrive
   return {
     featureEnabled: Boolean(value?.featureEnabled || enabled),
     enabled,
@@ -158,9 +166,10 @@ export function normalizeBlackboxSetting(value) {
       defaultBlackboxSetting.capacityGb,
     ),
     maxDurationSeconds: normalizeMaximumDuration(value?.maxDurationSeconds),
-    ringStoragePath: typeof value?.ringStoragePath === "string"
-      ? value.ringStoragePath.trim()
-      : defaultBlackboxSetting.ringStoragePath,
+    ringStorageDrive,
+    clipStoragePath: typeof value?.clipStoragePath === "string"
+      ? value.clipStoragePath.trim()
+      : defaultBlackboxSetting.clipStoragePath,
     clipSeconds: normalizeOption(
       value?.clipSeconds,
       blackboxClipDurationOptions,
