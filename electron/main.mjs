@@ -1461,7 +1461,10 @@ async function getRecorderAffinityArgument() {
   const allocation = resolveCpuAllocation(cpus().length, {
     gameCoreCount: setting.supported ? setting.gameCoreCount : null,
   })
-  return `--affinity-mask=0x${allocation.backgroundMask.toString(16)}`
+  const latencyMask = allocation.alternateGameMask || 0n
+  const isolatedRecorderMask = allocation.backgroundMask & ~latencyMask
+  const recorderMask = isolatedRecorderMask || allocation.backgroundMask
+  return `--affinity-mask=0x${recorderMask.toString(16)}`
 }
 
 function getMabinogiPathStatePath() {
@@ -1819,7 +1822,10 @@ async function launchTurboKeyHelper(
     unlink(paths.statusPath).catch(() => {}),
     unlink(paths.controlPath).catch(() => {}),
   ])
-  const allocation = resolveCpuAllocation(cpus().length)
+  const gameCpuSetting = await getGameCpuCoreSetting()
+  const allocation = resolveCpuAllocation(cpus().length, {
+    gameCoreCount: gameCpuSetting.supported ? gameCpuSetting.gameCoreCount : null,
+  })
   const latencyMask = allocation.alternateGameMask || allocation.backgroundMask
   const child = spawn(executablePath, [
     `--status-path=${paths.statusPath}`,

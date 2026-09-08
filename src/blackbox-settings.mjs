@@ -12,7 +12,7 @@ export const defaultBlackboxSetting = Object.freeze({
   capacityGb: 50,
   clipSeconds: 30,
   fps: 60,
-  chunkSeconds: 4,
+  chunkSeconds: 10,
 })
 
 function normalizeOption(value, options, fallback) {

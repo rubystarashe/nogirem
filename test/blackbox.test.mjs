@@ -41,7 +41,7 @@ test("블랙박스 설정은 안전한 기본값과 허용된 선택지만 사�
     capacityGb: 100,
     clipSeconds: 60,
     fps: 30,
-    chunkSeconds: 4,
+    chunkSeconds: 10,
   })
   assert.equal(normalizeBlackboxSetting({
     featureEnabled: true,
@@ -365,13 +365,18 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /mode == L"track"/)
   assert.match(nativeSource, /mode == L"compose"/)
   assert.match(nativeSource, /mode == L"extract"/)
-  assert.match(nativeSource, /runUtilityMode[\s\S]*BELOW_NORMAL_PRIORITY_CLASS/)
-  assert.match(nativeSource, /status\.fps = options\.fps;\s*SetPriorityClass\(GetCurrentProcess\(\), BELOW_NORMAL_PRIORITY_CLASS\)/)
+  assert.match(nativeSource, /runUtilityMode[\s\S]*PROCESS_MODE_BACKGROUND_BEGIN/)
+  assert.match(nativeSource, /status\.fps = options\.fps;[\s\S]*BELOW_NORMAL_PRIORITY_CLASS/)
   assert.match(mainSource, /async function getRecorderAffinityArgument\(\)/)
+  assert.match(mainSource, /const isolatedRecorderMask = allocation\.backgroundMask & ~latencyMask/)
   assert.match(mainSource, /affinityArgument = await getRecorderAffinityArgument\(\)/)
   assert.match(nativeSource, /arguments\.find\(L"affinity-mask"\)/)
-  assert.match(nativeSource, /SetProcessAffinityMask\(GetCurrentProcess\(\), mask\)/)
+  assert.match(nativeSource, /SetProcessAffinityMask\(GetCurrentProcess\(\), static_cast<DWORD_PTR>\(mask\)\)/)
   assert.match(nativeSource, /SetGPUThreadPriority\(-2\)/)
+  assert.match(nativeSource, /void requireHardwareVideoEncoder\(/)
+  assert.match(nativeSource, /MFT_ENUM_FLAG_HARDWARE \| MFT_ENUM_FLAG_SORTANDFILTER/)
+  assert.match(nativeSource, /std::unordered_map<[\s\S]*ID3D11VideoProcessorInputView/)
+  assert.match(nativeSource, /captureRetryDelay = std::min\(captureRetryDelay \* 2, 5000ms\)/)
   assert.match(
     nativeSource,
     /capturedAt \+ 1ms < \*nextFrameAt_[\s\S]*\*nextFrameAt_ \+= minimumFrameInterval_[\s\S]*encoder_\.enqueue/,

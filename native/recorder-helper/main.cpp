@@ -46,6 +46,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 using Microsoft::WRL::ComPtr;
@@ -85,7 +86,7 @@ struct Options {
   int fps = 60;
   int bitrateMbps = 12;
   int maxHeight = 1080;
-  int chunkSeconds = 4;
+  int chunkSeconds = 10;
   int capacityGb = 50;
   DWORD parentPid = 0;
 };
@@ -411,7 +412,7 @@ Options optionsFromArguments(int count, wchar_t** values) {
   options.fps = integerArgument(arguments, L"fps", 60, 15, 120);
   options.bitrateMbps = integerArgument(arguments, L"bitrate-mbps", 12, 2, 100);
   options.maxHeight = integerArgument(arguments, L"max-height", 1080, 0, 4320);
-  options.chunkSeconds = integerArgument(arguments, L"chunk-seconds", 4, 2, 30);
+  options.chunkSeconds = integerArgument(arguments, L"chunk-seconds", 10, 2, 30);
   options.capacityGb = integerArgument(arguments, L"capacity-gb", 50, 1, 4096);
   options.parentPid = static_cast<DWORD>(
     integerArgument(arguments, L"parent-pid", 0, 0, INT_MAX)
@@ -488,6 +489,41 @@ HWND findGameWindow(const fs::path& preferredPath) {
   return candidate.window;
 }
 
+void requireHardwareVideoEncoder(const std::wstring& codec) {
+  MFT_REGISTER_TYPE_INFO inputType{
+    MFMediaType_Video,
+    MFVideoFormat_NV12,
+  };
+  MFT_REGISTER_TYPE_INFO outputType{
+    MFMediaType_Video,
+    codec == L"hevc" ? MFVideoFormat_HEVC : MFVideoFormat_H264,
+  };
+  IMFActivate** activations = nullptr;
+  UINT32 activationCount = 0;
+  const auto result = MFTEnumEx(
+    MFT_CATEGORY_VIDEO_ENCODER,
+    MFT_ENUM_FLAG_HARDWARE | MFT_ENUM_FLAG_SORTANDFILTER,
+    &inputType,
+    &outputType,
+    &activations,
+    &activationCount
+  );
+  if (activations) {
+    for (UINT32 index = 0; index < activationCount; ++index) {
+      if (activations[index]) activations[index]->Release();
+    }
+    CoTaskMemFree(activations);
+  }
+  checkStage(result, L"하드웨어 영상 인코더 검색");
+  if (activationCount == 0) {
+    throw std::runtime_error(
+      codec == L"hevc"
+        ? "HEVC 하드웨어 인코더를 사용할 수 없습니다"
+        : "H.264 하드웨어 인코더를 사용할 수 없습니다"
+    );
+  }
+}
+
 IDirect3DDevice createWinrtDevice(
   ComPtr<ID3D11Device>& device,
   ComPtr<ID3D11DeviceContext>& context
@@ -511,7 +547,7 @@ IDirect3DDevice createWinrtDevice(
   multithread->SetMultithreadProtected(TRUE);
   ComPtr<IDXGIDevice> dxgiDevice;
   check_hresult(device.As(&dxgiDevice));
-  dxgiDevice->SetGPUThreadPriority(-2);
+  checkStage(dxgiDevice->SetGPUThreadPriority(-2), L"GPU 스레드 우선순위 제한");
   com_ptr<::IInspectable> inspectable;
   check_hresult(CreateDirect3D11DeviceFromDXGIDevice(dxgiDevice.Get(), inspectable.put()));
   return inspectable.as<IDirect3DDevice>();
@@ -680,6 +716,7 @@ public:
       : 1.0;
     width_ = std::max<UINT>(2, static_cast<UINT>(width * scale) & ~1u);
     height_ = std::max<UINT>(2, static_cast<UINT>(height * scale) & ~1u);
+    device_ = device;
     check_hresult(device->QueryInterface(IID_PPV_ARGS(&videoDevice_)));
     ComPtr<ID3D11DeviceContext> context;
     device->GetImmediateContext(&context);
@@ -694,6 +731,15 @@ public:
     content.OutputWidth = width_;
     content.OutputHeight = height_;
     content.Usage = D3D11_VIDEO_USAGE_PLAYBACK_NORMAL;
+    outputDescription_.Width = width_;
+    outputDescription_.Height = height_;
+    outputDescription_.MipLevels = 1;
+    outputDescription_.ArraySize = 1;
+    outputDescription_.Format = DXGI_FORMAT_NV12;
+    outputDescription_.SampleDesc = { 1, 0 };
+    outputDescription_.Usage = D3D11_USAGE_DEFAULT;
+    outputDescription_.BindFlags =
+      D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
     check_hresult(videoDevice_->CreateVideoProcessorEnumerator(&content, &enumerator_));
     check_hresult(videoDevice_->CreateVideoProcessor(enumerator_.Get(), 0, &processor_));
     videoContext_->VideoProcessorSetStreamFrameFormat(
@@ -704,32 +750,27 @@ public:
   }
 
   ComPtr<ID3D11Texture2D> convert(ID3D11Texture2D* source) {
-    D3D11_TEXTURE2D_DESC outputDescription{};
-    outputDescription.Width = width_;
-    outputDescription.Height = height_;
-    outputDescription.MipLevels = 1;
-    outputDescription.ArraySize = 1;
-    outputDescription.Format = DXGI_FORMAT_NV12;
-    outputDescription.SampleDesc = { 1, 0 };
-    outputDescription.Usage = D3D11_USAGE_DEFAULT;
-    outputDescription.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-    ComPtr<ID3D11Device> device;
-    source->GetDevice(&device);
     ComPtr<ID3D11Texture2D> output;
-    check_hresult(device->CreateTexture2D(&outputDescription, nullptr, &output));
+    check_hresult(device_->CreateTexture2D(&outputDescription_, nullptr, &output));
 
-    D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC inputDescription{};
-    inputDescription.FourCC = 0;
-    inputDescription.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D;
-    inputDescription.Texture2D.MipSlice = 0;
-    inputDescription.Texture2D.ArraySlice = 0;
+    const auto inputViewIterator = inputViews_.find(source);
     ComPtr<ID3D11VideoProcessorInputView> inputView;
-    check_hresult(videoDevice_->CreateVideoProcessorInputView(
-      source,
-      enumerator_.Get(),
-      &inputDescription,
-      &inputView
-    ));
+    if (inputViewIterator != inputViews_.end()) {
+      inputView = inputViewIterator->second;
+    } else {
+      D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC inputDescription{};
+      inputDescription.FourCC = 0;
+      inputDescription.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D;
+      inputDescription.Texture2D.MipSlice = 0;
+      inputDescription.Texture2D.ArraySlice = 0;
+      check_hresult(videoDevice_->CreateVideoProcessorInputView(
+        source,
+        enumerator_.Get(),
+        &inputDescription,
+        &inputView
+      ));
+      inputViews_.emplace(source, inputView);
+    }
 
     D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC outputViewDescription{};
     outputViewDescription.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D;
@@ -770,10 +811,16 @@ public:
 private:
   UINT width_;
   UINT height_;
+  ComPtr<ID3D11Device> device_;
   ComPtr<ID3D11VideoDevice> videoDevice_;
   ComPtr<ID3D11VideoContext> videoContext_;
   ComPtr<ID3D11VideoProcessorEnumerator> enumerator_;
   ComPtr<ID3D11VideoProcessor> processor_;
+  D3D11_TEXTURE2D_DESC outputDescription_{};
+  std::unordered_map<
+    ID3D11Texture2D*,
+    ComPtr<ID3D11VideoProcessorInputView>
+  > inputViews_;
 };
 
 class Mp4Writer {
@@ -1802,6 +1849,7 @@ void createClip(
   int seconds,
   SharedStatus& status
 ) {
+  SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST);
   {
     std::lock_guard lock(status.mutex);
     if (status.clipInProgress) return;
@@ -3011,7 +3059,9 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
   const auto mode = arguments.at(L"mode");
   init_apartment(apartment_type::multi_threaded);
   check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
-  SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+  if (!SetPriorityClass(GetCurrentProcess(), PROCESS_MODE_BACKGROUND_BEGIN)) {
+    throw std::runtime_error("영상 작업 백그라운드 우선순위를 적용하지 못했습니다");
+  }
   try {
     if (mode == L"track" || mode == L"index") {
       const fs::path ringPath = arguments.at(L"ring-path");
@@ -3103,8 +3153,16 @@ int wmain(int count, wchar_t** values) {
   if (affinityIterator != arguments.end()) {
     try {
       const auto mask = std::stoull(affinityIterator->second, nullptr, 0);
-      if (mask > 0) SetProcessAffinityMask(GetCurrentProcess(), mask);
+      if (
+        mask == 0
+        || !SetProcessAffinityMask(GetCurrentProcess(), static_cast<DWORD_PTR>(mask))
+      ) {
+        std::cerr << "녹화 CPU 코어 격리를 적용하지 못했습니다\n";
+        return 1;
+      }
     } catch (...) {
+      std::cerr << "녹화 CPU 코어 격리 값이 올바르지 않습니다\n";
+      return 1;
     }
   }
   if (
@@ -3141,9 +3199,12 @@ int wmain(int count, wchar_t** values) {
     status.codec = options.codec;
     status.capacityBytes = static_cast<std::uint64_t>(options.capacityGb) * Gigabyte;
     status.fps = options.fps;
-    SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+    if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
+      throw std::runtime_error("녹화 프로세스 우선순위를 제한하지 못했습니다");
+    }
     init_apartment(apartment_type::multi_threaded);
     check_hresult(MFStartup(MF_VERSION, MFSTARTUP_FULL));
+    requireHardwareVideoEncoder(options.codec);
     fs::create_directories(options.storagePath / L"Ring");
     fs::create_directories(options.storagePath / L"Clips");
     removeIncompleteChunks(options.storagePath / L"Ring");
@@ -3163,8 +3224,11 @@ int wmain(int count, wchar_t** values) {
     std::unique_ptr<WindowCapture> capture;
     std::unique_ptr<ProcessAudioCapture> audioCapture;
     auto lastStatusWrite = std::chrono::steady_clock::now() - 2s;
+    auto nextCaptureAttempt = std::chrono::steady_clock::now();
+    auto captureRetryDelay = 500ms;
 
     while (status.running && processRunning(options.parentPid)) {
+      const auto now = std::chrono::steady_clock::now();
       if (const auto control = readControl(options.controlPath)) {
         if (control->command == "stop") {
           status.running = false;
@@ -3182,16 +3246,18 @@ int wmain(int count, wchar_t** values) {
         status.recording = false;
         status.audioRecording = false;
         status.waitingForGame = true;
+        nextCaptureAttempt = now + 500ms;
+        captureRetryDelay = 500ms;
       }
       if (encoder.failed()) {
         status.running = false;
         break;
       }
-      if (!capture) {
+      if (!capture && now >= nextCaptureAttempt) {
         const HWND window = findGameWindow(options.gamePath);
         if (window) {
           try {
-            capture = std::make_unique<WindowCapture>(
+            auto newCapture = std::make_unique<WindowCapture>(
               window,
               winrtDevice,
               device,
@@ -3202,24 +3268,40 @@ int wmain(int count, wchar_t** values) {
             );
             DWORD gameProcessId = 0;
             GetWindowThreadProcessId(window, &gameProcessId);
+            std::unique_ptr<ProcessAudioCapture> newAudioCapture;
             if (gameProcessId != 0) {
-              audioCapture = std::make_unique<ProcessAudioCapture>(
+              newAudioCapture = std::make_unique<ProcessAudioCapture>(
                 gameProcessId,
                 encoder,
                 status
               );
             }
+            capture = std::move(newCapture);
+            audioCapture = std::move(newAudioCapture);
+            captureRetryDelay = 500ms;
             std::lock_guard lock(status.mutex);
             status.waitingForGame = false;
             status.error.clear();
           } catch (const hresult_error& error) {
+            audioCapture.reset();
+            capture.reset();
+            nextCaptureAttempt = now + captureRetryDelay;
+            captureRetryDelay = std::min(captureRetryDelay * 2, 5000ms);
             std::lock_guard lock(status.mutex);
             status.error = L"게임 화면 캡처 시작 실패: " + std::wstring(error.message());
+          } catch (const std::exception&) {
+            audioCapture.reset();
+            capture.reset();
+            nextCaptureAttempt = now + captureRetryDelay;
+            captureRetryDelay = std::min(captureRetryDelay * 2, 5000ms);
+            std::lock_guard lock(status.mutex);
+            status.error = L"게임 화면 캡처 시작 실패";
           }
+        } else {
+          nextCaptureAttempt = now + 500ms;
         }
       }
 
-      const auto now = std::chrono::steady_clock::now();
       if (now - lastStatusWrite >= 1s) {
         {
           std::lock_guard lock(status.mutex);
