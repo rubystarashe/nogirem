@@ -402,6 +402,8 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorScript, /gapPreview\.hidden = Boolean\(segment\)/)
   assert.match(editorScript, /selectionStart = Math\.max\(\s*0,[\s\S]*timelineDuration - selectionDuration/)
   assert.match(editorSource, /class="gap-preview" hidden/)
+  assert.match(editorStyle, /body\.embedded \.gap-preview \{\s*inset: 0;/)
+  assert.match(editorStyle, /\.gap-preview \{[\s\S]*?inset: 0;[\s\S]*?background: #000;/)
   assert.match(editorStyle, /\.track-gap \{[\s\S]*background: #000;/)
   assert.match(editorScript, /function renderTrackGaps\(\)/)
   assert.match(editorScript, /element\.className = "track-gap"/)

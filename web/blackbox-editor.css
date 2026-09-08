@@ -51,7 +51,7 @@ body.embedded .preview {
 }
 
 body.embedded .gap-preview {
-  inset: 12px 14px;
+  inset: 0;
 }
 
 body.embedded .preview.media-ready {
@@ -131,7 +131,7 @@ video {
 .gap-preview {
   position: absolute;
   z-index: 2;
-  inset: 18px 22px;
+  inset: 0;
   background: #000;
 }
 
