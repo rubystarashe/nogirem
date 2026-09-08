@@ -173,16 +173,24 @@ video {
 .timeline-layout {
   display: grid;
   grid-template-columns: 190px minmax(0, 1fr) 176px;
+  grid-template-areas:
+    "timeline timeline timeline"
+    "controls playback extract";
   gap: 14px;
-  align-items: end;
+  align-items: start;
 }
 
 .track-length-controls {
   position: relative;
   display: grid;
-  align-self: start;
+  grid-area: controls;
   gap: 6px;
-  margin-top: 18px;
+}
+
+.track-length-buttons {
+  display: grid;
+  grid-template-columns: 54px 54px;
+  gap: 6px;
 }
 
 .track-status {
@@ -203,10 +211,6 @@ video {
 .track-status strong {
   color: #c3c9cc;
   font-size: 10px;
-}
-
-.track-length-controls > .compact-button {
-  width: 110px;
 }
 
 .compact-button {
@@ -235,8 +239,8 @@ video {
 .direct-length {
   position: absolute;
   z-index: 5;
-  bottom: 0;
-  left: 58px;
+  bottom: calc(100% + 8px);
+  left: 0;
   display: none;
   width: 260px;
   padding: 10px;
@@ -281,6 +285,7 @@ video {
 }
 
 .timeline-column {
+  grid-area: timeline;
   min-width: 0;
 }
 
@@ -399,9 +404,9 @@ video {
 
 .playback-row {
   display: flex;
+  grid-area: playback;
   align-items: center;
   gap: 10px;
-  margin-top: 8px;
 }
 
 .play-toggle {
@@ -432,6 +437,7 @@ video {
 
 .extract-duration {
   display: grid;
+  grid-area: extract;
   grid-template-columns: 1fr 72px 18px;
   gap: 6px;
   align-items: center;

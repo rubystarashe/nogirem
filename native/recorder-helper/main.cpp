@@ -1521,9 +1521,11 @@ TrackTimelineMetadata trackTimelineMetadata(
       0.0,
       static_cast<double>(seconds)
     );
+    bool joinsPreviousSegment = false;
     if (!segments.empty()) {
       const auto rawGap = rawTimelineStart - previousRawTimelineEnd;
-      timelineStart = rawGap <= continuityToleranceSeconds
+      joinsPreviousSegment = rawGap <= continuityToleranceSeconds;
+      timelineStart = joinsPreviousSegment
         ? previousTimelineEnd
         : previousTimelineEnd + rawGap;
     }
@@ -1532,7 +1534,11 @@ TrackTimelineMetadata trackTimelineMetadata(
       std::max(0.0, static_cast<double>(seconds) - timelineStart)
     );
     if (visibleDuration > 0.0) {
-      segments.push_back({ timelineStart, mediaCursor, visibleDuration });
+      if (joinsPreviousSegment) {
+        segments.back().duration += visibleDuration;
+      } else {
+        segments.push_back({ timelineStart, mediaCursor, visibleDuration });
+      }
       previousTimelineEnd = timelineStart + visibleDuration;
     }
     previousRawTimelineEnd = rawTimelineStart + duration;

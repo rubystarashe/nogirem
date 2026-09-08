@@ -28,8 +28,10 @@
       <section class="editing-panel">
         <div class="timeline-layout">
           <div class="track-length-controls">
-            <button class="compact-button add-time" type="button" title="이전 30초 추가">+</button>
-            <button class="compact-button direct-time" type="button" title="트랙 길이 직접 설정">++</button>
+            <div class="track-length-buttons">
+              <button class="compact-button direct-time" type="button" title="트랙 길이 직접 설정">++</button>
+              <button class="compact-button add-time" type="button" title="이전 30초 추가">+</button>
+            </div>
             <div class="track-status" hidden>
               <span class="track-duration"></span>
               <strong class="track-usage"></strong>
@@ -59,15 +61,16 @@
               </div>
               <div class="playhead"></div>
             </div>
-            <div class="playback-row">
-              <button class="play-toggle" type="button" aria-label="재생">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M7 4.5v15L19 12 7 4.5Z" />
-                </svg>
-              </button>
-              <span class="current-time">00:00 / 00:00</span>
-              <span class="range-time"></span>
-            </div>
+          </div>
+
+          <div class="playback-row">
+            <button class="play-toggle" type="button" aria-label="재생">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 4.5v15L19 12 7 4.5Z" />
+              </svg>
+            </button>
+            <span class="current-time">00:00 / 00:00</span>
+            <span class="range-time"></span>
           </div>
 
           <div class="extract-duration">
