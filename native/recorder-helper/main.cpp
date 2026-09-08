@@ -3318,6 +3318,7 @@ int wmain(int count, wchar_t** values) {
     && (
       arguments.at(L"mode") == L"track"
       || arguments.at(L"mode") == L"index"
+      || arguments.at(L"mode") == L"summary"
       || arguments.at(L"mode") == L"compose"
       || arguments.at(L"mode") == L"extract"
     )

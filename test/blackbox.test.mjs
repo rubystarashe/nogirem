@@ -460,6 +460,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /import \{ access, copyFile,[^\n]+ \} from "node:fs\/promises"/)
   assert.match(nativeSource, /double completedChunkDurationSeconds\(const fs::path& path\)/)
   assert.match(nativeSource, /mode == L"summary"/)
+  assert.match(nativeSource, /arguments\.at\(L"mode"\) == L"summary"/)
   assert.match(nativeSource, /durationSeconds_ = totalDuration;/)
   assert.match(nativeSource, /ringStorage\.durationSeconds\(\) \+ encoder\.currentChunkDurationSeconds\(\)/)
   assert.doesNotMatch(nativeSource, /estimatedCompletedSeconds/)

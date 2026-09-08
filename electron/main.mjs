@@ -188,6 +188,7 @@ let blackboxLatestClipOverride = null
 let blackboxStorageSummary = null
 let blackboxStorageSummaryPromise = null
 let blackboxStorageSummaryGeneration = 0
+let blackboxStorageSummaryRetryAt = 0
 let activeBlackboxShortcut = null
 const internalWindowsClosedForTray = new WeakSet()
 let primaryRendererRecoveryMode = false
@@ -2036,7 +2037,11 @@ async function getBlackboxSetting() {
   const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 5000
   const processRunning = Boolean(blackboxProcess && blackboxProcess.exitCode === null)
   const running = setting.enabled && processRunning && statusFresh && Boolean(status?.running)
-  if (!processRunning && !blackboxStorageSummary) {
+  if (
+    !processRunning
+    && !blackboxStorageSummary
+    && Date.now() >= blackboxStorageSummaryRetryAt
+  ) {
     void refreshBlackboxStorageSummary().catch(error => {
       console.error("블랙박스 저장 현황 갱신 실패", error)
     })
@@ -2095,11 +2100,15 @@ async function refreshBlackboxStorageSummary() {
     }
     if (generation === blackboxStorageSummaryGeneration) {
       blackboxStorageSummary = nextSummary
+      blackboxStorageSummaryRetryAt = 0
     }
     return nextSummary
   })()
   try {
     return await blackboxStorageSummaryPromise
+  } catch (error) {
+    blackboxStorageSummaryRetryAt = Date.now() + 30000
+    throw error
   } finally {
     blackboxStorageSummaryPromise = null
   }
