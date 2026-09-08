@@ -266,6 +266,22 @@ video {
   touch-action: none;
 }
 
+.track-gaps {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+}
+
+.track-gap {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 3px;
+  background: rgba(139, 146, 150, 0.72);
+  box-shadow: inset 1px 0 rgba(216, 220, 222, 0.35), inset -1px 0 rgba(0, 0, 0, 0.35);
+}
+
 .selection-guide {
   position: absolute;
   z-index: 2;

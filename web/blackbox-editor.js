@@ -10,6 +10,7 @@ const directLengthForm = document.querySelector(".direct-length")
 const trackSecondsInput = document.querySelector("#track-seconds")
 const extractSecondsInput = document.querySelector("#extract-seconds")
 const timeline = document.querySelector(".timeline")
+const trackGapsLayer = document.querySelector(".track-gaps")
 const guide = document.querySelector(".selection-guide")
 const playhead = document.querySelector(".playhead")
 const playToggle = document.querySelector(".play-toggle")
@@ -65,6 +66,7 @@ let initialTrackLoaded = false
 let busy = true
 let timelineInteraction = null
 let previewingSelection = false
+let trackGaps = []
 let lastOutputPath = ""
 
 function messageOf(error) {
@@ -122,6 +124,21 @@ function renderTimeline() {
   trackStart.textContent = `-${formatTime(duration)}`
 }
 
+function renderTrackGaps() {
+  trackGapsLayer.replaceChildren()
+  if (!duration) return
+  for (const gap of trackGaps) {
+    const start = Math.max(0, Math.min(duration, Number(gap?.startSeconds) || 0))
+    const gapDuration = Math.max(0, Number(gap?.durationSeconds) || 0)
+    if (!gapDuration || start >= duration) continue
+    const element = document.createElement("span")
+    element.className = "track-gap"
+    element.style.left = `${start / duration * 100}%`
+    element.style.width = `${Math.min(gapDuration, duration - start) / duration * 100}%`
+    trackGapsLayer.append(element)
+  }
+}
+
 function loadVideo(url, preserveFromEnd = 0) {
   return new Promise((resolve, reject) => {
     const cleanup = () => {
@@ -157,9 +174,11 @@ function loadVideo(url, preserveFromEnd = 0) {
 
 async function applyTrack(result, preserveFromEnd = 0) {
   requestedTrackSeconds = result.requestedSeconds
+  trackGaps = Array.isArray(result.gaps) ? result.gaps : []
   trackSecondsInput.value = String(requestedTrackSeconds)
   anchorTime.textContent = `${new Date(result.anchorAt).toLocaleTimeString("ko-KR")} 기준`
   await loadVideo(result.videoUrl, preserveFromEnd)
+  renderTrackGaps()
   editor.className = "editor ready"
   setBusy(false)
 }
@@ -327,7 +346,7 @@ video.addEventListener("timeupdate", () => {
     && video.currentTime >= selectionStart + selectionDuration
   ) {
     video.pause()
-    video.currentTime = selectionStart + selectionDuration
+    video.currentTime = selectionStart
     previewingSelection = false
   }
   renderTimeline()

@@ -950,6 +950,62 @@ ComPtr<IMFSourceReader> createCompressedAudioReader(const fs::path& path) {
   return reader;
 }
 
+ComPtr<IMFMediaType> createPcmAudioType() {
+  ComPtr<IMFMediaType> type;
+  check_hresult(MFCreateMediaType(&type));
+  check_hresult(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio));
+  check_hresult(type->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, AudioChannels));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, AudioSampleRate));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, AudioBlockAlignment));
+  check_hresult(type->SetUINT32(
+    MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
+    AudioSampleRate * AudioBlockAlignment
+  ));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, AudioBitsPerSample));
+  return type;
+}
+
+ComPtr<IMFMediaType> createAacAudioType() {
+  ComPtr<IMFMediaType> type;
+  check_hresult(MFCreateMediaType(&type));
+  check_hresult(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio));
+  check_hresult(type->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_AAC));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, AudioChannels));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, AudioSampleRate));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 24000));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, 1));
+  check_hresult(type->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, AudioBitsPerSample));
+  check_hresult(type->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 0));
+  return type;
+}
+
+ComPtr<IMFSourceReader> createPcmAudioReader(const fs::path& path) {
+  ComPtr<IMFSourceReader> reader;
+  check_hresult(MFCreateSourceReaderFromURL(path.c_str(), nullptr, &reader));
+  ComPtr<IMFMediaType> nativeType;
+  if (FAILED(reader->GetNativeMediaType(
+    static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
+    0,
+    &nativeType
+  ))) return {};
+  check_hresult(reader->SetStreamSelection(
+    static_cast<DWORD>(MF_SOURCE_READER_ALL_STREAMS),
+    FALSE
+  ));
+  check_hresult(reader->SetStreamSelection(
+    static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
+    TRUE
+  ));
+  const auto pcmType = createPcmAudioType();
+  check_hresult(reader->SetCurrentMediaType(
+    static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
+    nullptr,
+    pcmType.Get()
+  ));
+  return reader;
+}
+
 struct MediaSignature {
   GUID subtype{};
   UINT32 width = 0;
@@ -1153,6 +1209,78 @@ LONGLONG combinedMediaDuration(const std::vector<fs::path>& inputs) {
   return duration;
 }
 
+LONGLONG combinedDecodedAudioDuration(const std::vector<fs::path>& inputs) {
+  LONGLONG duration = 0;
+  for (const auto& input : inputs) {
+    auto reader = createPcmAudioReader(input);
+    if (!reader) continue;
+    while (true) {
+      DWORD actualStream = 0;
+      DWORD flags = 0;
+      LONGLONG timestamp = 0;
+      ComPtr<IMFSample> sample;
+      check_hresult(reader->ReadSample(
+        static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
+        0,
+        &actualStream,
+        &flags,
+        &timestamp,
+        &sample
+      ));
+      checkReaderFlags(flags);
+      if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+      if (!sample) continue;
+      LONGLONG sampleDuration = 0;
+      if (FAILED(sample->GetSampleDuration(&sampleDuration)) || sampleDuration <= 0) {
+        sampleDuration = 1024ll * 10000000ll / AudioSampleRate;
+      }
+      duration += sampleDuration;
+    }
+  }
+  return duration;
+}
+
+std::int64_t chunkStartedMilliseconds(const fs::path& path);
+
+std::string trackGapsJson(
+  const std::vector<fs::path>& inputs,
+  LONGLONG requestedStart,
+  LONGLONG requestedDuration
+) {
+  std::ostringstream json;
+  json << "{\"gaps\":[";
+  bool firstGap = true;
+  LONGLONG mediaOffset = 0;
+  for (std::size_t index = 0; index + 1 < inputs.size(); ++index) {
+    const auto mediaDuration = compressedMediaDuration(inputs[index]);
+    const auto currentStartedAt = chunkStartedMilliseconds(inputs[index]);
+    const auto nextStartedAt = chunkStartedMilliseconds(inputs[index + 1]);
+    const auto wallDuration = std::max<LONGLONG>(
+      0,
+      (nextStartedAt - currentStartedAt) * 10000ll
+    );
+    const auto missingDuration = wallDuration - mediaDuration;
+    const auto outputPosition = mediaOffset + mediaDuration - requestedStart;
+    if (
+      missingDuration >= 5000000ll
+      && outputPosition >= 0
+      && outputPosition < requestedDuration
+    ) {
+      if (!firstGap) json << ",";
+      json << "{\"startSeconds\":"
+           << std::fixed << std::setprecision(3)
+           << static_cast<double>(outputPosition) / 10000000.0
+           << ",\"durationSeconds\":"
+           << static_cast<double>(missingDuration) / 10000000.0
+           << "}";
+      firstGap = false;
+    }
+    mediaOffset += mediaDuration;
+  }
+  json << "]}";
+  return json.str();
+}
+
 bool remuxChunks(
   const std::vector<fs::path>& inputs,
   const fs::path& output,
@@ -1164,10 +1292,18 @@ bool remuxChunks(
   const LONGLONG requestedEnd = requestedDuration == LLONG_MAX
     ? LLONG_MAX
     : requestedStart + requestedDuration;
+  const LONGLONG decodedAudioDuration = combinedDecodedAudioDuration(inputs);
+  const LONGLONG audioRequestedStart = requestedDuration == LLONG_MAX
+    ? 0
+    : std::max<LONGLONG>(0, decodedAudioDuration - requestedDuration);
+  const LONGLONG audioRequestedEnd = requestedDuration == LLONG_MAX
+    ? LLONG_MAX
+    : audioRequestedStart + requestedDuration;
   ComPtr<IMFSinkWriter> sink;
   DWORD sinkStream = 0;
   std::optional<DWORD> sinkAudioStream;
   LONGLONG outputTime = 0;
+  LONGLONG audioOutputTime = 0;
   std::optional<MediaSignature> expectedSignature;
 
   for (std::size_t fileIndex = 0; fileIndex < inputs.size(); ++fileIndex) {
@@ -1184,12 +1320,13 @@ bool remuxChunks(
     }
     expectedSignature = signature;
     const LONGLONG defaultDuration = fallbackSampleDuration(signature);
-    auto audioReader = createCompressedAudioReader(inputs[fileIndex]);
-    ComPtr<IMFMediaType> audioType;
+    ComPtr<IMFSourceReader> audioReader;
+    if (signature.hasAudio) audioReader = createPcmAudioReader(inputs[fileIndex]);
+    ComPtr<IMFMediaType> audioInputType;
     if (audioReader) {
       check_hresult(audioReader->GetCurrentMediaType(
         static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
-        &audioType
+        &audioInputType
       ));
     }
     if (!sink) {
@@ -1207,12 +1344,13 @@ bool remuxChunks(
       ));
       check_hresult(sink->AddStream(mediaType.Get(), &sinkStream));
       check_hresult(sink->SetInputMediaType(sinkStream, mediaType.Get(), nullptr));
-      if (audioType) {
+      if (audioInputType) {
+        const auto audioOutputType = createAacAudioType();
         DWORD audioStream = 0;
-        check_hresult(sink->AddStream(audioType.Get(), &audioStream));
+        check_hresult(sink->AddStream(audioOutputType.Get(), &audioStream));
         check_hresult(sink->SetInputMediaType(
           audioStream,
-          audioType.Get(),
+          audioInputType.Get(),
           nullptr
         ));
         sinkAudioStream = audioStream;
@@ -1220,7 +1358,6 @@ bool remuxChunks(
       check_hresult(sink->BeginWriting());
     }
 
-    const LONGLONG fileStart = outputTime;
     LONGLONG firstTime = -1;
     LONGLONG fileEnd = outputTime;
     while (true) {
@@ -1268,13 +1405,10 @@ bool remuxChunks(
     outputTime = fileEnd;
 
     if (audioReader && sinkAudioStream) {
-      LONGLONG firstAudioTime = -1;
       const LONGLONG defaultAudioDuration =
         signature.audioSampleRate > 0
           ? 1024ll * 10000000ll / signature.audioSampleRate
           : 1024ll * 10000000ll / AudioSampleRate;
-      // 청크마다 새 AAC 인코더가 만드는 첫 priming frame을 제거한다.
-      bool firstAudioSample = true;
       while (true) {
         DWORD actualStream = 0;
         DWORD flags = 0;
@@ -1291,32 +1425,19 @@ bool remuxChunks(
         checkReaderFlags(flags);
         if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
         if (!sample) continue;
-        if (firstAudioTime < 0) firstAudioTime = timestamp;
-        if (firstAudioSample) {
-          firstAudioSample = false;
-          continue;
+        LONGLONG duration = 0;
+        if (FAILED(sample->GetSampleDuration(&duration)) || duration <= 0) {
+          duration = defaultAudioDuration;
         }
-        const LONGLONG duration = defaultAudioDuration;
-        const LONGLONG globalTime =
-          fileStart + std::max<LONGLONG>(
-            0,
-            timestamp - firstAudioTime - defaultAudioDuration
-          );
-        if (globalTime + duration <= effectiveStart) continue;
-        if (globalTime >= requestedEnd) break;
-        const LONGLONG outputSampleTime = globalTime - requestedStart;
+        const LONGLONG globalTime = audioOutputTime;
+        audioOutputTime += duration;
+        if (globalTime + duration <= audioRequestedStart) continue;
+        if (globalTime >= audioRequestedEnd) break;
+        const LONGLONG outputSampleTime =
+          std::max<LONGLONG>(0, globalTime - audioRequestedStart);
         check_hresult(sample->SetSampleTime(outputSampleTime));
         check_hresult(sample->SetSampleDuration(duration));
-        UINT64 decodeTimestamp = 0;
-        if (SUCCEEDED(sample->GetUINT64(
-          MFSampleExtension_DecodeTimestamp,
-          &decodeTimestamp
-        ))) {
-          check_hresult(sample->SetUINT64(
-            MFSampleExtension_DecodeTimestamp,
-            static_cast<UINT64>(outputSampleTime)
-          ));
-        }
+        sample->DeleteItem(MFSampleExtension_DecodeTimestamp);
         check_hresult(sink->WriteSample(*sinkAudioStream, sample.Get()));
       }
     }
@@ -2461,6 +2582,11 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
       )) {
         throw std::runtime_error("편집 트랙을 만들지 못했습니다");
       }
+      std::cout << trackGapsJson(
+        chunks,
+        requestedStart,
+        requestedDuration
+      ) << "\n";
     } else if (mode == L"extract") {
       const fs::path inputPath = arguments.at(L"input");
       const fs::path outputPath = arguments.at(L"output");

@@ -2192,10 +2192,11 @@ function blackboxEditorDateName(milliseconds = Date.now()) {
 
 async function runRecorderUtility(argumentsList) {
   try {
-    await execFileAsync(recorderHelperPath, argumentsList, {
+    const result = await execFileAsync(recorderHelperPath, argumentsList, {
       windowsHide: true,
       maxBuffer: 1024 * 1024,
     })
+    return String(result.stdout ?? "").trim()
   } catch (error) {
     const detail = String(error?.stderr ?? error?.message ?? "").trim()
     throw new Error(detail || "블랙박스 편집 작업을 완료하지 못했습니다")
@@ -2235,7 +2236,7 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
       session.directory,
       `track-${seconds}-${Date.now()}.mp4`,
     )
-    await runRecorderUtility([
+    const metadataOutput = await runRecorderUtility([
       "--mode=track",
       `--ring-path=${join(getBlackboxPaths().storagePath, "Ring")}`,
       `--output=${outputPath}`,
@@ -2261,6 +2262,14 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
     }
     return {
       anchorAt: session.anchorAt,
+      gaps: (() => {
+        try {
+          const parsed = JSON.parse(metadataOutput)
+          return Array.isArray(parsed?.gaps) ? parsed.gaps : []
+        } catch {
+          return []
+        }
+      })(),
       requestedSeconds: seconds,
       videoUrl: `nogirem-blackbox://editor/${session.id}/${trackId}?v=${outputStat.mtimeMs}`,
     }
