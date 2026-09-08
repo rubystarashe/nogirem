@@ -1,6 +1,6 @@
 import { readFile, unlink } from "node:fs/promises"
 
-export async function readRuntimeStatusJson(path, onCorrupt = null) {
+export async function readJsonOrDiscard(path, onCorrupt = null) {
   try {
     return JSON.parse(await readFile(path, "utf8"))
   } catch (error) {
@@ -13,3 +13,5 @@ export async function readRuntimeStatusJson(path, onCorrupt = null) {
     return null
   }
 }
+
+export const readRuntimeStatusJson = readJsonOrDiscard

@@ -33,7 +33,10 @@ import {
 } from "../src/dxvk.mjs"
 import { getLatestMuoStatus } from "../src/muo-status.mjs"
 import { writeJsonAtomic } from "../src/atomic-json.mjs"
-import { readRuntimeStatusJson as readRuntimeStatusJsonFile } from "../src/runtime-status.mjs"
+import {
+  readJsonOrDiscard,
+  readRuntimeStatusJson as readRuntimeStatusJsonFile,
+} from "../src/runtime-status.mjs"
 import { advanceDownloadProgress } from "../src/update-progress.mjs"
 import { getYouTubeChannelProfile } from "../src/youtube-channel.mjs"
 import { assessExitConfirmation } from "../src/exit-confirmation.mjs"
@@ -577,12 +580,9 @@ async function getCharacterSimplificationStatus() {
 }
 
 async function readJson(path) {
-  try {
-    return JSON.parse(await readFile(path, "utf8"))
-  } catch (error) {
-    if (error.code === "ENOENT") return null
-    throw error
-  }
+  return readJsonOrDiscard(path, error => {
+    console.error(`손상된 설정 파일을 기본값으로 복구합니다: ${path}`, error)
+  })
 }
 
 async function readRuntimeStatusJson(path) {

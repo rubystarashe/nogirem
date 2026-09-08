@@ -146,6 +146,8 @@ test("CPU 코어 선택 UI와 IPC가 영구 설정 경로에 연결된다", asyn
   ])
 
   assert.match(mainSource, /game-core-setting\.json/)
+  assert.match(mainSource, /readJsonOrDiscard/)
+  assert.match(mainSource, /손상된 설정 파일을 기본값으로 복구합니다/)
   assert.match(mainSource, /optimization:set-game-cpu-core-count/)
   assert.match(mainSource, /optimization:refresh-game-cpu-core-setting/)
   assert.match(mainSource, /describeCpuTopologyFailure/)

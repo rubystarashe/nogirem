@@ -3,7 +3,7 @@ import test from "node:test"
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { readRuntimeStatusJson } from "../src/runtime-status.mjs"
+import { readJsonOrDiscard, readRuntimeStatusJson } from "../src/runtime-status.mjs"
 
 async function withTemporaryDirectory(run) {
   const directory = await mkdtemp(join(tmpdir(), "nogirem-runtime-status-"))
@@ -44,6 +44,21 @@ test("일부만 기록된 런타임 상태 파일도 폐기한다", async () => 
     await writeFile(path, '{"running":', "utf8")
 
     assert.equal(await readRuntimeStatusJson(path), null)
+    await assert.rejects(readFile(path), error => error?.code === "ENOENT")
+  })
+})
+
+test("NUL 문자로 손상된 영구 설정도 기본값으로 복구할 수 있다", async () => {
+  await withTemporaryDirectory(async directory => {
+    const path = join(directory, "game-core-setting.json")
+    await writeFile(path, Buffer.alloc(64))
+    const corruptions = []
+
+    assert.equal(
+      await readJsonOrDiscard(path, error => corruptions.push(error)),
+      null,
+    )
+    assert.equal(corruptions.length, 1)
     await assert.rejects(readFile(path), error => error?.code === "ENOENT")
   })
 })
