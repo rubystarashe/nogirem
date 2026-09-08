@@ -15,6 +15,11 @@ contextBridge.exposeInMainWorld("blackboxManager", {
     return ipcRenderer.invoke("blackbox-manager:rename-clip", fileName, nextName)
   },
   deleteClip: fileName => ipcRenderer.invoke("blackbox-manager:delete-clip", fileName),
+  onSaveClipRequested: callback => {
+    const listener = () => callback()
+    ipcRenderer.on("blackbox-manager:request-save-clip", listener)
+    return () => ipcRenderer.removeListener("blackbox-manager:request-save-clip", listener)
+  },
   onEditorExtractProgress: callback => {
     const listener = (_event, progress) => callback(Number(progress) || 0)
     ipcRenderer.on("blackbox-editor:extract-progress", listener)

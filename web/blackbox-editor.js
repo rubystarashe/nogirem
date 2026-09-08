@@ -32,6 +32,7 @@ const notice = document.querySelector(".notice")
 const exportModal = document.querySelector(".export-modal")
 const exportDialog = document.querySelector(".export-dialog")
 const exportCancelButton = document.querySelector(".export-cancel")
+const gapPolicyField = document.querySelector(".gap-policy-field")
 const embedded = new URLSearchParams(location.search).has("embedded")
 const parentRequests = new Map()
 let nextParentRequestId = 0
@@ -530,7 +531,11 @@ function updateTimelineInteraction(event) {
 
   clampSelection()
   stopTimelinePlayback()
-  setTimelineCursor(selectionStart)
+  setTimelineCursor(
+    mode === "resize-end"
+      ? selectionStart + selectionDuration
+      : selectionStart,
+  )
   previewingSelection = false
 }
 
@@ -569,6 +574,7 @@ async function extractSelection() {
     lastOutputPath = result.outputPath
     showOutputButton.classList.add("visible")
     setNotice(`${result.fileName} 저장 완료`)
+    await editorBridge.showOutput(result.outputPath)
   } catch (error) {
     setNotice(messageOf(error), true)
   } finally {
@@ -582,6 +588,13 @@ async function extractSelection() {
 
 function openExportModal() {
   if (!duration || busy) return
+  const selectionEnd = selectionStart + selectionDuration
+  const hasGap = trackGaps.some(gap => {
+    const gapStart = Math.max(0, Number(gap?.startSeconds) || 0)
+    const gapEnd = gapStart + Math.max(0, Number(gap?.durationSeconds) || 0)
+    return gapStart < selectionEnd && gapEnd > selectionStart
+  })
+  gapPolicyField.hidden = !hasGap
   exportModal.hidden = false
   playbackSpeedSelect.focus()
 }

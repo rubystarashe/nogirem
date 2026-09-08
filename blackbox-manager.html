@@ -216,32 +216,30 @@
       }
 
       .settings {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        gap: 8px;
+        display: block;
         margin-top: 10px;
-        padding: 12px 13px;
-        border: 1px solid #30363a;
-        border-radius: 9px;
-        background: #16191b;
       }
 
       .settings label {
-        display: grid;
+        display: flex;
         min-width: 0;
-        gap: 5px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 13px 4px;
+        border-bottom: 1px solid #292f32;
       }
 
       .settings label > span {
         color: #b9c0c4;
-        font-size: 9px;
+        font-size: 11px;
         font-weight: 700;
       }
 
       .settings select {
-        width: 100%;
-        height: 29px;
-        padding: 0 7px;
+        width: min(280px, 55%);
+        height: 32px;
+        padding: 0 9px;
         border: 1px solid #41484c;
         border-radius: 6px;
         color: #eef1f2;
@@ -257,8 +255,11 @@
       .settings-summary {
         display: flex;
         justify-content: space-between;
+        gap: 20px;
+        padding: 13px 4px;
+        border-bottom: 1px solid #292f32;
         color: #7f898e;
-        font-size: 9px;
+        font-size: 10px;
       }
 
       .message {
@@ -458,12 +459,11 @@
       .clips-page.active {
         display: grid;
         grid-template-columns: 290px minmax(0, 1fr);
-        grid-template-rows: minmax(0, 1fr) auto;
         gap: 10px;
       }
 
-      .clips-page .page-actions {
-        grid-column: 1 / -1;
+      .settings-page .page-actions {
+        justify-content: flex-end;
       }
 
       .clip-preview,
@@ -525,12 +525,26 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 8px;
         padding: 11px 12px;
         border-bottom: 1px solid #30363a;
       }
 
+      .clip-browser-title {
+        display: grid;
+        min-width: 0;
+        gap: 2px;
+      }
+
       .clip-browser-header strong {
         font-size: 11px;
+      }
+
+      .clip-save-header {
+        height: 27px;
+        flex: none;
+        padding: 0 8px;
+        font-size: 9px;
       }
 
       .clip-count {
@@ -704,21 +718,17 @@
       <section class="page clips-page" data-page-panel="clips">
         <div class="clip-browser">
           <header class="clip-browser-header">
-            <strong>저장된 클립</strong>
-            <span class="clip-count">불러오는 중</span>
+            <div class="clip-browser-title">
+              <strong>저장된 클립</strong>
+              <span class="clip-count">불러오는 중</span>
+            </div>
+            <button class="action save-clip clip-save-header" type="button">클립 저장</button>
           </header>
           <div class="clip-list"></div>
         </div>
         <div class="clip-preview">
           <video class="saved-clip-video" controls preload="metadata" hidden></video>
           <p class="clip-empty">저장된 클립을 선택하면 이곳에서 바로 확인할 수 있습니다</p>
-        </div>
-        <div class="page-actions">
-          <div class="action-group">
-            <button class="action save-clip" type="button">최근 클립 저장</button>
-            <button class="action open-folder" type="button">저장 폴더</button>
-            <button class="action danger clear-recording" type="button">전체 비우기</button>
-          </div>
         </div>
       </section>
       <section class="page settings-page" data-page-panel="settings">
@@ -770,7 +780,6 @@
       </section>
         <div class="page-actions">
           <button class="action save-setting settings-action" type="button">설정 저장</button>
-          <button class="action primary toggle-recording" type="button" disabled>확인 중</button>
         </div>
       </section>
       <p class="message" role="status"></p>
@@ -800,10 +809,7 @@
       const qualitySummary = document.querySelector(".quality-summary")
       const message = document.querySelector(".message")
       const saveClipButton = document.querySelector(".save-clip")
-      const openFolderButton = document.querySelector(".open-folder")
-      const clearRecordingButton = document.querySelector(".clear-recording")
       const saveSettingButton = document.querySelector(".save-setting")
-      const toggleRecordingButton = document.querySelector(".toggle-recording")
       const pageTabs = [...document.querySelectorAll(".page-tab")]
       const pagePanels = [...document.querySelectorAll("[data-page-panel]")]
       const extractFrame = document.querySelector(".extract-frame")
@@ -845,6 +851,7 @@
       }
 
       async function openClipSaveModal() {
+        if (!status) await refreshStatus(true)
         await refreshClips()
         const placeholder = nextClipPlaceholder()
         clipSaveNameInput.value = ""
@@ -948,15 +955,9 @@
           },
         }, "*")
 
-        toggleRecordingButton.textContent = !value.featureEnabled
-          ? "사용 설정 필요"
-          : value.enabled ? "사용 중" : "사용하기"
-        toggleRecordingButton.classList.toggle("active", value.enabled)
         saveClipButton.disabled = busy || !value.recording || value.clipInProgress
-        saveClipButton.textContent = value.clipInProgress ? "저장 중…" : "최근 클립 저장"
-        clearRecordingButton.disabled = busy || (value.bytesUsed <= 0 && value.durationSeconds <= 0)
+        saveClipButton.textContent = value.clipInProgress ? "저장 중…" : "클립 저장"
         saveSettingButton.disabled = busy || !settingsDirty
-        toggleRecordingButton.disabled = busy || !value.featureEnabled
         renderSettingSummary()
 
         if (value.latestClip && value.latestClip !== oldClip) {
@@ -1310,16 +1311,6 @@
         if (result) settingsDirty = false
       })
 
-      toggleRecordingButton.addEventListener("click", async () => {
-        const enabling = !status?.enabled
-        const result = await runAction(
-          enabling ? "블랙박스 녹화를 시작하고 있습니다" : "블랙박스 녹화를 종료하고 있습니다",
-          () => window.blackboxManager.setSetting(draftSetting(enabling)),
-          enabling ? "블랙박스를 사용합니다" : "블랙박스를 사용하지 않습니다",
-        )
-        if (result) settingsDirty = false
-      })
-
       saveClipButton.addEventListener("click", () => {
         void openClipSaveModal()
       })
@@ -1340,31 +1331,14 @@
         if (result) await refreshClips()
       })
 
-      clearRecordingButton.addEventListener("click", async () => {
-        const result = await runAction(
-          "순환 녹화 비우기를 확인하고 있습니다",
-          () => window.blackboxManager.clearRecording(),
-        )
-        if (result && !result.canceled) {
-          message.classList.remove("error")
-          message.textContent = "저장된 클립을 제외한 순환 녹화를 모두 비웠습니다"
-        } else if (result?.canceled) {
-          message.textContent = ""
-        }
-      })
-
-      openFolderButton.addEventListener("click", () => {
-        void runAction(
-          "블랙박스 저장 폴더를 열고 있습니다",
-          () => window.blackboxManager.openFolder(),
-        )
-      })
-
       closeButton.addEventListener("click", () => {
         closeButton.disabled = true
         void window.blackboxManager.requestClose()
       })
 
+      window.blackboxManager.onSaveClipRequested(() => {
+        void openClipSaveModal()
+      })
       void refreshStatus()
       window.setInterval(() => {
         if (!busy) void refreshStatus(true)

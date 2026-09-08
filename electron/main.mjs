@@ -2024,12 +2024,26 @@ function unregisterBlackboxShortcut() {
 function registerBlackboxShortcut() {
   unregisterBlackboxShortcut()
   const registered = globalShortcut.register(blackboxShortcut, () => {
-    void requestBlackboxClip().catch(error => {
-      console.error("블랙박스 단축키 클립 저장 실패", error)
-    })
+    openBlackboxClipSaveDialog()
   })
   if (!registered) console.error("Ctrl+Shift+F10 블랙박스 단축키를 등록하지 못했습니다")
   return registered
+}
+
+function openBlackboxClipSaveDialog() {
+  openBlackboxManager()
+  const window = blackboxManagerWindow
+  if (!window || window.isDestroyed()) return
+  const showDialog = () => {
+    if (!window.isDestroyed()) {
+      window.webContents.send("blackbox-manager:request-save-clip")
+    }
+  }
+  if (window.webContents.isLoading()) {
+    window.webContents.once("did-finish-load", showDialog)
+  } else {
+    showDialog()
+  }
 }
 
 async function waitForBlackboxStatus(predicate, timeoutMs = 5000) {
