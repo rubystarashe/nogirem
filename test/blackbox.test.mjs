@@ -242,12 +242,16 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorSource, /class="selection-handle start"/)
   assert.match(editorSource, /class="selection-handle end"/)
   assert.match(editorSource, /class="track-gaps"/)
-  assert.match(editorSource, /class="track-status"[\s\S]*track-duration[\s\S]*track-usage/)
+  assert.match(
+    editorSource,
+    /<footer class="actions">[\s\S]*class="track-status"[\s\S]*track-duration[\s\S]*track-usage[\s\S]*preview-range[\s\S]*MP4 추출/,
+  )
   assert.match(editorScript, /현재 \$\{\(bytesUsed \/ 1024 \*\* 3\)\.toFixed\(1\)\} \/ 최대 \$\{capacityGb\}GB/)
   assert.match(editorScript, /\$\{formatRecordedDuration\(durationSeconds\)\} 녹화됨/)
   assert.match(editorStyle, /grid-template-areas:[\s\S]*"timeline timeline timeline"[\s\S]*"controls playback extract"/)
   assert.match(editorStyle, /\.track-length-buttons \{[\s\S]*grid-template-columns: 54px 54px;/)
-  assert.match(editorStyle, /\.track-status \{[\s\S]*display: flex;/)
+  assert.match(editorStyle, /\.track-status \{[\s\S]*display: flex;[\s\S]*font-size: 12px;/)
+  assert.match(editorStyle, /\.extract-duration \{[\s\S]*display: flex;/)
   assert.match(editorScript, /requestedTrackSeconds \+ 30/)
   assert.match(editorScript, /function normalizeTrackLengthInputs\(\)/)
   assert.match(editorScript, /function fitCurrentMedia\(\)/)

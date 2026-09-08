@@ -33,10 +33,6 @@
               <button class="compact-button direct-time" type="button" title="트랙 길이 직접 설정">++</button>
               <button class="compact-button add-time" type="button" title="이전 30초 추가">+</button>
             </div>
-            <div class="track-status" hidden>
-              <span class="track-duration"></span>
-              <strong class="track-usage"></strong>
-            </div>
             <form class="direct-length">
               <label for="track-minutes">블랙박스 조회 길이</label>
               <div class="number-row">
@@ -76,13 +72,16 @@
 
           <div class="extract-duration">
             <label for="extract-seconds">추출 영상 길이</label>
-            <span></span>
             <input id="extract-seconds" type="number" min="1" max="60" step="1" value="30" />
             <span>초</span>
           </div>
         </div>
 
         <footer class="actions">
+          <div class="track-status" hidden>
+            <span class="track-duration"></span>
+            <strong class="track-usage"></strong>
+          </div>
           <span class="notice" role="status"></span>
           <button class="action show-output" type="button">파일 위치</button>
           <button class="action preview-range" type="button" disabled>선택 구간 미리보기</button>

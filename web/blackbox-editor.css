@@ -192,8 +192,9 @@ video {
   grid-template-areas:
     "timeline timeline timeline"
     "controls playback extract";
-  gap: 14px;
-  align-items: start;
+  column-gap: 14px;
+  row-gap: 12px;
+  align-items: center;
 }
 
 .track-length-controls {
@@ -212,10 +213,10 @@ video {
 .track-status {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-top: 2px;
+  flex-shrink: 0;
+  gap: 12px;
   color: #899297;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.35;
   white-space: nowrap;
 }
@@ -226,7 +227,7 @@ video {
 
 .track-status strong {
   color: #c3c9cc;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .compact-button {
@@ -452,22 +453,27 @@ video {
 }
 
 .extract-duration {
-  display: grid;
+  display: flex;
   grid-area: extract;
-  grid-template-columns: 1fr 72px 18px;
   gap: 6px;
   align-items: center;
+  justify-content: flex-end;
   color: #a8b0b4;
   font-size: 11px;
+  white-space: nowrap;
 }
 
 .extract-duration label {
-  grid-column: 1 / -1;
-  margin-bottom: -2px;
+  margin-right: 4px;
+}
+
+.extract-duration input {
+  width: 72px;
 }
 
 .actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 15px;
