@@ -123,7 +123,7 @@ let dxvkManagerWindow = null
 let dxvkGuideWindow = null
 let blackboxManagerWindow = null
 let blackboxManagerPreferredSize = null
-let blackboxManagerAutomaticBounds = null
+let blackboxManagerActivePage = "extract"
 let blackboxEditorWindow = null
 let blackboxEditorSession = null
 let applicationTray = null
@@ -2475,6 +2475,14 @@ function readBlackboxManagerSize() {
   return { width: 1040, height: 760, customized: false }
 }
 
+function saveBlackboxManagerSize(size) {
+  return writeJsonAtomic(getBlackboxPaths().windowStatePath, {
+    width: size.width,
+    height: size.height,
+    updatedAt: new Date().toISOString(),
+  })
+}
+
 function fitBlackboxManagerToMedia(value) {
   const window = blackboxManagerWindow
   if (!window || window.isDestroyed()) return false
@@ -2495,6 +2503,7 @@ function fitBlackboxManagerToMedia(value) {
 
   const ratio = Math.max(0.5, Math.min(4, mediaWidth / mediaHeight))
   const page = value?.page === "clips" ? "clips" : "extract"
+  blackboxManagerActivePage = page
   const bounds = window.getBounds()
   const workArea = screen.getDisplayMatching(bounds).workArea
   const widthOverhead = Math.max(0, bounds.width - viewportWidth)
@@ -2546,9 +2555,13 @@ function fitBlackboxManagerToMedia(value) {
       Math.round(bounds.y - (targetHeight - bounds.height) / 2),
     ),
   )
-  blackboxManagerAutomaticBounds = {
-    width: targetWidth,
-    height: targetHeight,
+  if (page === "extract") {
+    blackboxManagerPreferredSize = {
+      width: targetWidth,
+      height: targetHeight,
+    }
+    void saveBlackboxManagerSize(blackboxManagerPreferredSize)
+      .catch(error => console.error("블랙박스 관리 창 크기 저장 실패", error))
   }
   window.setBounds({
     x: targetX,
@@ -4212,6 +4225,7 @@ function openBlackboxManager() {
   const workArea = screen.getDisplayMatching(referenceBounds).workArea
   const initialWidth = Math.max(900, Math.min(workArea.width, savedSize.width))
   const initialHeight = Math.max(680, Math.min(workArea.height, savedSize.height))
+  blackboxManagerActivePage = "extract"
   blackboxManagerPreferredSize = savedSize.customized
     ? { width: initialWidth, height: initialHeight }
     : null
@@ -4248,6 +4262,7 @@ function openBlackboxManager() {
   let lastUserSize = null
   let closing = false
   const rememberUserSize = bounds => {
+    if (blackboxManagerActivePage !== "extract") return
     lastUserSize = {
       width: Math.max(900, Math.round(bounds.width)),
       height: Math.max(680, Math.round(bounds.height)),
@@ -4258,10 +4273,8 @@ function openBlackboxManager() {
   }
   const saveUserSize = () => {
     if (!lastUserSize) return
-    void writeJsonAtomic(getBlackboxPaths().windowStatePath, {
-      ...lastUserSize,
-      updatedAt: new Date().toISOString(),
-    }).catch(error => console.error("블랙박스 관리 창 크기 저장 실패", error))
+    void saveBlackboxManagerSize(lastUserSize)
+      .catch(error => console.error("블랙박스 관리 창 크기 저장 실패", error))
   }
   const animateOpacity = (from, to, duration, onComplete) => {
     clearInterval(opacityTimer)
@@ -4291,17 +4304,7 @@ function openBlackboxManager() {
     rememberUserSize(newBounds)
   })
   window.on("resize", () => {
-    const resizedBounds = window.getBounds()
-    const automatic = blackboxManagerAutomaticBounds
-    blackboxManagerAutomaticBounds = null
-    if (
-      automatic
-      && Math.abs(resizedBounds.width - automatic.width) <= 1
-      && Math.abs(resizedBounds.height - automatic.height) <= 1
-    ) {
-      return
-    }
-    rememberUserSize(resizedBounds)
+    rememberUserSize(window.getBounds())
   })
   window.on("close", event => {
     if (closing) return
