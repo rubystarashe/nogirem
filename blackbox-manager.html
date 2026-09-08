@@ -415,7 +415,7 @@
 
       .clips-page.active {
         display: grid;
-        grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.5fr);
+        grid-template-columns: 290px minmax(0, 1fr);
         gap: 10px;
       }
 
@@ -467,6 +467,9 @@
 
       .clip-browser {
         display: flex;
+        width: 290px;
+        min-width: 290px;
+        max-width: 290px;
         overflow: hidden;
         flex-direction: column;
       }

@@ -1495,6 +1495,14 @@
     const removeGraphicsStatusListener = window.nogirem.onGraphicsStatusChanged(status => {
       updateService("graphics", { loading: false, data: status, error: null })
     })
+    const removeDxvkStatusListener = window.nogirem.onDxvkStatusChanged(status => {
+      updateService("affinity", {
+        data: {
+          ...services.affinity.data,
+          dxvk: status,
+        },
+      })
+    })
     const removeVisualActivityListener = window.nogirem.onVisualActivityChanged(
       setWindowVisualActivity,
     )
@@ -1590,6 +1598,7 @@
       document.removeEventListener("visibilitychange", syncPageVisibility)
       window.removeEventListener("keydown", handleApplicationKeydown, true)
       removeGraphicsStatusListener()
+      removeDxvkStatusListener()
       removeVisualActivityListener()
       removeUpdateStateListener()
       removeCloseListener()

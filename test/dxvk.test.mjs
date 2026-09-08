@@ -155,3 +155,17 @@ test("검증된 DXVK를 게임 폴더의 d3d9_dxvk.dll로 적용한다", async (
     await rm(root, { recursive: true, force: true })
   }
 })
+
+test("관리 창의 확인·설치 완료 상태를 메인 화면에 즉시 전달한다", async () => {
+  const [mainSource, preloadSource, appSource] = await Promise.all([
+    readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
+    readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
+  ])
+
+  assert.match(mainSource, /optimization:dxvk-status-changed/)
+  assert.match(mainSource, /notifyDxvkRuntimeStatusChanged\(\)/)
+  assert.match(preloadSource, /onDxvkStatusChanged/)
+  assert.match(appSource, /removeDxvkStatusListener/)
+  assert.match(appSource, /dxvk: status/)
+})

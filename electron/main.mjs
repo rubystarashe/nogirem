@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process"
-import { createReadStream, existsSync, unlinkSync } from "node:fs"
+import { createReadStream, existsSync, readFileSync, unlinkSync } from "node:fs"
 import { copyFile, mkdir, open as openFile, readFile, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises"
 import { arch, cpus, freemem, platform, release, tmpdir, totalmem, type, uptime } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
@@ -209,6 +209,7 @@ function getBlackboxPaths() {
     settingsPath: join(directory, "settings.json"),
     statusPath: join(directory, "status.json"),
     controlPath: join(directory, "control.json"),
+    windowStatePath: join(directory, "window.json"),
     storagePath: join(app.getPath("videos"), "마비노기 렘 블랙박스"),
   }
 }
@@ -2455,6 +2456,23 @@ async function deleteBlackboxClip(fileName) {
   return true
 }
 
+function readBlackboxManagerSize() {
+  try {
+    const saved = JSON.parse(readFileSync(getBlackboxPaths().windowStatePath, "utf8"))
+    if (
+      Number.isInteger(saved?.width)
+      && Number.isInteger(saved?.height)
+      && saved.width >= 900
+      && saved.height >= 680
+    ) {
+      return { width: saved.width, height: saved.height }
+    }
+  } catch {
+    return { width: 1040, height: 760 }
+  }
+  return { width: 1040, height: 760 }
+}
+
 function fitBlackboxManagerToMedia(value) {
   const window = blackboxManagerWindow
   if (!window || window.isDestroyed()) return false
@@ -2476,22 +2494,34 @@ function fitBlackboxManagerToMedia(value) {
   const ratio = Math.max(0.5, Math.min(4, mediaWidth / mediaHeight))
   const bounds = window.getBounds()
   const workArea = screen.getDisplayMatching(bounds).workArea
-  const desiredViewportWidth = viewportHeight * ratio
-  const targetWidth = Math.max(
-    900,
-    Math.min(workArea.width, Math.round(bounds.width + desiredViewportWidth - viewportWidth)),
-  )
-  const targetHeight = Math.min(bounds.height, workArea.height)
+  const widthOverhead = Math.max(0, bounds.width - viewportWidth)
+  const heightOverhead = Math.max(0, bounds.height - viewportHeight)
+  const desiredViewportHeight = viewportWidth / ratio
+  let targetWidth = Math.min(bounds.width, workArea.width)
+  let targetHeight = Math.round(heightOverhead + desiredViewportHeight)
+  if (targetHeight > workArea.height) {
+    const availableViewportHeight = Math.max(100, workArea.height - heightOverhead)
+    const constrainedViewportWidth = availableViewportHeight * ratio
+    targetWidth = Math.max(
+      900,
+      Math.min(targetWidth, Math.round(widthOverhead + constrainedViewportWidth)),
+    )
+    targetHeight = workArea.height
+  }
+  targetHeight = Math.max(680, Math.min(workArea.height, targetHeight))
   const targetX = Math.max(
     workArea.x,
     Math.min(
       workArea.x + workArea.width - targetWidth,
-      Math.round(bounds.x - (targetWidth - bounds.width) / 2),
+      bounds.x,
     ),
   )
   const targetY = Math.max(
     workArea.y,
-    Math.min(workArea.y + workArea.height - targetHeight, bounds.y),
+    Math.min(
+      workArea.y + workArea.height - targetHeight,
+      Math.round(bounds.y - (targetHeight - bounds.height) / 2),
+    ),
   )
   window.setBounds({
     x: targetX,
@@ -3270,6 +3300,14 @@ async function refreshDxvkRuntimeStatus({ force = false } = {}) {
   return dxvkRuntimeCheckPromise
 }
 
+function notifyDxvkRuntimeStatusChanged() {
+  if (!primaryWindow || primaryWindow.isDestroyed()) return
+  primaryWindow.webContents.send(
+    "optimization:dxvk-status-changed",
+    dxvkRuntimeStatus,
+  )
+}
+
 function scheduleDxvkRuntimeRefresh() {
   clearTimeout(dxvkRuntimeRefreshTimer)
   dxvkRuntimeRefreshTimer = setTimeout(() => {
@@ -3803,17 +3841,22 @@ function registerIpc() {
     }
     return getDxvkManagerStatus()
   })
-  ipcMain.handle("dxvk:check-update", event => {
+  ipcMain.handle("dxvk:check-update", async event => {
     if (BrowserWindow.fromWebContents(event.sender) !== dxvkManagerWindow) {
       throw new Error("허용되지 않은 DXVK 업데이트 확인 요청입니다")
     }
-    return getDxvkManagerStatus({ checkLatest: true })
+    const status = await getDxvkManagerStatus({ checkLatest: true })
+    await refreshDxvkRuntimeStatus({ force: true })
+    notifyDxvkRuntimeStatusChanged()
+    return status
   })
-  ipcMain.handle("dxvk:install-update", (event, version) => {
+  ipcMain.handle("dxvk:install-update", async (event, version) => {
     if (BrowserWindow.fromWebContents(event.sender) !== dxvkManagerWindow) {
       throw new Error("허용되지 않은 DXVK 설치 요청입니다")
     }
-    return updateDxvk(version)
+    const result = await updateDxvk(version)
+    notifyDxvkRuntimeStatusChanged()
+    return result
   })
   ipcMain.handle("blackbox-manager:request-close", event => {
     const window = BrowserWindow.fromWebContents(event.sender)
@@ -4135,9 +4178,16 @@ function openBlackboxManager() {
     return
   }
 
+  const savedSize = readBlackboxManagerSize()
+  const referenceBounds = primaryWindow && !primaryWindow.isDestroyed()
+    ? primaryWindow.getBounds()
+    : screen.getPrimaryDisplay().bounds
+  const workArea = screen.getDisplayMatching(referenceBounds).workArea
+  const initialWidth = Math.max(900, Math.min(workArea.width, savedSize.width))
+  const initialHeight = Math.max(680, Math.min(workArea.height, savedSize.height))
   const window = new BrowserWindow({
-    width: 1040,
-    height: 760,
+    width: initialWidth,
+    height: initialHeight,
     minWidth: 900,
     minHeight: 680,
     show: false,
@@ -4164,7 +4214,16 @@ function openBlackboxManager() {
   blackboxManagerWindow = window
   observeInternalWindowVisualActivity(window)
   let opacityTimer = null
+  let sizeSaveTimer = null
+  let lastUserSize = null
   let closing = false
+  const saveUserSize = () => {
+    if (!lastUserSize) return
+    void writeJsonAtomic(getBlackboxPaths().windowStatePath, {
+      ...lastUserSize,
+      updatedAt: new Date().toISOString(),
+    }).catch(error => console.error("블랙박스 관리 창 크기 저장 실패", error))
+  }
   const animateOpacity = (from, to, duration, onComplete) => {
     clearInterval(opacityTimer)
     const startedAt = Date.now()
@@ -4189,15 +4248,26 @@ function openBlackboxManager() {
     window.focus()
     animateOpacity(0, 1, 300)
   })
+  window.on("will-resize", (_event, newBounds) => {
+    lastUserSize = {
+      width: Math.max(900, Math.round(newBounds.width)),
+      height: Math.max(680, Math.round(newBounds.height)),
+    }
+    clearTimeout(sizeSaveTimer)
+    sizeSaveTimer = setTimeout(saveUserSize, 200)
+  })
   window.on("close", event => {
     if (closing) return
     event.preventDefault()
     closing = true
+    clearTimeout(sizeSaveTimer)
+    saveUserSize()
     animateOpacity(window.getOpacity(), 0, 300, () => window.destroy())
   })
   window.on("closed", () => {
     const closedForTray = internalWindowsClosedForTray.delete(window)
     clearInterval(opacityTimer)
+    clearTimeout(sizeSaveTimer)
     if (blackboxManagerWindow === window) blackboxManagerWindow = null
     releaseBlackboxEditorSessionIfUnused()
     if (!applicationExitInProgress && !closedForTray) focusPrimaryWindow()

@@ -7,6 +7,11 @@ contextBridge.exposeInMainWorld("nogirem", {
     ipcRenderer.on("optimization:graphics-status-changed", listener)
     return () => ipcRenderer.removeListener("optimization:graphics-status-changed", listener)
   },
+  onDxvkStatusChanged: callback => {
+    const listener = (_event, status) => callback(status)
+    ipcRenderer.on("optimization:dxvk-status-changed", listener)
+    return () => ipcRenderer.removeListener("optimization:dxvk-status-changed", listener)
+  },
   refreshGraphics: () => ipcRenderer.invoke("optimization:refresh-graphics"),
   refreshNvidia: () => ipcRenderer.invoke("optimization:refresh-nvidia"),
   refreshNetwork: () => ipcRenderer.invoke("optimization:refresh-network"),
