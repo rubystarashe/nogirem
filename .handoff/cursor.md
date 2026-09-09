@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-09 17:49
+Last Updated: 2026-09-09 17:56
 
 ## Current Objective
-실제 DXVK Vulkan 실행이 Direct3D 9로 오표시되는 런타임 판정을 복구한다.
+DXVK 런타임 오표시 수정이 포함된 0.3.2 설치본을 기존 릴리스 자산에 교체 배포한다.
 
 ## Current Status
+- DXVK 판정 수정 커밋 `9e99c9a`를 원격 `master`에 푸시하고 0.3.2 Windows 설치본을 다시 만들었다. 실행 중인 input guard가 bin 파일을 잠가 native 전체 재빌드는 건너뛰었으며 이번 변경은 JavaScript 판정 로직뿐이라 이전에 검증한 native 바이너리를 그대로 포함했다. Node 135개 전체 테스트와 Vite·electron-builder 패키징이 통과했다. GitHub `v0.3.2` 릴리스의 installer·blockmap·`latest.yml`을 교체했고 릴리스는 한 개만 존재한다. 새 installer는 95,770,629바이트·SHA-256 `77741782…FB3A1`, blockmap은 `AD0E6ABA…EF513`, latest.yml은 `E85007C1…E906B`이며 원격 digest와 일치한다. 터보 키 helper는 변경하지 않았다. 버전이 같은 기존 0.3.2 설치자는 자동 업데이트로 교체본을 감지하지 못하므로 수동 재설치가 필요하다.
 - 현재 실행 중인 `Client.exe`의 `Client_d3d9.log`에서 `DXVK: v2.7.1`, Vulkan 로더, RTX 4090과 반복적인 `D3D9DeviceEx::ResetSwapChain`·`Device reset`을 확인해 Vulkan이 실제 사용 중임을 확인했다. 로그 중간이 NUL 문자로 유실돼 기존 필수 판정 문구 `Creating device:`와 `Presenter: Actual swapchain properties:`가 사라지면서 Direct3D 9로 오표시됐다. 기존 정상 초기화 판정은 유지하고 Vulkan 로더·GPU·동작 중 D3D9 swapchain reset 조합도 정상 실행으로 인정하도록 보강했다. 헤더만 남은 실패 로그는 계속 제외하며 DXVK 테스트 9개와 lint가 통과했다.
 - 테스트용 `forceUpdatePreview`와 62% 고정값을 제거해 업데이트 인터페이스가 실제 다운로드·완료 상태에서만 표시되도록 복구했다. 주황색 `#ff9d00` 배경·검은 내용은 유지하고 진행률 숫자는 900 굵기와 2px 검은 외곽선으로 확정했다.
 - 0.3.2를 `v0.3.2` 태그로 GitHub에 공개 배포했다. `electron-builder`가 같은 태그의 릴리스를 두 개 만든 경쟁 상태를 다시 확인해 blockmap만 있던 불완전 릴리스 ID `385341775`를 삭제하고 완성 릴리스 ID `385341774`에 blockmap을 재업로드했다. 최종 공개 릴리스는 하나이며 설치본·blockmap·`latest.yml`·터보 키 helper 4개 자산이 있다. 설치본 SHA-256은 `B129BC03…97D1DB`, blockmap은 `FC26AD24…04ED0C`, latest.yml은 `8C4E59B2…EF834E`, 터보 키 helper는 `D9504362…16A857`로 로컬 파일과 GitHub digest가 일치한다.
