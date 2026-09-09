@@ -8,7 +8,7 @@ import { Readable } from "node:stream"
 import { promisify } from "node:util"
 import { fileURLToPath } from "node:url"
 import { randomUUID } from "node:crypto"
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, net, protocol, screen, shell, Tray } from "electron"
+import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, screen, shell, Tray } from "electron"
 import updaterPackage from "electron-updater"
 import {
   checkNetworkConnectivity,
@@ -203,9 +203,29 @@ let blackboxStorageDrivesCheckedAt = 0
 let blackboxLogOperation = Promise.resolve()
 let lastLoggedBlackboxStatusError = ""
 let lastLoggedBlackboxRuntimeState = ""
-let activeBlackboxShortcut = null
-const nativeBlackboxShortcutVirtualKeys = new Map([
+let blackboxShortcutAvailable = true
+const blackboxShortcutVirtualKeys = new Map([
+  ["Space", 0x20],
+  ["Left", 0x25],
+  ["Up", 0x26],
+  ["Right", 0x27],
+  ["Down", 0x28],
+  ["PrintScreen", 0x2c],
+  ["Insert", 0x2d],
+  ["Delete", 0x2e],
+  ["Home", 0x24],
+  ["End", 0x23],
+  ["PageUp", 0x21],
+  ["PageDown", 0x22],
   ["Pause", 0x13],
+  ["Capslock", 0x14],
+  ["Numlock", 0x90],
+  ["Scrolllock", 0x91],
+  ["numadd", 0x6b],
+  ["numsub", 0x6d],
+  ["nummult", 0x6a],
+  ["numdiv", 0x6f],
+  ["numdec", 0x6e],
 ])
 const internalWindowsClosedForTray = new WeakSet()
 let primaryRendererRecoveryMode = false
@@ -2307,11 +2327,7 @@ async function getBlackboxSetting({ waitForStorageSummary = true } = {}) {
           .replaceAll("+", " + ")
       : "사용 안 함",
     shortcutAccelerator: setting.shortcut,
-    shortcutAvailable: (
-      !setting.shortcut
-      || nativeBlackboxShortcutVirtualKeys.has(setting.shortcut)
-      || globalShortcut.isRegistered(setting.shortcut)
-    ),
+    shortcutAvailable: !setting.shortcut || blackboxShortcutAvailable,
     bitrateMbps: bitrateForBlackboxSetting(runtimeSetting),
     reason: statusFresh
       ? (status?.error ?? null)
@@ -2369,27 +2385,23 @@ async function refreshBlackboxStorageSummary(requestedRingStoragePaths = []) {
   }
 }
 
-function unregisterBlackboxShortcut() {
-  if (
-    activeBlackboxShortcut
-    && globalShortcut.isRegistered(activeBlackboxShortcut)
-  ) {
-    globalShortcut.unregister(activeBlackboxShortcut)
-  }
-  activeBlackboxShortcut = null
-}
-
-function registerBlackboxShortcut(shortcut) {
-  unregisterBlackboxShortcut()
+function nativeBlackboxShortcut(shortcut) {
   const accelerator = normalizeBlackboxShortcut(shortcut)
-  if (!accelerator) return true
-  if (nativeBlackboxShortcutVirtualKeys.has(accelerator)) return true
-  const registered = globalShortcut.register(accelerator, () => {
-    requestBlackboxQuickClip()
-  })
-  if (registered) activeBlackboxShortcut = accelerator
-  else console.error(`${accelerator} 블랙박스 단축키를 등록하지 못했습니다`)
-  return registered
+  if (!accelerator) return { virtualKey: 0, modifiers: 0 }
+  const tokens = accelerator.split("+")
+  const key = tokens.at(-1)
+  let virtualKey = blackboxShortcutVirtualKeys.get(key) ?? 0
+  if (/^[A-Z]$/.test(key)) virtualKey = key.charCodeAt(0)
+  else if (/^[0-9]$/.test(key)) virtualKey = key.charCodeAt(0)
+  else if (/^F(?:[1-9]|1\d|2[0-4])$/.test(key)) {
+    virtualKey = 0x70 + Number(key.slice(1)) - 1
+  }
+  let modifiers = 0
+  if (tokens.includes("CommandOrControl") || tokens.includes("Control")) modifiers |= 0x0002
+  if (tokens.includes("Alt")) modifiers |= 0x0001
+  if (tokens.includes("Shift")) modifiers |= 0x0004
+  if (tokens.includes("Super")) modifiers |= 0x0008
+  return { virtualKey, modifiers }
 }
 
 function requestBlackboxQuickClip() {
@@ -2398,7 +2410,7 @@ function requestBlackboxQuickClip() {
   })
 }
 
-function showBlackboxClipSavedOverlay() {
+function showBlackboxClipNotification(message, { persistent = false } = {}) {
   clearTimeout(blackboxClipNotificationTimer)
   blackboxClipNotificationTimer = null
   if (blackboxClipNotificationWindow && !blackboxClipNotificationWindow.isDestroyed()) {
@@ -2439,6 +2451,9 @@ function showBlackboxClipSavedOverlay() {
     }
   })
 
+  const exitAnimation = persistent
+    ? ""
+    : ",notice-out 300ms 2180ms linear forwards"
   const document = `<!doctype html>
 <html lang="ko">
 <meta charset="UTF-8">
@@ -2447,17 +2462,18 @@ function showBlackboxClipSavedOverlay() {
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
 body{display:flex;align-items:flex-start;justify-content:flex-end;padding-top:8px;font-family:"Nexon Lv2 Gothic","Malgun Gothic","Segoe UI",sans-serif}
-.notice{padding:15px 22px 14px;color:#171717;background:#ffd400;font-size:28px;font-weight:900;line-height:1.15;letter-spacing:-1.2px;white-space:nowrap;clip-path:polygon(0 0,0 0,0 100%,0 100%);animation:notice-in 300ms 80ms linear forwards,notice-out 300ms 2180ms linear forwards}
+.notice{padding:15px 22px 14px;color:#171717;background:#ffd400;font-size:28px;font-weight:900;line-height:1.15;letter-spacing:-1.2px;white-space:nowrap;clip-path:polygon(0 0,0 0,0 100%,0 100%);animation:notice-in 300ms 80ms linear forwards${exitAnimation}}
 @keyframes notice-in{to{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}}
 @keyframes notice-out{from{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}to{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%)}}
 </style>
-<body><div class="notice">클립이 저장되었습니다</div></body>
+<body><div class="notice">${escapeHtml(message)}</div></body>
 </html>`
   void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(document)}`)
     .then(() => {
       if (window.isDestroyed()) return
       window.showInactive()
       window.moveTop()
+      if (persistent) return
       blackboxClipNotificationTimer = setTimeout(() => {
         blackboxClipNotificationTimer = null
         if (!window.isDestroyed()) window.destroy()
@@ -2517,10 +2533,12 @@ async function launchBlackboxHelper(setting) {
   })
   const affinityArgument = await getRecorderAffinityArgument()
   const runtimeSetting = { ...normalized, quality: resolvedQuality }
+  const shortcut = nativeBlackboxShortcut(normalized.shortcut)
   blackboxStorageSummaryGeneration += 1
   blackboxStorageSummary = null
   blackboxStorageSummaryPath = ""
   lastLoggedBlackboxRuntimeState = ""
+  blackboxShortcutAvailable = true
   const launchStartedAt = Date.now()
   await logBlackboxEvent("recorder-launch-requested", {
     codec: normalized.codec,
@@ -2549,7 +2567,8 @@ async function launchBlackboxHelper(setting) {
     `--chunk-seconds=${normalized.chunkSeconds}`,
     `--capacity-gb=${normalized.capacityGb}`,
     `--max-duration-seconds=${normalized.maxDurationSeconds}`,
-    `--shortcut-vk=${nativeBlackboxShortcutVirtualKeys.get(normalized.shortcut) ?? 0}`,
+    `--shortcut-vk=${shortcut.virtualKey}`,
+    `--shortcut-modifiers=${shortcut.modifiers}`,
     affinityArgument,
   ], {
     windowsHide: true,
@@ -2583,6 +2602,12 @@ async function launchBlackboxHelper(setting) {
     shortcutOutput = lines.pop() ?? ""
     for (const line of lines) {
       if (line === "SHORTCUT") requestBlackboxQuickClip()
+      if (line === "SHORTCUT_UNAVAILABLE") {
+        blackboxShortcutAvailable = false
+        void logBlackboxEvent("recorder-shortcut-unavailable", {
+          shortcut: normalized.shortcut,
+        })
+      }
     }
   })
   child.stderr.setEncoding("utf8")
@@ -2605,7 +2630,6 @@ async function launchBlackboxHelper(setting) {
     if (blackboxProcess === child) blackboxProcess = null
     blackboxStorageSummaryGeneration += 1
     blackboxStorageSummary = null
-    unregisterBlackboxShortcut()
   })
   const status = await waitForBlackboxStatus(
     value => value?.running || value?.error || spawnError || child.exitCode !== null,
@@ -2634,13 +2658,11 @@ async function launchBlackboxHelper(setting) {
     elapsedMs: Date.now() - launchStartedAt,
     status,
   })
-  registerBlackboxShortcut(setting.shortcut)
   return getBlackboxSetting()
 }
 
 async function stopBlackboxHelper() {
   return queueBlackboxControlOperation(async () => {
-    unregisterBlackboxShortcut()
     const child = blackboxProcess
     if (!child || child.exitCode !== null) {
       blackboxProcess = null
@@ -2769,6 +2791,7 @@ async function requestBlackboxClip(requestedName = "") {
   }
   const requestStartedAt = Date.now()
   blackboxClipSaveInProgress = true
+  showBlackboxClipNotification("클립을 저장 중입니다", { persistent: true })
   try {
     return await queueBlackboxControlOperation(async () => {
       const requestedAt = Date.now()
@@ -2778,6 +2801,7 @@ async function requestBlackboxClip(requestedName = "") {
       const state = await getBlackboxSetting()
       if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
       if (state.clipInProgress) throw new Error("이전 클립을 저장하고 있습니다")
+      if (!state.recording) throw new Error("마비노기 플레이 중에만 클립을 저장할 수 있습니다")
       const automaticName = String(requestedName).trim()
         || await suggestBlackboxClipName()
       const normalizedRequestedName =
@@ -2834,7 +2858,7 @@ async function requestBlackboxClip(requestedName = "") {
         outputBytes: Number(outputInfo?.size) || 0,
       })
       const result = await getBlackboxSetting()
-      showBlackboxClipSavedOverlay()
+      showBlackboxClipNotification(`${state.clipSeconds}초 클립이 저장되었습니다`)
       return result
     })
   } catch (error) {
@@ -2843,6 +2867,7 @@ async function requestBlackboxClip(requestedName = "") {
       status: await readRuntimeStatusJson(getBlackboxPaths().statusPath),
       error: blackboxLogError(error),
     })
+    showBlackboxClipNotification("클립 저장에 실패했습니다")
     throw error
   } finally {
     blackboxClipSaveInProgress = false
@@ -6161,7 +6186,6 @@ async function startApplication() {
   })
   app.on("window-all-closed", () => app.quit())
   app.on("will-quit", () => {
-    unregisterBlackboxShortcut()
     clearTimeout(applicationUpdateStartupTimer)
     applicationUpdateStartupTimer = null
     clearInterval(applicationUpdateCheckTimer)

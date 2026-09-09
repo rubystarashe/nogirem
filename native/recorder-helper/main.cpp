@@ -101,6 +101,7 @@ struct Options {
   int capacityGb = 50;
   int maxDurationSeconds = 3600;
   int shortcutVirtualKey = 0;
+  unsigned int shortcutModifiers = 0;
   DWORD parentPid = 0;
 };
 
@@ -547,6 +548,13 @@ Options optionsFromArguments(int count, wchar_t** values) {
     0,
     255
   );
+  options.shortcutModifiers = static_cast<unsigned int>(integerArgument(
+    arguments,
+    L"shortcut-modifiers",
+    0,
+    0,
+    15
+  ));
   options.parentPid = static_cast<DWORD>(
     integerArgument(arguments, L"parent-pid", 0, 0, INT_MAX)
   );
@@ -632,6 +640,15 @@ HWND findGameWindow(const fs::path& preferredPath) {
   WindowCandidate candidate{ preferredPath };
   EnumWindows(enumerateGameWindows, reinterpret_cast<LPARAM>(&candidate));
   return candidate.window;
+}
+
+bool isMabinogiForeground(const fs::path& preferredPath) {
+  const HWND foreground = GetForegroundWindow();
+  if (!foreground) return false;
+  DWORD pid = 0;
+  GetWindowThreadProcessId(foreground, &pid);
+  const auto imagePath = processImagePath(pid);
+  return !imagePath.empty() && isMabinogiClientPath(imagePath, preferredPath);
 }
 
 void requireHardwareVideoEncoder(const std::wstring& codec) {
@@ -4113,6 +4130,7 @@ int wmain(int count, wchar_t** values) {
   Options options;
   SharedStatus status;
   HANDLE instanceMutex = nullptr;
+  bool shortcutRegistered = false;
   try {
     options = optionsFromArguments(count, values);
     instanceMutex = CreateMutexW(
@@ -4173,17 +4191,47 @@ int wmain(int count, wchar_t** values) {
     auto lastDroppedFrames = status.droppedFrames.load();
     auto nextCaptureAttempt = std::chrono::steady_clock::now();
     auto captureRetryDelay = 500ms;
-    bool shortcutPressed = false;
+    constexpr int shortcutId = 1;
+    if (options.shortcutVirtualKey > 0) {
+      MSG message{};
+      PeekMessageW(&message, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
+      shortcutRegistered = RegisterHotKey(
+        nullptr,
+        shortcutId,
+        options.shortcutModifiers | MOD_NOREPEAT,
+        static_cast<UINT>(options.shortcutVirtualKey)
+      ) != FALSE;
+      std::cout
+        << (shortcutRegistered ? "SHORTCUT_READY\n" : "SHORTCUT_UNAVAILABLE\n")
+        << std::flush;
+    }
 
     while (status.running && processRunning(options.parentPid)) {
       const auto now = std::chrono::steady_clock::now();
-      if (options.shortcutVirtualKey > 0) {
-        const bool pressed =
-          (GetAsyncKeyState(options.shortcutVirtualKey) & 0x8000) != 0;
-        if (pressed && !shortcutPressed) {
+      if (shortcutRegistered) {
+        MSG message{};
+        bool shortcutRequested = false;
+        while (PeekMessageW(
+          &message,
+          nullptr,
+          WM_HOTKEY,
+          WM_HOTKEY,
+          PM_REMOVE
+        )) {
+          if (message.wParam == shortcutId) shortcutRequested = true;
+        }
+        bool recording = false;
+        {
+          std::lock_guard lock(status.mutex);
+          recording = status.recording;
+        }
+        if (
+          shortcutRequested
+          && recording
+          && isMabinogiForeground(options.gamePath)
+        ) {
           std::cout << "SHORTCUT\n" << std::flush;
         }
-        shortcutPressed = pressed;
       }
       if (const auto control = readControl(options.controlPath)) {
         if (control->command == "stop") {
@@ -4312,6 +4360,7 @@ int wmain(int count, wchar_t** values) {
       updateStatusFile(options, status);
     } catch (...) {
     }
+    if (shortcutRegistered) UnregisterHotKey(nullptr, shortcutId);
     MFShutdown();
     CloseHandle(instanceMutex);
     return 0;
@@ -4331,6 +4380,7 @@ int wmain(int count, wchar_t** values) {
     } catch (...) {
     }
   }
+  if (shortcutRegistered) UnregisterHotKey(nullptr, 1);
   MFShutdown();
   if (instanceMutex) CloseHandle(instanceMutex);
   return 1;

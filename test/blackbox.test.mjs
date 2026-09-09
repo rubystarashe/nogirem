@@ -275,11 +275,13 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
     /async function assertBlackboxClipNameAvailable\(requestedName\)[\s\S]*같은 이름의 클립이 이미 있습니다/,
   )
   assert.match(mainSource, /function requestBlackboxQuickClip\(\)/)
-  assert.match(mainSource, /function showBlackboxClipSavedOverlay\(\)/)
+  assert.match(mainSource, /function showBlackboxClipNotification\(message/)
   assert.match(
     mainSource,
-    /showBlackboxClipSavedOverlay[\s\S]*setIgnoreMouseEvents\(true, \{ forward: true \}\)[\s\S]*setAlwaysOnTop\(true, "screen-saver", 1\)[\s\S]*클립이 저장되었습니다/,
+    /showBlackboxClipNotification[\s\S]*setIgnoreMouseEvents\(true, \{ forward: true \}\)[\s\S]*setAlwaysOnTop\(true, "screen-saver", 1\)/,
   )
+  assert.match(mainSource, /클립을 저장 중입니다/)
+  assert.match(mainSource, /`\$\{state\.clipSeconds\}초 클립이 저장되었습니다`/)
   assert.match(
     mainSource,
     /blackbox-manager:set-setting[\s\S]*const current = normalizeBlackboxSetting\([\s\S]*\.\.\.current,[\s\S]*\.\.\.setting/,
@@ -372,7 +374,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(managerSource, /function disableShortcut\(\)[\s\S]*shortcutInput\.dataset\.accelerator = ""[\s\S]*사용 안 함/)
   assert.match(mainSource, /closeWindowOnEscape\(window, "blackbox-manager:escape-pressed"\)/)
   assert.match(managerSource, /단축키를 다른 프로그램이 사용 중입니다/)
-  assert.match(mainSource, /let activeBlackboxShortcut = null/)
+  assert.match(mainSource, /let blackboxShortcutAvailable = true/)
   assert.match(mainSource, /async function refreshBlackboxStorageSummary\([^)]*\)/)
   assert.match(mainSource, /"--mode=summary"/)
   assert.match(
@@ -380,10 +382,12 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     /const summaryPaths = ringStoragePaths[\s\S]*!processRunning[\s\S]*const archivedStatus = \([\s\S]*!processRunning/,
   )
   assert.match(mainSource, /function blackboxRingPathsArgument\(/)
-  assert.match(mainSource, /registerBlackboxShortcut\(setting\.shortcut\)/)
-  assert.match(mainSource, /nativeBlackboxShortcutVirtualKeys[\s\S]*\["Pause", 0x13\]/)
-  assert.match(mainSource, /`--shortcut-vk=\$\{nativeBlackboxShortcutVirtualKeys\.get\(normalized\.shortcut\) \?\? 0\}`/)
+  assert.match(mainSource, /function nativeBlackboxShortcut\(shortcut\)/)
+  assert.match(mainSource, /blackboxShortcutVirtualKeys[\s\S]*\["Pause", 0x13\]/)
+  assert.match(mainSource, /`--shortcut-vk=\$\{shortcut\.virtualKey\}`/)
+  assert.match(mainSource, /`--shortcut-modifiers=\$\{shortcut\.modifiers\}`/)
   assert.match(mainSource, /if \(line === "SHORTCUT"\) requestBlackboxQuickClip\(\)/)
+  assert.doesNotMatch(mainSource, /globalShortcut/)
   assert.match(mainSource, /shortcutAccelerator: setting\.shortcut/)
   assert.match(managerSource, /window\.blackboxManager\.editor/)
   assert.match(mainSource, /blackbox-manager:get-editor-session/)
@@ -571,7 +575,10 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /affinityArgument = await getRecorderAffinityArgument\(\)/)
   assert.match(nativeSource, /arguments\.find\(L"affinity-mask"\)/)
   assert.match(nativeSource, /options\.shortcutVirtualKey = integerArgument/)
-  assert.match(nativeSource, /GetAsyncKeyState\(options\.shortcutVirtualKey\)/)
+  assert.match(nativeSource, /options\.shortcutModifiers = static_cast<unsigned int>/)
+  assert.match(nativeSource, /RegisterHotKey\([\s\S]*MOD_NOREPEAT/)
+  assert.match(nativeSource, /PeekMessageW\([\s\S]*WM_HOTKEY/)
+  assert.match(nativeSource, /shortcutRequested[\s\S]*recording[\s\S]*isMabinogiForeground/)
   assert.match(nativeSource, /std::cout << "SHORTCUT\\n" << std::flush/)
   assert.match(nativeSource, /SetProcessAffinityMask\(GetCurrentProcess\(\), static_cast<DWORD_PTR>\(mask\)\)/)
   assert.match(nativeSource, /SetGPUThreadPriority\(-2\)/)
