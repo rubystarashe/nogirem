@@ -2612,9 +2612,28 @@ async function runRecorderUtility(argumentsList, { onProgress = null } = {}) {
   })
 }
 
+async function flushBlackboxForEditor() {
+  return queueBlackboxControlOperation(async () => {
+    const state = await getBlackboxSetting()
+    if (!state.recording) return false
+    const requestId = Date.now()
+    await writeJsonAtomic(getBlackboxPaths().controlPath, {
+      command: "flush",
+      requestId,
+      requestedAt: requestId,
+    })
+    const completed = await waitForBlackboxStatus(
+      value => Number(value?.flushCompletedId) === requestId,
+      2000,
+    )
+    return Boolean(completed)
+  })
+}
+
 async function latestCompletedBlackboxAnchor() {
   const state = await getBlackboxSetting()
   if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
+  await flushBlackboxForEditor()
   return Date.now()
 }
 

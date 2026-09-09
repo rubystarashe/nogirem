@@ -323,8 +323,14 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /title: "블랙박스 영상 추출"[\s\S]*alwaysOnTop: true/)
   assert.match(mainSource, /closeWindowOnEscape\(window\)/)
   assert.match(mainSource, /async function latestCompletedBlackboxAnchor/)
-  assert.match(mainSource, /async function latestCompletedBlackboxAnchor\(\)[\s\S]*return Date\.now\(\)/)
-  assert.doesNotMatch(mainSource, /flushBlackboxForEditor/)
+  assert.match(
+    mainSource,
+    /async function flushBlackboxForEditor\(\)[\s\S]*command: "flush"[\s\S]*flushCompletedId[\s\S]*2000/,
+  )
+  assert.match(
+    mainSource,
+    /async function latestCompletedBlackboxAnchor\(\)[\s\S]*await flushBlackboxForEditor\(\)[\s\S]*return Date\.now\(\)/,
+  )
   assert.match(mainSource, /protocol\.handle\("nogirem-blackbox"/)
   assert.match(mainSource, /async function localVideoResponse/)
   assert.match(mainSource, /"Accept-Ranges": "bytes"/)
