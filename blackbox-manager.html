@@ -461,6 +461,21 @@
         background: #222629;
       }
 
+      .clip-save-error {
+        margin: 0;
+        color: #9ca5a9;
+        font-size: 10px;
+        line-height: 1.4;
+      }
+
+      .clip-save-error.error {
+        color: #ef847b;
+      }
+
+      .clip-save-error:empty {
+        display: none;
+      }
+
       .clip-save-actions {
         display: flex;
         justify-content: flex-end;
@@ -928,7 +943,8 @@
         <h2>최근 클립 저장</h2>
         <label>
           <span>클립 이름</span>
-          <input class="clip-save-name" type="text" maxlength="120" />
+          <input class="clip-save-name" type="text" maxlength="120" aria-describedby="clip-save-error" />
+          <p class="clip-save-error" id="clip-save-error" role="alert"></p>
         </label>
         <div class="clip-save-actions">
           <button class="action clip-save-cancel" type="button">취소</button>
@@ -978,7 +994,9 @@
       const clipSaveModal = document.querySelector(".clip-save-modal")
       const clipSaveDialog = document.querySelector(".clip-save-dialog")
       const clipSaveNameInput = document.querySelector(".clip-save-name")
+      const clipSaveError = document.querySelector(".clip-save-error")
       const clipSaveCancelButton = document.querySelector(".clip-save-cancel")
+      const clipSaveConfirmButton = document.querySelector(".clip-save-confirm")
       const clipDeleteModal = document.querySelector(".clip-delete-modal")
       const clipDeleteDialog = document.querySelector(".clip-delete-dialog")
       const clipDeleteDescription = document.querySelector(".clip-delete-description")
@@ -1024,6 +1042,9 @@
         const placeholder = nextClipPlaceholder()
         clipSaveNameInput.value = ""
         clipSaveNameInput.placeholder = placeholder
+        clipSaveNameInput.removeAttribute("aria-invalid")
+        clipSaveError.classList.remove("error")
+        clipSaveError.textContent = ""
         clipSaveModal.dataset.fallbackName = placeholder
         clipSaveModal.hidden = false
         clipSaveNameInput.focus()
@@ -1738,6 +1759,11 @@
         void openClipSaveModal()
       })
       clipSaveCancelButton.addEventListener("click", closeClipSaveModal)
+      clipSaveNameInput.addEventListener("input", () => {
+        clipSaveNameInput.removeAttribute("aria-invalid")
+        clipSaveError.classList.remove("error")
+        clipSaveError.textContent = ""
+      })
       clipSaveModal.addEventListener("pointerdown", event => {
         if (!clipSaveDialog.contains(event.target)) closeClipSaveModal()
       })
@@ -1756,14 +1782,30 @@
         event.preventDefault()
         const clipName = clipSaveNameInput.value.trim()
           || clipSaveModal.dataset.fallbackName
-        clipSaveModal.hidden = true
-        const result = await runAction(
-          `최근 약 ${status.clipSeconds}초 클립을 저장하고 있습니다`,
-          () => window.blackboxManager.saveClip(clipName),
-          "최근 클립을 저장했습니다",
-          clipMessage,
-        )
-        if (result) await refreshClips()
+        clipSaveNameInput.removeAttribute("aria-invalid")
+        clipSaveError.classList.remove("error")
+        setBusy(true, `최근 약 ${status.clipSeconds}초 클립을 저장하고 있습니다`, clipSaveError)
+        clipSaveNameInput.disabled = true
+        clipSaveConfirmButton.disabled = true
+        try {
+          const result = await window.blackboxManager.saveClip(clipName)
+          if (result && typeof result === "object" && "enabled" in result) render(result)
+          clipSaveModal.hidden = true
+          clipMessage.classList.remove("error")
+          clipMessage.textContent = "최근 클립을 저장했습니다"
+          await refreshClips()
+        } catch (error) {
+          clipSaveNameInput.setAttribute("aria-invalid", "true")
+          clipSaveError.classList.add("error")
+          clipSaveError.textContent = errorMessage(error)
+          clipSaveNameInput.focus()
+          clipSaveNameInput.select()
+        } finally {
+          clipSaveNameInput.disabled = false
+          clipSaveConfirmButton.disabled = false
+          setBusy(false, "", clipSaveError)
+          void refreshStatus(true)
+        }
       })
 
       closeButton.addEventListener("click", () => {

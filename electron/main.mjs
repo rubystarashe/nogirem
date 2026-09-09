@@ -2556,6 +2556,9 @@ async function requestBlackboxClip(requestedName = "") {
     const state = await getBlackboxSetting()
     if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
     if (state.clipInProgress) throw new Error("이전 클립을 저장하고 있습니다")
+    const normalizedRequestedName = String(requestedName).trim()
+      ? await assertBlackboxClipNameAvailable(requestedName)
+      : ""
     const previousStatus = await readRuntimeStatusJson(getBlackboxPaths().statusPath)
     await writeJsonAtomic(getBlackboxPaths().controlPath, {
       command: "clip",
@@ -2573,10 +2576,10 @@ async function requestBlackboxClip(requestedName = "") {
     )
     if (!completed?.latestClip) throw new Error("클립 저장이 제한 시간 안에 완료되지 않았습니다")
     blackboxLatestClipOverride = completed.latestClip
-    if (String(requestedName).trim()) {
+    if (normalizedRequestedName) {
       const renamed = await renameBlackboxClip(
         basename(completed.latestClip),
-        requestedName,
+        normalizedRequestedName,
       )
       const { clipStoragePath } = await getCurrentBlackboxStorageLocations()
       blackboxLatestClipOverride = join(
@@ -3004,6 +3007,19 @@ function normalizeBlackboxClipFileName(requestedName) {
     throw new Error("클립 이름에 사용할 수 없는 문자가 있습니다")
   }
   return `${baseName}.mp4`
+}
+
+async function assertBlackboxClipNameAvailable(requestedName) {
+  const { clipStoragePath } = await getCurrentBlackboxStorageLocations()
+  const nextName = normalizeBlackboxClipFileName(requestedName)
+  const destinationPath = blackboxClipPath(nextName, clipStoragePath)
+  try {
+    await access(destinationPath)
+    throw new Error("같은 이름의 클립이 이미 있습니다")
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error
+  }
+  return nextName
 }
 
 function blackboxClipPath(fileName, clipsDirectory) {

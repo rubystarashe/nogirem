@@ -189,11 +189,20 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.doesNotMatch(managerSource, /class="audio-state"/)
   assert.doesNotMatch(managerSource, />전체 비우기</)
   assert.match(managerSource, /class="clip-save-modal" hidden/)
+  assert.match(managerSource, /class="clip-save-error"[^>]*role="alert"/)
   assert.match(managerSource, /class="clip-delete-modal" hidden/)
   assert.match(managerSource, /class="action save-clip clip-save-header"/)
   assert.match(managerSource, /return `\$\{highest \+ 1\}번째 클립`/)
   assert.match(managerSource, /clipSaveNameInput\.value\.trim\(\)[\s\S]*clipSaveModal\.dataset\.fallbackName/)
   assert.match(managerSource, /window\.blackboxManager\.saveClip\(clipName\)/)
+  assert.match(
+    managerSource,
+    /catch \(error\) \{[\s\S]*clipSaveNameInput\.setAttribute\("aria-invalid", "true"\)[\s\S]*clipSaveError\.textContent = errorMessage\(error\)[\s\S]*clipSaveNameInput\.focus\(\)/,
+  )
+  assert.match(
+    managerSource,
+    /await window\.blackboxManager\.saveClip\(clipName\)[\s\S]*clipSaveModal\.hidden = true/,
+  )
   assert.match(managerSource, /\.settings \{[\s\S]*display: block/)
   assert.match(managerSource, /\.settings label \{[\s\S]*display: flex[\s\S]*border-bottom/)
   assert.doesNotMatch(managerSource, /class="action primary toggle-recording"/)
@@ -221,6 +230,14 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(mainSource, /async function renameBlackboxClip\(fileName, requestedName\)/)
   assert.match(mainSource, /async function openBlackboxClip\(fileName\)[\s\S]*shell\.showItemInFolder\(clipPath\)/)
   assert.match(mainSource, /async function requestBlackboxClip\(requestedName = ""\)/)
+  assert.match(
+    mainSource,
+    /await assertBlackboxClipNameAvailable\(requestedName\)[\s\S]*writeJsonAtomic\(getBlackboxPaths\(\)\.controlPath/,
+  )
+  assert.match(
+    mainSource,
+    /async function assertBlackboxClipNameAvailable\(requestedName\)[\s\S]*같은 이름의 클립이 이미 있습니다/,
+  )
   assert.match(mainSource, /function openBlackboxClipSaveDialog\(\)/)
   assert.match(mainSource, /blackbox-manager:request-save-clip/)
   assert.match(mainSource, /value\.latestClip !== previousStatus\?\.latestClip/)
