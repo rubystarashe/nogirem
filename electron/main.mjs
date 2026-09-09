@@ -2156,7 +2156,7 @@ async function getBlackboxSetting({ waitForStorageSummary = true } = {}) {
     )
     && Date.now() >= blackboxStorageSummaryRetryAt
   ) {
-    if (processRunning || !waitForStorageSummary) {
+    if (!waitForStorageSummary) {
       void refreshBlackboxStorageSummary(summaryPaths).catch(error => {
         console.error("블랙박스 저장 현황 갱신 실패", error)
       })

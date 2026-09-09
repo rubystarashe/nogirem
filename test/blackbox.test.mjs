@@ -539,6 +539,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /blackboxStorageSummaryPromisePath === summaryKey/)
   assert.match(mainSource, /const fallbackStatus = processRunning[\s\S]*blackboxLastKnownStorageSummary/)
   assert.match(mainSource, /getBlackboxSetting\(\{ waitForStorageSummary: false \}\)/)
+  assert.match(mainSource, /if \(!waitForStorageSummary\) \{[\s\S]*void refreshBlackboxStorageSummary[\s\S]*\} else \{[\s\S]*await refreshBlackboxStorageSummary/)
   assert.match(mainSource, /async function stopBlackboxHelper\(\)[\s\S]*return null/)
   assert.match(mainSource, /async function setBlackboxEnabled\(enabled\)[\s\S]*readJson\(getBlackboxPaths\(\)\.settingsPath\)/)
   assert.match(nativeSource, /std::atomic_uint64_t droppedFrames = 0/)
