@@ -2602,11 +2602,13 @@ async function launchBlackboxHelper(setting) {
     shortcutOutput = lines.pop() ?? ""
     for (const line of lines) {
       if (line === "SHORTCUT") requestBlackboxQuickClip()
+      if (line === "SHORTCUT_READY") {
+        blackboxShortcutAvailable = true
+        void logBlackboxEvent("recorder-shortcut-ready")
+      }
       if (line === "SHORTCUT_UNAVAILABLE") {
         blackboxShortcutAvailable = false
-        void logBlackboxEvent("recorder-shortcut-unavailable", {
-          shortcut: normalized.shortcut,
-        })
+        void logBlackboxEvent("recorder-shortcut-unavailable")
       }
     }
   })
@@ -2726,6 +2728,38 @@ async function setBlackboxSetting(value) {
     && nextClipStoragePath !== approvedBlackboxClipStoragePath
   ) {
     throw new Error("클립 저장 위치를 다시 선택해 주세요")
+  }
+  const restartRequired = [
+    "featureEnabled",
+    "enabled",
+    "codec",
+    "quality",
+    "capacityGb",
+    "maxDurationSeconds",
+    "ringStorageDrive",
+    "clipStoragePath",
+    "fps",
+    "chunkSeconds",
+  ].some(key => setting[key] !== currentSetting[key])
+  const shortcutChanged = setting.shortcut !== currentSetting.shortcut
+  const helperRunning = Boolean(blackboxProcess && blackboxProcess.exitCode === null)
+  if (!restartRequired && (!setting.enabled || helperRunning)) {
+    await writeJsonAtomic(paths.settingsPath, {
+      ...setting,
+      updatedAt: Date.now(),
+    })
+    approvedBlackboxClipStoragePath = ""
+    if (shortcutChanged && helperRunning) {
+      const shortcut = nativeBlackboxShortcut(setting.shortcut)
+      await queueBlackboxControlOperation(() => writeJsonAtomic(paths.controlPath, {
+        command: "shortcut",
+        shortcutVirtualKey: shortcut.virtualKey,
+        shortcutModifiers: shortcut.modifiers,
+        requestedAt: Date.now(),
+      }))
+      await delay(150)
+    }
+    return getBlackboxSetting({ waitForStorageSummary: false })
   }
   await stopBlackboxHelper()
   await writeJsonAtomic(paths.settingsPath, {

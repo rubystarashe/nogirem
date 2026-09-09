@@ -1,11 +1,14 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-09 16:30
+Last Updated: 2026-09-09 16:40
 
 ## Current Objective
-빠른 클립 단축키를 마비노기 플레이 중 전역 인식하고 저장 시작·완료 상태를 오버레이로 알린다.
+녹화 파이프라인에 영향 없는 블랙박스 설정은 recorder 재시작 없이 즉시 반영한다.
 
 ## Current Status
+- 16:35~16:36 로그에서 단축키 변경 때마다 PID 51676→51768→30316으로 recorder를 반복 종료·재실행했고 마지막에는 settings가 enabled인데 status가 running false로 남아 단축키가 동작할 recorder 자체가 없었던 것을 확인했다. 원인은 `setBlackboxSetting`이 모든 필드 변경에 무조건 `stopBlackboxHelper`를 호출한 구조였다.
+- 설정 변경을 분류해 `shortcut`과 `clipSeconds`만 바뀐 경우 설정 파일을 저장하되 녹화·인코더·캡처를 유지한다. 단축키는 control 파일의 `shortcut` 명령으로 VK/modifier를 실행 중 helper에 보내며 helper가 기존 `RegisterHotKey`만 해제·재등록한다. codec·화질·FPS·저장 경로·용량/길이 한도·기능 활성 상태처럼 파이프라인 또는 Ring 정책에 영향을 주는 항목만 기존처럼 재시작한다. helper가 비정상 종료된 enabled 상태에서는 설정 종류와 무관하게 다시 시작한다.
+- native helper는 초기 및 런타임 단축키 등록 결과를 `SHORTCUT_READY`/`SHORTCUT_UNAVAILABLE`로 응답하고 Electron이 상태와 진단 이벤트에 반영한다. 배치된 helper SHA-256은 `E44A16A6…FD38F`이며 C++ Release 빌드, Node 132개 테스트, 앱 빌드와 lint가 통과했다.
 - 빠른 클립 요청 즉시 지속형 노란 오버레이로 `클립을 저장 중입니다`를 표시하고, 완료되면 설정 길이를 포함한 `30초/60초/120초 클립이 저장되었습니다`로 교체해 약 2.7초 후 닫는다. 실패 시 `클립 저장에 실패했습니다`로 교체한다. 빠른 클립 자체도 recorder가 실제 녹화 중일 때만 허용한다.
 - 단축키 감지를 Electron `globalShortcut` 및 `GetAsyncKeyState` 폴링에서 recorder helper의 Windows `RegisterHotKey`/`WM_HOTKEY` 처리로 통합했다. 문자·숫자·F1~F24·설정 UI의 특수 키와 Ctrl/Alt/Shift/Win 조합을 native VK/modifier로 전달한다. 포그라운드 창의 프로세스가 허용된 마비노기 `Client.exe`이고 녹화 중일 때만 Electron에 `SHORTCUT`을 전달하므로 다른 앱에서는 저장하지 않는다. 등록 충돌은 `SHORTCUT_UNAVAILABLE` 이벤트로 기록하고 설정 화면에 반영한다.
 - 사용자 승인 후 PID 56748 recorder를 정상 종료하고 helper를 재빌드·배치했다. `bin`과 Release SHA-256은 모두 `80D8BD82…99D31`이며 C++ Release 빌드, Node 132개 테스트, 앱 빌드와 lint가 통과했다.
@@ -430,6 +433,7 @@ Last Updated: 2026-09-09 16:30
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. 앱을 한 번 완전히 재시작한 뒤 녹화 중 단축키와 빠른 클립 길이를 변경해 recorder PID가 유지되고 새 단축키가 즉시 동작하는지 확인한다.
 1. 앱을 완전히 재시작하고 마비노기를 포커스한 상태에서 `Pause`를 눌러 저장 중→`30초 클립이 저장되었습니다` 전환을 확인한다. 다른 앱을 포커스했을 때에는 저장되지 않아야 한다.
 1. 앱을 완전히 재시작하고 빠른 클립 버튼·단축키가 모달 없이 저장되며 현재 디스플레이 우측 상단에 클릭 통과 완료 오버레이가 표시되는지 확인한다.
 1. 앱을 완전히 재시작하고 영상 추출 저장 중 X·Esc·Alt+F4 및 메인 앱 종료가 모두 차단되는지 확인한다.
@@ -598,6 +602,7 @@ Last Updated: 2026-09-09 16:30
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 블랙박스 설정 저장의 무조건 recorder 재시작을 제거했다. 단축키와 빠른 클립 길이는 live 설정으로 처리하고 단축키만 native control 명령으로 즉시 재등록한다.
 - 빠른 클립 알림을 저장 시작 지속 표시와 길이 포함 완료 표시로 분리했다. 단축키 감지를 recorder의 `RegisterHotKey`로 이동하고 마비노기 포그라운드·실제 녹화 조건을 모두 만족할 때만 저장하도록 제한했다.
 - 빠른 클립 이름 확인 모달과 관련 preload 이벤트를 제거했다. 버튼·단축키는 자동 번호 이름으로 즉시 저장하고 완료 시 노란색·검은 글씨 전환 오버레이를 최상단 클릭 통과 창으로 표시한다.
 - 빠른 클립에만 적용됐던 저장 중 종료 가드를 영상 추출에도 적용했다. main process의 실제 추출 수명주기가 종료 차단 상태를 소유하며 관리 창과 독립 편집 창의 닫기 경로 및 UI를 함께 차단한다.
@@ -1402,4 +1407,4 @@ Last Updated: 2026-09-09 16:30
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-앱을 완전히 재시작해 마비노기 포그라운드에서 `Pause` 전역 단축키와 저장 중→길이 포함 완료 오버레이 전환을 확인한다.
+앱을 한 번 완전히 재시작해 recorder를 복구한 뒤 단축키를 변경하면서 PID 유지와 마비노기 포그라운드 저장 동작을 함께 확인한다.

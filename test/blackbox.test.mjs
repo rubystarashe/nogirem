@@ -387,6 +387,11 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /`--shortcut-vk=\$\{shortcut\.virtualKey\}`/)
   assert.match(mainSource, /`--shortcut-modifiers=\$\{shortcut\.modifiers\}`/)
   assert.match(mainSource, /if \(line === "SHORTCUT"\) requestBlackboxQuickClip\(\)/)
+  assert.match(mainSource, /if \(line === "SHORTCUT_READY"\)/)
+  assert.match(
+    mainSource,
+    /const restartRequired = \[[\s\S]*"chunkSeconds",[\s\S]*\]\.some[\s\S]*const shortcutChanged[\s\S]*command: "shortcut"/,
+  )
   assert.doesNotMatch(mainSource, /globalShortcut/)
   assert.match(mainSource, /shortcutAccelerator: setting\.shortcut/)
   assert.match(managerSource, /window\.blackboxManager\.editor/)
@@ -578,6 +583,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /options\.shortcutModifiers = static_cast<unsigned int>/)
   assert.match(nativeSource, /RegisterHotKey\([\s\S]*MOD_NOREPEAT/)
   assert.match(nativeSource, /PeekMessageW\([\s\S]*WM_HOTKEY/)
+  assert.match(nativeSource, /control->command == "shortcut"[\s\S]*applyShortcut/)
   assert.match(nativeSource, /shortcutRequested[\s\S]*recording[\s\S]*isMabinogiForeground/)
   assert.match(nativeSource, /std::cout << "SHORTCUT\\n" << std::flush/)
   assert.match(nativeSource, /SetProcessAffinityMask\(GetCurrentProcess\(\), static_cast<DWORD_PTR>\(mask\)\)/)

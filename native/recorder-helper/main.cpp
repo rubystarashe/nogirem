@@ -3611,6 +3611,8 @@ struct ControlCommand {
   std::string command;
   int seconds = 0;
   std::uint64_t requestId = 0;
+  int shortcutVirtualKey = 0;
+  unsigned int shortcutModifiers = 0;
 };
 
 std::optional<ControlCommand> readControl(const fs::path& path) {
@@ -3638,7 +3640,39 @@ std::optional<ControlCommand> readControl(const fs::path& path) {
   )) {
     requestId = std::stoull(requestIdMatch[1].str());
   }
-  return ControlCommand{ commandMatch[1].str(), seconds, requestId };
+  int shortcutVirtualKey = 0;
+  std::smatch shortcutVirtualKeyMatch;
+  if (std::regex_search(
+    text,
+    shortcutVirtualKeyMatch,
+    std::regex(R"("shortcutVirtualKey"\s*:\s*(\d+))")
+  )) {
+    shortcutVirtualKey = std::clamp(
+      std::stoi(shortcutVirtualKeyMatch[1].str()),
+      0,
+      255
+    );
+  }
+  unsigned int shortcutModifiers = 0;
+  std::smatch shortcutModifiersMatch;
+  if (std::regex_search(
+    text,
+    shortcutModifiersMatch,
+    std::regex(R"("shortcutModifiers"\s*:\s*(\d+))")
+  )) {
+    shortcutModifiers = static_cast<unsigned int>(std::clamp(
+      std::stoi(shortcutModifiersMatch[1].str()),
+      0,
+      15
+    ));
+  }
+  return ControlCommand{
+    commandMatch[1].str(),
+    seconds,
+    requestId,
+    shortcutVirtualKey,
+    shortcutModifiers,
+  };
 }
 
 std::int64_t wideInteger(
@@ -4192,19 +4226,30 @@ int wmain(int count, wchar_t** values) {
     auto nextCaptureAttempt = std::chrono::steady_clock::now();
     auto captureRetryDelay = 500ms;
     constexpr int shortcutId = 1;
-    if (options.shortcutVirtualKey > 0) {
+    const auto applyShortcut = [&](int virtualKey, unsigned int modifiers) {
+      if (shortcutRegistered) {
+        UnregisterHotKey(nullptr, shortcutId);
+        shortcutRegistered = false;
+      }
+      options.shortcutVirtualKey = virtualKey;
+      options.shortcutModifiers = modifiers;
+      if (virtualKey <= 0) {
+        std::cout << "SHORTCUT_READY\n" << std::flush;
+        return;
+      }
       MSG message{};
       PeekMessageW(&message, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
       shortcutRegistered = RegisterHotKey(
         nullptr,
         shortcutId,
-        options.shortcutModifiers | MOD_NOREPEAT,
-        static_cast<UINT>(options.shortcutVirtualKey)
+        modifiers | MOD_NOREPEAT,
+        static_cast<UINT>(virtualKey)
       ) != FALSE;
       std::cout
         << (shortcutRegistered ? "SHORTCUT_READY\n" : "SHORTCUT_UNAVAILABLE\n")
         << std::flush;
-    }
+    };
+    applyShortcut(options.shortcutVirtualKey, options.shortcutModifiers);
 
     while (status.running && processRunning(options.parentPid)) {
       const auto now = std::chrono::steady_clock::now();
@@ -4241,6 +4286,12 @@ int wmain(int count, wchar_t** values) {
         if (control->command == "clip") encoder.requestClip(control->seconds);
         if (control->command == "flush") encoder.requestFlush(control->requestId);
         if (control->command == "clear") encoder.requestClear(control->requestId);
+        if (control->command == "shortcut") {
+          applyShortcut(
+            control->shortcutVirtualKey,
+            control->shortcutModifiers
+          );
+        }
       }
 
       if (capture && capture->closed()) {
