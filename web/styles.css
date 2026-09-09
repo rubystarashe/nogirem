@@ -781,6 +781,20 @@ footer {
   color: #aaa;
 }
 
+.app-version.update-available {
+  padding: 3px 7px 2px;
+  color: #171717;
+  background: #ffd400;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 14px;
+  letter-spacing: -0.4px;
+}
+
+.app-version.update-available:hover {
+  color: #171717;
+}
+
 .creator-prompt {
   position: fixed;
   z-index: 96;

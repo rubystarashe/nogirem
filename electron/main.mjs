@@ -115,6 +115,7 @@ const bugReportFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSfx6-QVqsxgUD
 const startupTrayTaskName = "Mabinogi Rem Booster Startup"
 const startupTrayLaunch = process.argv.includes("--startup-tray")
 const applicationUpdateStallTimeoutMs = 45_000
+const forceApplicationUpdateNoticePreview = true
 const primaryRendererUnresponsiveTimeoutMs = 5_000
 const primaryWindowRevealTimeoutMs = 8_000
 const trayMenuCloseDelayMs = 75
@@ -141,6 +142,9 @@ let blackboxManagerActivePage = "extract"
 let blackboxClipSaveInProgress = false
 let blackboxClipNotificationWindow = null
 let blackboxClipNotificationTimer = null
+let applicationUpdateNotificationWindow = null
+let applicationUpdateNotificationTimer = null
+let applicationUpdateNotifiedVersion = null
 let blackboxEditorWindow = null
 let blackboxEditorSession = null
 let applicationTray = null
@@ -608,12 +612,14 @@ function configureApplicationUpdater() {
     clearApplicationUpdateCompletionTimer()
     applicationUpdateDownloadStalled = false
     armApplicationUpdateStallTimer()
+    const version = info?.version ?? null
     setApplicationUpdateState({
-      phase: "downloading",
+      phase: "available",
       percent: 0,
-      version: info?.version ?? null,
+      version,
       error: null,
     })
+    showApplicationUpdateNotification(version)
   })
   autoUpdater.on("update-not-available", () => {
     clearApplicationUpdateCompletionTimer()
@@ -2716,6 +2722,100 @@ ${persistent ? "" : "exitTimer=setTimeout(()=>notice.classList.add(\"exiting\"),
     })
     .catch(error => {
       console.error("클립 저장 알림 표시 실패", error)
+      if (!window.isDestroyed()) window.destroy()
+    })
+}
+
+function showApplicationUpdateNotification(version = null) {
+  if (
+    version
+    && applicationUpdateNotifiedVersion === version
+  ) return
+  applicationUpdateNotifiedVersion = version
+  clearTimeout(applicationUpdateNotificationTimer)
+  applicationUpdateNotificationTimer = null
+  if (
+    applicationUpdateNotificationWindow
+    && !applicationUpdateNotificationWindow.isDestroyed()
+  ) {
+    applicationUpdateNotificationWindow.destroy()
+  }
+
+  const primaryBounds = primaryWindow && !primaryWindow.isDestroyed()
+    ? primaryWindow.getBounds()
+    : null
+  const display = primaryBounds
+    ? screen.getDisplayNearestPoint({
+      x: primaryBounds.x + Math.round(primaryBounds.width / 2),
+      y: primaryBounds.y + Math.round(primaryBounds.height / 2),
+    })
+    : screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const width = Math.min(680, display.workArea.width - 24)
+  const height = 88
+  const window = new BrowserWindow({
+    x: display.workArea.x + display.workArea.width - width - 24,
+    y: display.workArea.y + display.workArea.height - height - 24,
+    width,
+    height,
+    show: false,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    focusable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    hasShadow: false,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  applicationUpdateNotificationWindow = window
+  window.setIgnoreMouseEvents(true, { forward: true })
+  window.setAlwaysOnTop(true, "screen-saver", 1)
+  window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  window.once("closed", () => {
+    if (applicationUpdateNotificationWindow === window) {
+      applicationUpdateNotificationWindow = null
+    }
+  })
+
+  const message = "마비노기 렘 부스터 새 버전 업데이트가 가능합니다"
+  const document = `<!doctype html>
+<html lang="ko">
+<meta charset="UTF-8">
+<meta name="color-scheme" content="light">
+<style>
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
+body{display:flex;align-items:flex-end;justify-content:flex-end;padding-bottom:8px;font-family:"Nexon Lv2 Gothic","Malgun Gothic","Segoe UI",sans-serif}
+.notice{position:relative;padding:15px 22px 14px;color:#171717;background:#ffd400;font-size:24px;font-weight:900;line-height:1.15;letter-spacing:-1.1px;white-space:nowrap;clip-path:polygon(0 0,0 0,0 100%,0 100%);animation:notice-in 300ms 80ms linear forwards}
+.notice.exiting{animation:notice-out 300ms linear forwards}
+.mask{position:absolute;z-index:2;inset:0;background:#171717;pointer-events:none;clip-path:polygon(0 0,0 0,0 100%,0 100%)}
+@keyframes notice-in{to{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}}
+@keyframes notice-out{from{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}to{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%)}}
+</style>
+<body><div class="notice"><span class="text">${escapeHtml(message)}</span><span class="mask"></span></div>
+<script>
+const notice=document.querySelector(".notice")
+setTimeout(()=>notice.classList.add("exiting"),4380)
+</script></body>
+</html>`
+  void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(document)}`)
+    .then(() => {
+      if (window.isDestroyed()) return
+      window.showInactive()
+      window.moveTop()
+      applicationUpdateNotificationTimer = setTimeout(() => {
+        applicationUpdateNotificationTimer = null
+        if (!window.isDestroyed()) window.destroy()
+      }, 4800)
+    })
+    .catch(error => {
+      console.error("앱 업데이트 알림 표시 실패", error)
       if (!window.isDestroyed()) window.destroy()
     })
 }
@@ -6503,7 +6603,19 @@ async function startApplication() {
       .catch(error => console.error("주변 캐릭터 간소화 파일 설치 실패", error))
     writeStartupLog("백그라운드 초기화 완료")
   })()
-  if (app.isPackaged) {
+  if (forceApplicationUpdateNoticePreview) {
+    applicationUpdateStartupTimer = setTimeout(() => {
+      applicationUpdateStartupTimer = null
+      const version = "0.3.4"
+      setApplicationUpdateState({
+        phase: "available",
+        percent: 0,
+        version,
+        error: null,
+      })
+      showApplicationUpdateNotification(version)
+    }, 1200)
+  } else if (app.isPackaged) {
     applicationUpdateStartupTimer = setTimeout(() => {
       applicationUpdateStartupTimer = null
       void checkForApplicationUpdate()
@@ -6529,6 +6641,8 @@ async function startApplication() {
     applicationUpdateStartupTimer = null
     clearInterval(applicationUpdateCheckTimer)
     applicationUpdateCheckTimer = null
+    clearTimeout(applicationUpdateNotificationTimer)
+    applicationUpdateNotificationTimer = null
     clearApplicationUpdateCompletionTimer()
     clearApplicationUpdateStallTimer()
     clearPrimaryRendererUnresponsiveTimer()

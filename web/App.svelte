@@ -272,6 +272,11 @@
     && creatorViewPhase === "home"
     && pageVisible
 
+  $: applicationUpdateAvailable = (
+    ["available", "downloading", "downloaded"].includes(applicationUpdateState.phase)
+    && Boolean(applicationUpdateState.version)
+  )
+
   $: if (creatorPromptVisible && !creatorPromptDisplayRecorded) {
     creatorPromptDisplayRecorded = true
     void window.nogirem.recordCreatorPromptDisplay().catch(() => {})
@@ -1750,10 +1755,11 @@
   type="button"
   class="app-version"
   class:paused={visualPaused}
+  class:update-available={applicationUpdateAvailable}
   aria-label="최신 업데이트 확인"
   onclick={checkApplicationUpdate}
 >
-  {packageInfo.version}
+  {applicationUpdateAvailable ? "새 버전 출시" : packageInfo.version}
 </button>
 
 {#if creatorPromptVisible}

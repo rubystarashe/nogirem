@@ -55,6 +55,41 @@ test("업데이트 다운로드가 45초간 멈추면 입력 차단 상태를 �
   )
 })
 
+test("새 앱 버전은 주기적으로 확인하고 메인 문구와 우측 하단 오버레이로 알린다", () => {
+  assert.match(
+    electronMain,
+    /applicationUpdateCheckTimer = setInterval\([\s\S]*4 \* 60 \* 60 \* 1000/,
+  )
+  assert.match(
+    electronMain,
+    /autoUpdater\.on\("update-available"[\s\S]*phase: "available"[\s\S]*showApplicationUpdateNotification\(version\)/,
+  )
+  assert.match(
+    electronMain,
+    /function showApplicationUpdateNotification[\s\S]*workArea\.height - height - 24[\s\S]*setIgnoreMouseEvents\(true,[\s\S]*setAlwaysOnTop\(true, "screen-saver", 1\)/,
+  )
+  assert.match(
+    electronMain,
+    /마비노기 렘 부스터 새 버전 업데이트가 가능합니다/,
+  )
+  assert.match(
+    applicationView,
+    /applicationUpdateAvailable[\s\S]*class:update-available[\s\S]*새 버전 출시/,
+  )
+  assert.match(
+    applicationStyles,
+    /\.app-version\.update-available \{[\s\S]*background: #ffd400;[\s\S]*font-weight: 900;/,
+  )
+})
+
+test("임시 업데이트 안내 테스트는 앱 시작 직후 활성화된다", () => {
+  assert.match(electronMain, /const forceApplicationUpdateNoticePreview = true/)
+  assert.match(
+    electronMain,
+    /if \(forceApplicationUpdateNoticePreview\)[\s\S]*version = "0\.3\.4"[\s\S]*showApplicationUpdateNotification\(version\)[\s\S]*1200/,
+  )
+})
+
 test("렌더러 종료와 장기 무응답 상태를 자동 복구한다", () => {
   assert.match(
     electronMain,

@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-10 02:27
+Last Updated: 2026-09-10 02:55
 
 ## Current Objective
-0.3.2 사용자 환경의 반복 강제 재부팅과 프레임 부스트 시작 실패를 분리 진단하고 안전하게 복구한다.
+새 앱 버전을 주기적으로 확인하고 메인 화면과 우측 하단 오버레이로 안내한다.
 
 ## Current Status
+- 기존 updater의 앱 시작 3초·4시간 주기 확인을 유지하고 `update-available`을 별도 상태로 전달한다. 업데이트 가능 상태에서는 왼쪽 아래 버전 숫자를 노란 `새 버전 출시`로 교체하고, 클립 저장 알림과 같은 투명·클릭 통과·screen-saver 최상단 BrowserWindow를 앱 디스플레이 우측 아래에 4.8초 표시한다. 현재는 디자인 확인을 위해 `forceApplicationUpdateNoticePreview = true`이며 앱 시작 1.2초 뒤 가상 0.3.4 상태를 표시하고 실제 자동 확인 타이머는 일시 중단한다. 전체 Node 139개 테스트, Electron 구문 검사, 앱 프로덕션 빌드와 IDE lint가 통과했다.
 - 0.3.2 진단 2개를 비교했다. En so 환경은 진단 시 uptime 392초이고 여러 JSON이 NUL로 끊겨 실제 강제 재부팅은 확인되지만 기존 ZIP에 Windows BugCheck 이벤트·덤프가 없어 원인 커널 드라이버는 확정할 수 없다. 당시 turbo key·input guard·blackbox·NIC 관리는 모두 꺼져 있었고 DXVK v3.1은 0.3.2 설치 전부터 사용 중이었다.
 - 김효진 환경의 앱/부스트 시작 실패는 0.2.9 메모리 helper가 남긴 23시간 전 lock PID 14160이 다른 프로세스로 재사용된 것이 원인이었다. lock 생성 후 15초 이내이거나 같은 PID의 status heartbeat가 10초 이내일 때만 살아 있는 helper로 인정해 stale PID 재사용 lock을 제거하도록 수정했다. 진단 ZIP에는 최근 14일 Windows System 이벤트 41·1001·6008을 포함하도록 보강했다. 전체 Node 137개 테스트, Electron 구문 검사, 앱 프로덕션 빌드와 IDE lint가 통과했다.
 - 현재 recorder `status.json`은 전체 Ring 기준 `17,996초`로 정상인데 메인 화면은 helper 시작 로그의 `10,338.5초`, 즉 2시간 52분에 멈췄고 관리 화면은 5시간을 표시했다. 계산 경로가 다른 것이 아니라 메인 렌더러 갱신이 정지한 문제였다. main process의 1초 recorder 상태 관찰기가 누적 시간·용량·상태 시각을 전용 preload 이벤트로 메인 화면에 직접 전달하게 했고, 렌더러는 `runtimeUpdatedAt`을 비교해 오래된 폴링 응답이 최신 시간을 덮지 못하게 했다. 전체 Node 136개 테스트, 앱 프로덕션 빌드와 lint가 통과했다.
@@ -454,6 +455,7 @@ Last Updated: 2026-09-10 02:27
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. 앱을 재시작해 1.2초 뒤 왼쪽 아래 `새 버전 출시`와 우측 아래 업데이트 오버레이의 위치·크기·전환을 확인하고, 디자인 확정 뒤 `forceApplicationUpdateNoticePreview`를 `false`로 바꿔 실제 주기 확인을 활성화한다.
 1. 블루스크린이 발생한 En so 환경에서 재현을 요구하지 말고 `%SystemRoot%\Minidump`의 최신 DMP 또는 Windows BugCheck 이벤트 1001의 stop code·문제 드라이버를 받아 원인을 확정한다.
 1. 0.3.3 설치본에서 0.2.9 stale memory lock을 둔 상태로 실행해 재사용 PID를 기존 helper로 오인하지 않고 프레임 부스트가 정상 시작되는지 확인한다.
 1. 앱을 재시작하고 고급 기능에서 Alt+Enter 방지를 켠 뒤 마비노기 포그라운드에서는 Alt+Enter가 차단되고 다른 프로그램에서는 정상 동작하는지 수동 확인한다.
@@ -523,6 +525,7 @@ Last Updated: 2026-09-10 02:27
 20. 마비노기 전면 창에서 `2 누름 → 3 누름 → 일반 키 4 누름·해제 → 3 해제 → 2 해제` 순서로 실제 입력 전환을 확인한다.
 
 ## Known Issues
+- `forceApplicationUpdateNoticePreview = true`인 동안에는 디자인 테스트를 위해 실제 앱 업데이트 확인 타이머가 실행되지 않는다. 테스트 완료 후 반드시 false로 변경해야 한다.
 - En so 환경의 반복 강제 재부팅은 uptime과 NUL 상태 파일로 확인됐지만 현재 진단에는 BugCheck 코드와 minidump가 없어 Nogirem 기능 또는 GPU·보안 드라이버 중 어느 커널 경로가 원인인지는 아직 확정할 수 없다. 활성 상태였던 Nogirem 기능은 affinity·메모리 helper뿐이며 input guard·turbo key·blackbox·NIC 관리는 꺼져 있었다.
 - 빠른 클립은 청크 단위 무인코딩 저장이므로 설정 길이보다 최대 현재 청크 길이 미만만큼 길 수 있다. 정확한 시작·종료가 필요하면 영상 추출을 사용한다.
 - clean chunk boundary 수정 전에 생성한 빠른 클립은 첫 영상 패킷이 non-key frame이면 다음 키프레임까지 약 1초간 화면이 정상 표시되지 않을 수 있다. 기존 파일은 재생 가능한 첫 키프레임부터 다시 잘라야 복구되며 새 로직은 새로 저장하는 클립에만 적용된다.
@@ -631,6 +634,7 @@ Last Updated: 2026-09-10 02:27
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 앱 업데이트 가능 상태를 메인 버전 영역의 `새 버전 출시`와 우측 하단 클릭 통과 오버레이로 안내하고, 즉시 디자인을 확인할 수 있는 가상 0.3.4 시작 테스트를 활성화했다.
 - 0.3.2 진단 두 건을 분리 분석해 stale helper lock의 PID 재사용 오인을 수정하고 Windows BugCheck·Kernel-Power·예기치 않은 종료 이벤트를 다음 진단 ZIP에 추가했다. 실제 블루스크린은 기존 자료만으로 원인 드라이버를 확정하지 않았다.
 - 업데이트 인터페이스 시각 테스트를 마치고 강제 62% 표시를 제거했다. 최종 진행률 숫자는 900 굵기와 2px 외곽선을 사용한다.
 - GitHub Release `v0.3.2`를 공개하고 중복 릴리스를 정리해 네 개 배포 자산과 SHA-256을 검증했다.
@@ -1445,4 +1449,4 @@ Last Updated: 2026-09-10 02:27
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-전체 회귀 테스트와 앱 빌드를 통과시킨 뒤 stale helper lock 복구 및 Windows BugCheck 진단 보강을 0.3.3 변경으로 커밋한다. 블루스크린 원인 확정은 최신 minidump 또는 BugCheck 이벤트 1001이 필요하다.
+앱을 재시작해 강제 업데이트 가능 상태의 왼쪽 아래 문구와 우측 아래 오버레이 디자인을 확인한다. 사용자 확인 후 테스트 플래그를 끄고 실제 3초·4시간 주기 업데이트 확인을 복구한다.
