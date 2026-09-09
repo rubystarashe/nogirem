@@ -27,7 +27,8 @@ const normalAutoTuning = {
   effective: "Normal",
 }
 
-const [electronMain, electronPreload, applicationView, applicationStyles] = await Promise.all([
+const [networkSource, electronMain, electronPreload, applicationView, applicationStyles] = await Promise.all([
+  readFile(new URL("../src/network.mjs", import.meta.url), "utf8"),
   readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
   readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
   readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
@@ -219,6 +220,17 @@ test("가상 어댑터나 타사 필터 환경에서는 패스트핑 적용을 �
   assert.equal(result.compatibilityBlocked, true)
   assert.equal(result.reason, "타사 네트워크 필터가 연결됨")
   assert.deepEqual(calls, [false])
+})
+
+test("Npcap 패킷 캡처 필터는 패스트핑 호환성 차단에서 제외한다", () => {
+  assert.match(
+    networkSource,
+    /captureBindings[\s\S]*insecure_npcap\|npcap\(\?:_wifi\)\?[\s\S]*blockingThirdPartyBindings/,
+  )
+  assert.match(
+    networkSource,
+    /\$compatible = -not \$isVirtual -and \$blockingThirdPartyBindings\.Count -eq 0/,
+  )
 })
 
 test("IP·기본 경로·게이트웨이·DNS·HTTPS가 모두 정상이면 연결 정상으로 판정한다", async () => {

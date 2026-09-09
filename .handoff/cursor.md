@@ -1,11 +1,13 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-09 15:46
+Last Updated: 2026-09-09 15:50
 
 ## Current Objective
-정확 재인코딩 클립의 시작 영상이 약 0.36초 늦어 초반이 빨라 보이는 문제를 디코더 프리롤로 제거한다.
+패스트핑 되돌리기 후 Npcap 패킷 캡처 필터를 타사 네트워크 필터로 오인해 재적용을 차단하는 문제를 해결한다.
 
 ## Current Status
+- 사용자 진단 ZIP의 startup.log에서 15:30~15:35 사이 패스트핑 적용 9회가 모두 타사 필터 사유로 차단된 것을 확인했다. 실제 주 이더넷 어댑터의 유일한 타사 binding은 Wireshark/Npcap 패킷 캡처용 `INSECURE_NPCAP`이었다. `INSECURE_NPCAP`, `NPCAP`, `NPCAP_WIFI`는 비차단 캡처 binding으로 분류하고 나머지 미확인 타사 필터와 VPN·가상 어댑터는 계속 차단한다. 실제 조회에서 `compatible: true`, `captureBindings: ["INSECURE_NPCAP"]`, `blockingThirdPartyBindings: []`를 확인했고 Node 132개 테스트와 lint가 통과했다.
+- 기존 진단 ZIP의 `diagnostics.json`에는 네트워크 상태가 없어 실제 binding 원인을 startup.log 외에는 확인할 수 없었다. 다음 버그 리포트부터 패스트핑 인터페이스·레지스트리 값·캡처/차단 binding 분류를 `applicationState.network.fastPing`에 포함한다.
 - 사용자 제공 `7번째 클립.mp4`는 오디오가 0초부터 시작하지만 첫 영상 프레임이 0.359초여서 플레이어가 초반 영상을 급하게 따라잡는 것처럼 보였다. 영상 reader를 요청 시점보다 1초 앞에서 seek하고 요청 전 frame은 출력하지 않는 프리롤을 추가했다. 같은 파일의 30.005초부터 5초를 재추출해 첫 영상 frame 0초 keyframe, 영상 5.002943초·오디오 5.002937초를 확인했다. C++ Release 빌드와 Node 131개 테스트는 통과했지만 PID 47432가 실제 녹화 중이어서 `bin/recorder-helper.exe` 교체는 보류했다.
 - `blackbox-events.log`에 recorder 실행 요청·준비·종료·자동 시작 재시도별 실패, 상태 전환·native 상태 오류, 클립 저장 요청·완료·실패와 소요시간·출력 크기를 JSONL로 기록한다. native helper stderr도 `recorder-helper.log`로 보존한다. 각 로그는 4MB에서 최근 세대로 회전하며 로그 쓰기 실패가 녹화 기능을 중단시키지 않는다.
 - recorder 상태를 main process가 1초마다 독립 관찰하므로 관리 화면이 닫혀 있어도 녹화 시작·대기·오디오·해상도 상태 전환과 오류가 남는다. 클립 native 오류는 120초 timeout까지 기다리지 않고 새 오류를 감지하는 즉시 반환한다.
@@ -422,6 +424,7 @@ Last Updated: 2026-09-09 15:46
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. 최신 앱을 재시작한 뒤 패스트핑 되돌리기→재적용을 실행해 Npcap이 연결된 현재 이더넷에서 적용되고 새 진단 ZIP에 `captureBindings`와 빈 `blockingThirdPartyBindings`가 포함되는지 확인한다.
 1. PID 47432 녹화를 정상 종료한 뒤 `npm run native:recorder`로 프리롤 수정이 포함된 `bin/recorder-helper.exe`를 갱신한다.
 1. 최신 소스로 앱을 재시작해 블랙박스 켜기→게임 감지→클립 저장→끄기 후 `blackbox-events.log`와 버그 리포트 ZIP에 이벤트·helper 로그가 포함되는지 수동 확인한다.
 1. 실제 빠른 클립 저장 중 닫기 버튼·Esc·Alt+F4·메인 종료·트레이 최소화를 시도해 창이 유지되고 완료 후 정상 종료되는지 확인한다.
@@ -587,6 +590,7 @@ Last Updated: 2026-09-09 15:46
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 패스트핑 호환성 검사에서 Npcap의 캡처 전용 binding을 허용하고 실제 차단 타사 binding을 별도로 계산한다. VPN·가상·미확인 필터 차단은 유지하며 진단 ZIP에 현재 패스트핑 인터페이스와 binding 분류를 추가했다. 사용자 환경에서 Npcap만 있는 어댑터가 호환 상태로 바뀌는 것을 확인했고 Node 132개 테스트가 통과했다.
 - `7번째 클립.mp4`의 첫 영상 frame이 0.359초 늦는 현상을 확인하고 정확 시작 1초 전부터 디코더를 예열한 뒤 요청 전 frame을 버리도록 변경했다. 실파일 재추출은 영상·오디오 모두 0초 시작과 약 5.003초 동일 길이를 반환했고 Node 131개 테스트와 C++ Release 빌드가 통과했다.
 - 블랙박스 recorder·클립 저장의 전체 수명주기와 상태 변화를 `blackbox-events.log`에 기록하고 helper stderr를 별도 보존한다. 새 native 오류를 감지하면 클립 요청을 즉시 실패시키며 진단 ZIP은 신·구 형식의 회전 로그를 모두 포함한다. Node 131개 테스트, 앱 빌드, 구문 검사와 lint가 통과했다.
 - 빠른 클립 저장 중 관리 창과 앱 종료·트레이 진입·업데이트 설치를 차단하고 UI 닫기 버튼을 비활성화했다. 원본과 선두 재인코딩 출력의 H.264 extradata 불일치도 실파일로 확인해 위험한 혼합 복사 적용을 보류했다. 잠금이 풀린 recorder helper 실행 파일에는 정확한 영상 시작과 PCM 절단 빌드를 최종 배치했다.
@@ -1386,4 +1390,4 @@ Last Updated: 2026-09-09 15:46
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-현재 녹화를 정상 종료한 뒤 recorder helper를 최종 배치하고 앱을 재시작해 새 30초 빠른 클립의 첫 영상 frame이 0초인지 확인한다.
+앱을 최신 소스로 재시작해 패스트핑 되돌리기와 재적용을 확인한 뒤, 녹화를 정상 종료하고 recorder helper 프리롤 빌드도 최종 배치한다.

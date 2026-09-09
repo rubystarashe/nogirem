@@ -49,14 +49,22 @@ $thirdPartyBindings = @(
     Where-Object { $_.Enabled -and $_.ComponentID -notmatch "^ms_" } |
     Select-Object -ExpandProperty ComponentID
 )
+$captureBindings = @(
+  $thirdPartyBindings |
+    Where-Object { $_ -match "(?i)^(insecure_npcap|npcap(?:_wifi)?)$" }
+)
+$blockingThirdPartyBindings = @(
+  $thirdPartyBindings |
+    Where-Object { $_ -notmatch "(?i)^(insecure_npcap|npcap(?:_wifi)?)$" }
+)
 $isVirtual = (
   -not [bool]$adapter.HardwareInterface -or
   $adapter.InterfaceDescription -match "(?i)virtual|vpn|tap|tun|wintun|wireguard|hyper-v|vmware|virtualbox"
 )
-$compatible = -not $isVirtual -and $thirdPartyBindings.Count -eq 0
+$compatible = -not $isVirtual -and $blockingThirdPartyBindings.Count -eq 0
 $compatibilityReason = if ($isVirtual) {
   "VPN 또는 가상 네트워크 어댑터에는 패스트핑을 적용하지 않습니다"
-} elseif ($thirdPartyBindings.Count -gt 0) {
+} elseif ($blockingThirdPartyBindings.Count -gt 0) {
   "타사 네트워크 필터가 연결된 어댑터에는 패스트핑을 적용하지 않습니다"
 } else {
   $null
@@ -96,6 +104,8 @@ $noDelay = if (
   compatibilityReason = $compatibilityReason
   virtualAdapter = $isVirtual
   thirdPartyBindings = $thirdPartyBindings
+  captureBindings = $captureBindings
+  blockingThirdPartyBindings = $blockingThirdPartyBindings
   TcpAckFrequency = $ackFrequency
   TCPNoDelay = $noDelay
 } | ConvertTo-Json -Compress
