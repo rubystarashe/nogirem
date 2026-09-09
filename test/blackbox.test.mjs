@@ -519,6 +519,10 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /metricsPath: join\(directory, "recorder-metrics\.log"\)/)
   assert.match(mainSource, /blackbox-manager:choose-clip-storage/)
   assert.match(mainSource, /function resolveBlackboxRingStoragePath\(/)
+  assert.match(
+    mainSource,
+    /if \(drive === defaultDrive\) return join\(paths\.storagePath, "Ring"\)/,
+  )
   assert.match(mainSource, /function resolveBlackboxClipStoragePath\(/)
   assert.match(mainSource, /Get-CimInstance Win32_LogicalDisk/)
   assert.match(mainSource, /`--ring-path=\$\{ringStoragePath\}`/)

@@ -243,6 +243,7 @@ function resolveBlackboxRingStoragePath(setting, paths = getBlackboxPaths()) {
   const drive = /^[A-Za-z]:$/.test(setting?.ringStorageDrive)
     ? setting.ringStorageDrive.toUpperCase()
     : defaultDrive
+  if (drive === defaultDrive) return join(paths.storagePath, "Ring")
   return join(`${drive}\\`, "마비노기 렘 블랙박스", "Ring")
 }
 
