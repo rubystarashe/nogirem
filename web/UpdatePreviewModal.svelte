@@ -109,10 +109,11 @@
     color: #000;
     font-family: "NEXON Lv2 Gothic", sans-serif;
     font-size: 80px;
-    font-weight: 700;
+    font-weight: 900;
     font-variant-numeric: tabular-nums;
     line-height: 1;
     text-align: right;
+    -webkit-text-stroke: 2px #000;
   }
 
   .update-progress-track {

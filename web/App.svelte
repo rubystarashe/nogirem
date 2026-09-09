@@ -249,7 +249,6 @@
   const versionText = "공개 사용자 버전"
   const ambientRhythmEnabled = true
   const boostSpinnerEnabled = true
-  const forceUpdatePreview = true
   const creatorSections = [
     { id: "developer", label: "소개", content: [] },
     { id: "operation", label: "작동 원리", content: [] },
@@ -3249,13 +3248,12 @@
 {/if}
 
 {#if !closeModalVisible && (
-  forceUpdatePreview
-  || applicationUpdateState.phase === "downloading"
+  applicationUpdateState.phase === "downloading"
   || applicationUpdateState.phase === "downloaded"
 )}
   <UpdatePreviewModal
-    progress={forceUpdatePreview ? 62 : applicationUpdateState.percent}
-    downloaded={!forceUpdatePreview && applicationUpdateState.phase === "downloaded"}
+    progress={applicationUpdateState.percent}
+    downloaded={applicationUpdateState.phase === "downloaded"}
     installing={applicationUpdateInstalling}
     onInstall={installApplicationUpdate}
   />

@@ -148,6 +148,10 @@ test("종료 모달은 업데이트 레이어보다 위에서 입력을 받는�
     updateModalView,
     /\.update-preview-panel \{[\s\S]*color: #000;[\s\S]*background: #ff9d00;/,
   )
+  assert.match(
+    updateModalView,
+    /\.update-progress > span \{[\s\S]*font-weight: 900;[\s\S]*-webkit-text-stroke: 2px #000;/,
+  )
   assert.match(updateModalView, /\.update-progress-value \{[\s\S]*background: #000;/)
   assert.match(
     applicationView,
