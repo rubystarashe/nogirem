@@ -165,6 +165,10 @@ test("터보 키 입력 지연 무시 설정은 UI부터 helper까지 전달된�
   ])
 
   assert.match(applicationView, /키보드 입력 지연을 무시하고 즉시 입력/)
+  assert.match(
+    applicationView,
+    /\{#if turboKeyInstalled && turboKeyEnabled\}[\s\S]*class="turbo-key-immediate-option"/,
+  )
   assert.match(applicationView, /ignoreInitialDelay: !turboKeyIgnoreInitialDelay/)
   assert.match(electronMain, /--ignore-initial-delay=\$\{normalizeTurboKeyIgnoreInitialDelay/)
   assert.match(helperSource, /initial_repeat_delay: Duration/)

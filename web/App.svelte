@@ -2368,7 +2368,7 @@
                       {/if}
                     </div>
                   </div>
-                  {#if turboKeyInstalled}
+                  {#if turboKeyInstalled && turboKeyEnabled}
                     <label class="turbo-key-immediate-option">
                       <input
                         type="checkbox"

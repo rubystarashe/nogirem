@@ -1508,10 +1508,36 @@ button.direct-donation-card:hover {
 }
 
 .turbo-key-immediate-option input {
+  appearance: none;
   width: 13px;
   height: 13px;
   margin: 0;
-  accent-color: #267c50;
+  border: 1px solid #777;
+  border-radius: 2px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.turbo-key-immediate-option input:checked {
+  border-color: #267c50;
+  background: #267c50;
+}
+
+.turbo-key-immediate-option input:checked::after {
+  display: block;
+  width: 3px;
+  height: 7px;
+  margin: 1px 0 0 4px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.turbo-key-immediate-option input:disabled {
+  border-color: #aaa;
+  background: #ddd;
+  cursor: default;
 }
 
 .turbo-key-immediate-option:has(input:disabled) {
