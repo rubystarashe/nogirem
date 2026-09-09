@@ -242,6 +242,18 @@
         width: 280px;
       }
 
+      .capacity-control {
+        display: grid;
+        width: 280px;
+        gap: 6px;
+      }
+
+      .capacity-control small {
+        color: #8f979b;
+        font-size: 9px;
+        line-height: 1.4;
+      }
+
       .settings select,
       .settings input {
         width: 280px;
@@ -844,14 +856,6 @@
             <option value="60">60fps</option>
           </select>
         </label>
-        <label class="storage-drive">
-          <span>청크 저장 드라이브</span>
-          <select class="storage-drive-select" aria-label="녹화 청크 저장 드라이브"></select>
-        </label>
-        <label class="storage-cleanup">
-          <span>청크 정리</span>
-          <button class="action cleanup-recording" type="button">모든 드라이브 청크 정리</button>
-        </label>
         <label class="storage-path">
           <span>녹화 저장 위치</span>
           <div class="storage-path-control">
@@ -872,12 +876,23 @@
         </label>
         <label class="capacity">
           <span>녹화 용량 한도</span>
-          <select class="capacity-select">
-            <option value="20">20 GB</option>
-            <option value="50">50 GB</option>
-            <option value="100">100 GB</option>
-            <option value="200">200 GB</option>
-          </select>
+          <div class="capacity-control">
+            <select class="capacity-select">
+              <option value="20">20 GB</option>
+              <option value="50">50 GB</option>
+              <option value="100">100 GB</option>
+              <option value="200">200 GB</option>
+            </select>
+            <small>드라이브의 남은 용량이 1GB 이하이면 녹화를 자동으로 중단합니다</small>
+          </div>
+        </label>
+        <label class="storage-drive">
+          <span>청크 저장 드라이브</span>
+          <select class="storage-drive-select" aria-label="녹화 청크 저장 드라이브"></select>
+        </label>
+        <label class="storage-cleanup">
+          <span>청크 정리</span>
+          <button class="action cleanup-recording" type="button">모든 드라이브 청크 정리</button>
         </label>
         <label class="clip-duration">
           <span>빠른 클립 길이</span>

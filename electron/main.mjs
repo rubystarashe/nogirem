@@ -3062,7 +3062,7 @@ function setBlackboxManagerPage(page) {
   const preferred = blackboxManagerPreferredSize ?? readBlackboxManagerSize()
   const compact = page === "settings"
   const targetWidth = Math.min(workArea.width, compact ? 540 : Math.max(900, preferred.width))
-  const targetHeight = Math.min(workArea.height, compact ? 880 : Math.max(680, preferred.height))
+  const targetHeight = Math.min(workArea.height, compact ? 940 : Math.max(680, preferred.height))
   blackboxManagerActivePage = page
   window.setMinimumSize(compact ? 520 : 900, compact ? 720 : 680)
   const targetX = Math.max(
