@@ -46,10 +46,19 @@ function validateDll(buffer) {
 export function detectDxvkRendererFromLog(content) {
   const text = String(content)
   const version = /\bDXVK:\s*(v[^\s]+)/i.exec(text)?.[1] ?? null
+  const completedInitialSetup = (
+    /\bCreating device:/i.test(text)
+    && /\bPresenter:\s*Actual swapchain properties:/i.test(text)
+  )
+  const activeD3d9Swapchain = (
+    /\bVulkan:\s*Found vkGetInstanceProcAddr/i.test(text)
+    && /\bFound device:/i.test(text)
+    && /\bD3D9DeviceEx::ResetSwapChain:/i.test(text)
+    && /\bDevice reset\b/i.test(text)
+  )
   const initialized = Boolean(
     version
-    && /\bCreating device:/i.test(text)
-    && /\bPresenter:\s*Actual swapchain properties:/i.test(text)
+    && (completedInitialSetup || activeD3d9Swapchain)
   )
   return { initialized, version }
 }

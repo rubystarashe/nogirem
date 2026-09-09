@@ -34,6 +34,19 @@ test("DXVK 헤더만 남은 초기화 실패 로그는 Vulkan 실행으로 판�
   assert.deepEqual(result, { initialized: false, version: "v2.7.1+" })
 })
 
+test("초기화 구간이 유실돼도 동작 중인 D3D9 스왑체인은 Vulkan 실행으로 판정한다", () => {
+  const result = detectDxvkRendererFromLog([
+    "info: DXVK: v2.7.1",
+    "info: Vulkan: Found vkGetInstanceProcAddr in vulkan-1.dll",
+    "info: Found device: NVIDIA GeForce RTX 4090",
+    "\0".repeat(128),
+    "info: Device reset",
+    "info: D3D9DeviceEx::ResetSwapChain:",
+  ].join("\n"))
+
+  assert.deepEqual(result, { initialized: true, version: "v2.7.1" })
+})
+
 test("DXVK 최신 정식 릴리즈의 압축 파일과 SHA-256을 해석한다", async () => {
   const fetchImpl = async () => ({
     ok: true,
