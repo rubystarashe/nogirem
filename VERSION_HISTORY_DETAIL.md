@@ -2,6 +2,11 @@
 
 사용자용 요약은 [VERSION_HISTORY.md](VERSION_HISTORY.md)에서 확인할 수 있습니다.
 
+## 0.3.3
+
+- DXVK 로그 중간이 NUL 문자로 유실되어 `Creating device`와 swapchain 초기화 문구가 사라져도 Vulkan 로더·GPU 탐색과 실제 `D3D9DeviceEx::ResetSwapChain`·`Device reset` 동작이 함께 확인되면 Vulkan 실행으로 판정한다. DXVK 버전 헤더만 남은 초기화 실패 로그는 계속 제외한다.
+- 다수 사용자 진단에서 은행·공공기관 이용 시 설치되는 nProtect Online Security의 `INCA_TKFWFV`가 패스트핑 차단 필터로 잡히는 문제를 확인해 호환 보안 필터로 허용한다. ExitLag의 `nt_ndextlag` 등 실제 네트워크 경로를 처리하는 필터는 계속 차단한다. 원래 DWORD 값을 복원할 때 PowerShell 함수 인자에서 `[uint32]1`이 문자열로 해석되던 호출도 `([uint32]1)` 명시식으로 수정한다.
+
 ## 0.3.2
 
 - 빠른 클립 요청 시 현재 녹화 청크를 먼저 확정하고 실제 미디어 길이를 뒤에서부터 합산해 설정 시간 이상인 완성 청크를 재인코딩 없이 remux한다.

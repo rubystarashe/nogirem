@@ -53,9 +53,13 @@ $captureBindings = @(
   $thirdPartyBindings |
     Where-Object { $_ -match "(?i)^(insecure_npcap|npcap(?:_wifi)?)$" }
 )
+$compatibleSecurityBindings = @(
+  $thirdPartyBindings |
+    Where-Object { $_ -match "(?i)^inca_tkfwfv$" }
+)
 $blockingThirdPartyBindings = @(
   $thirdPartyBindings |
-    Where-Object { $_ -notmatch "(?i)^(insecure_npcap|npcap(?:_wifi)?)$" }
+    Where-Object { $_ -notmatch "(?i)^(insecure_npcap|npcap(?:_wifi)?|inca_tkfwfv)$" }
 )
 $isVirtual = (
   -not [bool]$adapter.HardwareInterface -or
@@ -105,6 +109,7 @@ $noDelay = if (
   virtualAdapter = $isVirtual
   thirdPartyBindings = $thirdPartyBindings
   captureBindings = $captureBindings
+  compatibleSecurityBindings = $compatibleSecurityBindings
   blockingThirdPartyBindings = $blockingThirdPartyBindings
   TcpAckFrequency = $ackFrequency
   TCPNoDelay = $noDelay
@@ -249,7 +254,7 @@ async function runFastPingRestorePowerShell(target) {
     if (!Number.isInteger(number) || number < 0 || number > 0xffffffff) {
       throw new Error("복원할 패스트핑 값이 올바르지 않습니다")
     }
-    return `[uint32]${number}`
+    return `([uint32]${number})`
   }
   const script = String.raw`
 $ErrorActionPreference = "Stop"

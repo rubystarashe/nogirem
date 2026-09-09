@@ -222,10 +222,14 @@ test("가상 어댑터나 타사 필터 환경에서는 패스트핑 적용을 �
   assert.deepEqual(calls, [false])
 })
 
-test("Npcap 패킷 캡처 필터는 패스트핑 호환성 차단에서 제외한다", () => {
+test("Npcap과 nProtect 보안 필터는 패스트핑 호환성 차단에서 제외한다", () => {
   assert.match(
     networkSource,
-    /captureBindings[\s\S]*insecure_npcap\|npcap\(\?:_wifi\)\?[\s\S]*blockingThirdPartyBindings/,
+    /captureBindings[\s\S]*insecure_npcap\|npcap\(\?:_wifi\)\?[\s\S]*compatibleSecurityBindings[\s\S]*inca_tkfwfv[\s\S]*blockingThirdPartyBindings/,
+  )
+  assert.match(
+    networkSource,
+    /notmatch "\(\?i\)\^\(insecure_npcap\|npcap\(\?:_wifi\)\?\|inca_tkfwfv\)\$"/,
   )
   assert.match(
     networkSource,
@@ -306,6 +310,14 @@ test("저장된 패스트핑 원래 값을 복원하고 인터페이스를 다�
   assert.equal(result.configured, false)
   assert.equal(result.restarted, true)
   assert.deepEqual(restarted, [baseStatus.interfaceIndex])
+})
+
+test("패스트핑 원래 DWORD 값은 PowerShell 명시식으로 복원한다", () => {
+  assert.match(networkSource, /return `\(\[uint32\]\$\{number\}\)`/)
+  assert.match(
+    networkSource,
+    /Restore-DwordValue "TcpAckFrequency" \$\{valueLiteral\(target\.TcpAckFrequency\)\}/,
+  )
 })
 
 test("패스트핑 복원 결과가 원래 값과 다르면 실패한다", async () => {
