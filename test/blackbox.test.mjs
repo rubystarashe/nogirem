@@ -134,6 +134,16 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
     appSource,
     /async function syncBlackboxSetting\(\) \{[\s\S]*if \(!blackboxSettingLoaded \|\| blackboxTogglePending\) return/,
   )
+  assert.match(preloadSource, /onBlackboxStatusChanged[\s\S]*application:blackbox-status-changed/)
+  assert.match(
+    mainSource,
+    /function observeBlackboxRuntimeStatus\(status\)[\s\S]*application:blackbox-status-changed[\s\S]*runtimeUpdatedAt/,
+  )
+  assert.match(
+    appSource,
+    /function applyBlackboxRuntimeState\(state\)[\s\S]*runtimeUpdatedAt < blackboxRuntimeUpdatedAt[\s\S]*blackboxDurationSeconds/,
+  )
+  assert.match(appSource, /removeBlackboxStatusListener/)
   assert.match(styleSource, /\.blackbox-main-link:disabled \{[\s\S]*opacity: 1/)
   assert.match(styleSource, /\.blackbox-main-duration \{[\s\S]*font-size: 9px[\s\S]*transform: translateX\(28px\)/)
   assert.match(styleSource, /\.blackbox-main-duration\.active \{[\s\S]*0\.72[\s\S]*font-weight: 650/)

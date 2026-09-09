@@ -172,6 +172,7 @@
   let blackboxFeatureNotice = ""
   let blackboxEnabled = false
   let blackboxDurationSeconds = 0
+  let blackboxRuntimeUpdatedAt = 0
   let blackboxTogglePending = false
   let blackboxDisplayedText = "블랙박스 꺼짐"
   let blackboxDisplayedEnabled = false
@@ -1037,12 +1038,19 @@
     }
   }
 
+  function applyBlackboxRuntimeState(state) {
+    if ("durationSeconds" in state) {
+      const runtimeUpdatedAt = Math.max(0, Number(state.runtimeUpdatedAt) || 0)
+      if (runtimeUpdatedAt && runtimeUpdatedAt < blackboxRuntimeUpdatedAt) return
+      blackboxDurationSeconds = Math.max(0, Number(state.durationSeconds) || 0)
+      blackboxRuntimeUpdatedAt = Math.max(blackboxRuntimeUpdatedAt, runtimeUpdatedAt)
+    }
+  }
+
   function applyBlackboxState(state) {
+    applyBlackboxRuntimeState(state)
     if ("featureEnabled" in state) {
       blackboxFeatureEnabled = Boolean(state.featureEnabled)
-    }
-    if ("durationSeconds" in state) {
-      blackboxDurationSeconds = Math.max(0, Number(state.durationSeconds) || 0)
     }
     const nextEnabled = Boolean(state.enabled)
     const nextText = nextEnabled ? "블랙박스 켜짐" : "블랙박스 꺼짐"
@@ -1576,6 +1584,9 @@
         },
       })
     })
+    const removeBlackboxStatusListener = window.nogirem.onBlackboxStatusChanged(
+      applyBlackboxRuntimeState,
+    )
     const removeVisualActivityListener = window.nogirem.onVisualActivityChanged(
       setWindowVisualActivity,
     )
@@ -1686,6 +1697,7 @@
       window.removeEventListener("keydown", handleApplicationKeydown, true)
       removeGraphicsStatusListener()
       removeDxvkStatusListener()
+      removeBlackboxStatusListener()
       removeVisualActivityListener()
       removeUpdateStateListener()
       removeCloseListener()

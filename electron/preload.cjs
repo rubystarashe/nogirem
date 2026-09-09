@@ -12,6 +12,11 @@ contextBridge.exposeInMainWorld("nogirem", {
     ipcRenderer.on("optimization:dxvk-status-changed", listener)
     return () => ipcRenderer.removeListener("optimization:dxvk-status-changed", listener)
   },
+  onBlackboxStatusChanged: callback => {
+    const listener = (_event, status) => callback(status)
+    ipcRenderer.on("application:blackbox-status-changed", listener)
+    return () => ipcRenderer.removeListener("application:blackbox-status-changed", listener)
+  },
   refreshGraphics: () => ipcRenderer.invoke("optimization:refresh-graphics"),
   refreshNvidia: () => ipcRenderer.invoke("optimization:refresh-nvidia"),
   refreshNetwork: () => ipcRenderer.invoke("optimization:refresh-network"),

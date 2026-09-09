@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-10 02:10
+Last Updated: 2026-09-10 02:19
 
 ## Current Objective
-DXVK v3.1이 실제 적용·실행 중인데 메인 화면이 계속 확인 중으로 남는 상태 경쟁을 수정한다.
+메인 화면과 영상 추출의 블랙박스 누적 녹화 시간이 서로 다르게 고정되는 문제를 수정한다.
 
 ## Current Status
+- 현재 recorder `status.json`은 전체 Ring 기준 `17,996초`로 정상인데 메인 화면은 helper 시작 로그의 `10,338.5초`, 즉 2시간 52분에 멈췄고 관리 화면은 5시간을 표시했다. 계산 경로가 다른 것이 아니라 메인 렌더러 갱신이 정지한 문제였다. main process의 1초 recorder 상태 관찰기가 누적 시간·용량·상태 시각을 전용 preload 이벤트로 메인 화면에 직접 전달하게 했고, 렌더러는 `runtimeUpdatedAt`을 비교해 오래된 폴링 응답이 최신 시간을 덮지 못하게 했다. 전체 Node 136개 테스트, 앱 프로덕션 빌드와 lint가 통과했다.
 - Lilika Star의 0.3.2 진단에서 affinity renderer는 `vulkan v3.1`, 설치본·최신 캐시도 `v3.1`이며 무결성과 배포 상태가 정상이므로 DXVK 자체 문제는 아니었다. 확인 완료 이벤트 뒤 먼저 요청된 1초 주기 affinity 조회의 늦은 `checking` 응답이 완료 상태를 다시 덮을 수 있는 경로를 확인했다. 초기 상태 수신과 실시간 폴링 모두 동일한 `resolveDxvkStatusUpdate`를 사용해 확정된 `latest`·`update-required`를 늦은 `checking`이 되돌리지 못하게 했다. 이후 진단 ZIP에는 affinity renderer와 main-process DXVK 상태도 함께 포함한다. DXVK 테스트 9개, 앱 프로덕션 빌드와 lint가 통과했다.
 - 앱·lockfile 버전을 0.3.3으로 올리고 0.3.2 배포 뒤 수정한 DXVK 런타임 판정과 nProtect 패스트핑·복원 오류를 사용자용·상세 변경 기록의 별도 0.3.3 섹션으로 분리했다.
 - 사용자 진단 ZIP 5개를 비교했다. 0.3.2 진단 4개 모두 `INCA_TKFWFV`를 blocking filter로 기록했으며 이는 은행·공공기관 이용 시 설치되는 nProtect Online Security 필터였다. Npcap과 별도 `compatibleSecurityBindings`로 분류해 허용하고, ExitLag의 실제 패킷 처리 필터 `nt_ndextlag` 등 나머지 타사 필터는 계속 차단한다. 0.3.1 로그의 복원 실패는 PowerShell 함수 호출에서 `[uint32]1`이 문자열로 전달된 것이 원인이므로 `([uint32]1)` 명시식으로 변경했고 실제 PowerShell에서 `System.UInt32`로 전달됨을 확인했다. 네트워크 테스트 21개, 전체 Node 136개, 앱 프로덕션 빌드와 lint가 통과했다.

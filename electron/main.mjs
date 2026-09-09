@@ -322,6 +322,17 @@ function logBlackboxEvent(event, details = {}) {
 
 function observeBlackboxRuntimeStatus(status) {
   if (!status) return
+  if (
+    primaryWindow
+    && !primaryWindow.isDestroyed()
+    && !primaryWindow.webContents.isDestroyed()
+  ) {
+    primaryWindow.webContents.send("application:blackbox-status-changed", {
+      durationSeconds: Math.max(0, Number(status.durationSeconds) || 0),
+      bytesUsed: Math.max(0, Number(status.bytesUsed) || 0),
+      runtimeUpdatedAt: Math.max(0, Number(status.updatedAt) || 0),
+    })
+  }
   const currentStatusError = String(status.error ?? "")
   if (currentStatusError !== lastLoggedBlackboxStatusError) {
     lastLoggedBlackboxStatusError = currentStatusError
@@ -2473,6 +2484,7 @@ async function getBlackboxSetting({ waitForStorageSummary = true } = {}) {
     clipInProgress: running && Boolean(status?.clipInProgress),
     bytesUsed,
     durationSeconds,
+    runtimeUpdatedAt: Math.max(0, Number(status?.updatedAt) || 0),
     capacityBytes: setting.capacityGb * 1024 ** 3,
     maxDurationSeconds: setting.maxDurationSeconds,
     droppedFrames: Number(status?.droppedFrames) || 0,
