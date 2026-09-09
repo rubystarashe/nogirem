@@ -2365,6 +2365,7 @@ private:
       try {
         if (flush) closeWriter(true);
         if (flushRequestId > 0) {
+          joinWriterPublisher();
           std::lock_guard lock(status_.mutex);
           status_.flushCompletedId = flushRequestId;
         }
@@ -3492,6 +3493,27 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
         << ",\"durationSeconds\":" << std::fixed << std::setprecision(3)
         << durationSeconds
         << "}\n";
+    } else if (mode == L"latest") {
+      fs::path latestChunk;
+      std::int64_t latestStarted = 0;
+      for (const auto& ringPath : utilityRingPaths(arguments)) {
+        for (const auto& chunk : completedChunks(ringPath)) {
+          const auto started = chunkStartedMilliseconds(chunk);
+          if (started > latestStarted) {
+            latestStarted = started;
+            latestChunk = chunk;
+          }
+        }
+      }
+      const auto durationMilliseconds = latestChunk.empty()
+        ? 0
+        : static_cast<std::int64_t>(
+            compressedMediaDuration(latestChunk) / 10000
+          );
+      std::cout
+        << "{\"latestEndMilliseconds\":"
+        << std::max<std::int64_t>(0, latestStarted + durationMilliseconds)
+        << "}\n";
     } else if (mode == L"compose") {
       const fs::path outputPath = arguments.at(L"output");
       const auto pieces = parseCompositionPieces(arguments.at(L"pieces"));
@@ -3582,6 +3604,7 @@ int wmain(int count, wchar_t** values) {
       arguments.at(L"mode") == L"track"
       || arguments.at(L"mode") == L"index"
       || arguments.at(L"mode") == L"summary"
+      || arguments.at(L"mode") == L"latest"
       || arguments.at(L"mode") == L"compose"
       || arguments.at(L"mode") == L"extract"
     )

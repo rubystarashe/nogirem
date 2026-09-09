@@ -330,8 +330,10 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   )
   assert.match(
     mainSource,
-    /async function latestCompletedBlackboxAnchor\(\)[\s\S]*await flushBlackboxForEditor\(\)[\s\S]*return Date\.now\(\)/,
+    /async function latestCompletedBlackboxAnchor\(\)[\s\S]*await flushBlackboxForEditor\(\)[\s\S]*"--mode=latest"[\s\S]*latestEndMilliseconds/,
   )
+  assert.match(nativeSource, /flushRequestId > 0\)[\s\S]*joinWriterPublisher\(\)/)
+  assert.match(nativeSource, /mode == L"latest"/)
   assert.match(mainSource, /protocol\.handle\("nogirem-blackbox"/)
   assert.match(mainSource, /async function localVideoResponse/)
   assert.match(mainSource, /"Accept-Ranges": "bytes"/)
@@ -446,6 +448,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorScript, /mode = "resize-end"/)
   assert.match(editorScript, /mode === "resize-end"[\s\S]*selectionStart \+ selectionDuration/)
   assert.match(editorScript, /if \(mode === "seek" \|\| mode === "pending-move"\) seekFromPointer\(event\)/)
+  assert.match(editorScript, /if \(mode === "seek"\) \{\s*seekFromPointer\(event\)/)
   assert.match(editorScript, /function setTimelineCursor\(time\)/)
   assert.match(editorScript, /gapPreview\.hidden = Boolean\(segment\)/)
   assert.match(editorScript, /selectionStart = Math\.max\(\s*0,[\s\S]*timelineDuration - selectionDuration/)

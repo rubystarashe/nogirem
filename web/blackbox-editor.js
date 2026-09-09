@@ -543,7 +543,10 @@ function updateTimelineInteraction(event) {
     ),
   )
   let mode = interaction.mode
-  if (mode === "seek") return
+  if (mode === "seek") {
+    seekFromPointer(event)
+    return
+  }
   if (mode === "pending-move") {
     if (Math.abs(event.clientX - interaction.pointerStartX) < 6) return
     mode = "move"

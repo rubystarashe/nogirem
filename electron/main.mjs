@@ -2695,6 +2695,21 @@ async function latestCompletedBlackboxAnchor() {
   const state = await getBlackboxSetting()
   if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
   await flushBlackboxForEditor()
+  try {
+    const { ringStoragePaths } = await getCurrentBlackboxStorageLocations()
+    const output = await runRecorderUtility([
+      "--mode=latest",
+      blackboxRingPathsArgument(ringStoragePaths),
+    ])
+    const latestEndMilliseconds = Number(
+      JSON.parse(output)?.latestEndMilliseconds,
+    )
+    if (Number.isFinite(latestEndMilliseconds) && latestEndMilliseconds > 0) {
+      return latestEndMilliseconds
+    }
+  } catch (error) {
+    console.error("최근 블랙박스 청크 끝점 확인 실패", error)
+  }
   return Date.now()
 }
 
