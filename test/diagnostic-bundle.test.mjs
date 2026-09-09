@@ -35,16 +35,23 @@ test("진단 수집은 로그와 상태만 포함하고 녹화 영상은 제외�
   await mkdir(join(directory, "logs"), { recursive: true })
   await mkdir(join(directory, "blackbox", "Ring"), { recursive: true })
   await writeFile(join(directory, "logs", "startup.log"), "오류 10.0.0.3")
+  await writeFile(join(directory, "blackbox", "blackbox-events.previous.log"), "이전 이벤트")
+  await writeFile(join(directory, "blackbox", "recorder-metrics.log.previous"), "구버전 이전 지표")
   await writeFile(join(directory, "status.json.lock"), "{\"running\":true}")
   await writeFile(join(directory, "blackbox", "Ring", "chunk.mp4"), "video")
   await writeFile(join(directory, "helper.exe"), "binary")
 
   const entries = await collectDiagnosticEntries(directory)
   assert.deepEqual(entries.map(entry => entry.name).sort(), [
+    "blackbox/blackbox-events.previous.log",
+    "blackbox/recorder-metrics.log.previous",
     "logs/startup.log",
     "status.json.lock",
   ])
-  assert.match(entries[0].content, /%IP_ADDRESS%/)
+  assert.match(
+    entries.find(entry => entry.name === "logs/startup.log").content,
+    /%IP_ADDRESS%/,
+  )
 })
 
 test("진단 ZIP에 시스템 요약과 마스킹된 로그 목록을 만든다", async t => {

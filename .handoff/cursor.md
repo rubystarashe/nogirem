@@ -1,11 +1,14 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-09 15:30
+Last Updated: 2026-09-09 15:42
 
 ## Current Objective
-정확한 빠른 클립 저장 중 창 종료로 작업이 중단되지 않게 하고 저장 속도 개선 경로를 검증한다.
+향후 블랙박스 시작·클립 저장 실패 리포트를 진단할 수 있도록 영구 이벤트 로그와 진단 ZIP 수집을 보강한다.
 
 ## Current Status
+- `blackbox-events.log`에 recorder 실행 요청·준비·종료·자동 시작 재시도별 실패, 상태 전환·native 상태 오류, 클립 저장 요청·완료·실패와 소요시간·출력 크기를 JSONL로 기록한다. native helper stderr도 `recorder-helper.log`로 보존한다. 각 로그는 4MB에서 최근 세대로 회전하며 로그 쓰기 실패가 녹화 기능을 중단시키지 않는다.
+- recorder 상태를 main process가 1초마다 독립 관찰하므로 관리 화면이 닫혀 있어도 녹화 시작·대기·오디오·해상도 상태 전환과 오류가 남는다. 클립 native 오류는 120초 timeout까지 기다리지 않고 새 오류를 감지하는 즉시 반환한다.
+- 진단 ZIP은 새 `.previous.log`뿐 아니라 기존 recorder의 `.log.previous` 회전 파일도 수집하며 Ring·Clips 영상은 계속 제외하고 개인정보를 마스킹한다. Node 131개 테스트, 앱 빌드, 구문 검사와 lint가 통과했다.
 - 클립 요청부터 완료까지 Electron이 저장 상태를 직접 유지한다. 저장 중에는 관리 창 닫기 버튼·Esc·Alt+F4, 메인 창 종료·트레이 최소화와 업데이트 설치를 차단한다. 렌더러에서도 즉시 닫기 버튼을 비활성화한다. Node 131개 테스트, 앱 빌드와 lint가 통과했다.
 - 선두 GOP만 재인코딩하고 나머지를 복사하는 혼합 경로를 실파일로 검토했다. 같은 H.264 프로필·레벨이어도 원본과 새 하드웨어 인코더 출력의 extradata MD5가 달라 단순 연결은 깨짐 위험이 있다. 안전한 가속은 MP4 edit list 지원 muxer 도입 또는 교착 없는 GPU decode→encode 경로가 필요하다.
 - 정확 구간 재인코딩의 첫 PCM sample이 요청 시점보다 앞선 최대 약 21.3ms를 포함할 수 있던 문제를 보완했다. 첫 sample 내부의 요청 전 frame은 올림 계산으로 제거하고 끝점 이후 frame도 함께 자른다. 실제 `5번째 클립.mp4`의 30.005~31.005초를 추출해 영상·오디오 모두 0초 시작, 오디오 첫 packet 0초와 총 1.003초를 확인했다. C++ Release 컴파일과 Node 131개 테스트는 통과했고, 녹화 종료 후 `bin/recorder-helper.exe` 배치까지 완료했다.
@@ -262,6 +265,7 @@ Last Updated: 2026-09-09 15:30
 - 프로덕션 빌드, Electron 구문 검사, 전체 테스트 20개와 편집기 린트가 통과했다.
 
 ## Architecture / Important Decisions
+- 블랙박스 지원 로그는 AppData `blackbox/blackbox-events.log`와 `blackbox/recorder-helper.log`에 JSONL로 저장한다. current/previous 각 4MB로 제한하고 진단 ZIP 단계에서 사용자 경로·IP·이메일·인증값을 마스킹한다. 로깅 실패는 본 기능 실패로 전파하지 않는다.
 - `ringStorageDrive`는 PowerShell에서 조회한 로컬 고정·이동식 드라이브 ID만 허용하며 Ring은 `<드라이브>\마비노기 렘 블랙박스\Ring` 고정 경로다. `clipStoragePath`는 main의 폴더 선택창 결과만 일시 승인한다. native helper의 `--ring-path`·`--clips-path`와 모든 클립 IPC는 두 위치를 분리해 사용한다.
 - 블랙박스는 Electron renderer나 게임 주입 방식이 아니라 별도 `native/recorder-helper` 프로세스가 소유한다. Electron은 설정·상태·control JSON과 제한된 IPC만 관리한다.
 - 녹화 경로는 `Windows Graphics Capture → D3D11 texture pool → GPU Video Processor NV12 변환 → Media Foundation 하드웨어 H.264/HEVC → 4초 MP4`다. CPU 화면 readback은 사용하지 않는다.
@@ -417,6 +421,7 @@ Last Updated: 2026-09-09 15:30
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. 최신 소스로 앱을 재시작해 블랙박스 켜기→게임 감지→클립 저장→끄기 후 `blackbox-events.log`와 버그 리포트 ZIP에 이벤트·helper 로그가 포함되는지 수동 확인한다.
 1. 실제 빠른 클립 저장 중 닫기 버튼·Esc·Alt+F4·메인 종료·트레이 최소화를 시도해 창이 유지되고 완료 후 정상 종료되는지 확인한다.
 1. 실제 게임 녹화로 빠른 클립을 저장해 첫 1초 영상이 멈추거나 끊기지 않는지 확인하고, 재생 중 영상 추출 페이지로 이동했을 때 소리가 즉시 멈추는지 수동 검증한다.
 1. `v0.3.1` 설치본을 설치·실행하고 메인 화면과 영상 추출의 녹화시간이 모두 전체 Ring 합계로 일치하며 5시간 한도를 초과한 기존 청크가 정리되는지 확인한다.
@@ -579,6 +584,7 @@ Last Updated: 2026-09-09 15:30
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 블랙박스 recorder·클립 저장의 전체 수명주기와 상태 변화를 `blackbox-events.log`에 기록하고 helper stderr를 별도 보존한다. 새 native 오류를 감지하면 클립 요청을 즉시 실패시키며 진단 ZIP은 신·구 형식의 회전 로그를 모두 포함한다. Node 131개 테스트, 앱 빌드, 구문 검사와 lint가 통과했다.
 - 빠른 클립 저장 중 관리 창과 앱 종료·트레이 진입·업데이트 설치를 차단하고 UI 닫기 버튼을 비활성화했다. 원본과 선두 재인코딩 출력의 H.264 extradata 불일치도 실파일로 확인해 위험한 혼합 복사 적용을 보류했다. 잠금이 풀린 recorder helper 실행 파일에는 정확한 영상 시작과 PCM 절단 빌드를 최종 배치했다.
 - 블랙박스 토글이 `getBlackboxSetting()`의 전체 Ring summary를 여러 번 동기 대기하던 구조를 설정 JSON 직접 조회와 비차단 상태 반환으로 변경했다. native helper에 파일 크기로 유효성을 확인하는 드라이브별 실제 duration 인덱스를 추가하고 게시·정리·전체 비우기마다 갱신한다. 실제 summary 3.2초→0.44초, 전체 테스트 128개, native Release·앱 프로덕션 빌드, 구문 검사와 lint가 통과했다.
 - 영상 추출 타임라인에 포인터 중심 휠 확대·축소 viewport를 추가했다. 최소 10초까지 확대하고 전체 조회 범위까지 축소하며 공백·가이드·커서·시간 라벨과 포인터 탐색을 viewport 좌표로 통일했다. 블랙박스 회귀 테스트 6개, 앱 프로덕션 빌드와 lint가 통과했다.
@@ -1376,4 +1382,4 @@ Last Updated: 2026-09-09 15:30
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-앱을 완전히 재시작한 뒤 실제 30초 빠른 클립의 시작 영상·오디오와 저장 시간을 확인하면서 저장 중 모든 종료 경로가 차단되는지 함께 검증한다.
+앱을 최신 소스로 완전히 재시작한 뒤 실제 블랙박스·클립 수명주기를 한 번 실행하고 버그 리포트 ZIP에서 이벤트 순서와 개인정보 마스킹을 확인한다.

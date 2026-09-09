@@ -240,6 +240,16 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(mainSource, /async function renameBlackboxClip\(fileName, requestedName\)/)
   assert.match(mainSource, /async function openBlackboxClip\(fileName\)[\s\S]*shell\.showItemInFolder\(clipPath\)/)
   assert.match(mainSource, /async function requestBlackboxClip\(requestedName = ""\)/)
+  assert.match(mainSource, /eventsPath: join\(directory, "blackbox-events\.log"\)/)
+  assert.match(mainSource, /helperLogPath: join\(directory, "recorder-helper\.log"\)/)
+  assert.match(mainSource, /stdio: \["ignore", "pipe", "pipe"\]/)
+  assert.match(mainSource, /recorder-launch-requested/)
+  assert.match(mainSource, /recorder-auto-start-attempt-failed/)
+  assert.match(mainSource, /clip-save-requested/)
+  assert.match(mainSource, /clip-save-completed/)
+  assert.match(mainSource, /clip-save-failed/)
+  assert.match(mainSource, /let clipStarted = false[\s\S]*value\.error !== previousStatus\?\.error/)
+  assert.match(mainSource, /recorder-status-error/)
   assert.match(
     mainSource,
     /blackboxClipSaveInProgress = true[\s\S]*finally \{[\s\S]*blackboxClipSaveInProgress = false/,
@@ -569,7 +579,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     /capturedAt \+ 1ms < \*nextFrameAt_[\s\S]*\*nextFrameAt_ \+= minimumFrameInterval_[\s\S]*encoder_\.enqueue/,
   )
   assert.match(nativeSource, /class RingStorageIndex/)
-  assert.match(mainSource, /import \{ access, copyFile,[^\n]+ \} from "node:fs\/promises"/)
+  assert.match(mainSource, /import \{ access, appendFile, copyFile,[^\n]+ \} from "node:fs\/promises"/)
   assert.match(nativeSource, /double completedChunkDurationSeconds\(const fs::path& path\)/)
   assert.match(nativeSource, /mode == L"summary"/)
   assert.match(nativeSource, /arguments\.at\(L"mode"\) == L"summary"/)

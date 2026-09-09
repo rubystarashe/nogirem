@@ -1,6 +1,6 @@
 import { execFile, spawn } from "node:child_process"
 import { createReadStream, existsSync, readFileSync, unlinkSync } from "node:fs"
-import { access, copyFile, mkdir, open as openFile, readFile, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises"
+import { access, appendFile, copyFile, mkdir, open as openFile, readFile, readdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises"
 import { arch, cpus, freemem, platform, release, tmpdir, totalmem, type, uptime } from "node:os"
 import { basename, dirname, isAbsolute, join, resolve } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
@@ -198,6 +198,9 @@ let blackboxLastKnownStorageSummary = null
 let approvedBlackboxClipStoragePath = ""
 let blackboxStorageDrives = []
 let blackboxStorageDrivesCheckedAt = 0
+let blackboxLogOperation = Promise.resolve()
+let lastLoggedBlackboxStatusError = ""
+let lastLoggedBlackboxRuntimeState = ""
 let activeBlackboxShortcut = null
 const nativeBlackboxShortcutVirtualKeys = new Map([
   ["Pause", 0x13],
@@ -234,9 +237,78 @@ function getBlackboxPaths() {
     statusPath: join(directory, "status.json"),
     controlPath: join(directory, "control.json"),
     metricsPath: join(directory, "recorder-metrics.log"),
+    eventsPath: join(directory, "blackbox-events.log"),
+    helperLogPath: join(directory, "recorder-helper.log"),
     windowStatePath: join(directory, "window.json"),
     storagePath: join(app.getPath("videos"), "마비노기 렘 블랙박스"),
   }
+}
+
+function blackboxLogError(error) {
+  return {
+    name: error?.name ?? "Error",
+    message: error?.message ?? String(error),
+    code: error?.code ?? null,
+  }
+}
+
+function appendBlackboxLog(path, event, details = {}) {
+  const operation = blackboxLogOperation
+    .catch(() => {})
+    .then(async () => {
+      await mkdir(dirname(path), { recursive: true })
+      const fileInfo = await stat(path).catch(() => null)
+      if (Number(fileInfo?.size) >= 4 * 1024 * 1024) {
+        const previousPath = path.replace(/\.log$/i, ".previous.log")
+        await rm(previousPath, { force: true }).catch(() => {})
+        await rename(path, previousPath)
+      }
+      await appendFile(path, `${JSON.stringify({
+        timestamp: new Date().toISOString(),
+        event,
+        ...details,
+      })}\n`, "utf8")
+    })
+  const safeOperation = operation.catch(error => {
+    console.error("블랙박스 로그 기록 실패", error)
+  })
+  blackboxLogOperation = safeOperation
+  return safeOperation
+}
+
+function logBlackboxEvent(event, details = {}) {
+  return appendBlackboxLog(getBlackboxPaths().eventsPath, event, details)
+}
+
+function observeBlackboxRuntimeStatus(status) {
+  if (!status) return
+  const currentStatusError = String(status.error ?? "")
+  if (currentStatusError !== lastLoggedBlackboxStatusError) {
+    lastLoggedBlackboxStatusError = currentStatusError
+    if (currentStatusError) {
+      void logBlackboxEvent("recorder-status-error", {
+        pid: status.pid ?? null,
+        recording: Boolean(status.recording),
+        waitingForGame: Boolean(status.waitingForGame),
+        clipInProgress: Boolean(status.clipInProgress),
+        error: currentStatusError,
+      })
+    }
+  }
+  const runtimeState = {
+    pid: status.pid ?? null,
+    running: Boolean(status.running),
+    recording: Boolean(status.recording),
+    waitingForGame: Boolean(status.waitingForGame),
+    audioRecording: Boolean(status.audioRecording),
+    width: Number(status.width) || 0,
+    height: Number(status.height) || 0,
+    fps: Number(status.fps) || 0,
+  }
+  const runtimeStateKey = JSON.stringify(runtimeState)
+  if (runtimeStateKey === lastLoggedBlackboxRuntimeState) return
+  lastLoggedBlackboxRuntimeState = runtimeStateKey
+  void logBlackboxEvent("recorder-state-changed", runtimeState)
 }
 
 function getNetworkStatePath() {
@@ -2156,6 +2228,7 @@ async function getBlackboxSetting({ waitForStorageSummary = true } = {}) {
   const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 5000
   const processRunning = Boolean(blackboxProcess && blackboxProcess.exitCode === null)
   const running = setting.enabled && processRunning && statusFresh && Boolean(status?.running)
+  if (statusFresh) observeBlackboxRuntimeStatus(status)
   const summaryPaths = ringStoragePaths
   const summaryKey = summaryPaths
     .map(candidate => resolve(candidate).toLowerCase())
@@ -2384,6 +2457,18 @@ async function launchBlackboxHelper(setting) {
   blackboxStorageSummaryGeneration += 1
   blackboxStorageSummary = null
   blackboxStorageSummaryPath = ""
+  lastLoggedBlackboxRuntimeState = ""
+  const launchStartedAt = Date.now()
+  await logBlackboxEvent("recorder-launch-requested", {
+    codec: normalized.codec,
+    fps: normalized.fps,
+    quality: resolvedQuality,
+    bitrateMbps: bitrateForBlackboxSetting(runtimeSetting),
+    ringStoragePath,
+    ringStoragePathCount: ringStoragePaths.length,
+    clipStoragePath,
+    gamePath: activeMabinogiExecutablePath ?? null,
+  })
   const child = spawn(recorderHelperPath, [
     `--status-path=${paths.statusPath}`,
     `--control-path=${paths.controlPath}`,
@@ -2405,13 +2490,28 @@ async function launchBlackboxHelper(setting) {
     affinityArgument,
   ], {
     windowsHide: true,
-    stdio: ["ignore", "pipe", "ignore"],
+    stdio: ["ignore", "pipe", "pipe"],
   })
   blackboxProcess = child
   let spawnError = null
   let shortcutOutput = ""
+  let statusMonitorBusy = false
+  const statusMonitor = setInterval(() => {
+    if (statusMonitorBusy) return
+    statusMonitorBusy = true
+    void readRuntimeStatusJson(paths.statusPath)
+      .then(observeBlackboxRuntimeStatus)
+      .finally(() => {
+        statusMonitorBusy = false
+      })
+  }, 1000)
+  statusMonitor.unref?.()
   child.once("error", error => {
     spawnError = error
+    void logBlackboxEvent("recorder-spawn-error", {
+      elapsedMs: Date.now() - launchStartedAt,
+      error: blackboxLogError(error),
+    })
   })
   child.stdout.setEncoding("utf8")
   child.stdout.on("data", output => {
@@ -2422,7 +2522,23 @@ async function launchBlackboxHelper(setting) {
       if (line === "SHORTCUT") openBlackboxClipSaveDialog()
     }
   })
-  child.once("exit", () => {
+  child.stderr.setEncoding("utf8")
+  child.stderr.on("data", output => {
+    const message = String(output).trim()
+    if (!message) return
+    void appendBlackboxLog(paths.helperLogPath, "stderr", {
+      pid: child.pid ?? null,
+      message,
+    })
+  })
+  child.once("exit", (code, signal) => {
+    clearInterval(statusMonitor)
+    void logBlackboxEvent("recorder-exited", {
+      pid: child.pid ?? null,
+      code,
+      signal,
+      uptimeMs: Date.now() - launchStartedAt,
+    })
     if (blackboxProcess === child) blackboxProcess = null
     blackboxStorageSummaryGeneration += 1
     blackboxStorageSummary = null
@@ -2433,14 +2549,28 @@ async function launchBlackboxHelper(setting) {
     15000,
   )
   if (!status?.running) {
+    clearInterval(statusMonitor)
     if (child.pid && child.exitCode === null) child.kill()
     if (blackboxProcess === child) blackboxProcess = null
-    throw new Error(
+    const error = new Error(
       status?.error
       ?? spawnError?.message
       ?? "블랙박스 녹화 프로세스를 시작하지 못했습니다",
     )
+    await logBlackboxEvent("recorder-launch-failed", {
+      pid: child.pid ?? null,
+      elapsedMs: Date.now() - launchStartedAt,
+      exitCode: child.exitCode,
+      status,
+      error: blackboxLogError(error),
+    })
+    throw error
   }
+  await logBlackboxEvent("recorder-launch-ready", {
+    pid: child.pid ?? status.pid ?? null,
+    elapsedMs: Date.now() - launchStartedAt,
+    status,
+  })
   registerBlackboxShortcut(setting.shortcut)
   return getBlackboxSetting()
 }
@@ -2453,6 +2583,10 @@ async function stopBlackboxHelper() {
       blackboxProcess = null
       return null
     }
+    const stopStartedAt = Date.now()
+    await logBlackboxEvent("recorder-stop-requested", {
+      pid: child.pid ?? null,
+    })
     await getBlackboxSetting({ waitForStorageSummary: false })
     const paths = getBlackboxPaths()
     await writeJsonAtomic(paths.controlPath, {
@@ -2461,12 +2595,27 @@ async function stopBlackboxHelper() {
     })
     await waitForBlackboxStatus(value => value?.running === false, 3000)
     let exited = await waitForTurboKeyProcessExit(child, 2000)
+    let forced = false
     if (!exited) {
+      forced = true
       child.kill()
       exited = await waitForTurboKeyProcessExit(child, 1000)
     }
-    if (!exited) throw new Error("블랙박스 녹화 프로세스를 종료하지 못했습니다")
+    if (!exited) {
+      const error = new Error("블랙박스 녹화 프로세스를 종료하지 못했습니다")
+      await logBlackboxEvent("recorder-stop-failed", {
+        pid: child.pid ?? null,
+        elapsedMs: Date.now() - stopStartedAt,
+        error: blackboxLogError(error),
+      })
+      throw error
+    }
     if (blackboxProcess === child) blackboxProcess = null
+    await logBlackboxEvent("recorder-stop-completed", {
+      pid: child.pid ?? null,
+      elapsedMs: Date.now() - stopStartedAt,
+      forced,
+    })
     return null
   })
 }
@@ -2555,6 +2704,7 @@ async function requestBlackboxClip(requestedName = "") {
   if (blackboxClipSaveInProgress) {
     throw new Error("이전 클립을 저장하고 있습니다")
   }
+  const requestStartedAt = Date.now()
   blackboxClipSaveInProgress = true
   try {
     return await queueBlackboxControlOperation(async () => {
@@ -2568,6 +2718,12 @@ async function requestBlackboxClip(requestedName = "") {
       const normalizedRequestedName = String(requestedName).trim()
         ? await assertBlackboxClipNameAvailable(requestedName)
         : ""
+      await logBlackboxEvent("clip-save-requested", {
+        seconds: state.clipSeconds,
+        requestedNameProvided: Boolean(normalizedRequestedName),
+        ringStoragePathCount: state.ringStoragePaths?.length ?? 0,
+        clipStoragePath: state.clipStoragePath,
+      })
       const previousStatus = await readRuntimeStatusJson(getBlackboxPaths().statusPath)
       await writeJsonAtomic(getBlackboxPaths().controlPath, {
         command: "clip",
@@ -2575,14 +2731,27 @@ async function requestBlackboxClip(requestedName = "") {
         requestedAt,
       })
       lastBlackboxClipRequestedAt = requestedAt
+      let clipStarted = false
       const completed = await waitForBlackboxStatus(
-        value => (
-          !value?.clipInProgress
-          && value?.latestClip
-          && value.latestClip !== previousStatus?.latestClip
-        ),
+        value => {
+          if (value?.clipInProgress) clipStarted = true
+          return (
+            !value?.clipInProgress
+            && (
+              (
+                value?.error
+                && (clipStarted || value.error !== previousStatus?.error)
+              )
+              || (
+                value?.latestClip
+                && value.latestClip !== previousStatus?.latestClip
+              )
+            )
+          )
+        },
         120000,
       )
+      if (completed?.error) throw new Error(completed.error)
       if (!completed?.latestClip) throw new Error("클립 저장이 제한 시간 안에 완료되지 않았습니다")
       blackboxLatestClipOverride = completed.latestClip
       if (normalizedRequestedName) {
@@ -2596,8 +2765,21 @@ async function requestBlackboxClip(requestedName = "") {
           renamed.name,
         )
       }
+      const outputInfo = await stat(blackboxLatestClipOverride).catch(() => null)
+      await logBlackboxEvent("clip-save-completed", {
+        elapsedMs: Date.now() - requestStartedAt,
+        outputName: basename(blackboxLatestClipOverride),
+        outputBytes: Number(outputInfo?.size) || 0,
+      })
       return getBlackboxSetting()
     })
+  } catch (error) {
+    await logBlackboxEvent("clip-save-failed", {
+      elapsedMs: Date.now() - requestStartedAt,
+      status: await readRuntimeStatusJson(getBlackboxPaths().statusPath),
+      error: blackboxLogError(error),
+    })
+    throw error
   } finally {
     blackboxClipSaveInProgress = false
   }
@@ -3269,10 +3451,19 @@ async function ensureBlackboxStarted() {
   let lastError = null
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
+      await logBlackboxEvent("recorder-auto-start-attempt", {
+        attempt: attempt + 1,
+        maximumAttempts: 3,
+      })
       await launchBlackboxHelper(setting)
       return
     } catch (error) {
       lastError = error
+      await logBlackboxEvent("recorder-auto-start-attempt-failed", {
+        attempt: attempt + 1,
+        maximumAttempts: 3,
+        error: blackboxLogError(error),
+      })
       if (attempt < 2) await delay((attempt + 1) * 1000)
     }
   }

@@ -131,7 +131,10 @@ export async function collectDiagnosticEntries(userDataPath, redactionOptions = 
         }
         continue
       }
-      if (!entry.isFile() || !allowedExtensions.has(extname(entry.name).toLowerCase())) {
+      const lowerName = entry.name.toLowerCase()
+      const allowedExtension = allowedExtensions.has(extname(lowerName))
+        || lowerName.endsWith(".log.previous")
+      if (!entry.isFile() || !allowedExtension) {
         continue
       }
       try {
