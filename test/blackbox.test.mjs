@@ -669,6 +669,12 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /if \(onProgress\) onProgress\(fileIndex \+ 1, inputs\.size\(\)\);/)
   assert.match(nativeSource, /ComPtr<IMFSample> retimePcmSample\(/)
   assert.match(nativeSource, /LONGLONG maximumInputDuration = LLONG_MAX/)
+  assert.match(nativeSource, /LONGLONG skippedInputDuration = 0/)
+  assert.match(nativeSource, /skippedInputFrames \+ sourceIndex/)
+  assert.match(
+    nativeSource,
+    /const auto skippedDuration = std::max<LONGLONG>[\s\S]*availableDuration,[\s\S]*skippedDuration/,
+  )
   assert.match(nativeSource, /const auto availableInputDuration = std::min\(\s*fileEnd,\s*audioRequestedEnd\s*\) - globalTime;/)
   assert.match(nativeSource, /wideInteger\(arguments, L"speed-milli", 1000\)/)
   assert.match(nativeSource, /std::cerr << "PROGRESS "/)

@@ -1710,7 +1710,8 @@ ComPtr<IMFSample> retimePcmSample(
   IMFSample* sample,
   double playbackRate,
   LONGLONG& duration,
-  LONGLONG maximumInputDuration = LLONG_MAX
+  LONGLONG maximumInputDuration = LLONG_MAX,
+  LONGLONG skippedInputDuration = 0
 ) {
   ComPtr<IMFMediaBuffer> inputBuffer;
   check_hresult(sample->ConvertToContiguousBuffer(&inputBuffer));
@@ -1722,18 +1723,27 @@ ComPtr<IMFSample> retimePcmSample(
     check_hresult(inputBuffer->Unlock());
     return sample;
   }
+  const auto skippedInputFrames = std::min<std::uint64_t>(
+    inputFrames,
+    static_cast<std::uint64_t>(
+      (std::max<LONGLONG>(0, skippedInputDuration) * AudioSampleRate + 9999999ll)
+        / 10000000ll
+    )
+  );
+  const auto availableInputFrames = inputFrames - skippedInputFrames;
   const auto maximumInputFrames = maximumInputDuration == LLONG_MAX
-    ? static_cast<std::uint64_t>(inputFrames)
+    ? static_cast<std::uint64_t>(availableInputFrames)
     : static_cast<std::uint64_t>(std::max<LONGLONG>(
       0,
       maximumInputDuration * AudioSampleRate / 10000000ll
     ));
   const auto usableInputFrames = std::min<std::uint64_t>(
-    inputFrames,
+    availableInputFrames,
     maximumInputFrames
   );
   if (
-    usableInputFrames == inputFrames
+    skippedInputFrames == 0
+    && usableInputFrames == inputFrames
     && std::abs(playbackRate - 1.0) < 0.001
   ) {
     check_hresult(inputBuffer->Unlock());
@@ -1761,7 +1771,7 @@ ComPtr<IMFSample> retimePcmSample(
     );
     std::memcpy(
       outputData + index * AudioBlockAlignment,
-      inputData + sourceIndex * AudioBlockAlignment,
+      inputData + (skippedInputFrames + sourceIndex) * AudioBlockAlignment,
       AudioBlockAlignment
     );
   }
@@ -2200,12 +2210,18 @@ bool transcodeChunksExact(
         const auto globalTime = fileStart + relativeTime;
         if (globalTime + duration <= requestedStart) continue;
         if (globalTime >= requestedEnd) break;
-        const auto availableDuration = requestedEnd - globalTime;
+        const auto skippedDuration = std::max<LONGLONG>(
+          0,
+          requestedStart - globalTime
+        );
+        const auto availableDuration =
+          requestedEnd - std::max(globalTime, requestedStart);
         sample = retimePcmSample(
           sample.Get(),
           1.0,
           duration,
-          availableDuration
+          availableDuration,
+          skippedDuration
         );
         if (!sample) break;
         const auto mappedTime = std::max<LONGLONG>(
