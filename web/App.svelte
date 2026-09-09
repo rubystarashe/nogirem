@@ -1756,10 +1756,10 @@
   class="app-version"
   class:paused={visualPaused}
   class:update-available={applicationUpdateAvailable}
-  aria-label="최신 업데이트 확인"
+  aria-label={applicationUpdateAvailable ? "새 버전 업데이트" : "최신 업데이트 확인"}
   onclick={checkApplicationUpdate}
 >
-  {applicationUpdateAvailable ? "새 버전 출시" : packageInfo.version}
+  {applicationUpdateAvailable ? "새 버전 출시됨" : packageInfo.version}
 </button>
 
 {#if creatorPromptVisible}

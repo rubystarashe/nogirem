@@ -74,7 +74,7 @@ test("새 앱 버전은 주기적으로 확인하고 메인 문구와 우측 하
   )
   assert.match(
     applicationView,
-    /applicationUpdateAvailable[\s\S]*class:update-available[\s\S]*새 버전 출시/,
+    /applicationUpdateAvailable[\s\S]*class:update-available[\s\S]*새 버전 출시됨/,
   )
   assert.match(
     applicationStyles,
