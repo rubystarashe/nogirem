@@ -4,7 +4,7 @@
 
 ## 0.3.3
 
-- DXVK 로그 중간이 NUL 문자로 유실되어 `Creating device`와 swapchain 초기화 문구가 사라져도 Vulkan 로더·GPU 탐색과 실제 `D3D9DeviceEx::ResetSwapChain`·`Device reset` 동작이 함께 확인되면 Vulkan 실행으로 판정한다. DXVK 버전 헤더만 남은 초기화 실패 로그는 계속 제외한다.
+- DXVK 로그 중간이 NUL 문자로 유실되어 `Creating device`와 swapchain 초기화 문구가 사라져도 Vulkan 로더·GPU 탐색과 실제 `D3D9DeviceEx::ResetSwapChain`·`Device reset` 동작이 함께 확인되면 Vulkan 실행으로 판정한다. DXVK 버전 헤더만 남은 초기화 실패 로그는 계속 제외한다. 최신·업데이트 필요 상태가 확인된 뒤 먼저 요청된 1초 주기 조회의 늦은 `checking` 응답이 도착해 화면을 되돌리지 않도록 초기 조회와 실시간 갱신을 같은 병합 규칙으로 처리하며, 진단 ZIP에도 renderer와 DXVK 런타임 상태를 포함한다.
 - 다수 사용자 진단에서 은행·공공기관 이용 시 설치되는 nProtect Online Security의 `INCA_TKFWFV`가 패스트핑 차단 필터로 잡히는 문제를 확인해 호환 보안 필터로 허용한다. ExitLag의 `nt_ndextlag` 등 실제 네트워크 경로를 처리하는 필터는 계속 차단한다. 원래 DWORD 값을 복원할 때 PowerShell 함수 인자에서 `[uint32]1`이 문자열로 해석되던 호출도 `([uint32]1)` 명시식으로 수정한다.
 
 ## 0.3.2

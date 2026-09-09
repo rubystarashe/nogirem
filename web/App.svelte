@@ -489,15 +489,26 @@
     }
   }
 
+  function resolveDxvkStatusUpdate(current, incoming) {
+    if (
+      ["latest", "update-required"].includes(current?.state)
+      && incoming?.state === "checking"
+    ) {
+      return current
+    }
+    return incoming
+  }
+
   function receiveResult(key, result) {
     let data = result.data
-    const currentDxvk = services.affinity.data?.dxvk
-    if (
-      key === "affinity"
-      && ["latest", "update-required"].includes(currentDxvk?.state)
-      && data?.dxvk?.state === "checking"
-    ) {
-      data = { ...data, dxvk: currentDxvk }
+    if (key === "affinity" && result.ok) {
+      data = {
+        ...data,
+        dxvk: resolveDxvkStatusUpdate(
+          services.affinity.data?.dxvk,
+          data?.dxvk,
+        ),
+      }
     }
     updateService(key, result.ok
       ? { loading: false, data, error: null }
@@ -1486,7 +1497,7 @@
           nicManaged: runtime.nicManaged,
           renderer: runtime.renderer,
           characterSimplification: runtime.characterSimplification,
-          dxvk: runtime.dxvk,
+          dxvk: resolveDxvkStatusUpdate(current?.dxvk, runtime.dxvk),
           backgroundCpuRange: runtime.backgroundCpuRange,
           gameCpuRange: runtime.gameCpuRange,
           cpuTopology: runtime.cpuTopology,

@@ -4737,13 +4737,14 @@ async function createApplicationDiagnosticBundle() {
     const model = processor.model.trim() || "알 수 없음"
     processorModels.set(model, (processorModels.get(model) ?? 0) + 1)
   }
-  const [gpu, turboKey, inputGuard, blackbox, startupTray, fastPing] = await Promise.all([
+  const [gpu, turboKey, inputGuard, blackbox, startupTray, fastPing, affinity] = await Promise.all([
     diagnosticResult(() => app.getGPUInfo("basic")),
     diagnosticResult(() => getTurboKeySetting()),
     diagnosticResult(() => getInputGuardSetting()),
     diagnosticResult(() => getBlackboxSetting()),
     diagnosticResult(() => getStartupTraySetting()),
     diagnosticResult(() => ensureFastPingForPrimaryInterface()),
+    diagnosticResult(() => readAffinityRuntimeStatus()),
   ])
   const diagnostics = {
     generatedAt: new Date().toISOString(),
@@ -4788,6 +4789,8 @@ async function createApplicationDiagnosticBundle() {
       inputGuard,
       blackbox,
       startupTray,
+      affinity,
+      dxvk: dxvkRuntimeStatus,
       network: {
         fastPing,
       },

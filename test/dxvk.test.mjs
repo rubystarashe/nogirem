@@ -184,7 +184,15 @@ test("관리 창의 확인·설치 완료 상태를 메인 화면에 즉시 전�
   assert.match(preloadSource, /onDxvkStatusChanged/)
   assert.match(appSource, /removeDxvkStatusListener/)
   assert.match(appSource, /dxvk: status/)
-  assert.match(appSource, /data\?\.dxvk\?\.state === "checking"[\s\S]*dxvk: currentDxvk/)
+  assert.match(
+    appSource,
+    /function resolveDxvkStatusUpdate[\s\S]*incoming\?\.state === "checking"[\s\S]*return current/,
+  )
+  assert.match(
+    appSource,
+    /dxvk: resolveDxvkStatusUpdate\(current\?\.dxvk, runtime\.dxvk\)/,
+  )
+  assert.match(mainSource, /applicationState:[\s\S]*affinity,[\s\S]*dxvk: dxvkRuntimeStatus/)
   assert.match(appSource, /class:checking=\{dxvkLinkState\(\) === "checking"\}/)
   assert.match(appSource, /DXVK 상태 확인 불가/)
   assert.match(appSource, /DXVK 확인 중/)
