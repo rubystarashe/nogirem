@@ -309,7 +309,10 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /let activeBlackboxShortcut = null/)
   assert.match(mainSource, /async function refreshBlackboxStorageSummary\([^)]*\)/)
   assert.match(mainSource, /"--mode=summary"/)
-  assert.match(mainSource, /const summaryPaths = processRunning[\s\S]*const archivedStatus = \(/)
+  assert.match(
+    mainSource,
+    /const summaryPaths = ringStoragePaths[\s\S]*!processRunning[\s\S]*const archivedStatus = \([\s\S]*!processRunning/,
+  )
   assert.match(mainSource, /function blackboxRingPathsArgument\(/)
   assert.match(mainSource, /registerBlackboxShortcut\(setting\.shortcut\)/)
   assert.match(mainSource, /nativeBlackboxShortcutVirtualKeys[\s\S]*\["Pause", 0x13\]/)
@@ -523,7 +526,21 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /ringStorage\.durationSeconds\(\) \+ encoder\.currentChunkDurationSeconds\(\)/)
   assert.doesNotMatch(nativeSource, /estimatedCompletedSeconds/)
   assert.match(mainSource, /`--max-duration-seconds=\$\{normalized\.maxDurationSeconds\}`/)
+  assert.match(
+    mainSource,
+    /async function launchBlackboxHelper\(setting\)[\s\S]*blackboxRingPathsArgument\(ringStoragePaths\)/,
+  )
   assert.match(nativeSource, /options\.maxDurationSeconds = integerArgument\(/)
+  assert.match(nativeSource, /options\.ringPaths = pathListArgument\(arguments, L"ring-paths"\)/)
+  assert.match(
+    nativeSource,
+    /RingStorageIndex ringStorage\(options\.ringPath, options\.ringPaths\)/,
+  )
+  assert.match(nativeSource, /ringStorage\.enforceLimits\(/)
+  assert.match(
+    nativeSource,
+    /std::sort\(chunks_\.begin\(\), chunks_\.end\(\)[\s\S]*left\.started < right\.started/,
+  )
   assert.match(nativeSource, /const auto reserve = Gigabyte;/)
   assert.match(nativeSource, /space\.available < reserve/)
   assert.match(nativeSource, /totalDuration \* 1000\.0 > maxDurationMilliseconds/)
@@ -573,7 +590,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /maximumVideoQueueDepth/)
   assert.match(nativeSource, /maximumAudioQueueFrames/)
   assert.match(nativeSource, /const auto bytesUsed = ringStorage_\.publish\(/)
-  assert.match(nativeSource, /status\.bytesUsed = ringStorage\.bytesUsed\(\)/)
+  assert.match(nativeSource, /status\.bytesUsed = ringStorage\.enforceLimits\(/)
   assert.doesNotMatch(nativeSource, /status\.bytesUsed = directoryBytes/)
   assert.doesNotMatch(nativeSource, /pruneRing\(/)
   assert.match(nativeSource, /const LONGLONG audioRequestedStart = requestedDuration == LLONG_MAX\s*\? 0\s*:\s*requestedStart;/)

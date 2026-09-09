@@ -2152,17 +2152,14 @@ async function getBlackboxSetting({ waitForStorageSummary = true } = {}) {
   const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 5000
   const processRunning = Boolean(blackboxProcess && blackboxProcess.exitCode === null)
   const running = setting.enabled && processRunning && statusFresh && Boolean(status?.running)
-  const summaryPaths = processRunning
-    ? ringStoragePaths.filter(candidate => (
-        resolve(candidate).toLowerCase() !== resolve(ringStoragePath).toLowerCase()
-      ))
-    : ringStoragePaths
+  const summaryPaths = ringStoragePaths
   const summaryKey = summaryPaths
     .map(candidate => resolve(candidate).toLowerCase())
     .sort()
     .join("|")
   if (
-    (
+    !processRunning
+    && (
       !blackboxStorageSummary
       || blackboxStorageSummaryPath !== summaryKey
     )
@@ -2179,25 +2176,22 @@ async function getBlackboxSetting({ waitForStorageSummary = true } = {}) {
     }
   }
   const archivedStatus = (
-    blackboxStorageSummary
+    !processRunning
+    && blackboxStorageSummary
     && blackboxStorageSummaryPath === summaryKey
   ) ? blackboxStorageSummary : null
-  const fallbackStatus = processRunning
+  const fallbackStatus = processRunning && statusFresh
     ? status
     : blackboxLastKnownStorageSummary
-  const bytesUsed = archivedStatus
-    ? (
-        (Number(archivedStatus.bytesUsed) || 0)
-        + (processRunning ? (Number(status?.bytesUsed) || 0) : 0)
-      )
-    : (Number(fallbackStatus?.bytesUsed) || 0)
-  const durationSeconds = archivedStatus
-    ? (
-        (Number(archivedStatus.durationSeconds) || 0)
-        + (processRunning ? (Number(status?.durationSeconds) || 0) : 0)
-      )
-    : (Number(fallbackStatus?.durationSeconds) || 0)
-  if (archivedStatus || !blackboxLastKnownStorageSummary) {
+  const bytesUsed = Number(archivedStatus?.bytesUsed ?? fallbackStatus?.bytesUsed) || 0
+  const durationSeconds = (
+    Number(archivedStatus?.durationSeconds ?? fallbackStatus?.durationSeconds) || 0
+  )
+  if (
+    (processRunning && statusFresh)
+    || archivedStatus
+    || !blackboxLastKnownStorageSummary
+  ) {
     blackboxLastKnownStorageSummary = { bytesUsed, durationSeconds }
   }
   if (blackboxLatestClipOverride && !existsSync(blackboxLatestClipOverride)) {
@@ -2371,6 +2365,11 @@ async function launchBlackboxHelper(setting) {
   ])
   const normalized = normalizeBlackboxSetting(setting)
   const ringStoragePath = resolveBlackboxRingStoragePath(normalized, paths)
+  const ringStoragePaths = resolveBlackboxRingStoragePaths(
+    normalized,
+    await listBlackboxStorageDrives(),
+    paths,
+  )
   const clipStoragePath = resolveBlackboxClipStoragePath(normalized, paths)
   const resolvedQuality = resolveBlackboxQuality(normalized, {
     logicalCpuCount: cpus().length,
@@ -2378,12 +2377,16 @@ async function launchBlackboxHelper(setting) {
   })
   const affinityArgument = await getRecorderAffinityArgument()
   const runtimeSetting = { ...normalized, quality: resolvedQuality }
+  blackboxStorageSummaryGeneration += 1
+  blackboxStorageSummary = null
+  blackboxStorageSummaryPath = ""
   const child = spawn(recorderHelperPath, [
     `--status-path=${paths.statusPath}`,
     `--control-path=${paths.controlPath}`,
     `--metrics-path=${paths.metricsPath}`,
     `--storage-path=${paths.storagePath}`,
     `--ring-path=${ringStoragePath}`,
+    blackboxRingPathsArgument(ringStoragePaths),
     `--clips-path=${clipStoragePath}`,
     `--game-path=${activeMabinogiExecutablePath ?? ""}`,
     `--parent-pid=${process.pid}`,

@@ -44,6 +44,7 @@
 #include <optional>
 #include <queue>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -85,6 +86,7 @@ struct Options {
   fs::path metricsPath;
   fs::path storagePath;
   fs::path ringPath;
+  std::vector<fs::path> ringPaths;
   fs::path clipsPath;
   fs::path gamePath;
   std::wstring codec = L"h264";
@@ -489,6 +491,25 @@ int integerArgument(
   }
 }
 
+std::vector<fs::path> pathListArgument(
+  const std::map<std::wstring, std::wstring>& arguments,
+  const std::wstring& name
+) {
+  std::vector<fs::path> paths;
+  const auto iterator = arguments.find(name);
+  if (iterator == arguments.end()) return paths;
+  std::wstringstream stream(iterator->second);
+  std::wstring value;
+  std::set<std::wstring> seen;
+  while (std::getline(stream, value, L'|')) {
+    if (value.empty()) continue;
+    fs::path path = fs::path(value).lexically_normal();
+    const auto key = lower(path.wstring());
+    if (seen.insert(key).second) paths.push_back(std::move(path));
+  }
+  return paths;
+}
+
 Options optionsFromArguments(int count, wchar_t** values) {
   const auto arguments = parseArguments(count, values);
   Options options;
@@ -497,6 +518,7 @@ Options optionsFromArguments(int count, wchar_t** values) {
   if (arguments.count(L"metrics-path")) options.metricsPath = arguments.at(L"metrics-path");
   if (arguments.count(L"storage-path")) options.storagePath = arguments.at(L"storage-path");
   if (arguments.count(L"ring-path")) options.ringPath = arguments.at(L"ring-path");
+  options.ringPaths = pathListArgument(arguments, L"ring-paths");
   if (arguments.count(L"clips-path")) options.clipsPath = arguments.at(L"clips-path");
   if (arguments.count(L"game-path")) options.gamePath = arguments.at(L"game-path");
   if (arguments.count(L"codec") && lower(arguments.at(L"codec")) == L"hevc") {
@@ -528,6 +550,16 @@ Options optionsFromArguments(int count, wchar_t** values) {
     throw std::runtime_error("필수 실행 경로가 없습니다");
   }
   if (options.ringPath.empty()) options.ringPath = options.storagePath / L"Ring";
+  const auto activeRingKey = lower(options.ringPath.lexically_normal().wstring());
+  if (std::none_of(
+    options.ringPaths.begin(),
+    options.ringPaths.end(),
+    [&activeRingKey](const fs::path& path) {
+      return lower(path.lexically_normal().wstring()) == activeRingKey;
+    }
+  )) {
+    options.ringPaths.push_back(options.ringPath);
+  }
   if (options.clipsPath.empty()) options.clipsPath = options.storagePath / L"Clips";
   return options;
 }
@@ -743,7 +775,24 @@ double completedChunkDurationSeconds(const fs::path& path) {
 class RingStorageIndex {
 public:
   explicit RingStorageIndex(fs::path directory)
-    : directory_(std::move(directory)) {
+    : RingStorageIndex(directory, { directory }) {
+  }
+
+  RingStorageIndex(fs::path directory, std::vector<fs::path> directories)
+    : directory_(std::move(directory)),
+      directories_(std::move(directories)) {
+    const auto activeKey = lower(directory_.lexically_normal().wstring());
+    bool hasActiveDirectory = false;
+    std::set<std::wstring> seen;
+    std::vector<fs::path> uniqueDirectories;
+    for (auto& candidate : directories_) {
+      const auto key = lower(candidate.lexically_normal().wstring());
+      if (!seen.insert(key).second) continue;
+      if (key == activeKey) hasActiveDirectory = true;
+      uniqueDirectories.push_back(std::move(candidate));
+    }
+    if (!hasActiveDirectory) uniqueDirectories.push_back(directory_);
+    directories_ = std::move(uniqueDirectories);
     refresh();
   }
 
@@ -770,44 +819,26 @@ public:
     const auto started = chunkStartedMilliseconds(path);
     const auto duration = completedChunkDurationSeconds(path);
     chunks_.push_back({ path, size, started, duration });
-    std::uint64_t total = bytesUsed_.load() + size;
-    double totalDuration = durationSeconds_.load() + duration;
-    std::error_code spaceError;
-    auto space = fs::space(directory_, spaceError);
-    const auto reserve = Gigabyte;
-    while (
-      !chunks_.empty()
-      && (
-        total > capacityBytes
-        || (!spaceError && space.available < reserve)
-        || (
-          chunks_.size() > 1
-          && maxDurationMilliseconds > 0
-          && totalDuration * 1000.0 > maxDurationMilliseconds
-        )
-      )
-    ) {
-      auto entry = std::move(chunks_.front());
-      chunks_.pop_front();
-      std::error_code removeError;
-      if (fs::remove(entry.path, removeError)) {
-        total = total >= entry.size ? total - entry.size : 0;
-        totalDuration = std::max(0.0, totalDuration - entry.duration);
-        if (!spaceError) space.available += entry.size;
-      } else {
-        refreshLocked();
-        return bytesUsed_.load();
-      }
-    }
-    bytesUsed_ = total;
-    durationSeconds_ = totalDuration;
-    saveLocked();
-    return total;
+    std::sort(chunks_.begin(), chunks_.end(), [](const Entry& left, const Entry& right) {
+      if (left.started != right.started) return left.started < right.started;
+      return left.path.wstring() < right.path.wstring();
+    });
+    bytesUsed_ = bytesUsed_.load() + size;
+    durationSeconds_ = durationSeconds_.load() + duration;
+    return pruneLocked(capacityBytes, maxDurationMilliseconds);
+  }
+
+  std::uint64_t enforceLimits(
+    std::uint64_t capacityBytes,
+    std::int64_t maxDurationMilliseconds
+  ) {
+    std::lock_guard lock(mutex_);
+    return pruneLocked(capacityBytes, maxDurationMilliseconds);
   }
 
   std::uint64_t clear() {
     std::lock_guard lock(mutex_);
-    clearRingDirectory(directory_);
+    for (const auto& directory : directories_) clearRingDirectory(directory);
     refreshLocked();
     return bytesUsed_.load();
   }
@@ -820,41 +851,108 @@ private:
     double duration = 0;
   };
 
-  std::unordered_map<std::string, Entry> loadCacheLocked() const {
+  std::uint64_t pruneLocked(
+    std::uint64_t capacityBytes,
+    std::int64_t maxDurationMilliseconds
+  ) {
+    std::uint64_t total = bytesUsed_.load();
+    double totalDuration = durationSeconds_.load();
+    std::error_code spaceError;
+    auto space = fs::space(directory_, spaceError);
+    const auto reserve = Gigabyte;
+    const auto activeDirectoryKey = lower(directory_.lexically_normal().wstring());
+    const auto removeEntry = [&](std::deque<Entry>::iterator iterator) {
+      auto entry = std::move(*iterator);
+      std::error_code removeError;
+      if (!fs::remove(entry.path, removeError)) return false;
+      chunks_.erase(iterator);
+      total = total >= entry.size ? total - entry.size : 0;
+      totalDuration = std::max(0.0, totalDuration - entry.duration);
+      if (!spaceError) space = fs::space(directory_, spaceError);
+      return true;
+    };
+    while (
+      !chunks_.empty()
+      && (
+        total > capacityBytes
+        || (
+          chunks_.size() > 1
+          && maxDurationMilliseconds > 0
+          && totalDuration * 1000.0 > maxDurationMilliseconds
+        )
+      )
+    ) {
+      if (!removeEntry(chunks_.begin())) {
+        refreshLocked();
+        return bytesUsed_.load();
+      }
+    }
+    while (!spaceError && space.available < reserve) {
+      const auto activeEntry = std::find_if(
+        chunks_.begin(),
+        chunks_.end(),
+        [&activeDirectoryKey](const Entry& entry) {
+          return lower(entry.path.parent_path().lexically_normal().wstring())
+            == activeDirectoryKey;
+        }
+      );
+      if (activeEntry == chunks_.end()) break;
+      if (!removeEntry(activeEntry)) {
+        refreshLocked();
+        return bytesUsed_.load();
+      }
+    }
+    bytesUsed_ = total;
+    durationSeconds_ = totalDuration;
+    saveLocked();
+    return total;
+  }
+
+  std::unordered_map<std::string, Entry> loadCacheLocked(
+    const fs::path& directory
+  ) const {
     std::unordered_map<std::string, Entry> cached;
-    std::ifstream input(directory_ / ".nogirem-ring-index", std::ios::binary);
+    std::ifstream input(directory / ".nogirem-ring-index", std::ios::binary);
     std::string version;
     std::getline(input, version);
     if (version != "1") return cached;
     std::string fileName;
     Entry entry;
     while (input >> fileName >> entry.size >> entry.started >> entry.duration) {
-      entry.path = directory_ / fs::path(fileName);
+      entry.path = directory / fs::path(fileName);
       cached.emplace(fileName, entry);
     }
     return cached;
   }
 
   void saveLocked() const {
-    const auto cachePath = directory_ / ".nogirem-ring-index";
-    const auto temporaryPath = directory_ / ".nogirem-ring-index.tmp";
-    std::ofstream output(temporaryPath, std::ios::binary | std::ios::trunc);
-    if (!output) return;
-    output << "1\n" << std::setprecision(17);
-    for (const auto& entry : chunks_) {
-      output
-        << entry.path.filename().string() << ' '
-        << entry.size << ' '
-        << entry.started << ' '
-        << entry.duration << '\n';
+    for (const auto& directory : directories_) {
+      std::error_code existsError;
+      if (!fs::exists(directory, existsError)) continue;
+      const auto cachePath = directory / ".nogirem-ring-index";
+      const auto temporaryPath = directory / ".nogirem-ring-index.tmp";
+      std::ofstream output(temporaryPath, std::ios::binary | std::ios::trunc);
+      if (!output) continue;
+      output << "1\n" << std::setprecision(17);
+      const auto directoryKey = lower(directory.lexically_normal().wstring());
+      for (const auto& entry : chunks_) {
+        if (lower(entry.path.parent_path().lexically_normal().wstring()) != directoryKey) {
+          continue;
+        }
+        output
+          << entry.path.filename().string() << ' '
+          << entry.size << ' '
+          << entry.started << ' '
+          << entry.duration << '\n';
+      }
+      output.close();
+      if (!output) continue;
+      MoveFileExW(
+        temporaryPath.c_str(),
+        cachePath.c_str(),
+        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH
+      );
     }
-    output.close();
-    if (!output) return;
-    MoveFileExW(
-      temporaryPath.c_str(),
-      cachePath.c_str(),
-      MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH
-    );
   }
 
   void refresh() {
@@ -866,38 +964,45 @@ private:
     chunks_.clear();
     std::uint64_t total = 0;
     double totalDuration = 0;
-    const auto cached = loadCacheLocked();
-    for (const auto& path : completedChunks(directory_)) {
-      std::error_code error;
-      const auto size = fs::file_size(path, error);
-      if (error) continue;
-      const auto cachedEntry = cached.find(path.filename().string());
-      Entry entry;
-      if (
-        cachedEntry != cached.end()
-        && cachedEntry->second.size == size
-        && cachedEntry->second.duration > 0
-      ) {
-        entry = cachedEntry->second;
-        entry.path = path;
-      } else {
-        entry = {
-          path,
-          size,
-          chunkStartedMilliseconds(path),
-          completedChunkDurationSeconds(path)
-        };
+    for (const auto& directory : directories_) {
+      const auto cached = loadCacheLocked(directory);
+      for (const auto& path : completedChunks(directory)) {
+        std::error_code error;
+        const auto size = fs::file_size(path, error);
+        if (error) continue;
+        const auto cachedEntry = cached.find(path.filename().string());
+        Entry entry;
+        if (
+          cachedEntry != cached.end()
+          && cachedEntry->second.size == size
+          && cachedEntry->second.duration > 0
+        ) {
+          entry = cachedEntry->second;
+          entry.path = path;
+        } else {
+          entry = {
+            path,
+            size,
+            chunkStartedMilliseconds(path),
+            completedChunkDurationSeconds(path)
+          };
+        }
+        chunks_.push_back(entry);
+        total += size;
+        totalDuration += entry.duration;
       }
-      chunks_.push_back(entry);
-      total += size;
-      totalDuration += entry.duration;
     }
+    std::sort(chunks_.begin(), chunks_.end(), [](const Entry& left, const Entry& right) {
+      if (left.started != right.started) return left.started < right.started;
+      return left.path.wstring() < right.path.wstring();
+    });
     bytesUsed_ = total;
     durationSeconds_ = totalDuration;
     saveLocked();
   }
 
   fs::path directory_;
+  std::vector<fs::path> directories_;
   mutable std::mutex mutex_;
   std::deque<Entry> chunks_;
   std::atomic_uint64_t bytesUsed_ = 0;
@@ -3190,15 +3295,7 @@ std::int64_t wideInteger(
 std::vector<fs::path> utilityRingPaths(
   const std::map<std::wstring, std::wstring>& arguments
 ) {
-  std::vector<fs::path> paths;
-  const auto multiple = arguments.find(L"ring-paths");
-  if (multiple != arguments.end()) {
-    std::wstringstream stream(multiple->second);
-    std::wstring value;
-    while (std::getline(stream, value, L'|')) {
-      if (!value.empty()) paths.emplace_back(value);
-    }
-  }
+  auto paths = pathListArgument(arguments, L"ring-paths");
   if (paths.empty()) {
     const auto single = arguments.find(L"ring-path");
     if (single != arguments.end() && !single->second.empty()) {
@@ -3702,9 +3799,12 @@ int wmain(int count, wchar_t** values) {
     requireHardwareVideoEncoder(options.codec);
     fs::create_directories(options.ringPath);
     fs::create_directories(options.clipsPath);
-    removeIncompleteChunks(options.ringPath);
-    RingStorageIndex ringStorage(options.ringPath);
-    status.bytesUsed = ringStorage.bytesUsed();
+    for (const auto& ringPath : options.ringPaths) removeIncompleteChunks(ringPath);
+    RingStorageIndex ringStorage(options.ringPath, options.ringPaths);
+    status.bytesUsed = ringStorage.enforceLimits(
+      static_cast<std::uint64_t>(options.capacityGb) * Gigabyte,
+      static_cast<std::int64_t>(options.maxDurationSeconds) * 1000
+    );
     status.durationSeconds = ringStorage.durationSeconds();
 
     ComPtr<ID3D11Device> device;
