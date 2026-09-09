@@ -188,21 +188,12 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.doesNotMatch(managerSource, /class="status-grid"/)
   assert.doesNotMatch(managerSource, /class="audio-state"/)
   assert.doesNotMatch(managerSource, />전체 비우기</)
-  assert.match(managerSource, /class="clip-save-modal" hidden/)
-  assert.match(managerSource, /class="clip-save-error"[^>]*role="alert"/)
+  assert.doesNotMatch(managerSource, /class="clip-save-modal"/)
+  assert.doesNotMatch(managerSource, /class="clip-save-name"/)
   assert.match(managerSource, /class="clip-delete-modal" hidden/)
   assert.match(managerSource, /class="action save-clip clip-save-header"/)
-  assert.match(managerSource, /return `\$\{highest \+ 1\}번째 클립`/)
-  assert.match(managerSource, /clipSaveNameInput\.value\.trim\(\)[\s\S]*clipSaveModal\.dataset\.fallbackName/)
-  assert.match(managerSource, /window\.blackboxManager\.saveClip\(clipName\)/)
-  assert.match(
-    managerSource,
-    /catch \(error\) \{[\s\S]*clipSaveNameInput\.setAttribute\("aria-invalid", "true"\)[\s\S]*clipSaveError\.textContent = errorMessage\(error\)[\s\S]*clipSaveNameInput\.focus\(\)/,
-  )
-  assert.match(
-    managerSource,
-    /await window\.blackboxManager\.saveClip\(clipName\)[\s\S]*clipSaveModal\.hidden = true/,
-  )
+  assert.match(managerSource, /async function saveQuickClip\(\)/)
+  assert.match(managerSource, /window\.blackboxManager\.saveClip\(\)/)
   assert.match(managerSource, /\.settings \{[\s\S]*display: block/)
   assert.match(managerSource, /\.settings label \{[\s\S]*display: flex[\s\S]*border-bottom/)
   assert.doesNotMatch(managerSource, /class="action primary toggle-recording"/)
@@ -224,8 +215,8 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.doesNotMatch(managerSource, /<footer class="actions">/)
   assert.match(managerPreloadSource, /blackbox-manager:set-setting/)
   assert.match(managerPreloadSource, /chooseClipStorage/)
-  assert.match(managerPreloadSource, /saveClip: requestedName/)
-  assert.match(managerPreloadSource, /onSaveClipRequested/)
+  assert.match(managerPreloadSource, /saveClip: \(\) =>/)
+  assert.doesNotMatch(managerPreloadSource, /onSaveClipRequested/)
   assert.match(managerPreloadSource, /blackbox-manager:set-enabled/)
   assert.match(managerPreloadSource, /onEditorExtractProgress/)
   assert.match(managerPreloadSource, /blackbox-manager:clear-recording/)
@@ -277,18 +268,23 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   )
   assert.match(
     mainSource,
-    /await assertBlackboxClipNameAvailable\(requestedName\)[\s\S]*writeJsonAtomic\(getBlackboxPaths\(\)\.controlPath/,
+    /await suggestBlackboxClipName\(\)[\s\S]*await assertBlackboxClipNameAvailable\(automaticName\)[\s\S]*writeJsonAtomic\(getBlackboxPaths\(\)\.controlPath/,
   )
   assert.match(
     mainSource,
     /async function assertBlackboxClipNameAvailable\(requestedName\)[\s\S]*같은 이름의 클립이 이미 있습니다/,
   )
-  assert.match(mainSource, /function openBlackboxClipSaveDialog\(\)/)
+  assert.match(mainSource, /function requestBlackboxQuickClip\(\)/)
+  assert.match(mainSource, /function showBlackboxClipSavedOverlay\(\)/)
+  assert.match(
+    mainSource,
+    /showBlackboxClipSavedOverlay[\s\S]*setIgnoreMouseEvents\(true, \{ forward: true \}\)[\s\S]*setAlwaysOnTop\(true, "screen-saver", 1\)[\s\S]*클립이 저장되었습니다/,
+  )
   assert.match(
     mainSource,
     /blackbox-manager:set-setting[\s\S]*const current = normalizeBlackboxSetting\([\s\S]*\.\.\.current,[\s\S]*\.\.\.setting/,
   )
-  assert.match(mainSource, /blackbox-manager:request-save-clip/)
+  assert.doesNotMatch(mainSource, /blackbox-manager:request-save-clip/)
   assert.match(mainSource, /value\.latestClip !== previousStatus\?\.latestClip/)
   assert.match(mainSource, /120000/)
   assert.match(mainSource, /async function deleteBlackboxClip\(fileName\)/)
@@ -387,7 +383,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /registerBlackboxShortcut\(setting\.shortcut\)/)
   assert.match(mainSource, /nativeBlackboxShortcutVirtualKeys[\s\S]*\["Pause", 0x13\]/)
   assert.match(mainSource, /`--shortcut-vk=\$\{nativeBlackboxShortcutVirtualKeys\.get\(normalized\.shortcut\) \?\? 0\}`/)
-  assert.match(mainSource, /if \(line === "SHORTCUT"\) openBlackboxClipSaveDialog\(\)/)
+  assert.match(mainSource, /if \(line === "SHORTCUT"\) requestBlackboxQuickClip\(\)/)
   assert.match(mainSource, /shortcutAccelerator: setting\.shortcut/)
   assert.match(managerSource, /window\.blackboxManager\.editor/)
   assert.match(mainSource, /blackbox-manager:get-editor-session/)

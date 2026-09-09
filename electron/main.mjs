@@ -132,6 +132,8 @@ let blackboxManagerWindow = null
 let blackboxManagerPreferredSize = null
 let blackboxManagerActivePage = "extract"
 let blackboxClipSaveInProgress = false
+let blackboxClipNotificationWindow = null
+let blackboxClipNotificationTimer = null
 let blackboxEditorWindow = null
 let blackboxEditorSession = null
 let applicationTray = null
@@ -2383,27 +2385,88 @@ function registerBlackboxShortcut(shortcut) {
   if (!accelerator) return true
   if (nativeBlackboxShortcutVirtualKeys.has(accelerator)) return true
   const registered = globalShortcut.register(accelerator, () => {
-    openBlackboxClipSaveDialog()
+    requestBlackboxQuickClip()
   })
   if (registered) activeBlackboxShortcut = accelerator
   else console.error(`${accelerator} 블랙박스 단축키를 등록하지 못했습니다`)
   return registered
 }
 
-function openBlackboxClipSaveDialog() {
-  openBlackboxManager()
-  const window = blackboxManagerWindow
-  if (!window || window.isDestroyed()) return
-  const showDialog = () => {
-    if (!window.isDestroyed()) {
-      window.webContents.send("blackbox-manager:request-save-clip")
+function requestBlackboxQuickClip() {
+  void requestBlackboxClip().catch(error => {
+    console.error("빠른 클립 저장 실패", error)
+  })
+}
+
+function showBlackboxClipSavedOverlay() {
+  clearTimeout(blackboxClipNotificationTimer)
+  blackboxClipNotificationTimer = null
+  if (blackboxClipNotificationWindow && !blackboxClipNotificationWindow.isDestroyed()) {
+    blackboxClipNotificationWindow.destroy()
+  }
+
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const width = Math.min(480, display.workArea.width)
+  const height = 88
+  const window = new BrowserWindow({
+    x: display.workArea.x + display.workArea.width - width - 24,
+    y: display.workArea.y + 24,
+    width,
+    height,
+    show: false,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    focusable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    hasShadow: false,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  blackboxClipNotificationWindow = window
+  window.setIgnoreMouseEvents(true, { forward: true })
+  window.setAlwaysOnTop(true, "screen-saver", 1)
+  window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  window.once("closed", () => {
+    if (blackboxClipNotificationWindow === window) {
+      blackboxClipNotificationWindow = null
     }
-  }
-  if (window.webContents.isLoading()) {
-    window.webContents.once("did-finish-load", showDialog)
-  } else {
-    showDialog()
-  }
+  })
+
+  const document = `<!doctype html>
+<html lang="ko">
+<meta charset="UTF-8">
+<meta name="color-scheme" content="light">
+<style>
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
+body{display:flex;align-items:flex-start;justify-content:flex-end;padding-top:8px;font-family:"Nexon Lv2 Gothic","Malgun Gothic","Segoe UI",sans-serif}
+.notice{padding:15px 22px 14px;color:#171717;background:#ffd400;font-size:28px;font-weight:900;line-height:1.15;letter-spacing:-1.2px;white-space:nowrap;clip-path:polygon(0 0,0 0,0 100%,0 100%);animation:notice-in 300ms 80ms linear forwards,notice-out 300ms 2180ms linear forwards}
+@keyframes notice-in{to{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}}
+@keyframes notice-out{from{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}to{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%)}}
+</style>
+<body><div class="notice">클립이 저장되었습니다</div></body>
+</html>`
+  void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(document)}`)
+    .then(() => {
+      if (window.isDestroyed()) return
+      window.showInactive()
+      window.moveTop()
+      blackboxClipNotificationTimer = setTimeout(() => {
+        blackboxClipNotificationTimer = null
+        if (!window.isDestroyed()) window.destroy()
+      }, 2700)
+    })
+    .catch(error => {
+      console.error("클립 저장 알림 표시 실패", error)
+      if (!window.isDestroyed()) window.destroy()
+    })
 }
 
 async function waitForBlackboxStatus(predicate, timeoutMs = 5000) {
@@ -2519,7 +2582,7 @@ async function launchBlackboxHelper(setting) {
     const lines = shortcutOutput.split(/\r?\n/)
     shortcutOutput = lines.pop() ?? ""
     for (const line of lines) {
-      if (line === "SHORTCUT") openBlackboxClipSaveDialog()
+      if (line === "SHORTCUT") requestBlackboxQuickClip()
     }
   })
   child.stderr.setEncoding("utf8")
@@ -2715,9 +2778,10 @@ async function requestBlackboxClip(requestedName = "") {
       const state = await getBlackboxSetting()
       if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
       if (state.clipInProgress) throw new Error("이전 클립을 저장하고 있습니다")
-      const normalizedRequestedName = String(requestedName).trim()
-        ? await assertBlackboxClipNameAvailable(requestedName)
-        : ""
+      const automaticName = String(requestedName).trim()
+        || await suggestBlackboxClipName()
+      const normalizedRequestedName =
+        await assertBlackboxClipNameAvailable(automaticName)
       await logBlackboxEvent("clip-save-requested", {
         seconds: state.clipSeconds,
         requestedNameProvided: Boolean(normalizedRequestedName),
@@ -2754,24 +2818,24 @@ async function requestBlackboxClip(requestedName = "") {
       if (completed?.error) throw new Error(completed.error)
       if (!completed?.latestClip) throw new Error("클립 저장이 제한 시간 안에 완료되지 않았습니다")
       blackboxLatestClipOverride = completed.latestClip
-      if (normalizedRequestedName) {
-        const renamed = await renameBlackboxClip(
-          basename(completed.latestClip),
-          normalizedRequestedName,
-        )
-        const { clipStoragePath } = await getCurrentBlackboxStorageLocations()
-        blackboxLatestClipOverride = join(
-          clipStoragePath,
-          renamed.name,
-        )
-      }
+      const renamed = await renameBlackboxClip(
+        basename(completed.latestClip),
+        normalizedRequestedName,
+      )
+      const { clipStoragePath } = await getCurrentBlackboxStorageLocations()
+      blackboxLatestClipOverride = join(
+        clipStoragePath,
+        renamed.name,
+      )
       const outputInfo = await stat(blackboxLatestClipOverride).catch(() => null)
       await logBlackboxEvent("clip-save-completed", {
         elapsedMs: Date.now() - requestStartedAt,
         outputName: basename(blackboxLatestClipOverride),
         outputBytes: Number(outputInfo?.size) || 0,
       })
-      return getBlackboxSetting()
+      const result = await getBlackboxSetting()
+      showBlackboxClipSavedOverlay()
+      return result
     })
   } catch (error) {
     await logBlackboxEvent("clip-save-failed", {
@@ -4914,11 +4978,11 @@ function registerIpc() {
       ...setting,
     })
   })
-  ipcMain.handle("blackbox-manager:save-clip", (event, requestedName) => {
+  ipcMain.handle("blackbox-manager:save-clip", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
       throw new Error("허용되지 않은 블랙박스 클립 요청입니다")
     }
-    return requestBlackboxClip(requestedName)
+    return requestBlackboxClip()
   })
   ipcMain.handle("blackbox-manager:clear-recording", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {

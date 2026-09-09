@@ -407,7 +407,6 @@
         cursor: default;
       }
 
-      .clip-save-modal,
       .clip-delete-modal {
         position: fixed;
         z-index: 30;
@@ -418,12 +417,10 @@
         backdrop-filter: blur(2px);
       }
 
-      .clip-save-modal[hidden],
       .clip-delete-modal[hidden] {
         display: none;
       }
 
-      .clip-save-dialog,
       .clip-delete-dialog {
         display: grid;
         width: min(380px, calc(100vw - 40px));
@@ -435,18 +432,10 @@
         box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
       }
 
-      .clip-save-dialog h2,
       .clip-delete-dialog h2 {
         margin: 0;
         color: #edf0f1;
         font-size: 17px;
-      }
-
-      .clip-save-dialog label {
-        display: grid;
-        gap: 7px;
-        color: #b7bec1;
-        font-size: 11px;
       }
 
       .clip-delete-description {
@@ -455,30 +444,6 @@
         font-size: 11px;
         line-height: 1.5;
         overflow-wrap: anywhere;
-      }
-
-      .clip-save-name {
-        height: 34px;
-        padding: 0 10px;
-        border: 1px solid #41484c;
-        border-radius: 6px;
-        color: #eef1f2;
-        background: #222629;
-      }
-
-      .clip-save-error {
-        margin: 0;
-        color: #9ca5a9;
-        font-size: 10px;
-        line-height: 1.4;
-      }
-
-      .clip-save-error.error {
-        color: #ef847b;
-      }
-
-      .clip-save-error:empty {
-        display: none;
       }
 
       .clip-save-actions {
@@ -943,20 +908,6 @@
         </div>
       </section>
     </main>
-    <div class="clip-save-modal" hidden>
-      <form class="clip-save-dialog">
-        <h2>최근 클립 저장</h2>
-        <label>
-          <span>클립 이름</span>
-          <input class="clip-save-name" type="text" maxlength="120" aria-describedby="clip-save-error" />
-          <p class="clip-save-error" id="clip-save-error" role="alert"></p>
-        </label>
-        <div class="clip-save-actions">
-          <button class="action clip-save-cancel" type="button">취소</button>
-          <button class="action primary clip-save-confirm" type="submit">저장</button>
-        </div>
-      </form>
-    </div>
     <div class="clip-delete-modal" hidden>
       <form class="clip-delete-dialog">
         <h2>저장된 클립 삭제</h2>
@@ -996,12 +947,6 @@
       const clipCount = document.querySelector(".clip-count")
       const clipVideo = document.querySelector(".saved-clip-video")
       const clipEmpty = document.querySelector(".clip-empty")
-      const clipSaveModal = document.querySelector(".clip-save-modal")
-      const clipSaveDialog = document.querySelector(".clip-save-dialog")
-      const clipSaveNameInput = document.querySelector(".clip-save-name")
-      const clipSaveError = document.querySelector(".clip-save-error")
-      const clipSaveCancelButton = document.querySelector(".clip-save-cancel")
-      const clipSaveConfirmButton = document.querySelector(".clip-save-confirm")
       const clipDeleteModal = document.querySelector(".clip-delete-modal")
       const clipDeleteDialog = document.querySelector(".clip-delete-dialog")
       const clipDeleteDescription = document.querySelector(".clip-delete-description")
@@ -1047,32 +992,29 @@
           ?? String(error)
       }
 
-      function nextClipPlaceholder() {
-        let highest = 0
-        for (const clip of availableClips) {
-          const match = /^(\d+)번째 클립\.mp4$/i.exec(clip.name)
-          if (match) highest = Math.max(highest, Number(match[1]))
-        }
-        return `${highest + 1}번째 클립`
-      }
-
-      async function openClipSaveModal() {
+      async function saveQuickClip() {
+        if (clipSavePending || editorExtractPending || busy) return
         if (!status) await refreshStatus(true)
-        await refreshClips()
-        const placeholder = nextClipPlaceholder()
-        clipSaveNameInput.value = ""
-        clipSaveNameInput.placeholder = placeholder
-        clipSaveNameInput.removeAttribute("aria-invalid")
-        clipSaveError.classList.remove("error")
-        clipSaveError.textContent = ""
-        clipSaveModal.dataset.fallbackName = placeholder
-        clipSaveModal.hidden = false
-        clipSaveNameInput.focus()
-      }
-
-      function closeClipSaveModal() {
-        if (busy) return
-        clipSaveModal.hidden = true
+        if (!status?.recording) return
+        clipSavePending = true
+        saveClipButton.disabled = true
+        saveClipButton.textContent = "저장 중…"
+        closeButton.disabled = true
+        setBusy(true, `최근 약 ${status.clipSeconds}초 클립을 저장하고 있습니다`, clipMessage)
+        try {
+          const result = await window.blackboxManager.saveClip()
+          if (result && typeof result === "object" && "enabled" in result) render(result)
+          clipMessage.classList.remove("error")
+          clipMessage.textContent = "최근 클립을 저장했습니다"
+          await refreshClips()
+        } catch (error) {
+          clipMessage.classList.add("error")
+          clipMessage.textContent = errorMessage(error)
+        } finally {
+          clipSavePending = false
+          setBusy(false, "", clipMessage)
+          void refreshStatus(true)
+        }
       }
 
       function openClipDeleteModal(clip) {
@@ -1617,11 +1559,6 @@
           closeClipDeleteModal()
           return
         }
-        if (event.code === "Escape" && !clipSaveModal.hidden) {
-          event.preventDefault()
-          closeClipSaveModal()
-          return
-        }
         const editorCommand = {
           ArrowLeft: "seek-backward",
           ArrowRight: "seek-forward",
@@ -1775,10 +1712,6 @@
           closeClipDeleteModal()
           return
         }
-        if (!clipSaveModal.hidden) {
-          closeClipSaveModal()
-          return
-        }
         void window.blackboxManager.requestClose()
       })
 
@@ -1801,16 +1734,7 @@
       })
 
       saveClipButton.addEventListener("click", () => {
-        void openClipSaveModal()
-      })
-      clipSaveCancelButton.addEventListener("click", closeClipSaveModal)
-      clipSaveNameInput.addEventListener("input", () => {
-        clipSaveNameInput.removeAttribute("aria-invalid")
-        clipSaveError.classList.remove("error")
-        clipSaveError.textContent = ""
-      })
-      clipSaveModal.addEventListener("pointerdown", event => {
-        if (!clipSaveDialog.contains(event.target)) closeClipSaveModal()
+        void saveQuickClip()
       })
       clipDeleteCancelButton.addEventListener("click", closeClipDeleteModal)
       clipDeleteModal.addEventListener("pointerdown", event => {
@@ -1823,47 +1747,12 @@
         clipDeleteModal.hidden = true
         if (clip) void removeClip(clip)
       })
-      clipSaveDialog.addEventListener("submit", async event => {
-        event.preventDefault()
-        const clipName = clipSaveNameInput.value.trim()
-          || clipSaveModal.dataset.fallbackName
-        clipSaveNameInput.removeAttribute("aria-invalid")
-        clipSaveError.classList.remove("error")
-        clipSavePending = true
-        setBusy(true, `최근 약 ${status.clipSeconds}초 클립을 저장하고 있습니다`, clipSaveError)
-        clipSaveNameInput.disabled = true
-        clipSaveConfirmButton.disabled = true
-        try {
-          const result = await window.blackboxManager.saveClip(clipName)
-          if (result && typeof result === "object" && "enabled" in result) render(result)
-          clipSaveModal.hidden = true
-          clipMessage.classList.remove("error")
-          clipMessage.textContent = "최근 클립을 저장했습니다"
-          await refreshClips()
-        } catch (error) {
-          clipSaveNameInput.setAttribute("aria-invalid", "true")
-          clipSaveError.classList.add("error")
-          clipSaveError.textContent = errorMessage(error)
-          clipSaveNameInput.focus()
-          clipSaveNameInput.select()
-        } finally {
-          clipSaveNameInput.disabled = false
-          clipSaveConfirmButton.disabled = false
-          clipSavePending = false
-          setBusy(false, "", clipSaveError)
-          void refreshStatus(true)
-        }
-      })
-
       closeButton.addEventListener("click", () => {
         if (clipSavePending || editorExtractPending || status?.clipInProgress) return
         closeButton.disabled = true
         void window.blackboxManager.requestClose()
       })
 
-      window.blackboxManager.onSaveClipRequested(() => {
-        void openClipSaveModal()
-      })
       void refreshStatus()
       window.setInterval(() => {
         if (!busy) void refreshStatus(true)
