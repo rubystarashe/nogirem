@@ -115,7 +115,6 @@ const bugReportFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSfx6-QVqsxgUD
 const startupTrayTaskName = "Mabinogi Rem Booster Startup"
 const startupTrayLaunch = process.argv.includes("--startup-tray")
 const applicationUpdateStallTimeoutMs = 45_000
-const forceApplicationUpdateNoticePreview = true
 const primaryRendererUnresponsiveTimeoutMs = 5_000
 const primaryWindowRevealTimeoutMs = 8_000
 const trayMenuCloseDelayMs = 75
@@ -6650,19 +6649,7 @@ async function startApplication() {
       .catch(error => console.error("주변 캐릭터 간소화 파일 설치 실패", error))
     writeStartupLog("백그라운드 초기화 완료")
   })()
-  if (forceApplicationUpdateNoticePreview) {
-    applicationUpdateStartupTimer = setTimeout(() => {
-      applicationUpdateStartupTimer = null
-      const version = "0.3.4"
-      setApplicationUpdateState({
-        phase: "available",
-        percent: 0,
-        version,
-        error: null,
-      })
-      showApplicationUpdateNotification(version)
-    }, 1200)
-  } else if (app.isPackaged) {
+  if (app.isPackaged) {
     applicationUpdateStartupTimer = setTimeout(() => {
       applicationUpdateStartupTimer = null
       void requestApplicationUpdate()

@@ -106,12 +106,9 @@ test("주기 확인은 알림만 표시하고 시작 확인과 사용자 클릭�
   )
 })
 
-test("임시 업데이트 안내 테스트는 앱 시작 직후 활성화된다", () => {
-  assert.match(electronMain, /const forceApplicationUpdateNoticePreview = true/)
-  assert.match(
-    electronMain,
-    /if \(forceApplicationUpdateNoticePreview\)[\s\S]*version = "0\.3\.4"[\s\S]*showApplicationUpdateNotification\(version\)[\s\S]*1200/,
-  )
+test("배포 빌드는 임시 업데이트 안내 테스트를 포함하지 않는다", () => {
+  assert.doesNotMatch(electronMain, /forceApplicationUpdateNoticePreview/)
+  assert.doesNotMatch(electronMain, /version = "0\.3\.4"/)
 })
 
 test("렌더러 종료와 장기 무응답 상태를 자동 복구한다", () => {
