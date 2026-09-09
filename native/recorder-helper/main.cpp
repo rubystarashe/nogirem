@@ -2,12 +2,15 @@
 #include <avrt.h>
 #include <audioclient.h>
 #include <audioclientactivationparams.h>
+#include <codecapi.h>
 #include <comdef.h>
 #include <d3d10_1.h>
 #include <d3d11.h>
 #include <dxgi1_2.h>
 #include <dxgi1_4.h>
+#include <icodecapi.h>
 #include <mfapi.h>
+#include <mferror.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
 #include <mmdeviceapi.h>
@@ -1126,6 +1129,32 @@ private:
   > inputViews_;
 };
 
+bool forceNextSinkWriterKeyFrame(IMFSinkWriter* writer, DWORD streamIndex) {
+  ComPtr<IMFSinkWriterEx> extendedWriter;
+  if (FAILED(writer->QueryInterface(IID_PPV_ARGS(&extendedWriter)))) return false;
+  for (DWORD transformIndex = 0; ; ++transformIndex) {
+    GUID category{};
+    ComPtr<IMFTransform> transform;
+    const auto transformResult = extendedWriter->GetTransformForStream(
+      streamIndex,
+      transformIndex,
+      &category,
+      &transform
+    );
+    if (FAILED(transformResult)) break;
+    ComPtr<ICodecAPI> codec;
+    if (FAILED(transform.As(&codec))) continue;
+    VARIANT value;
+    VariantInit(&value);
+    value.vt = VT_UI4;
+    value.ulVal = 1;
+    const auto result = codec->SetValue(&CODECAPI_AVEncVideoForceKeyFrame, &value);
+    VariantClear(&value);
+    if (SUCCEEDED(result)) return true;
+  }
+  return false;
+}
+
 class Mp4Writer {
 public:
   Mp4Writer(
@@ -1262,7 +1291,12 @@ public:
     check_hresult(sample->AddBuffer(buffer.Get()));
     check_hresult(sample->SetSampleTime(timestamp));
     check_hresult(sample->SetSampleDuration(10000000ll / fps_));
+    if (!wroteVideoSample_) {
+      forceNextSinkWriterKeyFrame(writer_.Get(), streamIndex_);
+      check_hresult(sample->SetUINT32(MFSampleExtension_CleanPoint, TRUE));
+    }
     checkStage(writer_->WriteSample(streamIndex_, sample.Get()), L"하드웨어 인코더 프레임 기록");
+    wroteVideoSample_ = true;
   }
 
   void writeAudio(
@@ -1317,6 +1351,7 @@ private:
   DWORD streamIndex_ = 0;
   DWORD audioStreamIndex_ = 0;
   ComPtr<IMFSinkWriter> writer_;
+  bool wroteVideoSample_ = false;
 };
 
 ComPtr<IMFSourceReader> createCompressedVideoReader(const fs::path& path) {
@@ -1334,6 +1369,42 @@ ComPtr<IMFSourceReader> createCompressedVideoReader(const fs::path& path) {
     TRUE
   ));
   return reader;
+}
+
+ComPtr<IMFSourceReader> createNv12VideoReader(const fs::path& path) {
+  ComPtr<IMFAttributes> attributes;
+  check_hresult(MFCreateAttributes(&attributes, 1));
+  check_hresult(attributes->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, TRUE));
+  ComPtr<IMFSourceReader> reader;
+  check_hresult(MFCreateSourceReaderFromURL(path.c_str(), attributes.Get(), &reader));
+  check_hresult(reader->SetStreamSelection(
+    static_cast<DWORD>(MF_SOURCE_READER_ALL_STREAMS),
+    FALSE
+  ));
+  check_hresult(reader->SetStreamSelection(
+    static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+    TRUE
+  ));
+  ComPtr<IMFMediaType> outputType;
+  check_hresult(MFCreateMediaType(&outputType));
+  check_hresult(outputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video));
+  check_hresult(outputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_NV12));
+  check_hresult(reader->SetCurrentMediaType(
+    static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+    nullptr,
+    outputType.Get()
+  ));
+  return reader;
+}
+
+void seekSourceReader(IMFSourceReader* reader, LONGLONG timestamp) {
+  if (timestamp <= 0) return;
+  PROPVARIANT position;
+  PropVariantInit(&position);
+  check_hresult(InitPropVariantFromInt64(timestamp, &position));
+  const auto result = reader->SetCurrentPosition(GUID_NULL, position);
+  PropVariantClear(&position);
+  check_hresult(result);
 }
 
 ComPtr<IMFSourceReader> createCompressedAudioReader(const fs::path& path) {
@@ -1538,11 +1609,14 @@ LONGLONG fallbackSampleDuration(const MediaSignature& signature) {
   );
 }
 
-void checkReaderFlags(DWORD flags) {
+void checkReaderFlags(DWORD flags, bool allowMediaTypeChange = false) {
   if (flags & MF_SOURCE_READERF_ERROR) {
     throw std::runtime_error("압축 영상 sample을 읽지 못했습니다");
   }
-  if (flags & MF_SOURCE_READERF_CURRENTMEDIATYPECHANGED) {
+  if (
+    !allowMediaTypeChange
+    && flags & MF_SOURCE_READERF_CURRENTMEDIATYPECHANGED
+  ) {
     throw std::runtime_error("편집 중 영상 형식이 변경되었습니다");
   }
 }
@@ -1863,7 +1937,10 @@ bool remuxChunks(
         signature.audioSampleRate > 0
           ? 1024ll * 10000000ll / signature.audioSampleRate
           : 1024ll * 10000000ll / AudioSampleRate;
-      LONGLONG fileAudioTime = 0;
+      LONGLONG fileAudioTime = std::max<LONGLONG>(
+        0,
+        requestedStart - fileStart
+      );
       while (true) {
         DWORD actualStream = 0;
         DWORD flags = 0;
@@ -1932,6 +2009,223 @@ bool remuxChunks(
   return true;
 }
 
+bool transcodeChunksExact(
+  const std::vector<fs::path>& inputs,
+  const fs::path& output,
+  LONGLONG requestedStart,
+  LONGLONG requestedDuration
+) {
+  if (inputs.empty() || requestedDuration <= 0) return false;
+  const auto signature = mediaSignature(inputs.front());
+  for (const auto& input : inputs) {
+    if (!sameMediaFormat(signature, mediaSignature(input))) {
+      throw std::runtime_error("해상도 또는 인코딩 형식이 다른 청크는 결합할 수 없습니다");
+    }
+  }
+
+  ComPtr<IMFAttributes> sinkAttributes;
+  check_hresult(MFCreateAttributes(&sinkAttributes, 2));
+  check_hresult(sinkAttributes->SetUINT32(
+    MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS,
+    TRUE
+  ));
+  check_hresult(sinkAttributes->SetUINT32(
+    MF_SINK_WRITER_DISABLE_THROTTLING,
+    TRUE
+  ));
+  ComPtr<IMFSinkWriter> sink;
+  check_hresult(MFCreateSinkWriterFromURL(
+    output.c_str(),
+    nullptr,
+    sinkAttributes.Get(),
+    &sink
+  ));
+
+  ComPtr<IMFMediaType> videoOutputType;
+  check_hresult(MFCreateMediaType(&videoOutputType));
+  check_hresult(videoOutputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video));
+  check_hresult(videoOutputType->SetGUID(MF_MT_SUBTYPE, signature.subtype));
+  check_hresult(videoOutputType->SetUINT32(
+    MF_MT_AVG_BITRATE,
+    signature.averageBitrate
+  ));
+  check_hresult(videoOutputType->SetUINT32(
+    MF_MT_INTERLACE_MODE,
+    MFVideoInterlace_Progressive
+  ));
+  check_hresult(MFSetAttributeSize(
+    videoOutputType.Get(),
+    MF_MT_FRAME_SIZE,
+    signature.width,
+    signature.height
+  ));
+  check_hresult(MFSetAttributeRatio(
+    videoOutputType.Get(),
+    MF_MT_FRAME_RATE,
+    signature.frameRateNumerator,
+    signature.frameRateDenominator
+  ));
+  check_hresult(MFSetAttributeRatio(
+    videoOutputType.Get(),
+    MF_MT_PIXEL_ASPECT_RATIO,
+    1,
+    1
+  ));
+  DWORD videoStream = 0;
+  check_hresult(sink->AddStream(videoOutputType.Get(), &videoStream));
+
+  auto firstVideoReader = createNv12VideoReader(inputs.front());
+  ComPtr<IMFMediaType> videoInputType;
+  check_hresult(firstVideoReader->GetCurrentMediaType(
+    static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+    &videoInputType
+  ));
+  check_hresult(sink->SetInputMediaType(
+    videoStream,
+    videoInputType.Get(),
+    nullptr
+  ));
+
+  std::optional<DWORD> audioStream;
+  if (signature.hasAudio) {
+    DWORD stream = 0;
+    const auto audioOutputType = createAacAudioType();
+    check_hresult(sink->AddStream(audioOutputType.Get(), &stream));
+    const auto audioInputType = createPcmAudioType();
+    check_hresult(sink->SetInputMediaType(
+      stream,
+      audioInputType.Get(),
+      nullptr
+    ));
+    audioStream = stream;
+  }
+  check_hresult(sink->BeginWriting());
+
+  const auto requestedEnd = requestedStart + requestedDuration;
+  LONGLONG inputOffset = 0;
+  LONGLONG audioOutputTime = 0;
+  bool wroteVideo = false;
+  for (const auto& input : inputs) {
+    const auto fileDuration = compressedMediaDuration(input);
+    const auto fileStart = inputOffset;
+    inputOffset += fileDuration;
+    if (inputOffset <= requestedStart) continue;
+    if (fileStart >= requestedEnd) break;
+
+    auto videoReader = createNv12VideoReader(input);
+    seekSourceReader(
+      videoReader.Get(),
+      std::max<LONGLONG>(0, requestedStart - fileStart)
+    );
+    const auto defaultDuration = fallbackSampleDuration(signature);
+    while (true) {
+      DWORD actualStream = 0;
+      DWORD flags = 0;
+      LONGLONG timestamp = 0;
+      ComPtr<IMFSample> sample;
+      check_hresult(videoReader->ReadSample(
+        static_cast<DWORD>(MF_SOURCE_READER_FIRST_VIDEO_STREAM),
+        0,
+        &actualStream,
+        &flags,
+        &timestamp,
+        &sample
+      ));
+      checkReaderFlags(flags, true);
+      if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+      if (!sample) continue;
+      LONGLONG duration = 0;
+      if (FAILED(sample->GetSampleDuration(&duration)) || duration <= 0) {
+        duration = defaultDuration;
+      }
+      const auto globalTime = fileStart + std::max<LONGLONG>(0, timestamp);
+      if (globalTime + duration <= requestedStart) continue;
+      if (globalTime >= requestedEnd) break;
+      const auto outputTime = std::max<LONGLONG>(0, globalTime - requestedStart);
+      const auto outputDuration = std::min(duration, requestedDuration - outputTime);
+      if (outputDuration <= 0) break;
+      check_hresult(sample->SetSampleTime(outputTime));
+      check_hresult(sample->SetSampleDuration(outputDuration));
+      sample->DeleteItem(MFSampleExtension_DecodeTimestamp);
+      if (!wroteVideo) {
+        forceNextSinkWriterKeyFrame(sink.Get(), videoStream);
+        check_hresult(sample->SetUINT32(MFSampleExtension_CleanPoint, TRUE));
+      }
+      check_hresult(sink->WriteSample(videoStream, sample.Get()));
+      wroteVideo = true;
+    }
+
+    if (audioStream) {
+      auto audioReader = createPcmAudioReader(input);
+      if (audioReader) {
+        seekSourceReader(
+          audioReader.Get(),
+          std::max<LONGLONG>(0, requestedStart - fileStart)
+        );
+      }
+      const LONGLONG defaultAudioDuration =
+        signature.audioSampleRate > 0
+          ? 1024ll * 10000000ll / signature.audioSampleRate
+          : 1024ll * 10000000ll / AudioSampleRate;
+      LONGLONG fileAudioTime = 0;
+      while (audioReader) {
+        DWORD actualStream = 0;
+        DWORD flags = 0;
+        LONGLONG timestamp = 0;
+        ComPtr<IMFSample> sample;
+        check_hresult(audioReader->ReadSample(
+          static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
+          0,
+          &actualStream,
+          &flags,
+          &timestamp,
+          &sample
+        ));
+        checkReaderFlags(flags);
+        if (flags & MF_SOURCE_READERF_ENDOFSTREAM) break;
+        if (!sample) continue;
+        LONGLONG duration = 0;
+        if (FAILED(sample->GetSampleDuration(&duration)) || duration <= 0) {
+          duration = defaultAudioDuration;
+        }
+        LONGLONG relativeTime = timestamp;
+        if (
+          relativeTime < 0
+          || relativeTime + 2500000ll < fileAudioTime
+          || relativeTime > fileAudioTime + 2500000ll
+        ) {
+          relativeTime = fileAudioTime;
+        }
+        fileAudioTime = std::max(fileAudioTime, relativeTime + duration);
+        const auto globalTime = fileStart + relativeTime;
+        if (globalTime + duration <= requestedStart) continue;
+        if (globalTime >= requestedEnd) break;
+        const auto availableDuration = requestedEnd - globalTime;
+        sample = retimePcmSample(
+          sample.Get(),
+          1.0,
+          duration,
+          availableDuration
+        );
+        if (!sample) break;
+        const auto mappedTime = std::max<LONGLONG>(
+          0,
+          globalTime - requestedStart
+        );
+        const auto sampleTime = std::max(audioOutputTime, mappedTime);
+        check_hresult(sample->SetSampleTime(sampleTime));
+        check_hresult(sample->SetSampleDuration(duration));
+        sample->DeleteItem(MFSampleExtension_DecodeTimestamp);
+        check_hresult(sink->WriteSample(*audioStream, sample.Get()));
+        audioOutputTime = sampleTime + duration;
+      }
+    }
+  }
+  if (!wroteVideo) return false;
+  check_hresult(sink->Finalize());
+  return true;
+}
+
 bool remuxChunksAtomically(
   const std::vector<fs::path>& inputs,
   const fs::path& output,
@@ -1954,6 +2248,32 @@ bool remuxChunksAtomically(
       allowFormatChanges,
       playbackRate,
       onProgress
+    )) return false;
+    fs::remove(output, cleanupError);
+    fs::rename(partial, output);
+    return true;
+  } catch (...) {
+    fs::remove(partial, cleanupError);
+    throw;
+  }
+}
+
+bool transcodeChunksExactAtomically(
+  const std::vector<fs::path>& inputs,
+  const fs::path& output,
+  LONGLONG requestedStart,
+  LONGLONG requestedDuration
+) {
+  auto partial = output;
+  partial += L".partial.mp4";
+  std::error_code cleanupError;
+  fs::remove(partial, cleanupError);
+  try {
+    if (!transcodeChunksExact(
+      inputs,
+      partial,
+      requestedStart,
+      requestedDuration
     )) return false;
     fs::remove(output, cleanupError);
     fs::rename(partial, output);
@@ -2224,20 +2544,15 @@ void createClip(
       }
       const auto output = clipsDirectory / (L"마비노기-클립-" + identifier + L".mp4");
       const auto totalDuration = combinedMediaDuration(protectedFiles);
-      const auto requestedTailDuration = std::min<LONGLONG>(
+      const auto requestedDuration = std::min<LONGLONG>(
         totalDuration,
         static_cast<LONGLONG>(seconds) * 10000000ll
       );
-      const auto requestedTailStart = std::max<LONGLONG>(
+      const auto requestedStart = std::max<LONGLONG>(
         0,
-        totalDuration - requestedTailDuration
+        totalDuration - requestedDuration
       );
-      const auto requestedStart = findCleanRangeStart(
-        protectedFiles,
-        requestedTailStart
-      );
-      const auto requestedDuration = totalDuration - requestedStart;
-      if (!remuxChunksAtomically(
+      if (!transcodeChunksExactAtomically(
         protectedFiles,
         output,
         requestedStart,
@@ -3710,7 +4025,7 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
         21600000
       );
       fs::create_directories(outputPath.parent_path());
-      if (!remuxChunksAtomically(
+      if (!transcodeChunksExactAtomically(
         { inputPath },
         outputPath,
         startMilliseconds * 10000,
