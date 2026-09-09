@@ -33,13 +33,14 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetForegroundWindow, GetWindowThreadProcessId, HC_ACTION,
     KBDLLHOOKSTRUCT, LLKHF_EXTENDED, LLKHF_INJECTED, MSG, MWMO_INPUTAVAILABLE,
-    MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT, SPI_GETKEYBOARDDELAY,
-    SetWindowsHookExW, SystemParametersInfoW, TranslateMessage, UnhookWindowsHookEx,
-    WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT, SetWindowsHookExW,
+    TranslateMessage, UnhookWindowsHookEx, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT,
+    WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 const DEFAULT_REPEAT_INTERVAL_MS: u64 = 1;
 const REPEAT_INTERVAL_OPTIONS_MS: [u64; 6] = [1, 3, 5, 10, 20, 30];
+const INITIAL_REPEAT_DELAY_MS: u64 = 250;
 const INJECTION_MARKER: usize = 0x4e4f_4749_5245_4d54;
 const SYNCHRONIZE_ACCESS: u32 = 0x0010_0000;
 const HEALTH_CHECK_INTERVAL_MS: u32 = 250;
@@ -204,22 +205,6 @@ fn next_repeat_deadline(previous: Instant, now: Instant, repeat_interval: Durati
     } else {
         now + repeat_interval
     }
-}
-
-fn keyboard_repeat_delay() -> Duration {
-    let mut value = 1u32;
-    let result = unsafe {
-        SystemParametersInfoW(
-            SPI_GETKEYBOARDDELAY,
-            0,
-            &mut value as *mut u32 as *mut c_void,
-            0,
-        )
-    };
-    if result == 0 {
-        return Duration::from_millis(500);
-    }
-    Duration::from_millis((u64::from(value.min(3)) + 1) * 250)
 }
 
 fn parse_affinity_mask(value: &str) -> Result<usize, String> {
@@ -424,7 +409,11 @@ fn press_key(shared: &SharedState, key: KeySpec) -> bool {
         shared.changed.notify_all();
         return false;
     }
-    activate_key(&mut state, key, Instant::now() + keyboard_repeat_delay());
+    activate_key(
+        &mut state,
+        key,
+        Instant::now() + Duration::from_millis(INITIAL_REPEAT_DELAY_MS),
+    );
     shared.changed.notify_all();
     false
 }

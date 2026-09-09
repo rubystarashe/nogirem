@@ -139,6 +139,8 @@ test("터보 키 helper는 정밀 타이머와 우선 스케줄링을 사용한�
   assert.match(helperSource, /is_process_foreground\(foreground_pid\)/)
   assert.match(helperSource, /MsgWaitForMultipleObjectsEx/)
   assert.match(helperSource, /HEALTH_CHECK_INTERVAL_MS: u32 = 250/)
+  assert.match(helperSource, /INITIAL_REPEAT_DELAY_MS: u64 = 250/)
+  assert.doesNotMatch(helperSource, /SPI_GETKEYBOARDDELAY|SystemParametersInfoW/)
   assert.match(
     helperSource,
     /apply_current_thread_priority\(None, THREAD_PRIORITY_ABOVE_NORMAL\)/,
@@ -189,7 +191,7 @@ test("기존 동의를 유지한 채 구버전 터보 키 helper를 시작 시 �
     readFile(new URL("../src/turbo-key-installer.mjs", import.meta.url), "utf8"),
   ])
 
-  assert.match(installerSource, /turboKeyHelperVersion = "0\.1\.5"/)
+  assert.match(installerSource, /turboKeyHelperVersion = "0\.1\.6"/)
   assert.match(
     installerSource,
     /const updateRequired = manifest\.helperVersion !== turboKeyHelperVersion/,
