@@ -378,6 +378,16 @@ std::string utf8(const std::wstring& value) {
   return result;
 }
 
+std::wstring wideUtf8(const char* value) {
+  if (!value || !*value) return {};
+  const int size = MultiByteToWideChar(CP_UTF8, 0, value, -1, nullptr, 0);
+  if (size <= 1) return {};
+  std::wstring result(static_cast<std::size_t>(size), L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, value, -1, result.data(), size);
+  result.resize(static_cast<std::size_t>(size - 1));
+  return result;
+}
+
 std::string jsonEscape(const std::wstring& value) {
   const auto source = utf8(value);
   std::ostringstream output;
@@ -765,7 +775,6 @@ public:
     std::error_code spaceError;
     auto space = fs::space(directory_, spaceError);
     const auto reserve = Gigabyte;
-    const auto newestStarted = chunks_.back().started;
     while (
       !chunks_.empty()
       && (
@@ -774,11 +783,7 @@ public:
         || (
           chunks_.size() > 1
           && maxDurationMilliseconds > 0
-          && (
-            chunks_.front().started <= 0
-            || newestStarted - chunks_.front().started
-              >= maxDurationMilliseconds
-          )
+          && totalDuration * 1000.0 > maxDurationMilliseconds
         )
       )
     ) {
@@ -2088,14 +2093,7 @@ void createClip(
     status.error = std::wstring(L"클립 저장 실패: ") + error.message().c_str();
   } catch (const std::exception& error) {
     std::lock_guard lock(status.mutex);
-    const auto message = error.what();
-    const int length = MultiByteToWideChar(CP_UTF8, 0, message, -1, nullptr, 0);
-    std::wstring wide(static_cast<std::size_t>(std::max(0, length)), L'\0');
-    if (length > 1) {
-      MultiByteToWideChar(CP_UTF8, 0, message, -1, wide.data(), length);
-      wide.resize(static_cast<std::size_t>(length - 1));
-    }
-    status.error = std::wstring(L"클립 저장 실패: ") + wide;
+    status.error = std::wstring(L"클립 저장 실패: ") + wideUtf8(error.what());
   }
   std::lock_guard lock(status.mutex);
   status.clipInProgress = false;
@@ -3628,8 +3626,19 @@ int wmain(int count, wchar_t** values) {
       TRUE,
       L"Local\\NogiremMabinogiRecorderHelper"
     );
-    if (!instanceMutex || GetLastError() == ERROR_ALREADY_EXISTS) {
-      throw std::runtime_error("블랙박스 녹화 helper가 이미 실행 중입니다");
+    if (!instanceMutex) {
+      throw std::runtime_error("블랙박스 녹화 helper 실행 잠금을 만들지 못했습니다");
+    }
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+      const auto waitResult = WaitForSingleObject(instanceMutex, 10000);
+      if (
+        waitResult != WAIT_OBJECT_0
+        && waitResult != WAIT_ABANDONED
+      ) {
+        throw std::runtime_error(
+          "이전 블랙박스 녹화 helper가 제한 시간 안에 종료되지 않았습니다"
+        );
+      }
     }
     status.codec = options.codec;
     status.capacityBytes = static_cast<std::uint64_t>(options.capacityGb) * Gigabyte;
@@ -3813,10 +3822,11 @@ int wmain(int count, wchar_t** values) {
     status.running = false;
     status.recording = false;
     status.error = std::wstring(error.message());
-  } catch (const std::exception&) {
+  } catch (const std::exception& error) {
     status.running = false;
     status.recording = false;
-    status.error = L"녹화 helper를 시작하지 못했습니다";
+    status.error = std::wstring(L"녹화 helper를 시작하지 못했습니다: ")
+      + wideUtf8(error.what());
   }
   if (!options.statusPath.empty()) {
     try {

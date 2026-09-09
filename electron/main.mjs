@@ -187,6 +187,7 @@ let lastBlackboxClipRequestedAt = 0
 let blackboxLatestClipOverride = null
 let blackboxStorageSummary = null
 let blackboxStorageSummaryPromise = null
+let blackboxStorageSummaryPromisePath = ""
 let blackboxStorageSummaryGeneration = 0
 let blackboxStorageSummaryRetryAt = 0
 let blackboxStorageSummaryPath = ""
@@ -2154,9 +2155,15 @@ async function getBlackboxSetting() {
     )
     && Date.now() >= blackboxStorageSummaryRetryAt
   ) {
-    void refreshBlackboxStorageSummary(summaryPaths).catch(error => {
-      console.error("블랙박스 저장 현황 갱신 실패", error)
-    })
+    if (processRunning) {
+      void refreshBlackboxStorageSummary(summaryPaths).catch(error => {
+        console.error("블랙박스 저장 현황 갱신 실패", error)
+      })
+    } else {
+      await refreshBlackboxStorageSummary(summaryPaths).catch(error => {
+        console.error("블랙박스 저장 현황 갱신 실패", error)
+      })
+    }
   }
   const archivedStatus = (
     blackboxStorageSummary
@@ -2167,13 +2174,13 @@ async function getBlackboxSetting() {
         (Number(archivedStatus.bytesUsed) || 0)
         + (processRunning ? (Number(status?.bytesUsed) || 0) : 0)
       )
-    : (Number(status?.bytesUsed) || 0)
+    : (processRunning ? (Number(status?.bytesUsed) || 0) : 0)
   const durationSeconds = archivedStatus
     ? (
         (Number(archivedStatus.durationSeconds) || 0)
         + (processRunning ? (Number(status?.durationSeconds) || 0) : 0)
       )
-    : (Number(status?.durationSeconds) || 0)
+    : (processRunning ? (Number(status?.durationSeconds) || 0) : 0)
   if (blackboxLatestClipOverride && !existsSync(blackboxLatestClipOverride)) {
     blackboxLatestClipOverride = null
   }
@@ -2221,18 +2228,24 @@ async function getBlackboxSetting() {
 }
 
 async function refreshBlackboxStorageSummary(requestedRingStoragePaths = []) {
-  if (blackboxStorageSummaryPromise) return blackboxStorageSummaryPromise
-  const generation = blackboxStorageSummaryGeneration
-  blackboxStorageSummaryPromise = (async () => {
-    let ringStoragePaths = requestedRingStoragePaths
-    if (!ringStoragePaths.length) {
-      const locations = await getCurrentBlackboxStorageLocations()
-      ringStoragePaths = locations.ringStoragePaths
+  let ringStoragePaths = requestedRingStoragePaths
+  if (!ringStoragePaths.length) {
+    const locations = await getCurrentBlackboxStorageLocations()
+    ringStoragePaths = locations.ringStoragePaths
+  }
+  const summaryKey = ringStoragePaths
+    .map(candidate => resolve(candidate).toLowerCase())
+    .sort()
+    .join("|")
+  if (blackboxStorageSummaryPromise) {
+    if (blackboxStorageSummaryPromisePath === summaryKey) {
+      return blackboxStorageSummaryPromise
     }
-    const summaryKey = ringStoragePaths
-      .map(candidate => resolve(candidate).toLowerCase())
-      .sort()
-      .join("|")
+    await blackboxStorageSummaryPromise.catch(() => {})
+    return refreshBlackboxStorageSummary(ringStoragePaths)
+  }
+  const generation = blackboxStorageSummaryGeneration
+  const summaryPromise = (async () => {
     const output = await runRecorderUtility([
       "--mode=summary",
       blackboxRingPathsArgument(ringStoragePaths),
@@ -2249,13 +2262,18 @@ async function refreshBlackboxStorageSummary(requestedRingStoragePaths = []) {
     }
     return nextSummary
   })()
+  blackboxStorageSummaryPromise = summaryPromise
+  blackboxStorageSummaryPromisePath = summaryKey
   try {
-    return await blackboxStorageSummaryPromise
+    return await summaryPromise
   } catch (error) {
     blackboxStorageSummaryRetryAt = Date.now() + 30000
     throw error
   } finally {
-    blackboxStorageSummaryPromise = null
+    if (blackboxStorageSummaryPromise === summaryPromise) {
+      blackboxStorageSummaryPromise = null
+      blackboxStorageSummaryPromisePath = ""
+    }
   }
 }
 
@@ -2386,6 +2404,7 @@ async function launchBlackboxHelper(setting) {
   })
   const status = await waitForBlackboxStatus(
     value => value?.running || value?.error || spawnError || child.exitCode !== null,
+    15000,
   )
   if (!status?.running) {
     if (child.pid && child.exitCode === null) child.kill()
@@ -3195,7 +3214,17 @@ async function ensureBlackboxStarted() {
     await refreshBlackboxStorageSummary()
     return
   }
-  await launchBlackboxHelper(setting)
+  let lastError = null
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await launchBlackboxHelper(setting)
+      return
+    } catch (error) {
+      lastError = error
+      if (attempt < 2) await delay((attempt + 1) * 1000)
+    }
+  }
+  throw lastError
 }
 
 async function launchMemoryHelper({ purgeOnStart = false } = {}) {
@@ -5739,15 +5768,19 @@ async function startApplication() {
   }).then(() => {
     writeStartupLog("터보 키 초기화 처리 종료")
   })
-  void ensureBlackboxStarted().catch(error => {
-    console.error("블랙박스 녹화 자동 실행 실패", error)
-  }).then(() => {
-    writeStartupLog("블랙박스 녹화 초기화 처리 종료")
-  })
+  const mabinogiPathInitialization = loadMabinogiExecutablePath()
+    .catch(error => console.error("마비노기 경로 초기화 실패", error))
+    .then(() => {
+      writeStartupLog("마비노기 경로 초기화 처리 종료")
+    })
+  void mabinogiPathInitialization
+    .then(() => ensureBlackboxStarted())
+    .catch(error => console.error("블랙박스 녹화 자동 실행 실패", error))
+    .then(() => {
+      writeStartupLog("블랙박스 녹화 초기화 처리 종료")
+    })
   void (async () => {
-    await loadMabinogiExecutablePath()
-      .catch(error => console.error("마비노기 경로 초기화 실패", error))
-    writeStartupLog("마비노기 경로 초기화 처리 종료")
+    await mabinogiPathInitialization
     await loadCachedDxvkReleases()
       .catch(error => console.error("DXVK 릴리스 캐시 로드 실패", error))
     await loadCachedDxvkRuntimeStatus().catch(error => {
