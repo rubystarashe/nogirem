@@ -76,6 +76,7 @@ constexpr UINT32 AudioBitsPerSample = 16;
 constexpr UINT32 AudioBlockAlignment =
   AudioChannels * AudioBitsPerSample / 8;
 constexpr std::size_t MaximumQueuedAudioFrames = AudioSampleRate;
+constexpr LONGLONG VideoDecoderPreroll = 10000000ll;
 constexpr double AudioTargetPeak = 0.5011872336;
 constexpr double AudioLimiterPeak = 0.8912509381;
 constexpr double AudioNoiseFloor = 0.0005623413;
@@ -2123,9 +2124,18 @@ bool transcodeChunksExact(
     if (fileStart >= requestedEnd) break;
 
     auto videoReader = createNv12VideoReader(input);
+    const auto localRequestedStart = std::max<LONGLONG>(
+      0,
+      requestedStart - fileStart
+    );
+    /*
+      정확한 시작 시점으로 바로 seek하면 일부 하드웨어 디코더가 다음 복원
+      지점부터 frame을 반환한다. 1초 앞에서 디코딩하고 요청 전 frame을
+      버려 디코더 상태를 준비하되 출력 구간은 그대로 유지한다.
+    */
     seekSourceReader(
       videoReader.Get(),
-      std::max<LONGLONG>(0, requestedStart - fileStart)
+      std::max<LONGLONG>(0, localRequestedStart - VideoDecoderPreroll)
     );
     const auto defaultDuration = fallbackSampleDuration(signature);
     while (true) {

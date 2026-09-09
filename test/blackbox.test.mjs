@@ -726,6 +726,11 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /bool transcodeChunksExact\(/)
   assert.match(nativeSource, /createNv12VideoReader/)
   assert.match(nativeSource, /seekSourceReader/)
+  assert.match(nativeSource, /constexpr LONGLONG VideoDecoderPreroll = 10000000ll;/)
+  assert.match(
+    nativeSource,
+    /localRequestedStart - VideoDecoderPreroll[\s\S]*if \(globalTime \+ duration <= requestedStart\) continue;/,
+  )
   assert.match(
     nativeSource,
     /mode == L"extract"[\s\S]*transcodeChunksExactAtomically\(/,
