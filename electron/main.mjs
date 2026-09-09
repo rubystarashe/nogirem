@@ -691,6 +691,8 @@ async function getCharacterSimplificationStatus() {
 async function readJson(path) {
   return readJsonOrDiscard(path, error => {
     console.error(`손상된 설정 파일을 기본값으로 복구합니다: ${path}`, error)
+  }, {
+    missingRetryDelaysMs: [10, 20, 40, 80, 160],
   })
 }
 
@@ -4676,11 +4678,17 @@ function registerIpc() {
     }
     return setBlackboxManagerPage(page)
   })
-  ipcMain.handle("blackbox-manager:set-setting", (event, setting) => {
+  ipcMain.handle("blackbox-manager:set-setting", async (event, setting) => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
       throw new Error("허용되지 않은 블랙박스 설정 요청입니다")
     }
-    return setBlackboxSetting(setting)
+    const current = normalizeBlackboxSetting(
+      await readJson(getBlackboxPaths().settingsPath),
+    )
+    return setBlackboxSetting({
+      ...current,
+      ...setting,
+    })
   })
   ipcMain.handle("blackbox-manager:save-clip", (event, requestedName) => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {

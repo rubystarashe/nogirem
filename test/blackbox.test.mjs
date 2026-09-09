@@ -208,6 +208,11 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.doesNotMatch(managerSource, /class="action primary toggle-recording"/)
   assert.match(managerSource, /\.settings-page \.page-actions \{[\s\S]*justify-content: flex-end/)
   assert.match(managerSource, /class="message settings-message"[\s\S]*class="action save-setting/)
+  assert.match(managerSource, /const dirtySettingKeys = new Set\(\)/)
+  assert.match(
+    managerSource,
+    /function draftSettingPatch\(\)[\s\S]*dirtySettingKeys[\s\S]*window\.blackboxManager\.setSetting\(draftSettingPatch\(\)\)/,
+  )
   assert.match(managerSource, /function openClipDeleteModal\(clip\)/)
   assert.match(managerSource, /const scrollTop = clipList\.scrollTop[\s\S]*clipList\.scrollTop = scrollTop/)
   assert.doesNotMatch(managerSource, /<footer class="actions">/)
@@ -239,6 +244,10 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
     /async function assertBlackboxClipNameAvailable\(requestedName\)[\s\S]*같은 이름의 클립이 이미 있습니다/,
   )
   assert.match(mainSource, /function openBlackboxClipSaveDialog\(\)/)
+  assert.match(
+    mainSource,
+    /blackbox-manager:set-setting[\s\S]*const current = normalizeBlackboxSetting\([\s\S]*\.\.\.current,[\s\S]*\.\.\.setting/,
+  )
   assert.match(mainSource, /blackbox-manager:request-save-clip/)
   assert.match(mainSource, /value\.latestClip !== previousStatus\?\.latestClip/)
   assert.match(mainSource, /120000/)

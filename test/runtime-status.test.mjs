@@ -23,6 +23,26 @@ test("정상 런타임 상태 JSON을 읽는다", async () => {
   })
 })
 
+test("원자 교체 중 잠시 사라진 영구 설정 파일을 다시 읽는다", async () => {
+  await withTemporaryDirectory(async directory => {
+    const path = join(directory, "settings.json")
+    const writing = new Promise((resolve, reject) => {
+      setTimeout(() => {
+        void writeFile(path, JSON.stringify({ maxDurationSeconds: 18000 }), "utf8")
+          .then(resolve, reject)
+      }, 10)
+    })
+
+    assert.deepEqual(
+      await readJsonOrDiscard(path, null, {
+        missingRetryDelaysMs: [5, 20],
+      }),
+      { maxDurationSeconds: 18000 },
+    )
+    await writing
+  })
+})
+
 test("NUL 문자로 손상된 런타임 상태 파일을 폐기한다", async () => {
   await withTemporaryDirectory(async directory => {
     const path = join(directory, "status.json")

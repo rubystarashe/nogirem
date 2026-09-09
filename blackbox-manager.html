@@ -1013,10 +1013,23 @@
         clipSelect,
         shortcutInput,
       ]
+      const settingInputKeys = new Map([
+        [qualitySelect, "quality"],
+        [codecSelect, "codec"],
+        [fpsSelect, "fps"],
+        [storageDriveSelect, "ringStorageDrive"],
+        [maxDurationHoursInput, "maxDurationSeconds"],
+        [maxDurationMinutesInput, "maxDurationSeconds"],
+        [maxDurationSecondsInput, "maxDurationSeconds"],
+        [capacitySelect, "capacityGb"],
+        [clipSelect, "clipSeconds"],
+        [shortcutInput, "shortcut"],
+      ])
       let status = null
       let busy = false
       let settingsInitialized = false
       let settingsDirty = false
+      const dirtySettingKeys = new Set()
       let previousClip = null
       let selectedClipName = ""
       let availableClips = []
@@ -1139,6 +1152,7 @@
         shortcutInput.dataset.accelerator = ""
         shortcutInput.value = "사용 안 함"
         shortcutInput.classList.remove("capturing")
+        dirtySettingKeys.add("shortcut")
         settingsDirty = true
         saveSettingButton.disabled = busy
         message.classList.remove("error")
@@ -1187,6 +1201,13 @@
           chunkSeconds: 10,
           shortcut: shortcutInput.dataset.accelerator,
         }
+      }
+
+      function draftSettingPatch() {
+        const draft = draftSetting()
+        return Object.fromEntries(
+          [...dirtySettingKeys].map(key => [key, draft[key]]),
+        )
       }
 
       function selectedBitrate() {
@@ -1242,6 +1263,7 @@
         clipSelect.value = String(value.clipSeconds)
         shortcutInput.dataset.accelerator = value.shortcutAccelerator ?? ""
         shortcutInput.value = value.shortcut || "사용 안 함"
+        dirtySettingKeys.clear()
         settingsInitialized = true
         settingsDirty = false
       }
@@ -1658,6 +1680,7 @@
 
       for (const input of settingInputs) {
         input.addEventListener("change", () => {
+          dirtySettingKeys.add(settingInputKeys.get(input))
           settingsDirty = true
           saveSettingButton.disabled = busy
           renderSettingSummary()
@@ -1670,6 +1693,7 @@
           storagePathInput.dataset.path = result.clipStoragePath
           storagePathInput.value = result.clipStoragePath
           storagePathInput.title = result.clipStoragePath
+          dirtySettingKeys.add("clipStoragePath")
           settingsDirty = true
           saveSettingButton.disabled = busy
           message.classList.remove("error")
@@ -1712,6 +1736,7 @@
         }
         shortcutInput.dataset.accelerator = accelerator
         shortcutInput.value = shortcutLabel(accelerator)
+        dirtySettingKeys.add("shortcut")
         settingsDirty = true
         saveSettingButton.disabled = busy
         message.classList.remove("error")
@@ -1741,9 +1766,10 @@
       saveSettingButton.addEventListener("click", async () => {
         const result = await runAction(
           "블랙박스 설정을 저장하고 있습니다",
-          () => window.blackboxManager.setSetting(draftSetting()),
+          () => window.blackboxManager.setSetting(draftSettingPatch()),
         )
         if (result) {
+          dirtySettingKeys.clear()
           settingsDirty = false
           if (result.enabled && !result.shortcutAvailable) {
             message.classList.add("error")
