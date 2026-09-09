@@ -2602,6 +2602,12 @@ async function launchBlackboxHelper(setting) {
     shortcutOutput = lines.pop() ?? ""
     for (const line of lines) {
       if (line === "SHORTCUT") requestBlackboxQuickClip()
+      if (line === "SHORTCUT_PRESSED") {
+        void logBlackboxEvent("recorder-shortcut-pressed")
+      }
+      if (line === "SHORTCUT_IGNORED") {
+        void logBlackboxEvent("recorder-shortcut-ignored")
+      }
       if (line === "SHORTCUT_READY") {
         blackboxShortcutAvailable = true
         void logBlackboxEvent("recorder-shortcut-ready")

@@ -1,11 +1,14 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-09 16:40
+Last Updated: 2026-09-09 16:44
 
 ## Current Objective
-녹화 파이프라인에 영향 없는 블랙박스 설정은 recorder 재시작 없이 즉시 반영한다.
+마비노기 플레이 중 빠른 클립 단축키 입력을 게임의 입력 처리와 무관하게 안정적으로 감지한다.
 
 ## Current Status
+- 16:41 재시작 후 PID 28536에서 `recorder-shortcut-ready`와 실제 녹화 시작은 확인됐지만, 사용자가 Pause를 눌러도 `SHORTCUT`이 한 번도 출력되지 않았다. 설정·recorder 실행·등록 성공 뒤 Windows `WM_HOTKEY` 전달 단계에서 끊긴 것으로 확인했다.
+- 게임이 `WM_HOTKEY`를 전달하지 않는 환경을 우회하도록 native 단축키 감지를 입력을 소비하지 않는 `WH_KEYBOARD_LL` 저수준 키보드 hook 전용 메시지 스레드로 교체했다. hook은 설정된 키와 modifier를 감지해 atomic 이벤트만 recorder loop에 전달하고 항상 `CallNextHookEx`를 호출하므로 게임 입력을 차단하지 않는다. recorder loop는 실제 녹화 중이고 포그라운드 프로세스가 마비노기 Client.exe일 때만 `SHORTCUT`을 Electron에 전달한다.
+- 진단 이벤트를 `recorder-shortcut-pressed`와 `recorder-shortcut-ignored` 단계로 추가해 이후에는 물리 키 감지와 게임 포그라운드 판정을 구분할 수 있다. 배치된 helper SHA-256은 `D74E7376…E4B5D5`이며 C++ Release 빌드, Node 132개 테스트, 앱 빌드와 lint가 통과했다.
 - 16:35~16:36 로그에서 단축키 변경 때마다 PID 51676→51768→30316으로 recorder를 반복 종료·재실행했고 마지막에는 settings가 enabled인데 status가 running false로 남아 단축키가 동작할 recorder 자체가 없었던 것을 확인했다. 원인은 `setBlackboxSetting`이 모든 필드 변경에 무조건 `stopBlackboxHelper`를 호출한 구조였다.
 - 설정 변경을 분류해 `shortcut`과 `clipSeconds`만 바뀐 경우 설정 파일을 저장하되 녹화·인코더·캡처를 유지한다. 단축키는 control 파일의 `shortcut` 명령으로 VK/modifier를 실행 중 helper에 보내며 helper가 기존 `RegisterHotKey`만 해제·재등록한다. codec·화질·FPS·저장 경로·용량/길이 한도·기능 활성 상태처럼 파이프라인 또는 Ring 정책에 영향을 주는 항목만 기존처럼 재시작한다. helper가 비정상 종료된 enabled 상태에서는 설정 종류와 무관하게 다시 시작한다.
 - native helper는 초기 및 런타임 단축키 등록 결과를 `SHORTCUT_READY`/`SHORTCUT_UNAVAILABLE`로 응답하고 Electron이 상태와 진단 이벤트에 반영한다. 배치된 helper SHA-256은 `E44A16A6…FD38F`이며 C++ Release 빌드, Node 132개 테스트, 앱 빌드와 lint가 통과했다.
@@ -433,6 +436,7 @@ Last Updated: 2026-09-09 16:40
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. 앱을 재시작하고 마비노기 포그라운드에서 Pause를 눌러 `recorder-shortcut-pressed` 뒤 실제 저장 요청과 오버레이가 발생하는지 확인한다.
 1. 앱을 한 번 완전히 재시작한 뒤 녹화 중 단축키와 빠른 클립 길이를 변경해 recorder PID가 유지되고 새 단축키가 즉시 동작하는지 확인한다.
 1. 앱을 완전히 재시작하고 마비노기를 포커스한 상태에서 `Pause`를 눌러 저장 중→`30초 클립이 저장되었습니다` 전환을 확인한다. 다른 앱을 포커스했을 때에는 저장되지 않아야 한다.
 1. 앱을 완전히 재시작하고 빠른 클립 버튼·단축키가 모달 없이 저장되며 현재 디스플레이 우측 상단에 클릭 통과 완료 오버레이가 표시되는지 확인한다.
@@ -602,6 +606,7 @@ Last Updated: 2026-09-09 16:40
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 게임에서 전달되지 않던 `RegisterHotKey`/`WM_HOTKEY` 방식을 비차단 `WH_KEYBOARD_LL` 전용 hook thread로 교체하고 키 감지·무시 단계 로그를 추가했다.
 - 블랙박스 설정 저장의 무조건 recorder 재시작을 제거했다. 단축키와 빠른 클립 길이는 live 설정으로 처리하고 단축키만 native control 명령으로 즉시 재등록한다.
 - 빠른 클립 알림을 저장 시작 지속 표시와 길이 포함 완료 표시로 분리했다. 단축키 감지를 recorder의 `RegisterHotKey`로 이동하고 마비노기 포그라운드·실제 녹화 조건을 모두 만족할 때만 저장하도록 제한했다.
 - 빠른 클립 이름 확인 모달과 관련 preload 이벤트를 제거했다. 버튼·단축키는 자동 번호 이름으로 즉시 저장하고 완료 시 노란색·검은 글씨 전환 오버레이를 최상단 클릭 통과 창으로 표시한다.
@@ -1407,4 +1412,4 @@ Last Updated: 2026-09-09 16:40
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-앱을 한 번 완전히 재시작해 recorder를 복구한 뒤 단축키를 변경하면서 PID 유지와 마비노기 포그라운드 저장 동작을 함께 확인한다.
+앱을 재시작해 마비노기 포그라운드에서 Pause를 눌러 저수준 hook 감지와 저장 오버레이를 확인한다.

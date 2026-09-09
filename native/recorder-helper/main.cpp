@@ -651,6 +651,125 @@ bool isMabinogiForeground(const fs::path& preferredPath) {
   return !imagePath.empty() && isMabinogiClientPath(imagePath, preferredPath);
 }
 
+class GlobalShortcutHook {
+public:
+  GlobalShortcutHook() {
+    thread_ = std::thread([this]() {
+      threadId_ = GetCurrentThreadId();
+      active_ = this;
+      const HHOOK hook = SetWindowsHookExW(
+        WH_KEYBOARD_LL,
+        keyboardHook,
+        GetModuleHandleW(nullptr),
+        0
+      );
+      {
+        std::lock_guard lock(readyMutex_);
+        available_ = hook != nullptr;
+        ready_ = true;
+      }
+      readyChanged_.notify_all();
+      if (!hook) {
+        active_ = nullptr;
+        return;
+      }
+      MSG message{};
+      while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+        TranslateMessage(&message);
+        DispatchMessageW(&message);
+      }
+      UnhookWindowsHookEx(hook);
+      active_ = nullptr;
+    });
+    std::unique_lock lock(readyMutex_);
+    readyChanged_.wait(lock, [this]() { return ready_; });
+  }
+
+  ~GlobalShortcutHook() {
+    if (threadId_ != 0) PostThreadMessageW(threadId_, WM_QUIT, 0, 0);
+    if (thread_.joinable()) thread_.join();
+  }
+
+  bool available() const {
+    return available_;
+  }
+
+  void update(int virtualKey, unsigned int modifiers) {
+    virtualKey_.store(virtualKey);
+    modifiers_.store(modifiers);
+    pressed_.store(false);
+    triggered_.store(false);
+  }
+
+  bool consume() {
+    return triggered_.exchange(false);
+  }
+
+private:
+  static bool modifierPressed(int virtualKey) {
+    return (GetAsyncKeyState(virtualKey) & 0x8000) != 0;
+  }
+
+  bool requiredModifiersPressed() const {
+    const auto modifiers = modifiers_.load();
+    if (
+      (modifiers & MOD_CONTROL)
+      && !modifierPressed(VK_CONTROL)
+    ) return false;
+    if ((modifiers & MOD_ALT) && !modifierPressed(VK_MENU)) return false;
+    if ((modifiers & MOD_SHIFT) && !modifierPressed(VK_SHIFT)) return false;
+    if (
+      (modifiers & MOD_WIN)
+      && !modifierPressed(VK_LWIN)
+      && !modifierPressed(VK_RWIN)
+    ) return false;
+    return true;
+  }
+
+  static LRESULT CALLBACK keyboardHook(
+    int code,
+    WPARAM message,
+    LPARAM parameter
+  ) {
+    if (code == HC_ACTION && active_) {
+      const auto* event =
+        reinterpret_cast<const KBDLLHOOKSTRUCT*>(parameter);
+      const bool keyDown =
+        message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
+      const bool keyUp =
+        message == WM_KEYUP || message == WM_SYSKEYUP;
+      if (
+        event
+        && (event->flags & LLKHF_INJECTED) == 0
+        && static_cast<int>(event->vkCode) == active_->virtualKey_.load()
+      ) {
+        if (
+          keyDown
+          && !active_->pressed_.exchange(true)
+          && active_->requiredModifiersPressed()
+        ) {
+          active_->triggered_.store(true);
+        } else if (keyUp) {
+          active_->pressed_.store(false);
+        }
+      }
+    }
+    return CallNextHookEx(nullptr, code, message, parameter);
+  }
+
+  inline static GlobalShortcutHook* active_ = nullptr;
+  std::thread thread_;
+  DWORD threadId_ = 0;
+  std::mutex readyMutex_;
+  std::condition_variable readyChanged_;
+  bool ready_ = false;
+  bool available_ = false;
+  std::atomic_int virtualKey_ = 0;
+  std::atomic_uint modifiers_ = 0;
+  std::atomic_bool pressed_ = false;
+  std::atomic_bool triggered_ = false;
+};
+
 void requireHardwareVideoEncoder(const std::wstring& codec) {
   MFT_REGISTER_TYPE_INFO inputType{
     MFMediaType_Video,
@@ -4164,7 +4283,6 @@ int wmain(int count, wchar_t** values) {
   Options options;
   SharedStatus status;
   HANDLE instanceMutex = nullptr;
-  bool shortcutRegistered = false;
   try {
     options = optionsFromArguments(count, values);
     instanceMutex = CreateMutexW(
@@ -4225,57 +4343,35 @@ int wmain(int count, wchar_t** values) {
     auto lastDroppedFrames = status.droppedFrames.load();
     auto nextCaptureAttempt = std::chrono::steady_clock::now();
     auto captureRetryDelay = 500ms;
-    constexpr int shortcutId = 1;
+    GlobalShortcutHook shortcutHook;
     const auto applyShortcut = [&](int virtualKey, unsigned int modifiers) {
-      if (shortcutRegistered) {
-        UnregisterHotKey(nullptr, shortcutId);
-        shortcutRegistered = false;
-      }
       options.shortcutVirtualKey = virtualKey;
       options.shortcutModifiers = modifiers;
-      if (virtualKey <= 0) {
-        std::cout << "SHORTCUT_READY\n" << std::flush;
-        return;
-      }
-      MSG message{};
-      PeekMessageW(&message, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
-      shortcutRegistered = RegisterHotKey(
-        nullptr,
-        shortcutId,
-        modifiers | MOD_NOREPEAT,
-        static_cast<UINT>(virtualKey)
-      ) != FALSE;
+      shortcutHook.update(virtualKey, modifiers);
       std::cout
-        << (shortcutRegistered ? "SHORTCUT_READY\n" : "SHORTCUT_UNAVAILABLE\n")
+        << (shortcutHook.available()
+          ? "SHORTCUT_READY\n"
+          : "SHORTCUT_UNAVAILABLE\n")
         << std::flush;
     };
     applyShortcut(options.shortcutVirtualKey, options.shortcutModifiers);
 
     while (status.running && processRunning(options.parentPid)) {
       const auto now = std::chrono::steady_clock::now();
-      if (shortcutRegistered) {
-        MSG message{};
-        bool shortcutRequested = false;
-        while (PeekMessageW(
-          &message,
-          nullptr,
-          WM_HOTKEY,
-          WM_HOTKEY,
-          PM_REMOVE
-        )) {
-          if (message.wParam == shortcutId) shortcutRequested = true;
-        }
+      if (shortcutHook.consume()) {
+        std::cout << "SHORTCUT_PRESSED\n" << std::flush;
         bool recording = false;
         {
           std::lock_guard lock(status.mutex);
           recording = status.recording;
         }
         if (
-          shortcutRequested
-          && recording
+          recording
           && isMabinogiForeground(options.gamePath)
         ) {
           std::cout << "SHORTCUT\n" << std::flush;
+        } else {
+          std::cout << "SHORTCUT_IGNORED\n" << std::flush;
         }
       }
       if (const auto control = readControl(options.controlPath)) {
@@ -4411,7 +4507,6 @@ int wmain(int count, wchar_t** values) {
       updateStatusFile(options, status);
     } catch (...) {
     }
-    if (shortcutRegistered) UnregisterHotKey(nullptr, shortcutId);
     MFShutdown();
     CloseHandle(instanceMutex);
     return 0;
@@ -4431,7 +4526,6 @@ int wmain(int count, wchar_t** values) {
     } catch (...) {
     }
   }
-  if (shortcutRegistered) UnregisterHotKey(nullptr, 1);
   MFShutdown();
   if (instanceMutex) CloseHandle(instanceMutex);
   return 1;
