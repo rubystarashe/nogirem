@@ -3092,56 +3092,64 @@ async function extractBlackboxEditorRange(session, value, onProgress = null) {
   const playbackSpeed = [0.5, 0.75, 1, 1.25, 1.5, 2].includes(Number(value?.playbackSpeed))
     ? Number(value.playbackSpeed)
     : 1
-  return queueBlackboxEditorOperation(session, async () => {
-    if (session.closed) throw new Error("먼저 편집 트랙을 준비하세요")
-    if (startSeconds + durationSeconds > session.trackTimelineSeconds + 0.5) {
-      throw new Error("선택한 추출 구간이 편집 트랙을 벗어났습니다")
-    }
-    const { clipStoragePath: clipsDirectory } =
-      await getCurrentBlackboxStorageLocations()
-    const outputPath = join(
-      clipsDirectory,
-      requestedFileName || `마비노기-추출-${blackboxEditorDateName()}.mp4`,
-    )
-    if (requestedFileName) {
-      try {
-        await access(outputPath)
-        throw new Error("같은 이름의 클립이 이미 있습니다")
-      } catch (error) {
-        if (error?.code !== "ENOENT") throw error
+  if (blackboxClipSaveInProgress) {
+    throw new Error("이전 클립을 저장하고 있습니다")
+  }
+  blackboxClipSaveInProgress = true
+  try {
+    return await queueBlackboxEditorOperation(session, async () => {
+      if (session.closed) throw new Error("먼저 편집 트랙을 준비하세요")
+      if (startSeconds + durationSeconds > session.trackTimelineSeconds + 0.5) {
+        throw new Error("선택한 추출 구간이 편집 트랙을 벗어났습니다")
       }
-    }
-    const pieces = buildBlackboxExtractionPieces(
-      session,
-      startSeconds,
-      durationSeconds,
-      gapPolicy,
-    )
-    if (!pieces.length) {
-      throw new Error("건너뛰기 후 추출할 녹화 영상이 없습니다")
-    }
-    const encodedPieces = pieces.map(piece => (
-      piece.type === "media"
-        ? `media:${Math.round(piece.start * 1000)}:${Math.round(piece.duration * 1000)}`
-        : `black:${Math.round(piece.duration * 1000)}`
-    )).join(";")
-    onProgress?.(1)
-    await runRecorderUtility([
-      "--mode=compose",
-      blackboxRingPathsArgument(
-        (await getCurrentBlackboxStorageLocations()).ringStoragePaths,
-      ),
-      `--anchor-ms=${session.anchorAt}`,
-      `--seconds=${session.trackSeconds}`,
-      `--output=${outputPath}`,
-      `--pieces=${encodedPieces}`,
-      `--speed-milli=${Math.round(playbackSpeed * 1000)}`,
-    ], { onProgress })
-    return {
-      outputPath,
-      fileName: outputPath.split(/[\\/]/).at(-1),
-    }
-  })
+      const { clipStoragePath: clipsDirectory } =
+        await getCurrentBlackboxStorageLocations()
+      const outputPath = join(
+        clipsDirectory,
+        requestedFileName || `마비노기-추출-${blackboxEditorDateName()}.mp4`,
+      )
+      if (requestedFileName) {
+        try {
+          await access(outputPath)
+          throw new Error("같은 이름의 클립이 이미 있습니다")
+        } catch (error) {
+          if (error?.code !== "ENOENT") throw error
+        }
+      }
+      const pieces = buildBlackboxExtractionPieces(
+        session,
+        startSeconds,
+        durationSeconds,
+        gapPolicy,
+      )
+      if (!pieces.length) {
+        throw new Error("건너뛰기 후 추출할 녹화 영상이 없습니다")
+      }
+      const encodedPieces = pieces.map(piece => (
+        piece.type === "media"
+          ? `media:${Math.round(piece.start * 1000)}:${Math.round(piece.duration * 1000)}`
+          : `black:${Math.round(piece.duration * 1000)}`
+      )).join(";")
+      onProgress?.(1)
+      await runRecorderUtility([
+        "--mode=compose",
+        blackboxRingPathsArgument(
+          (await getCurrentBlackboxStorageLocations()).ringStoragePaths,
+        ),
+        `--anchor-ms=${session.anchorAt}`,
+        `--seconds=${session.trackSeconds}`,
+        `--output=${outputPath}`,
+        `--pieces=${encodedPieces}`,
+        `--speed-milli=${Math.round(playbackSpeed * 1000)}`,
+      ], { onProgress })
+      return {
+        outputPath,
+        fileName: outputPath.split(/[\\/]/).at(-1),
+      }
+    })
+  } finally {
+    blackboxClipSaveInProgress = false
+  }
 }
 
 async function cleanupBlackboxEditorSession(session) {
@@ -5580,6 +5588,9 @@ function openBlackboxEditor() {
     window.center()
     window.show()
     window.focus()
+  })
+  window.on("close", event => {
+    if (blackboxClipSaveInProgress) event.preventDefault()
   })
   window.on("closed", () => {
     const closedForTray = internalWindowsClosedForTray.delete(window)

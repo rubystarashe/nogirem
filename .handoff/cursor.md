@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-09 15:58
+Last Updated: 2026-09-09 16:07
 
 ## Current Objective
-프리롤 수정본이 실제 앱 helper에 반영됐는지 확인하고 정확한 클립 시작을 최종 검증한다.
+모든 클립 저장 경로에서 저장 중 관리·편집 창과 앱 종료를 차단한다.
 
 ## Current Status
+- 기존 종료 가드는 빠른 클립 `requestBlackboxClip`에만 저장 상태를 설정해 영상 추출 `extractBlackboxEditorRange` 실행 중에는 작동하지 않았다. 영상 추출도 동일한 main-process 저장 상태를 시작부터 `finally`까지 유지하게 했고, 관리 창 X·Esc·Alt+F4, 독립 편집 창 닫기, 메인 앱 종료·트레이 전환·업데이트가 모두 이를 기준으로 차단된다. 임베디드 편집 화면은 추출 요청을 기다리는 동안 관리 창 닫기 버튼도 비활성화한다. Node 132개 테스트, 앱 빌드와 lint가 통과했다.
 - 사용자가 프리롤 적용 후에도 약 1초 늦게 시작하고 멈춘다고 보고했지만, 당시 실행 PID 51108은 수정 전 `bin` SHA-256 `860803…D448`을 사용했고 수정 빌드는 `233257…A433`으로 서로 달랐다. 사용자 승인 후 recorder를 정상 종료하고 `npm run native:recorder`로 최종 배치했다. 현재 `bin`과 build SHA-256은 모두 `0A9D320F…B2CB443`이다. 배치된 bin으로 `7번째 클립.mp4` 30.005초부터 1초를 재추출해 첫 영상 frame 0초 keyframe, 영상 0.993231초·오디오 0.993229초를 확인했다.
 - 사용자 진단 ZIP의 startup.log에서 15:30~15:35 사이 패스트핑 적용 9회가 모두 타사 필터 사유로 차단된 것을 확인했다. 실제 주 이더넷 어댑터의 유일한 타사 binding은 Wireshark/Npcap 패킷 캡처용 `INSECURE_NPCAP`이었다. `INSECURE_NPCAP`, `NPCAP`, `NPCAP_WIFI`는 비차단 캡처 binding으로 분류하고 나머지 미확인 타사 필터와 VPN·가상 어댑터는 계속 차단한다. 실제 조회에서 `compatible: true`, `captureBindings: ["INSECURE_NPCAP"]`, `blockingThirdPartyBindings: []`를 확인했고 Node 132개 테스트와 lint가 통과했다.
 - 기존 진단 ZIP의 `diagnostics.json`에는 네트워크 상태가 없어 실제 binding 원인을 startup.log 외에는 확인할 수 없었다. 다음 버그 리포트부터 패스트핑 인터페이스·레지스트리 값·캡처/차단 binding 분류를 `applicationState.network.fastPing`에 포함한다.
@@ -425,6 +426,7 @@ Last Updated: 2026-09-09 15:58
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. 앱을 완전히 재시작하고 영상 추출 저장 중 X·Esc·Alt+F4 및 메인 앱 종료가 모두 차단되는지 확인한다.
 1. 최신 앱을 재시작한 뒤 패스트핑 되돌리기→재적용을 실행해 Npcap이 연결된 현재 이더넷에서 적용되고 새 진단 ZIP에 `captureBindings`와 빈 `blockingThirdPartyBindings`가 포함되는지 확인한다.
 1. 앱을 완전히 재시작한 뒤 새 30초 빠른 클립을 만들어 내용 시작점과 첫 1초 재생을 체감 확인한다.
 1. 최신 소스로 앱을 재시작해 블랙박스 켜기→게임 감지→클립 저장→끄기 후 `blackbox-events.log`와 버그 리포트 ZIP에 이벤트·helper 로그가 포함되는지 수동 확인한다.
@@ -590,6 +592,7 @@ Last Updated: 2026-09-09 15:58
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 빠른 클립에만 적용됐던 저장 중 종료 가드를 영상 추출에도 적용했다. main process의 실제 추출 수명주기가 종료 차단 상태를 소유하며 관리 창과 독립 편집 창의 닫기 경로 및 UI를 함께 차단한다.
 - 실행 중 helper와 수정 build의 해시 불일치로 프리롤이 실제 테스트에 반영되지 않았음을 확인했다. recorder를 정상 종료하고 최신 bin을 배치했으며, 배치본 자체로 영상·오디오 0초 시작과 첫 영상 keyframe을 재검증했다.
 - 패스트핑 호환성 검사에서 Npcap의 캡처 전용 binding을 허용하고 실제 차단 타사 binding을 별도로 계산한다. VPN·가상·미확인 필터 차단은 유지하며 진단 ZIP에 현재 패스트핑 인터페이스와 binding 분류를 추가했다. 사용자 환경에서 Npcap만 있는 어댑터가 호환 상태로 바뀌는 것을 확인했고 Node 132개 테스트가 통과했다.
 - `7번째 클립.mp4`의 첫 영상 frame이 0.359초 늦는 현상을 확인하고 정확 시작 1초 전부터 디코더를 예열한 뒤 요청 전 frame을 버리도록 변경했다. 실파일 재추출은 영상·오디오 모두 0초 시작과 약 5.003초 동일 길이를 반환했고 Node 131개 테스트와 C++ Release 빌드가 통과했다.
@@ -1391,4 +1394,4 @@ Last Updated: 2026-09-09 15:58
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-앱을 완전히 재시작해 새 helper로 블랙박스를 시작하고 새 30초 빠른 클립의 실제 내용 시작과 첫 1초 재생을 확인한다.
+앱을 완전히 재시작해 영상 추출 저장 중 모든 닫기 경로가 차단되는지 확인한 뒤 새 빠른 클립의 시작 재생도 확인한다.

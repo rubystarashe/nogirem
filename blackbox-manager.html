@@ -1036,6 +1036,7 @@
       let settingsDirty = false
       const dirtySettingKeys = new Set()
       let clipSavePending = false
+      let editorExtractPending = false
       let previousClip = null
       let selectedClipName = ""
       let availableClips = []
@@ -1306,7 +1307,7 @@
 
         saveClipButton.disabled = busy || !value.recording || value.clipInProgress
         saveClipButton.textContent = value.clipInProgress ? "저장 중…" : "클립 저장"
-        closeButton.disabled = clipSavePending || value.clipInProgress
+        closeButton.disabled = clipSavePending || editorExtractPending || value.clipInProgress
         saveSettingButton.disabled = busy || !settingsDirty
         renderSettingSummary()
 
@@ -1656,6 +1657,11 @@
           "suggestClipName",
           "showOutput",
         ])
+        const extractRequest = data.method === "extract"
+        if (extractRequest) {
+          editorExtractPending = true
+          closeButton.disabled = true
+        }
         try {
           if (!allowedMethods.has(data.method)) {
             throw new Error("허용되지 않은 블랙박스 편집 요청입니다")
@@ -1674,6 +1680,11 @@
             id: data.id,
             error: errorMessage(error),
           }, "*")
+        } finally {
+          if (extractRequest) {
+            editorExtractPending = false
+            closeButton.disabled = clipSavePending || Boolean(status?.clipInProgress)
+          }
         }
       })
 
@@ -1751,7 +1762,7 @@
       })
 
       window.blackboxManager.onEscapePressed(() => {
-        if (clipSavePending || status?.clipInProgress) return
+        if (clipSavePending || editorExtractPending || status?.clipInProgress) return
         if (
           document.activeElement === shortcutInput
           || shortcutInput.classList.contains("capturing")
@@ -1845,7 +1856,7 @@
       })
 
       closeButton.addEventListener("click", () => {
-        if (clipSavePending || status?.clipInProgress) return
+        if (clipSavePending || editorExtractPending || status?.clipInProgress) return
         closeButton.disabled = true
         void window.blackboxManager.requestClose()
       })

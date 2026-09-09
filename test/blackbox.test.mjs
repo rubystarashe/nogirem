@@ -210,9 +210,10 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(managerSource, /class="message settings-message"[\s\S]*class="action save-setting/)
   assert.match(managerSource, /const dirtySettingKeys = new Set\(\)/)
   assert.match(managerSource, /let clipSavePending = false/)
+  assert.match(managerSource, /let editorExtractPending = false/)
   assert.match(
     managerSource,
-    /if \(clipSavePending \|\| status\?\.clipInProgress\) return/,
+    /if \(clipSavePending \|\| editorExtractPending \|\| status\?\.clipInProgress\) return/,
   )
   assert.match(
     managerSource,
@@ -257,6 +258,14 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(
     mainSource,
     /blackbox-manager:request-close[\s\S]*if \(blackboxClipSaveInProgress\) return false/,
+  )
+  assert.match(
+    mainSource,
+    /async function extractBlackboxEditorRange[\s\S]*blackboxClipSaveInProgress = true[\s\S]*finally \{[\s\S]*blackboxClipSaveInProgress = false/,
+  )
+  assert.match(
+    mainSource,
+    /function openBlackboxEditor\(\)[\s\S]*window\.on\("close", event => \{[\s\S]*blackboxClipSaveInProgress[\s\S]*event\.preventDefault\(\)/,
   )
   assert.match(
     mainSource,

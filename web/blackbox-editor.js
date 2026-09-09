@@ -960,7 +960,7 @@ showOutputButton.addEventListener("click", () => {
   if (lastOutputPath) void editorBridge.showOutput(lastOutputPath)
 })
 closeButton.addEventListener("click", () => {
-  if (embedded) return
+  if (embedded || extracting) return
   closeButton.disabled = true
   void editorBridge.requestClose()
 })
