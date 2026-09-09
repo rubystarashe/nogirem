@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-09 17:30
+Last Updated: 2026-09-09 17:34
 
 ## Current Objective
 0.3.2 Windows 설치본을 패키징하고 GitHub Release로 배포한다.
 
 ## Current Status
+- 0.3.2를 `v0.3.2` 태그로 GitHub에 공개 배포했다. `electron-builder`가 같은 태그의 릴리스를 두 개 만든 경쟁 상태를 다시 확인해 blockmap만 있던 불완전 릴리스 ID `385341775`를 삭제하고 완성 릴리스 ID `385341774`에 blockmap을 재업로드했다. 최종 공개 릴리스는 하나이며 설치본·blockmap·`latest.yml`·터보 키 helper 4개 자산이 있다. 설치본 SHA-256은 `B129BC03…97D1DB`, blockmap은 `FC26AD24…04ED0C`, latest.yml은 `8C4E59B2…EF834E`, 터보 키 helper는 `D9504362…16A857`로 로컬 파일과 GitHub digest가 일치한다.
 - 0.3.2 배포 사전 검증에서 Node 134개 전체 테스트, 앱 프로덕션 빌드와 input guard·Radeon·recorder·터보 키 Release 빌드가 모두 통과했다. recorder 빌드 산출물이 갱신돼 태그 생성 전 배포 바이너리로 커밋한다.
 - 패키지와 lockfile 버전을 0.3.2로 올리고 상세 변경 기록도 `v0.3.1` 이후 작업을 별도 0.3.2 섹션으로 분리했다. 고급 기능에서는 게임 블랙박스를 Alt+Enter 방지 위로 이동했다. 업데이트 진행 모달은 제공된 점검 화면의 주황색 `#ff9d00` 배경과 검은 글씨·진행 막대를 사용하도록 변경했다.
 - Git 태그 `v0.3.1` 이후 커밋을 기준으로 `VERSION_HISTORY.md` 상단에 간결한 0.3.2 섹션을 추가했다. 빠른 클립 무재인코딩·단축키·오버레이, 정확 추출·종료 방지·진단, 패킷 캡처 필터 허용·설정 보존, Alt+Enter 방지를 0.3.2로 분류하고 기존 0.3.1 목록에서는 Alt+Enter 항목을 제거했다.
@@ -618,6 +619,7 @@ Last Updated: 2026-09-09 17:30
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- GitHub Release `v0.3.2`를 공개하고 중복 릴리스를 정리해 네 개 배포 자산과 SHA-256을 검증했다.
 - 0.3.2 배포 준비로 package 버전과 상세 변경 기록을 갱신하고 업데이트 모달을 주황색 배경·검은 내용으로 변경했으며, 고급 기능에서 게임 블랙박스를 Alt+Enter 방지 위로 재배치했다.
 - `v0.3.1` 이후 사용자 변경 기록을 새 0.3.2 섹션으로 분리하고 0.3.1 배포 당시 항목과 후속 작업을 구분했다.
 - 고급 기능에 Alt+Enter 방지 토글과 독립 input guard helper를 추가했다. 설정 영속화·앱 자동 시작/종료·게임 경로 변경·진단 상태·설치본 빌드를 연결하고 마비노기 포그라운드에서만 조합키의 Enter down/up을 소비한다.
@@ -1429,4 +1431,4 @@ Last Updated: 2026-09-09 17:30
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-0.3.2 배포 전 전체 빌드·테스트를 통과시킨 뒤 커밋·push하고 GitHub Release 자산과 해시를 검증한다.
+`v0.3.2` 설치본으로 업데이트 또는 신규 설치를 실행해 업데이트 모달, input guard helper 포함 여부와 자동 업데이트 적용을 스모크 테스트한다.
