@@ -29,6 +29,7 @@ const playToggle = document.querySelector(".play-toggle")
 const currentTime = document.querySelector(".current-time")
 const rangeTime = document.querySelector(".range-time")
 const trackStart = document.querySelector(".track-start")
+const trackEnd = document.querySelector(".track-end")
 const extractButton = document.querySelector(".extract")
 const showOutputButton = document.querySelector(".show-output")
 const notice = document.querySelector(".notice")
@@ -80,6 +81,8 @@ document.body.classList.toggle("embedded", embedded)
 let requestedTrackSeconds = 900
 let duration = 0
 let timelineDuration = 0
+let viewportStart = 0
+let viewportDuration = 0
 let trackSegments = []
 let selectionStart = 0
 let selectionDuration = 60
@@ -229,29 +232,76 @@ function clampSelection() {
   extractHoursInput.max = String(Math.max(0, Math.floor(total / 3600)))
 }
 
+function clampViewport() {
+  const total = Math.max(timelineDuration || duration, 0)
+  if (!total) {
+    viewportStart = 0
+    viewportDuration = 0
+    return
+  }
+  viewportDuration = Math.max(
+    Math.min(10, total),
+    Math.min(total, Number(viewportDuration) || total),
+  )
+  viewportStart = Math.max(
+    0,
+    Math.min(total - viewportDuration, Number(viewportStart) || 0),
+  )
+}
+
+function keepTimeInViewport(time) {
+  clampViewport()
+  if (!viewportDuration) return false
+  const previousStart = viewportStart
+  if (time < viewportStart) viewportStart = time - viewportDuration * 0.1
+  else if (time > viewportStart + viewportDuration) {
+    viewportStart = time - viewportDuration * 0.9
+  }
+  clampViewport()
+  return Math.abs(previousStart - viewportStart) > 0.001
+}
+
 function renderTimeline() {
   const total = Math.max(timelineDuration || duration, 0.001)
   clampSelection()
-  guide.style.left = `${selectionStart / total * 100}%`
-  guide.style.width = `${selectionDuration / total * 100}%`
-  playhead.style.left = `${Math.min(total, timelineCursor) / total * 100}%`
+  clampViewport()
+  const visibleDuration = viewportDuration || total
+  const viewportEnd = viewportStart + visibleDuration
+  const selectionEnd = selectionStart + selectionDuration
+  guide.hidden = selectionEnd <= viewportStart || selectionStart >= viewportEnd
+  guide.style.left = `${(selectionStart - viewportStart) / visibleDuration * 100}%`
+  guide.style.width = `${selectionDuration / visibleDuration * 100}%`
+  playhead.hidden = timelineCursor < viewportStart || timelineCursor > viewportEnd
+  playhead.style.left = `${(timelineCursor - viewportStart) / visibleDuration * 100}%`
   currentTime.textContent = `${formatTime(timelineCursor)} / ${formatTime(total)}`
   rangeTime.textContent = `${formatTime(selectionStart)} — ${formatTime(selectionStart + selectionDuration)}`
-  trackStart.textContent = `-${formatTime(total)}`
+  trackStart.textContent = `-${formatTime(total - viewportStart)}`
+  trackEnd.textContent = viewportEnd >= total - 0.01
+    ? "편집 창을 연 시점"
+    : `-${formatTime(total - viewportEnd)}`
+  timeline.setAttribute("aria-valuemin", "0")
+  timeline.setAttribute("aria-valuemax", String(total))
+  timeline.setAttribute("aria-valuenow", String(timelineCursor))
 }
 
 function renderTrackGaps() {
   trackGapsLayer.replaceChildren()
   const total = timelineDuration || duration
   if (!total) return
+  clampViewport()
+  const visibleDuration = viewportDuration || total
+  const viewportEnd = viewportStart + visibleDuration
   for (const gap of trackGaps) {
     const start = Math.max(0, Math.min(total, Number(gap?.startSeconds) || 0))
     const gapDuration = Math.max(0, Number(gap?.durationSeconds) || 0)
-    if (!gapDuration || start >= total) continue
+    const end = Math.min(total, start + gapDuration)
+    const visibleStart = Math.max(viewportStart, start)
+    const visibleEnd = Math.min(viewportEnd, end)
+    if (!gapDuration || visibleEnd <= visibleStart) continue
     const element = document.createElement("span")
     element.className = "track-gap"
-    element.style.left = `${start / total * 100}%`
-    element.style.width = `${Math.min(gapDuration, total - start) / total * 100}%`
+    element.style.left = `${(visibleStart - viewportStart) / visibleDuration * 100}%`
+    element.style.width = `${(visibleEnd - visibleStart) / visibleDuration * 100}%`
     trackGapsLayer.append(element)
   }
 }
@@ -310,6 +360,7 @@ function setTimelineCursor(time) {
     0,
     Math.min(timelineDuration || duration, Number(time) || 0),
   )
+  if (keepTimeInViewport(timelineCursor)) renderTrackGaps()
   syncPreviewToTimeline()
   renderTimeline()
 }
@@ -333,10 +384,12 @@ function updateTimelinePlayback(now) {
     timelineCursor = playbackEnd
     stopTimelinePlayback()
     previewingSelection = false
+    if (keepTimeInViewport(timelineCursor)) renderTrackGaps()
     syncPreviewToTimeline()
     renderTimeline()
     return
   }
+  if (keepTimeInViewport(timelineCursor)) renderTrackGaps()
   syncPreviewToTimeline()
   renderTimeline()
   playbackAnimationFrame = requestAnimationFrame(updateTimelinePlayback)
@@ -415,6 +468,8 @@ async function applyTrack(result, preserveFromEnd = 0) {
     0,
     Number(result.timelineDurationSeconds) || requestedTrackSeconds,
   )
+  viewportStart = 0
+  viewportDuration = timelineDuration
   trackSegments = Array.isArray(result.segments)
     ? result.segments
         .map(segment => ({
@@ -485,7 +540,7 @@ function seekFromPointer(event) {
   if (!duration || busy) return
   const bounds = timeline.getBoundingClientRect()
   const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
-  const targetTime = ratio * timelineDuration
+  const targetTime = viewportStart + ratio * viewportDuration
   setTimelineCursor(targetTime)
   if (timelinePlaying) {
     playbackStartTimeline = timelineCursor
@@ -506,7 +561,8 @@ function beginTimelineInteraction(event) {
   const edgeSize = Math.min(10, Math.max(6, guideBounds.width / 4))
   const pointerSeconds = (event.clientX - timelineBounds.left)
     / timelineBounds.width
-    * timelineDuration
+    * viewportDuration
+    + viewportStart
   const insideGuide = event.clientX >= guideBounds.left
     && event.clientX <= guideBounds.right
   let mode = "seek"
@@ -539,7 +595,8 @@ function updateTimelineInteraction(event) {
     0,
     Math.min(
       timelineDuration,
-      (event.clientX - bounds.left) / bounds.width * timelineDuration,
+      viewportStart
+        + (event.clientX - bounds.left) / bounds.width * viewportDuration,
     ),
   )
   let mode = interaction.mode
@@ -597,6 +654,32 @@ function endTimelineInteraction(event) {
   }
   timelineInteraction = null
   guide.classList.remove("dragging")
+}
+
+function zoomTimelineFromWheel(event) {
+  if (!duration || busy || !event.deltaY) return
+  const bounds = timeline.getBoundingClientRect()
+  if (bounds.width <= 0) return
+  event.preventDefault()
+  clampViewport()
+  const pointerRatio = Math.max(
+    0,
+    Math.min(1, (event.clientX - bounds.left) / bounds.width),
+  )
+  const pointedTime = viewportStart + pointerRatio * viewportDuration
+  const deltaScale = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+    ? 16
+    : (event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? 120 : 1)
+  const exponent = Math.max(-0.35, Math.min(0.35, event.deltaY * deltaScale * 0.002))
+  const nextDuration = Math.max(
+    Math.min(10, timelineDuration),
+    Math.min(timelineDuration, viewportDuration * Math.exp(exponent)),
+  )
+  viewportDuration = nextDuration
+  viewportStart = pointedTime - pointerRatio * nextDuration
+  clampViewport()
+  renderTimeline()
+  renderTrackGaps()
 }
 
 async function extractSelection() {
@@ -730,6 +813,7 @@ video.addEventListener("click", togglePlayback)
 gapPreview.addEventListener("click", togglePlayback)
 
 timeline.addEventListener("pointerdown", beginTimelineInteraction)
+timeline.addEventListener("wheel", zoomTimelineFromWheel, { passive: false })
 window.addEventListener("pointermove", updateTimelineInteraction)
 window.addEventListener("pointerup", endTimelineInteraction)
 window.addEventListener("pointercancel", () => endTimelineInteraction())
