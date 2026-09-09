@@ -251,6 +251,10 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(managerSource, /!selectedClipName && clip === clips\[0\]/)
   assert.match(managerSource, /clipVideo\.addEventListener\("loadedmetadata", fitSavedClipMedia\)/)
   assert.match(managerSource, /document\.body\.dataset\.page !== "clips"/)
+  assert.match(
+    managerSource,
+    /document\.body\.dataset\.page === "clips" && page !== "clips"[\s\S]*clipVideo\.pause\(\)/,
+  )
   assert.match(managerSource, /preview\.classList\.remove\("media-ready"\)[\s\S]*preview\.clientWidth[\s\S]*preview\.classList\.add\("media-ready"\)/)
   assert.match(managerSource, /window\.requestAnimationFrame\(\(\) => \{\s*window\.requestAnimationFrame\(fitSavedClipMedia\)/)
   assert.match(managerSource, /source: "blackbox-manager-status"/)
@@ -651,7 +655,11 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /durationSeconds/)
   assert.match(nativeSource, /name\.find\(L"\.partial\."\)/)
   assert.match(nativeSource, /combinedMediaDuration/)
-  assert.match(nativeSource, /totalDuration - requestedDuration/)
+  assert.match(nativeSource, /totalDuration - requestedTailDuration/)
+  assert.match(
+    nativeSource,
+    /const auto requestedStart = findCleanRangeStart\([\s\S]*const auto requestedDuration = totalDuration - requestedStart;/,
+  )
   assert.match(nativeSource, /\.partial\.mp4/)
   assert.match(viteSource, /blackboxEditor: resolve\("blackbox-editor\.html"\)/)
 })

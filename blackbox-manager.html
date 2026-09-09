@@ -1515,6 +1515,9 @@
       }
 
       function showPage(page) {
+        if (document.body.dataset.page === "clips" && page !== "clips") {
+          clipVideo.pause()
+        }
         document.body.dataset.page = page
         for (const tab of pageTabs) {
           tab.classList.toggle("active", tab.dataset.page === page)

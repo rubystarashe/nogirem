@@ -2224,14 +2224,19 @@ void createClip(
       }
       const auto output = clipsDirectory / (L"마비노기-클립-" + identifier + L".mp4");
       const auto totalDuration = combinedMediaDuration(protectedFiles);
-      const auto requestedDuration = std::min<LONGLONG>(
+      const auto requestedTailDuration = std::min<LONGLONG>(
         totalDuration,
         static_cast<LONGLONG>(seconds) * 10000000ll
       );
-      const auto requestedStart = std::max<LONGLONG>(
+      const auto requestedTailStart = std::max<LONGLONG>(
         0,
-        totalDuration - requestedDuration
+        totalDuration - requestedTailDuration
       );
+      const auto requestedStart = findCleanRangeStart(
+        protectedFiles,
+        requestedTailStart
+      );
+      const auto requestedDuration = totalDuration - requestedStart;
       if (!remuxChunksAtomically(
         protectedFiles,
         output,
