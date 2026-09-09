@@ -92,6 +92,13 @@ const recorderHelperPath = join(
   "bin",
   "recorder-helper.exe",
 )
+const inputGuardHelperPath = join(
+  root.includes("app.asar") ? root.replace("app.asar", "app.asar.unpacked") : root,
+  "native",
+  "input-guard-helper",
+  "bin",
+  "input-guard-helper.exe",
+)
 const preloadPath = join(root, "electron", "preload.cjs")
 const characterGuidePreloadPath = join(root, "electron", "character-guide-preload.cjs")
 const dxvkManagerPreloadPath = join(root, "electron", "dxvk-manager-preload.cjs")
@@ -186,6 +193,7 @@ let creatorChannelProfilePromise = null
 let creatorPromptDisplayPromise = null
 let turboKeyProcess = null
 let turboKeyInstallationCache = null
+let inputGuardProcess = null
 let blackboxProcess = null
 let blackboxControlOperation = Promise.resolve()
 let lastBlackboxClipRequestedAt = 0
@@ -243,6 +251,16 @@ const installerCloseRequestPath = join(instanceDirectory, "installer-close-reque
 
 function getTurboKeyPaths() {
   const directory = join(app.getPath("userData"), "turbo-key")
+  return {
+    directory,
+    settingsPath: join(directory, "settings.json"),
+    statusPath: join(directory, "status.json"),
+    controlPath: join(directory, "control.json"),
+  }
+}
+
+function getInputGuardPaths() {
+  const directory = join(app.getPath("userData"), "input-guard")
   return {
     directory,
     settingsPath: join(directory, "settings.json"),
@@ -671,6 +689,7 @@ async function installDownloadedApplicationUpdate() {
     stopAffinityHelper(),
     stopMemoryHelper(),
     stopTurboKeyHelper(),
+    stopInputGuardHelper(),
     stopBlackboxHelper(),
   ])
   for (const result of results) {
@@ -1757,6 +1776,11 @@ async function refreshPathDependentStatuses() {
 function observeMabinogiExecutablePath(value) {
   if (!adoptMabinogiExecutablePath(value)) return false
   void refreshPathDependentStatuses()
+  if (inputGuardProcess && inputGuardProcess.exitCode === null) {
+    void restartInputGuardForGamePath().catch(error => {
+      console.error("마비노기 경로 변경 후 Alt+Enter 방지 재시작 실패", error)
+    })
+  }
   return true
 }
 
@@ -2229,6 +2253,147 @@ async function ensureTurboKeyStarted() {
     normalizeTurboKeyIntervalMs(settings.intervalMs),
     normalizeTurboKeyIgnoreInitialDelay(settings.ignoreInitialDelay),
   )
+}
+
+async function waitForInputGuardStatus(predicate, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs
+  const { statusPath } = getInputGuardPaths()
+  while (Date.now() < deadline) {
+    const status = await readRuntimeStatusJson(statusPath)
+    if (predicate(status)) return status
+    await delay(50)
+  }
+  return null
+}
+
+async function getInputGuardSetting() {
+  const paths = getInputGuardPaths()
+  const [settings, status] = await Promise.all([
+    readJson(paths.settingsPath),
+    readRuntimeStatusJson(paths.statusPath),
+  ])
+  const enabled = Boolean(settings?.enabled)
+  const running = Boolean(
+    inputGuardProcess
+    && inputGuardProcess.exitCode === null
+    && status?.running,
+  )
+  return {
+    enabled,
+    running,
+    gameOnly: true,
+    reason: status?.error
+      ?? (enabled && !running ? "Alt+Enter 방지 프로세스가 실행 중이 아닙니다" : null),
+  }
+}
+
+async function launchInputGuardHelper() {
+  if (inputGuardProcess && inputGuardProcess.exitCode === null) {
+    return getInputGuardSetting()
+  }
+  if (!existsSync(inputGuardHelperPath)) {
+    throw new Error("Alt+Enter 방지 helper를 찾지 못했습니다")
+  }
+  const gamePath = await resolveMabinogiExecutablePath()
+  if (!isMabinogiExecutablePath(gamePath)) {
+    throw new Error("마비노기 실행 경로를 확인하지 못했습니다")
+  }
+  const paths = getInputGuardPaths()
+  await mkdir(paths.directory, { recursive: true })
+  await Promise.all([
+    unlink(paths.statusPath).catch(() => {}),
+    unlink(paths.controlPath).catch(() => {}),
+  ])
+  const child = spawn(inputGuardHelperPath, [
+    `--status-path=${paths.statusPath}`,
+    `--control-path=${paths.controlPath}`,
+    `--game-path=${gamePath}`,
+    `--parent-pid=${process.pid}`,
+  ], {
+    windowsHide: true,
+    stdio: "ignore",
+  })
+  inputGuardProcess = child
+  let spawnError = null
+  child.once("error", error => {
+    spawnError = error
+  })
+  child.once("exit", () => {
+    if (inputGuardProcess === child) inputGuardProcess = null
+  })
+  const status = await waitForInputGuardStatus(
+    value => value?.running || value?.error || spawnError || child.exitCode !== null,
+  )
+  if (!status?.running) {
+    if (child.pid && child.exitCode === null) child.kill()
+    await waitForTurboKeyProcessExit(child, 1000)
+    if (inputGuardProcess === child) inputGuardProcess = null
+    throw new Error(
+      status?.error
+      ?? spawnError?.message
+      ?? "Alt+Enter 방지 실행을 확인하지 못했습니다",
+    )
+  }
+  return getInputGuardSetting()
+}
+
+async function stopInputGuardHelper() {
+  const paths = getInputGuardPaths()
+  const child = inputGuardProcess
+  if (!child || child.exitCode !== null) {
+    inputGuardProcess = null
+    return getInputGuardSetting()
+  }
+  await writeJsonAtomic(paths.controlPath, {
+    command: "stop",
+    requestedAt: Date.now(),
+  })
+  await waitForInputGuardStatus(value => value?.running === false, 2000)
+  let exited = await waitForTurboKeyProcessExit(child, 1000)
+  if (!exited) {
+    child.kill()
+    exited = await waitForTurboKeyProcessExit(child, 500)
+  }
+  if (!exited) throw new Error("Alt+Enter 방지 프로세스를 종료하지 못했습니다")
+  if (inputGuardProcess === child) inputGuardProcess = null
+  return getInputGuardSetting()
+}
+
+async function setInputGuardSetting(enabled) {
+  const paths = getInputGuardPaths()
+  if (enabled) {
+    await stopInputGuardHelper()
+    await launchInputGuardHelper()
+    try {
+      await writeJsonAtomic(paths.settingsPath, {
+        enabled: true,
+        updatedAt: Date.now(),
+      })
+    } catch (error) {
+      await stopInputGuardHelper().catch(() => {})
+      throw error
+    }
+  } else {
+    await stopInputGuardHelper()
+    await writeJsonAtomic(paths.settingsPath, {
+      enabled: false,
+      updatedAt: Date.now(),
+    })
+  }
+  return getInputGuardSetting()
+}
+
+async function ensureInputGuardStarted() {
+  const settings = await readJson(getInputGuardPaths().settingsPath)
+  if (!settings?.enabled) return
+  await launchInputGuardHelper()
+}
+
+async function restartInputGuardForGamePath() {
+  const settings = await readJson(getInputGuardPaths().settingsPath)
+  if (!settings?.enabled) return
+  await stopInputGuardHelper()
+  await launchInputGuardHelper()
 }
 
 async function getBlackboxSetting({ waitForStorageSummary = true } = {}) {
@@ -4100,6 +4265,7 @@ async function finishApplicationExitWithoutAppliedBoost() {
       reason: "application-exit-without-applied-boost",
     }),
     stopTurboKeyHelper(),
+    stopInputGuardHelper(),
     stopBlackboxHelper(),
   ])
   for (const result of results) {
@@ -4128,6 +4294,7 @@ async function finishApplicationExit(action) {
     action === "reset" ? resetAllAffinities() : stopAffinityHelper(),
     stopMemoryHelper(),
     stopTurboKeyHelper(),
+    stopInputGuardHelper(),
     stopBlackboxHelper(),
   ])
   for (const result of results) {
@@ -4570,9 +4737,10 @@ async function createApplicationDiagnosticBundle() {
     const model = processor.model.trim() || "알 수 없음"
     processorModels.set(model, (processorModels.get(model) ?? 0) + 1)
   }
-  const [gpu, turboKey, blackbox, startupTray, fastPing] = await Promise.all([
+  const [gpu, turboKey, inputGuard, blackbox, startupTray, fastPing] = await Promise.all([
     diagnosticResult(() => app.getGPUInfo("basic")),
     diagnosticResult(() => getTurboKeySetting()),
+    diagnosticResult(() => getInputGuardSetting()),
     diagnosticResult(() => getBlackboxSetting()),
     diagnosticResult(() => getStartupTraySetting()),
     diagnosticResult(() => ensureFastPingForPrimaryInterface()),
@@ -4617,6 +4785,7 @@ async function createApplicationDiagnosticBundle() {
     applicationState: {
       activeMabinogiExecutablePath,
       turboKey,
+      inputGuard,
       blackbox,
       startupTray,
       network: {
@@ -4811,6 +4980,21 @@ function registerIpc() {
       throw new Error("터보 키 설정 값이 올바르지 않습니다")
     }
     return setTurboKeySetting(setting)
+  })
+  ipcMain.handle("application:get-input-guard-setting", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 Alt+Enter 방지 설정 요청입니다")
+    }
+    return getInputGuardSetting()
+  })
+  ipcMain.handle("application:set-input-guard-setting", (event, enabled) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 Alt+Enter 방지 설정 변경 요청입니다")
+    }
+    if (typeof enabled !== "boolean") {
+      throw new Error("Alt+Enter 방지 설정 값이 올바르지 않습니다")
+    }
+    return setInputGuardSetting(enabled)
   })
   ipcMain.handle("application:get-blackbox-setting", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
@@ -6234,6 +6418,12 @@ async function startApplication() {
     .catch(error => console.error("블랙박스 녹화 자동 실행 실패", error))
     .then(() => {
       writeStartupLog("블랙박스 녹화 초기화 처리 종료")
+    })
+  void mabinogiPathInitialization
+    .then(() => ensureInputGuardStarted())
+    .catch(error => console.error("Alt+Enter 방지 자동 실행 실패", error))
+    .then(() => {
+      writeStartupLog("Alt+Enter 방지 초기화 처리 종료")
     })
   void (async () => {
     await mabinogiPathInitialization

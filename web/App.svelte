@@ -161,6 +161,11 @@
   let turboTermsModalVisible = false
   let turboTermsModalCloseSignal = 0
   let turboInstallAction = null
+  let inputGuardEnabled = false
+  let inputGuardRunning = false
+  let inputGuardSettingLoaded = false
+  let inputGuardAction = null
+  let inputGuardNotice = ""
   let blackboxSettingLoaded = false
   let blackboxFeatureEnabled = false
   let blackboxFeatureAction = null
@@ -992,6 +997,35 @@
     }
   }
 
+  function applyInputGuardState(state) {
+    inputGuardEnabled = Boolean(state.enabled)
+    inputGuardRunning = Boolean(state.running)
+    inputGuardNotice = state.reason ?? ""
+  }
+
+  async function toggleInputGuard() {
+    if (!inputGuardSettingLoaded || inputGuardAction) return
+    inputGuardAction = "saving"
+    inputGuardNotice = ""
+    try {
+      applyInputGuardState(
+        await window.nogirem.setInputGuardSetting(!inputGuardEnabled),
+      )
+    } catch (error) {
+      inputGuardNotice = messageOf(error)
+    } finally {
+      inputGuardAction = null
+    }
+  }
+
+  async function syncInputGuardSetting() {
+    if (!inputGuardSettingLoaded || inputGuardAction) return
+    try {
+      applyInputGuardState(await window.nogirem.getInputGuardSetting())
+    } catch {
+    }
+  }
+
   function applyBlackboxState(state) {
     if ("featureEnabled" in state) {
       blackboxFeatureEnabled = Boolean(state.featureEnabled)
@@ -1579,6 +1613,16 @@
       .finally(() => {
         turboKeySettingLoaded = true
       })
+    void window.nogirem.getInputGuardSetting()
+      .then(state => {
+        applyInputGuardState(state)
+      })
+      .catch(error => {
+        inputGuardNotice = messageOf(error)
+      })
+      .finally(() => {
+        inputGuardSettingLoaded = true
+      })
     void window.nogirem.getBlackboxSetting()
       .then(state => {
         applyBlackboxState(state)
@@ -1611,12 +1655,16 @@
     const turboKeyTimer = window.setInterval(() => {
       void syncTurboKeySetting()
     }, 1000)
+    const inputGuardTimer = window.setInterval(() => {
+      void syncInputGuardSetting()
+    }, 1000)
     const blackboxTimer = window.setInterval(() => {
       void syncBlackboxSetting()
     }, 1000)
     return () => {
       window.clearInterval(timer)
       window.clearInterval(turboKeyTimer)
+      window.clearInterval(inputGuardTimer)
       window.clearInterval(blackboxTimer)
       window.clearTimeout(startupIdentityTimer)
       window.clearTimeout(leftTopContentTimer)
@@ -2381,6 +2429,27 @@
                   {/if}
                   {#if turboKeyNotice}
                     <span class="developer-tool-status">{turboKeyNotice}</span>
+                  {/if}
+                  <div class="developer-tool-row">
+                    <div>
+                      <h2>Alt+Enter 방지</h2>
+                      <p>마비노기 플레이 중 전체 화면 전환 단축키 Alt+Enter 입력을 차단합니다</p>
+                    </div>
+                    <button
+                      class:active={inputGuardEnabled && inputGuardRunning}
+                      disabled={!inputGuardSettingLoaded || inputGuardAction}
+                      aria-pressed={inputGuardEnabled}
+                      onclick={toggleInputGuard}
+                    >
+                      {inputGuardAction === "saving"
+                        ? "저장 중…"
+                        : (inputGuardEnabled
+                          ? (inputGuardRunning ? "사용 중" : "실행 오류")
+                          : "사용하기")}
+                    </button>
+                  </div>
+                  {#if inputGuardNotice}
+                    <span class="developer-tool-status">{inputGuardNotice}</span>
                   {/if}
                   <div class="developer-tool-row">
                     <div>

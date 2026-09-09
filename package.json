@@ -13,6 +13,7 @@
     "app": "electron .",
     "app:dev": "concurrently --kill-others-on-fail \"vite\" \"wait-on tcp:5173 && electron . --dev\"",
     "app:build": "vite build",
+    "native:input-guard": "node scripts/build-input-guard-helper.mjs",
     "native:radeon": "node scripts/build-radeon-helper.mjs",
     "native:recorder": "node scripts/build-recorder-helper.mjs",
     "native:turbo-key": "node scripts/build-turbo-key.mjs",
@@ -87,6 +88,7 @@
       "!dist/doc_minimize/introduce.png",
       "electron/**/*",
       "src/**/*",
+      "native/input-guard-helper/bin/input-guard-helper.exe",
       "native/radeon-helper/bin/radeon-helper.exe",
       "native/recorder-helper/bin/recorder-helper.exe",
       "assets/**/*",
@@ -101,6 +103,7 @@
       "package.json"
     ],
     "asarUnpack": [
+      "native/input-guard-helper/bin/input-guard-helper.exe",
       "native/radeon-helper/bin/radeon-helper.exe",
       "native/recorder-helper/bin/recorder-helper.exe"
     ],

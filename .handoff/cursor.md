@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-09 17:02
+Last Updated: 2026-09-09 17:18
 
 ## Current Objective
-빠른 클립 저장 시작·완료 알림을 하나의 오버레이에서 검은 마스크 전환으로 자연스럽게 연결한다.
+고급 기능에서 마비노기 플레이 중 Alt+Enter 전체 화면 전환 입력을 선택적으로 차단한다.
 
 ## Current Status
+- 고급 기능에 `Alt+Enter 방지` 토글을 추가했다. 독립 `input-guard-helper.exe`가 `WH_KEYBOARD_LL`로 일반·숫자패드 Enter의 down/up을 감시하고, 좌·우 Alt가 눌린 상태이며 포그라운드 실행 파일이 현재 마비노기 `Client.exe`와 정확히 일치할 때만 Enter 이벤트를 소비한다. 다른 앱과 Alt·Enter 단독 입력은 통과한다. 설정은 AppData에 유지되며 앱 시작 자동 복구, 게임 경로 변경 재시작, 앱 종료·업데이트 정상 종료를 지원한다. native Release 빌드, helper 시작·제어 종료 스모크 테스트, Node 134개 테스트, 앱 빌드와 lint가 통과했다.
 - 빠른 클립 알림 창을 상태마다 파괴·재생성하던 구조를 제거했다. 같은 창에서 저장 중에는 검은 배경·노란 글씨를 표시하고, 완료 시 검은 마스크가 왼쪽부터 전체를 덮은 뒤 덮인 상태에서 완료 문구와 노란 배경·검은 글씨로 교체하고 오른쪽으로 걷힌다. 완료 상태가 걷힌 뒤 기존처럼 자동 퇴장한다. 로딩 중 완료된 경우에도 `did-finish-load` 뒤 전환을 적용한다. Node 132개 테스트, 구문 검사와 lint가 통과했다.
 - 빠른 클립 요청은 encoder의 기존 `flushRequested_` 경로에서 현재 `.partial.mp4`를 먼저 finalize·게시하고, 완료를 기다린 뒤 실제 미디어 길이를 뒤에서부터 합산해 설정한 n초 이상이 되는 완성 청크를 선택한다. 선택 청크 전체를 압축 sample remux만 하므로 영상·오디오 재인코딩을 제거했다. 설정값보다 최대 청크 1개 미만만큼 길어질 수 있다. 배치 helper SHA-256은 `D589630D…E9579D`이며 C++ Release 빌드, Node 132개 테스트와 lint가 통과했다.
 - 16:41 재시작 후 PID 28536에서 `recorder-shortcut-ready`와 실제 녹화 시작은 확인됐지만, 사용자가 Pause를 눌러도 `SHORTCUT`이 한 번도 출력되지 않았다. 설정·recorder 실행·등록 성공 뒤 Windows `WM_HOTKEY` 전달 단계에서 끊긴 것으로 확인했다.
@@ -282,6 +283,7 @@ Last Updated: 2026-09-09 17:02
 - 프로덕션 빌드, Electron 구문 검사, 전체 테스트 20개와 편집기 린트가 통과했다.
 
 ## Architecture / Important Decisions
+- Alt+Enter 방지는 블랙박스·터보 키와 무관한 번들 native helper가 소유한다. hook thread는 `GetMessageW`와 50ms 상태 타이머로 대기해 일반 키 입력에 polling 지연을 추가하지 않으며, 차단 조건이 아닌 모든 이벤트는 즉시 `CallNextHookEx`로 전달한다.
 - 빠른 클립과 영상 추출의 정확도 정책을 분리한다. 빠른 클립은 요청 순간 현재 청크를 동기 확정하고 최신 청크들의 실제 duration 합계가 설정 길이 이상이 될 때까지 선택한 뒤 전체 청크를 remux한다. 영상 추출만 프레임 단위 정확 구간 재인코딩을 유지한다.
 - 블랙박스 지원 로그는 AppData `blackbox/blackbox-events.log`와 `blackbox/recorder-helper.log`에 JSONL로 저장한다. current/previous 각 4MB로 제한하고 진단 ZIP 단계에서 사용자 경로·IP·이메일·인증값을 마스킹한다. 로깅 실패는 본 기능 실패로 전파하지 않는다.
 - `ringStorageDrive`는 PowerShell에서 조회한 로컬 고정·이동식 드라이브 ID만 허용하며 Ring은 `<드라이브>\마비노기 렘 블랙박스\Ring` 고정 경로다. `clipStoragePath`는 main의 폴더 선택창 결과만 일시 승인한다. native helper의 `--ring-path`·`--clips-path`와 모든 클립 IPC는 두 위치를 분리해 사용한다.
@@ -439,6 +441,7 @@ Last Updated: 2026-09-09 17:02
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. 앱을 재시작하고 고급 기능에서 Alt+Enter 방지를 켠 뒤 마비노기 포그라운드에서는 Alt+Enter가 차단되고 다른 프로그램에서는 정상 동작하는지 수동 확인한다.
 1. 앱을 재시작하고 빠른 클립 저장 시 검은 배경·노란 글씨의 저장 중 상태가 검은 마스크 덮기→노란 배경·검은 글씨 완료 상태로 끊김 없이 전환되는지 확인한다.
 1. 앱을 재시작하고 새 helper로 빠른 클립을 저장해 요청 순간까지의 현재 청크가 포함되는지, 저장 시간이 짧아졌는지, 첫 1초가 정상 재생되는지 확인한다.
 1. 앱을 재시작하고 마비노기 포그라운드에서 Pause를 눌러 `recorder-shortcut-pressed` 뒤 실제 저장 요청과 오버레이가 발생하는지 확인한다.
@@ -556,6 +559,8 @@ Last Updated: 2026-09-09 17:02
 - 시작 트레이 예약 작업의 실제 로그온 실행은 설치본과 Windows 재로그인이 필요해 자동 검증하지 않았다.
 
 ## Key Files
+- `native/input-guard-helper/main.cpp`: 마비노기 포그라운드 한정 Alt+Enter 저수준 입력 차단
+- `scripts/build-input-guard-helper.mjs`: input guard helper Windows Release 빌드·배치
 - `native/recorder-helper/main.cpp`: WGC 캡처, D3D11 변환, 하드웨어 인코딩, 순환 청크와 클립 remux
 - `src/blackbox-settings.mjs`: 블랙박스 기본값·허용 옵션·비트레이트 정규화
 - `electron/main.mjs`: recorder helper 생명주기, 전역 단축키, 설정·상태·클립 IPC
@@ -610,6 +615,7 @@ Last Updated: 2026-09-09 17:02
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 고급 기능에 Alt+Enter 방지 토글과 독립 input guard helper를 추가했다. 설정 영속화·앱 자동 시작/종료·게임 경로 변경·진단 상태·설치본 빌드를 연결하고 마비노기 포그라운드에서만 조합키의 Enter down/up을 소비한다.
 - 빠른 클립 저장 중·완료 알림이 각각 별도 창으로 나타나던 구조를 같은 오버레이 DOM 상태 전환으로 변경했다. 저장 중은 검정/노랑, 완료는 노랑/검정이며 검은 마스크가 완전히 덮은 동안 문구와 색상을 교체한다.
 - 빠른 클립에서 전체 NV12 디코딩·하드웨어 재인코딩을 제거했다. 요청 시 현재 청크를 먼저 확정하고 최신 완성 청크의 실제 duration을 역순 합산해 n초 이상을 선택한 뒤 MP4 remux만 수행한다.
 - 게임에서 전달되지 않던 `RegisterHotKey`/`WM_HOTKEY` 방식을 비차단 `WH_KEYBOARD_LL` 전용 hook thread로 교체하고 키 감지·무시 단계 로그를 추가했다.
@@ -1418,4 +1424,4 @@ Last Updated: 2026-09-09 17:02
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-앱을 재시작해 Pause로 빠른 클립을 저장하고 저장 중→완료 마스크 전환과 현재 청크 포함·저장 속도를 함께 확인한다.
+앱을 재시작해 고급 기능의 Alt+Enter 방지를 켜고 마비노기와 다른 앱에서 조합키 차단 범위를 비교 확인한다.
