@@ -801,6 +801,7 @@ public:
     }
     bytesUsed_ = total;
     durationSeconds_ = totalDuration;
+    saveLocked();
     return total;
   }
 
@@ -819,6 +820,43 @@ private:
     double duration = 0;
   };
 
+  std::unordered_map<std::string, Entry> loadCacheLocked() const {
+    std::unordered_map<std::string, Entry> cached;
+    std::ifstream input(directory_ / ".nogirem-ring-index", std::ios::binary);
+    std::string version;
+    std::getline(input, version);
+    if (version != "1") return cached;
+    std::string fileName;
+    Entry entry;
+    while (input >> fileName >> entry.size >> entry.started >> entry.duration) {
+      entry.path = directory_ / fs::path(fileName);
+      cached.emplace(fileName, entry);
+    }
+    return cached;
+  }
+
+  void saveLocked() const {
+    const auto cachePath = directory_ / ".nogirem-ring-index";
+    const auto temporaryPath = directory_ / ".nogirem-ring-index.tmp";
+    std::ofstream output(temporaryPath, std::ios::binary | std::ios::trunc);
+    if (!output) return;
+    output << "1\n" << std::setprecision(17);
+    for (const auto& entry : chunks_) {
+      output
+        << entry.path.filename().string() << ' '
+        << entry.size << ' '
+        << entry.started << ' '
+        << entry.duration << '\n';
+    }
+    output.close();
+    if (!output) return;
+    MoveFileExW(
+      temporaryPath.c_str(),
+      cachePath.c_str(),
+      MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH
+    );
+  }
+
   void refresh() {
     std::lock_guard lock(mutex_);
     refreshLocked();
@@ -828,22 +866,35 @@ private:
     chunks_.clear();
     std::uint64_t total = 0;
     double totalDuration = 0;
+    const auto cached = loadCacheLocked();
     for (const auto& path : completedChunks(directory_)) {
       std::error_code error;
       const auto size = fs::file_size(path, error);
       if (error) continue;
-      const auto duration = completedChunkDurationSeconds(path);
-      chunks_.push_back({
-        path,
-        size,
-        chunkStartedMilliseconds(path),
-        duration
-      });
+      const auto cachedEntry = cached.find(path.filename().string());
+      Entry entry;
+      if (
+        cachedEntry != cached.end()
+        && cachedEntry->second.size == size
+        && cachedEntry->second.duration > 0
+      ) {
+        entry = cachedEntry->second;
+        entry.path = path;
+      } else {
+        entry = {
+          path,
+          size,
+          chunkStartedMilliseconds(path),
+          completedChunkDurationSeconds(path)
+        };
+      }
+      chunks_.push_back(entry);
       total += size;
-      totalDuration += duration;
+      totalDuration += entry.duration;
     }
     bytesUsed_ = total;
     durationSeconds_ = totalDuration;
+    saveLocked();
   }
 
   fs::path directory_;

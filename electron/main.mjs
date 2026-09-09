@@ -191,6 +191,7 @@ let blackboxStorageSummaryPromisePath = ""
 let blackboxStorageSummaryGeneration = 0
 let blackboxStorageSummaryRetryAt = 0
 let blackboxStorageSummaryPath = ""
+let blackboxLastKnownStorageSummary = null
 let approvedBlackboxClipStoragePath = ""
 let blackboxStorageDrives = []
 let blackboxStorageDrivesCheckedAt = 0
@@ -2120,7 +2121,7 @@ async function ensureTurboKeyStarted() {
   )
 }
 
-async function getBlackboxSetting() {
+async function getBlackboxSetting({ waitForStorageSummary = true } = {}) {
   const paths = getBlackboxPaths()
   const [savedSetting, status] = await Promise.all([
     readJson(paths.settingsPath),
@@ -2155,7 +2156,7 @@ async function getBlackboxSetting() {
     )
     && Date.now() >= blackboxStorageSummaryRetryAt
   ) {
-    if (processRunning) {
+    if (processRunning || !waitForStorageSummary) {
       void refreshBlackboxStorageSummary(summaryPaths).catch(error => {
         console.error("블랙박스 저장 현황 갱신 실패", error)
       })
@@ -2169,18 +2170,24 @@ async function getBlackboxSetting() {
     blackboxStorageSummary
     && blackboxStorageSummaryPath === summaryKey
   ) ? blackboxStorageSummary : null
+  const fallbackStatus = processRunning
+    ? status
+    : blackboxLastKnownStorageSummary
   const bytesUsed = archivedStatus
     ? (
         (Number(archivedStatus.bytesUsed) || 0)
         + (processRunning ? (Number(status?.bytesUsed) || 0) : 0)
       )
-    : (processRunning ? (Number(status?.bytesUsed) || 0) : 0)
+    : (Number(fallbackStatus?.bytesUsed) || 0)
   const durationSeconds = archivedStatus
     ? (
         (Number(archivedStatus.durationSeconds) || 0)
         + (processRunning ? (Number(status?.durationSeconds) || 0) : 0)
       )
-    : (processRunning ? (Number(status?.durationSeconds) || 0) : 0)
+    : (Number(fallbackStatus?.durationSeconds) || 0)
+  if (archivedStatus || !blackboxLastKnownStorageSummary) {
+    blackboxLastKnownStorageSummary = { bytesUsed, durationSeconds }
+  }
   if (blackboxLatestClipOverride && !existsSync(blackboxLatestClipOverride)) {
     blackboxLatestClipOverride = null
   }
@@ -2425,8 +2432,9 @@ async function stopBlackboxHelper() {
     const child = blackboxProcess
     if (!child || child.exitCode !== null) {
       blackboxProcess = null
-      return getBlackboxSetting()
+      return null
     }
+    await getBlackboxSetting({ waitForStorageSummary: false })
     const paths = getBlackboxPaths()
     await writeJsonAtomic(paths.controlPath, {
       command: "stop",
@@ -2440,7 +2448,7 @@ async function stopBlackboxHelper() {
     }
     if (!exited) throw new Error("블랙박스 녹화 프로세스를 종료하지 못했습니다")
     if (blackboxProcess === child) blackboxProcess = null
-    return getBlackboxSetting()
+    return null
   })
 }
 
@@ -2475,10 +2483,9 @@ async function setBlackboxSetting(value) {
     blackboxLatestClipOverride = null
   }
   approvedBlackboxClipStoragePath = ""
-  blackboxStorageSummaryGeneration += 1
-  blackboxStorageSummary = null
-  blackboxStorageSummaryPath = ""
-  if (!setting.enabled) return getBlackboxSetting()
+  if (!setting.enabled) {
+    return getBlackboxSetting({ waitForStorageSummary: false })
+  }
   try {
     return await launchBlackboxHelper(setting)
   } catch (error) {
@@ -2513,7 +2520,9 @@ async function chooseBlackboxClipStoragePath(parentWindow) {
 }
 
 async function setBlackboxEnabled(enabled) {
-  const current = await getBlackboxSetting()
+  const current = normalizeBlackboxSetting(
+    await readJson(getBlackboxPaths().settingsPath),
+  )
   if (!current.featureEnabled) {
     throw new Error("고급 기능에서 블랙박스 기능을 먼저 사용 설정해 주세요")
   }
@@ -4393,7 +4402,9 @@ function registerIpc() {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 블랙박스 기능 설정 요청입니다")
     }
-    const current = await getBlackboxSetting()
+    const current = normalizeBlackboxSetting(
+      await readJson(getBlackboxPaths().settingsPath),
+    )
     const nextFeatureEnabled = Boolean(featureEnabled)
     return setBlackboxSetting({
       ...current,
