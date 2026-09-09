@@ -183,6 +183,7 @@ let applicationUpdateCompletionTimer = null
 let applicationUpdateStallTimer = null
 let applicationUpdateDownloadStalled = false
 let applicationUpdateCheckPromise = null
+let applicationUpdateDownloadPromise = null
 let applicationUpdaterConfigured = false
 let applicationUpdateState = {
   phase: "idle",
@@ -595,7 +596,7 @@ function armApplicationUpdateStallTimer() {
 function configureApplicationUpdater() {
   if (applicationUpdaterConfigured || !app.isPackaged) return
   applicationUpdaterConfigured = true
-  autoUpdater.autoDownload = true
+  autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = false
 
   autoUpdater.on("checking-for-update", () => {
@@ -610,8 +611,8 @@ function configureApplicationUpdater() {
   })
   autoUpdater.on("update-available", info => {
     clearApplicationUpdateCompletionTimer()
+    clearApplicationUpdateStallTimer()
     applicationUpdateDownloadStalled = false
-    armApplicationUpdateStallTimer()
     const version = info?.version ?? null
     setApplicationUpdateState({
       phase: "available",
@@ -679,6 +680,9 @@ function configureApplicationUpdater() {
 
 async function checkForApplicationUpdate() {
   if (!app.isPackaged) return applicationUpdateState
+  if (["available", "downloading", "downloaded"].includes(applicationUpdateState.phase)) {
+    return applicationUpdateState
+  }
   if (applicationUpdateCheckPromise) return applicationUpdateCheckPromise
   configureApplicationUpdater()
   applicationUpdateCheckPromise = autoUpdater.checkForUpdates()
@@ -695,6 +699,49 @@ async function checkForApplicationUpdate() {
       applicationUpdateCheckPromise = null
     })
   return applicationUpdateCheckPromise
+}
+
+async function downloadAvailableApplicationUpdate() {
+  if (!app.isPackaged || applicationUpdateState.phase !== "available") {
+    return applicationUpdateState
+  }
+  if (applicationUpdateDownloadPromise) return applicationUpdateDownloadPromise
+  configureApplicationUpdater()
+  applicationUpdateDownloadStalled = false
+  setApplicationUpdateState({
+    phase: "downloading",
+    percent: 0,
+    error: null,
+  })
+  armApplicationUpdateStallTimer()
+  applicationUpdateDownloadPromise = autoUpdater.downloadUpdate()
+    .then(() => applicationUpdateState)
+    .catch(error => {
+      clearApplicationUpdateStallTimer()
+      setApplicationUpdateState({
+        phase: "error",
+        percent: 0,
+        error: serializeError(error),
+      })
+      return applicationUpdateState
+    })
+    .finally(() => {
+      applicationUpdateDownloadPromise = null
+    })
+  return applicationUpdateDownloadPromise
+}
+
+async function requestApplicationUpdate() {
+  if (applicationUpdateState.phase === "available") {
+    return downloadAvailableApplicationUpdate()
+  }
+  if (["downloading", "downloaded"].includes(applicationUpdateState.phase)) {
+    return applicationUpdateState
+  }
+  const checked = await checkForApplicationUpdate()
+  return checked.phase === "available"
+    ? downloadAvailableApplicationUpdate()
+    : checked
 }
 
 async function installDownloadedApplicationUpdate() {
@@ -5292,7 +5339,7 @@ function registerIpc() {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 업데이트 확인 요청입니다")
     }
-    return checkForApplicationUpdate()
+    return requestApplicationUpdate()
   })
   ipcMain.handle("application:install-update", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
@@ -6618,7 +6665,7 @@ async function startApplication() {
   } else if (app.isPackaged) {
     applicationUpdateStartupTimer = setTimeout(() => {
       applicationUpdateStartupTimer = null
-      void checkForApplicationUpdate()
+      void requestApplicationUpdate()
     }, 3000)
     applicationUpdateCheckTimer = setInterval(() => {
       void checkForApplicationUpdate()

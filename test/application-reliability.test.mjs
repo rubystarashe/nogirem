@@ -56,6 +56,7 @@ test("업데이트 다운로드가 45초간 멈추면 입력 차단 상태를 �
 })
 
 test("새 앱 버전은 주기적으로 확인하고 메인 문구와 우측 하단 오버레이로 알린다", () => {
+  assert.match(electronMain, /autoUpdater\.autoDownload = false/)
   assert.match(
     electronMain,
     /applicationUpdateCheckTimer = setInterval\([\s\S]*4 \* 60 \* 60 \* 1000/,
@@ -79,6 +80,25 @@ test("새 앱 버전은 주기적으로 확인하고 메인 문구와 우측 하
   assert.match(
     applicationStyles,
     /\.app-version\.update-available \{[\s\S]*background: #ffd400;[\s\S]*font-weight: 900;/,
+  )
+})
+
+test("주기 확인은 알림만 표시하고 시작 확인과 사용자 클릭만 다운로드한다", () => {
+  assert.match(
+    electronMain,
+    /async function downloadAvailableApplicationUpdate\(\)[\s\S]*phase: "downloading"[\s\S]*autoUpdater\.downloadUpdate\(\)/,
+  )
+  assert.match(
+    electronMain,
+    /async function requestApplicationUpdate\(\)[\s\S]*phase === "available"[\s\S]*downloadAvailableApplicationUpdate\(\)/,
+  )
+  assert.match(
+    electronMain,
+    /applicationUpdateStartupTimer = setTimeout\([\s\S]*requestApplicationUpdate\(\)[\s\S]*applicationUpdateCheckTimer = setInterval\([\s\S]*checkForApplicationUpdate\(\)/,
+  )
+  assert.match(
+    electronMain,
+    /ipcMain\.handle\("application:check-update"[\s\S]*return requestApplicationUpdate\(\)/,
   )
 })
 
