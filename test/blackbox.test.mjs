@@ -209,6 +209,11 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(managerSource, /\.settings-page \.page-actions \{[\s\S]*justify-content: flex-end/)
   assert.match(managerSource, /class="message settings-message"[\s\S]*class="action save-setting/)
   assert.match(managerSource, /const dirtySettingKeys = new Set\(\)/)
+  assert.match(managerSource, /let clipSavePending = false/)
+  assert.match(
+    managerSource,
+    /if \(clipSavePending \|\| status\?\.clipInProgress\) return/,
+  )
   assert.match(
     managerSource,
     /function draftSettingPatch\(\)[\s\S]*dirtySettingKeys[\s\S]*window\.blackboxManager\.setSetting\(draftSettingPatch\(\)\)/,
@@ -235,6 +240,22 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(mainSource, /async function renameBlackboxClip\(fileName, requestedName\)/)
   assert.match(mainSource, /async function openBlackboxClip\(fileName\)[\s\S]*shell\.showItemInFolder\(clipPath\)/)
   assert.match(mainSource, /async function requestBlackboxClip\(requestedName = ""\)/)
+  assert.match(
+    mainSource,
+    /blackboxClipSaveInProgress = true[\s\S]*finally \{[\s\S]*blackboxClipSaveInProgress = false/,
+  )
+  assert.match(
+    mainSource,
+    /blackbox-manager:request-close[\s\S]*if \(blackboxClipSaveInProgress\) return false/,
+  )
+  assert.match(
+    mainSource,
+    /requestApplicationExitConfirmation[\s\S]*clipSaveInProgress: true/,
+  )
+  assert.match(
+    mainSource,
+    /function minimizePrimaryWindowToTray\(\)[\s\S]*if \(blackboxClipSaveInProgress\) return false/,
+  )
   assert.match(
     mainSource,
     /await assertBlackboxClipNameAvailable\(requestedName\)[\s\S]*writeJsonAtomic\(getBlackboxPaths\(\)\.controlPath/,

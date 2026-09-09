@@ -118,6 +118,10 @@ test("터보 키를 사용하기 전에 설정 모달을 열고 사용 중일 �
   )
   assert.doesNotMatch(applicationView, /사용 안 함/)
   assert.match(applicationView, /turboKeyEnabled[\s\S]*"사용하기"/)
+  assert.match(
+    applicationView,
+    /스킬 키를 미리 누르고 있어도 스킬이 사용될 수 있도록 합니다\. 기능을 사용하려면 다운로드가 필요합니다/,
+  )
 })
 
 test("Esc는 터보 키에서 제외하고 키캡 hover 색상을 사용하지 않는다", async () => {

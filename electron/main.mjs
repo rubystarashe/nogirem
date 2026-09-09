@@ -131,6 +131,7 @@ let dxvkGuideWindow = null
 let blackboxManagerWindow = null
 let blackboxManagerPreferredSize = null
 let blackboxManagerActivePage = "extract"
+let blackboxClipSaveInProgress = false
 let blackboxEditorWindow = null
 let blackboxEditorSession = null
 let applicationTray = null
@@ -569,6 +570,7 @@ async function checkForApplicationUpdate() {
 
 async function installDownloadedApplicationUpdate() {
   if (!app.isPackaged || applicationUpdateState.phase !== "downloaded") return false
+  if (blackboxClipSaveInProgress) return false
   applicationExitInProgress = true
   closeRequestPending = false
   const results = await Promise.allSettled([
@@ -2550,47 +2552,55 @@ async function setBlackboxEnabled(enabled) {
 }
 
 async function requestBlackboxClip(requestedName = "") {
-  return queueBlackboxControlOperation(async () => {
-    const requestedAt = Date.now()
-    if (requestedAt - lastBlackboxClipRequestedAt < 2000) {
-      throw new Error("이전 클립 요청을 처리하고 있습니다")
-    }
-    const state = await getBlackboxSetting()
-    if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
-    if (state.clipInProgress) throw new Error("이전 클립을 저장하고 있습니다")
-    const normalizedRequestedName = String(requestedName).trim()
-      ? await assertBlackboxClipNameAvailable(requestedName)
-      : ""
-    const previousStatus = await readRuntimeStatusJson(getBlackboxPaths().statusPath)
-    await writeJsonAtomic(getBlackboxPaths().controlPath, {
-      command: "clip",
-      seconds: state.clipSeconds,
-      requestedAt,
+  if (blackboxClipSaveInProgress) {
+    throw new Error("이전 클립을 저장하고 있습니다")
+  }
+  blackboxClipSaveInProgress = true
+  try {
+    return await queueBlackboxControlOperation(async () => {
+      const requestedAt = Date.now()
+      if (requestedAt - lastBlackboxClipRequestedAt < 2000) {
+        throw new Error("이전 클립 요청을 처리하고 있습니다")
+      }
+      const state = await getBlackboxSetting()
+      if (!state.running) throw new Error("블랙박스 녹화가 실행 중이 아닙니다")
+      if (state.clipInProgress) throw new Error("이전 클립을 저장하고 있습니다")
+      const normalizedRequestedName = String(requestedName).trim()
+        ? await assertBlackboxClipNameAvailable(requestedName)
+        : ""
+      const previousStatus = await readRuntimeStatusJson(getBlackboxPaths().statusPath)
+      await writeJsonAtomic(getBlackboxPaths().controlPath, {
+        command: "clip",
+        seconds: state.clipSeconds,
+        requestedAt,
+      })
+      lastBlackboxClipRequestedAt = requestedAt
+      const completed = await waitForBlackboxStatus(
+        value => (
+          !value?.clipInProgress
+          && value?.latestClip
+          && value.latestClip !== previousStatus?.latestClip
+        ),
+        120000,
+      )
+      if (!completed?.latestClip) throw new Error("클립 저장이 제한 시간 안에 완료되지 않았습니다")
+      blackboxLatestClipOverride = completed.latestClip
+      if (normalizedRequestedName) {
+        const renamed = await renameBlackboxClip(
+          basename(completed.latestClip),
+          normalizedRequestedName,
+        )
+        const { clipStoragePath } = await getCurrentBlackboxStorageLocations()
+        blackboxLatestClipOverride = join(
+          clipStoragePath,
+          renamed.name,
+        )
+      }
+      return getBlackboxSetting()
     })
-    lastBlackboxClipRequestedAt = requestedAt
-    const completed = await waitForBlackboxStatus(
-      value => (
-        !value?.clipInProgress
-        && value?.latestClip
-        && value.latestClip !== previousStatus?.latestClip
-      ),
-      120000,
-    )
-    if (!completed?.latestClip) throw new Error("클립 저장이 제한 시간 안에 완료되지 않았습니다")
-    blackboxLatestClipOverride = completed.latestClip
-    if (normalizedRequestedName) {
-      const renamed = await renameBlackboxClip(
-        basename(completed.latestClip),
-        normalizedRequestedName,
-      )
-      const { clipStoragePath } = await getCurrentBlackboxStorageLocations()
-      blackboxLatestClipOverride = join(
-        clipStoragePath,
-        renamed.name,
-      )
-    }
-    return getBlackboxSetting()
-  })
+  } finally {
+    blackboxClipSaveInProgress = false
+  }
 }
 
 async function clearBlackboxRecording() {
@@ -3631,6 +3641,9 @@ async function ensureFrameBoostStarted() {
 }
 
 async function requestApplicationExitConfirmation({ nativeDialog = false } = {}) {
+  if (blackboxClipSaveInProgress) {
+    return { closing: false, clipSaveInProgress: true }
+  }
   if (applicationExitInProgress || (closeRequestPending && !nativeDialog)) return
   if (!primaryWindow || primaryWindow.isDestroyed() || primaryWindow.webContents.isDestroyed()) {
     await finishApplicationExit("keep")
@@ -3693,6 +3706,9 @@ async function requestApplicationExitConfirmation({ nativeDialog = false } = {})
 }
 
 async function finishApplicationExitWithoutAppliedBoost() {
+  if (blackboxClipSaveInProgress) {
+    return { closing: false, clipSaveInProgress: true }
+  }
   if (applicationExitInProgress) return { closing: true }
   applicationExitInProgress = true
   closeRequestPending = false
@@ -3725,6 +3741,9 @@ async function finishApplicationExit(action) {
   }
   if (action !== "reset" && action !== "keep") {
     throw new Error("종료 방식이 올바르지 않습니다")
+  }
+  if (blackboxClipSaveInProgress) {
+    return { closing: false, clipSaveInProgress: true }
   }
   if (applicationExitInProgress) return { closing: true }
 
@@ -4651,7 +4670,9 @@ function registerIpc() {
     if (window !== blackboxManagerWindow) {
       throw new Error("허용되지 않은 블랙박스 관리 창 닫기 요청입니다")
     }
+    if (blackboxClipSaveInProgress) return false
     window.close()
+    return true
   })
   ipcMain.handle("blackbox-manager:get-status", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== blackboxManagerWindow) {
@@ -5085,6 +5106,7 @@ function openBlackboxManager() {
   window.on("close", event => {
     if (closing) return
     event.preventDefault()
+    if (blackboxClipSaveInProgress) return
     closing = true
     clearTimeout(sizeSaveTimer)
     saveUserSize()
@@ -5576,6 +5598,7 @@ function updateApplicationTrayIcon() {
 
 function minimizePrimaryWindowToTray() {
   if (!primaryWindow || primaryWindow.isDestroyed()) return false
+  if (blackboxClipSaveInProgress) return false
   clearTimeout(primaryWindowFocusTimer)
   clearTimeout(primaryWindowTrayRestoreTimer)
   clearTimeout(primaryWindowDiagnosticsTimer)
