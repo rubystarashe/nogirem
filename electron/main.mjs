@@ -247,6 +247,31 @@ function resolveBlackboxRingStoragePath(setting, paths = getBlackboxPaths()) {
   return join(`${drive}\\`, "마비노기 렘 블랙박스", "Ring")
 }
 
+function resolveBlackboxRingStoragePaths(
+  setting,
+  storageDrives,
+  paths = getBlackboxPaths(),
+) {
+  const candidates = [
+    resolveBlackboxRingStoragePath(setting, paths),
+    join(paths.storagePath, "Ring"),
+    ...storageDrives.map(drive => (
+      join(`${drive.id}\\`, "마비노기 렘 블랙박스", "Ring")
+    )),
+  ]
+  const seen = new Set()
+  return candidates.filter(candidate => {
+    const key = resolve(candidate).toLowerCase()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function blackboxRingPathsArgument(ringStoragePaths) {
+  return `--ring-paths=${ringStoragePaths.join("|")}`
+}
+
 function resolveBlackboxClipStoragePath(setting, paths = getBlackboxPaths()) {
   const requestedPath = String(setting?.clipStoragePath ?? "").trim()
   return requestedPath && isAbsolute(requestedPath)
@@ -293,8 +318,10 @@ async function listBlackboxStorageDrives() {
 async function getCurrentBlackboxStorageLocations() {
   const paths = getBlackboxPaths()
   const setting = normalizeBlackboxSetting(await readJson(paths.settingsPath))
+  const storageDrives = await listBlackboxStorageDrives()
   return {
     ringStoragePath: resolveBlackboxRingStoragePath(setting, paths),
+    ringStoragePaths: resolveBlackboxRingStoragePaths(setting, storageDrives, paths),
     clipStoragePath: resolveBlackboxClipStoragePath(setting, paths),
   }
 }
@@ -2102,6 +2129,7 @@ async function getBlackboxSetting() {
   const ringStoragePath = resolveBlackboxRingStoragePath(setting, paths)
   const clipStoragePath = resolveBlackboxClipStoragePath(setting, paths)
   const storageDrives = await listBlackboxStorageDrives()
+  const ringStoragePaths = resolveBlackboxRingStoragePaths(setting, storageDrives, paths)
   const resolvedQuality = resolveBlackboxQuality(setting, {
     logicalCpuCount: cpus().length,
     totalMemoryBytes: totalmem(),
@@ -2110,26 +2138,42 @@ async function getBlackboxSetting() {
   const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 5000
   const processRunning = Boolean(blackboxProcess && blackboxProcess.exitCode === null)
   const running = setting.enabled && processRunning && statusFresh && Boolean(status?.running)
+  const summaryPaths = processRunning
+    ? ringStoragePaths.filter(candidate => (
+        resolve(candidate).toLowerCase() !== resolve(ringStoragePath).toLowerCase()
+      ))
+    : ringStoragePaths
+  const summaryKey = summaryPaths
+    .map(candidate => resolve(candidate).toLowerCase())
+    .sort()
+    .join("|")
   if (
-    !processRunning
-    && (
+    (
       !blackboxStorageSummary
-      || blackboxStorageSummaryPath !== ringStoragePath
+      || blackboxStorageSummaryPath !== summaryKey
     )
     && Date.now() >= blackboxStorageSummaryRetryAt
   ) {
-    void refreshBlackboxStorageSummary(ringStoragePath).catch(error => {
+    void refreshBlackboxStorageSummary(summaryPaths).catch(error => {
       console.error("블랙박스 저장 현황 갱신 실패", error)
     })
   }
-  const storedStatus = (
-    !processRunning
-    && blackboxStorageSummary
-    && blackboxStorageSummaryPath === ringStoragePath
-  )
-    ? blackboxStorageSummary
-    : status
-  const bytesUsed = Number(storedStatus?.bytesUsed) || 0
+  const archivedStatus = (
+    blackboxStorageSummary
+    && blackboxStorageSummaryPath === summaryKey
+  ) ? blackboxStorageSummary : null
+  const bytesUsed = archivedStatus
+    ? (
+        (Number(archivedStatus.bytesUsed) || 0)
+        + (processRunning ? (Number(status?.bytesUsed) || 0) : 0)
+      )
+    : (Number(status?.bytesUsed) || 0)
+  const durationSeconds = archivedStatus
+    ? (
+        (Number(archivedStatus.durationSeconds) || 0)
+        + (processRunning ? (Number(status?.durationSeconds) || 0) : 0)
+      )
+    : (Number(status?.durationSeconds) || 0)
   if (blackboxLatestClipOverride && !existsSync(blackboxLatestClipOverride)) {
     blackboxLatestClipOverride = null
   }
@@ -2144,7 +2188,7 @@ async function getBlackboxSetting() {
     waitingForGame: running && Boolean(status?.waitingForGame),
     clipInProgress: running && Boolean(status?.clipInProgress),
     bytesUsed,
-    durationSeconds: Number(storedStatus?.durationSeconds) || 0,
+    durationSeconds,
     capacityBytes: setting.capacityGb * 1024 ** 3,
     maxDurationSeconds: setting.maxDurationSeconds,
     droppedFrames: Number(status?.droppedFrames) || 0,
@@ -2154,6 +2198,7 @@ async function getBlackboxSetting() {
     storageDrives,
     ringStorageDrive: /^[A-Za-z]:/.exec(ringStoragePath)?.[0]?.toUpperCase() ?? "C:",
     ringStoragePath,
+    ringStoragePaths,
     clipStoragePath,
     latestClip: blackboxLatestClipOverride ?? status?.latestClip ?? null,
     shortcut: setting.shortcut
@@ -2175,20 +2220,22 @@ async function getBlackboxSetting() {
   }
 }
 
-async function refreshBlackboxStorageSummary(requestedRingStoragePath = "") {
+async function refreshBlackboxStorageSummary(requestedRingStoragePaths = []) {
   if (blackboxStorageSummaryPromise) return blackboxStorageSummaryPromise
   const generation = blackboxStorageSummaryGeneration
   blackboxStorageSummaryPromise = (async () => {
-    let ringStoragePath = requestedRingStoragePath
-    if (!ringStoragePath) {
-      const setting = normalizeBlackboxSetting(
-        await readJson(getBlackboxPaths().settingsPath),
-      )
-      ringStoragePath = resolveBlackboxRingStoragePath(setting)
+    let ringStoragePaths = requestedRingStoragePaths
+    if (!ringStoragePaths.length) {
+      const locations = await getCurrentBlackboxStorageLocations()
+      ringStoragePaths = locations.ringStoragePaths
     }
+    const summaryKey = ringStoragePaths
+      .map(candidate => resolve(candidate).toLowerCase())
+      .sort()
+      .join("|")
     const output = await runRecorderUtility([
       "--mode=summary",
-      `--ring-path=${ringStoragePath}`,
+      blackboxRingPathsArgument(ringStoragePaths),
     ])
     const summary = JSON.parse(output)
     const nextSummary = {
@@ -2197,7 +2244,7 @@ async function refreshBlackboxStorageSummary(requestedRingStoragePath = "") {
     }
     if (generation === blackboxStorageSummaryGeneration) {
       blackboxStorageSummary = nextSummary
-      blackboxStorageSummaryPath = ringStoragePath
+      blackboxStorageSummaryPath = summaryKey
       blackboxStorageSummaryRetryAt = 0
     }
     return nextSummary
@@ -2502,9 +2549,13 @@ async function clearBlackboxRecording() {
   return queueBlackboxControlOperation(async () => {
     const paths = getBlackboxPaths()
     const state = await getBlackboxSetting()
-    const ringStoragePath = resolveBlackboxRingStoragePath(state, paths)
+    const ringStoragePath = state.ringStoragePath
+    const ringStoragePaths = state.ringStoragePaths
+    const activeRingKey = resolve(ringStoragePath).toLowerCase()
     if (!state.running) {
-      await rm(ringStoragePath, { recursive: true, force: true })
+      await Promise.all(ringStoragePaths.map(candidate => (
+        rm(candidate, { recursive: true, force: true })
+      )))
       await mkdir(ringStoragePath, { recursive: true })
       await unlink(paths.statusPath).catch(() => {})
       blackboxStorageSummaryGeneration += 1
@@ -2512,7 +2563,10 @@ async function clearBlackboxRecording() {
         bytesUsed: 0,
         durationSeconds: 0,
       }
-      blackboxStorageSummaryPath = ringStoragePath
+      blackboxStorageSummaryPath = ringStoragePaths
+        .map(candidate => resolve(candidate).toLowerCase())
+        .sort()
+        .join("|")
       return {
         ...await getBlackboxSetting(),
         cleared: true,
@@ -2529,6 +2583,12 @@ async function clearBlackboxRecording() {
       10000,
     )
     if (!completed) throw new Error("순환 녹화를 제한 시간 안에 비우지 못했습니다")
+    await Promise.all(ringStoragePaths
+      .filter(candidate => resolve(candidate).toLowerCase() !== activeRingKey)
+      .map(candidate => rm(candidate, { recursive: true, force: true })))
+    blackboxStorageSummaryGeneration += 1
+    blackboxStorageSummary = null
+    blackboxStorageSummaryPath = ""
     return {
       ...await getBlackboxSetting(),
       cleared: true,
@@ -2539,10 +2599,10 @@ async function clearBlackboxRecording() {
 async function confirmClearBlackboxRecording(parentWindow) {
   const confirmation = await dialog.showMessageBox(parentWindow, {
     type: "warning",
-    title: "순환 녹화 비우기",
-    message: "블랙박스 순환 녹화를 모두 비울까요?",
+    title: "청크 정리",
+    message: "모든 드라이브의 녹화 청크를 정리할까요?",
     detail: "저장된 클립은 삭제하지 않습니다.",
-    buttons: ["취소", "비우기"],
+    buttons: ["취소", "정리"],
     defaultId: 0,
     cancelId: 0,
     noLink: true,
@@ -2650,12 +2710,13 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
   const seconds = Math.max(30, Math.min(21600, Math.round(Number(requestedSeconds) || 900)))
   return queueBlackboxEditorOperation(session, async () => {
     if (session.closed) throw new Error("블랙박스 편집 창이 닫혔습니다")
-    const ringDirectory = resolveBlackboxRingStoragePath(
-      await getBlackboxSetting(),
+    const { ringStoragePaths } = await getCurrentBlackboxStorageLocations()
+    const allowedRingDirectories = new Set(
+      ringStoragePaths.map(candidate => resolve(candidate).toLowerCase()),
     )
     const metadataOutput = await runRecorderUtility([
       "--mode=index",
-      `--ring-path=${ringDirectory}`,
+      blackboxRingPathsArgument(ringStoragePaths),
       `--anchor-ms=${session.anchorAt}`,
       `--seconds=${seconds}`,
     ])
@@ -2684,8 +2745,15 @@ async function createBlackboxEditorTrack(session, requestedSeconds) {
     for (const chunk of Array.isArray(metadata.chunks) ? metadata.chunks : []) {
       const fileName = typeof chunk?.fileName === "string" ? chunk.fileName : ""
       if (!/^chunk-\d+\.mp4$/.test(fileName)) continue
-      const chunkPath = join(ringDirectory, fileName)
-      if (!existsSync(chunkPath)) continue
+      const chunkPath = typeof chunk?.filePath === "string"
+        ? resolve(chunk.filePath)
+        : ""
+      if (
+        !chunkPath
+        || !allowedRingDirectories.has(resolve(dirname(chunkPath)).toLowerCase())
+        || basename(chunkPath) !== fileName
+        || !existsSync(chunkPath)
+      ) continue
       const trackId = randomUUID()
       const videoUrl = `nogirem-blackbox://editor/${session.id}/${trackId}?v=${fileName}`
       session.chunkFiles.set(trackId, chunkPath)
@@ -2805,7 +2873,9 @@ async function extractBlackboxEditorRange(session, value, onProgress = null) {
     onProgress?.(1)
     await runRecorderUtility([
       "--mode=compose",
-      `--ring-path=${resolveBlackboxRingStoragePath(await getBlackboxSetting())}`,
+      blackboxRingPathsArgument(
+        (await getCurrentBlackboxStorageLocations()).ringStoragePaths,
+      ),
       `--anchor-ms=${session.anchorAt}`,
       `--seconds=${session.trackSeconds}`,
       `--output=${outputPath}`,

@@ -1847,6 +1847,25 @@ std::vector<fs::path> selectAnchoredChunks(
   return chunks;
 }
 
+std::vector<fs::path> selectAnchoredChunks(
+  const std::vector<fs::path>& directories,
+  std::int64_t anchorMilliseconds,
+  int seconds
+) {
+  std::vector<fs::path> chunks;
+  for (const auto& directory : directories) {
+    auto selected = selectAnchoredChunks(directory, anchorMilliseconds, seconds);
+    chunks.insert(chunks.end(), selected.begin(), selected.end());
+  }
+  std::sort(chunks.begin(), chunks.end(), [](const fs::path& left, const fs::path& right) {
+    const auto leftStarted = chunkStartedMilliseconds(left);
+    const auto rightStarted = chunkStartedMilliseconds(right);
+    if (leftStarted != rightStarted) return leftStarted < rightStarted;
+    return left.wstring() < right.wstring();
+  });
+  return chunks;
+}
+
 struct TrackTimelineMetadata {
   std::string json;
   LONGLONG mediaDuration;
@@ -1864,6 +1883,7 @@ TrackTimelineMetadata trackTimelineMetadata(
   };
   struct Chunk {
     std::wstring fileName;
+    std::wstring filePath;
     double timelineStart;
     double mediaStart;
     double duration;
@@ -1913,6 +1933,7 @@ TrackTimelineMetadata trackTimelineMetadata(
     if (visibleDuration > 0.0) {
       visibleChunks.push_back({
         chunk.filename().wstring(),
+        chunk.wstring(),
         timelineStart,
         mediaOffset,
         visibleDuration
@@ -1951,6 +1972,7 @@ TrackTimelineMetadata trackTimelineMetadata(
     if (index > 0) output << ',';
     const auto& chunk = visibleChunks[index];
     output << "{\"fileName\":\"" << jsonEscape(chunk.fileName) << '"'
+      << ",\"filePath\":\"" << jsonEscape(chunk.filePath) << '"'
       << ",\"timelineStartSeconds\":" << chunk.timelineStart
       << ",\"mediaStartSeconds\":" << chunk.mediaStart
       << ",\"durationSeconds\":" << chunk.duration << '}';
@@ -3115,6 +3137,28 @@ std::int64_t wideInteger(
   }
 }
 
+std::vector<fs::path> utilityRingPaths(
+  const std::map<std::wstring, std::wstring>& arguments
+) {
+  std::vector<fs::path> paths;
+  const auto multiple = arguments.find(L"ring-paths");
+  if (multiple != arguments.end()) {
+    std::wstringstream stream(multiple->second);
+    std::wstring value;
+    while (std::getline(stream, value, L'|')) {
+      if (!value.empty()) paths.emplace_back(value);
+    }
+  }
+  if (paths.empty()) {
+    const auto single = arguments.find(L"ring-path");
+    if (single != arguments.end() && !single->second.empty()) {
+      paths.emplace_back(single->second);
+    }
+  }
+  if (paths.empty()) throw std::runtime_error("녹화 청크 경로가 없습니다");
+  return paths;
+}
+
 struct CompositionPiece {
   bool black;
   LONGLONG start;
@@ -3396,7 +3440,7 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
   }
   try {
     if (mode == L"track" || mode == L"index") {
-      const fs::path ringPath = arguments.at(L"ring-path");
+      const auto ringPaths = utilityRingPaths(arguments);
       const auto anchorMilliseconds = wideInteger(
         arguments,
         L"anchor-ms",
@@ -3408,7 +3452,7 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
         21600
       );
       const auto chunks = compatibleChunkSuffix(selectAnchoredChunks(
-          ringPath,
+          ringPaths,
           anchorMilliseconds,
           seconds
       ));
@@ -3436,11 +3480,17 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
       }
       std::cout << timelineMetadata.json << '\n';
     } else if (mode == L"summary") {
-      RingStorageIndex ringStorage(arguments.at(L"ring-path"));
+      std::uint64_t bytesUsed = 0;
+      double durationSeconds = 0;
+      for (const auto& ringPath : utilityRingPaths(arguments)) {
+        RingStorageIndex ringStorage(ringPath);
+        bytesUsed += ringStorage.bytesUsed();
+        durationSeconds += ringStorage.durationSeconds();
+      }
       std::cout
-        << "{\"bytesUsed\":" << ringStorage.bytesUsed()
+        << "{\"bytesUsed\":" << bytesUsed
         << ",\"durationSeconds\":" << std::fixed << std::setprecision(3)
-        << ringStorage.durationSeconds()
+        << durationSeconds
         << "}\n";
     } else if (mode == L"compose") {
       const fs::path outputPath = arguments.at(L"output");
@@ -3455,7 +3505,7 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
       if (input != arguments.end()) {
         inputs.push_back(input->second);
       } else {
-        const fs::path ringPath = arguments.at(L"ring-path");
+        const auto ringPaths = utilityRingPaths(arguments);
         const auto anchorMilliseconds = wideInteger(
           arguments,
           L"anchor-ms",
@@ -3467,7 +3517,7 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
           21600
         );
         inputs = compatibleChunkSuffix(selectAnchoredChunks(
-          ringPath,
+          ringPaths,
           anchorMilliseconds,
           seconds
         ));

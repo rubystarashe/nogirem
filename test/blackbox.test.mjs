@@ -262,7 +262,7 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(mainSource, /application:get-blackbox-setting/)
   assert.match(mainSource, /application:save-blackbox-clip/)
   assert.match(mainSource, /application:clear-blackbox-recording/)
-  assert.match(mainSource, /rm\(ringStoragePath, \{ recursive: true, force: true \}\)/)
+  assert.match(mainSource, /ringStoragePaths\.map\(candidate => \([\s\S]*rm\(candidate/)
   assert.match(mainSource, /저장된 클립은 삭제하지 않습니다/)
   assert.match(preloadSource, /getBlackboxSetting/)
   assert.match(preloadSource, /clearBlackboxRecording/)
@@ -295,7 +295,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(managerSource, /class="shortcut-input"[\s\S]*readonly/)
   assert.match(managerSource, /최대 녹화 길이[\s\S]*class="max-duration-hours"[\s\S]*value="1"[\s\S]*class="max-duration-minutes"[\s\S]*value="0"[\s\S]*class="max-duration-seconds"[\s\S]*value="0"/)
   assert.match(managerSource, /녹화 용량 한도/)
-  assert.match(managerSource, /청크 저장 드라이브[\s\S]*class="storage-drive-select"[\s\S]*녹화 저장 위치[\s\S]*class="storage-path-input"/)
+  assert.match(managerSource, /청크 저장 드라이브[\s\S]*class="storage-drive-select"[\s\S]*모든 드라이브 청크 정리[\s\S]*녹화 저장 위치[\s\S]*class="storage-path-input"/)
   assert.match(managerSource, /maxDurationSeconds: normalizeMaximumDurationInputs\(\)/)
   assert.match(managerSource, /ringStorageDrive: storageDriveSelect\.value/)
   assert.match(managerSource, /clipStoragePath: storagePathInput\.dataset\.path/)
@@ -309,7 +309,8 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /let activeBlackboxShortcut = null/)
   assert.match(mainSource, /async function refreshBlackboxStorageSummary\([^)]*\)/)
   assert.match(mainSource, /"--mode=summary"/)
-  assert.match(mainSource, /const storedStatus = \([\s\S]*!processRunning[\s\S]*blackboxStorageSummaryPath === ringStoragePath/)
+  assert.match(mainSource, /const summaryPaths = processRunning[\s\S]*const archivedStatus = \(/)
+  assert.match(mainSource, /function blackboxRingPathsArgument\(/)
   assert.match(mainSource, /registerBlackboxShortcut\(setting\.shortcut\)/)
   assert.match(mainSource, /nativeBlackboxShortcutVirtualKeys[\s\S]*\["Pause", 0x13\]/)
   assert.match(mainSource, /`--shortcut-vk=\$\{nativeBlackboxShortcutVirtualKeys\.get\(normalized\.shortcut\) \?\? 0\}`/)
@@ -466,7 +467,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /blackbox-editor:extract-progress/)
   assert.match(mainSource, /type: "black"/)
   assert.match(mainSource, /"--mode=compose"/)
-  assert.match(mainSource, /"--mode=compose"[\s\S]*`--ring-path=\$\{resolveBlackboxRingStoragePath\(/)
+  assert.match(mainSource, /"--mode=compose"[\s\S]*blackboxRingPathsArgument\(/)
   assert.doesNotMatch(mainSource, /"--mode=compose"[\s\S]{0,200}`--input=/)
   assert.doesNotMatch(editorScript, /previewSelection/)
   assert.match(editorScript, /extractButton\.addEventListener\("click", openExportModal\)/)
@@ -519,6 +520,7 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /metricsPath: join\(directory, "recorder-metrics\.log"\)/)
   assert.match(mainSource, /blackbox-manager:choose-clip-storage/)
   assert.match(mainSource, /function resolveBlackboxRingStoragePath\(/)
+  assert.match(mainSource, /function resolveBlackboxRingStoragePaths\(/)
   assert.match(
     mainSource,
     /if \(drive === defaultDrive\) return join\(paths\.storagePath, "Ring"\)/,
@@ -528,6 +530,12 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(mainSource, /`--ring-path=\$\{ringStoragePath\}`/)
   assert.match(nativeSource, /options\.ringPath/)
   assert.match(nativeSource, /options\.clipsPath/)
+  assert.match(nativeSource, /utilityRingPaths/)
+  assert.match(nativeSource, /filePath/)
+  assert.match(
+    mainSource,
+    /ringStoragePaths[\s\S]*모든 드라이브의 녹화 청크를 정리할까요/,
+  )
   assert.match(
     mainSource,
     /spawn\(recorderHelperPath,[\s\S]*`--metrics-path=\$\{paths\.metricsPath\}`/,

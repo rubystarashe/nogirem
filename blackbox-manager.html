@@ -238,6 +238,10 @@
         font-weight: 700;
       }
 
+      .settings .cleanup-recording {
+        width: 280px;
+      }
+
       .settings select,
       .settings input {
         width: 280px;
@@ -844,6 +848,10 @@
           <span>청크 저장 드라이브</span>
           <select class="storage-drive-select" aria-label="녹화 청크 저장 드라이브"></select>
         </label>
+        <label class="storage-cleanup">
+          <span>청크 정리</span>
+          <button class="action cleanup-recording" type="button">모든 드라이브 청크 정리</button>
+        </label>
         <label class="storage-path">
           <span>녹화 저장 위치</span>
           <div class="storage-path-control">
@@ -931,6 +939,7 @@
       const codecSelect = document.querySelector(".codec-select")
       const fpsSelect = document.querySelector(".fps-select")
       const storageDriveSelect = document.querySelector(".storage-drive-select")
+      const cleanupRecordingButton = document.querySelector(".cleanup-recording")
       const storagePathInput = document.querySelector(".storage-path-input")
       const storagePathButton = document.querySelector(".storage-path-button")
       const capacitySelect = document.querySelector(".capacity-select")
@@ -1249,6 +1258,7 @@
         busy = value
         for (const input of settingInputs) input.disabled = value
         storagePathButton.disabled = value
+        cleanupRecordingButton.disabled = value
         if (text) {
           feedback.classList.remove("error")
           feedback.textContent = text
@@ -1629,6 +1639,16 @@
           message.classList.add("error")
           message.textContent = errorMessage(error)
         }
+      })
+      cleanupRecordingButton.addEventListener("click", async () => {
+        const result = await runAction(
+          "모든 드라이브의 녹화 청크를 정리하고 있습니다",
+          () => window.blackboxManager.clearRecording(),
+        )
+        message.classList.remove("error")
+        message.textContent = result?.cleared
+          ? "모든 드라이브의 녹화 청크를 정리했습니다"
+          : ""
       })
       shortcutInput.addEventListener("focus", () => {
         shortcutInput.classList.add("capturing")
