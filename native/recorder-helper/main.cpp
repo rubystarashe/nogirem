@@ -762,11 +762,15 @@ public:
     chunks_.push_back({ path, size, started, duration });
     std::uint64_t total = bytesUsed_.load() + size;
     double totalDuration = durationSeconds_.load() + duration;
+    std::error_code spaceError;
+    auto space = fs::space(directory_, spaceError);
+    const auto reserve = Gigabyte;
     const auto newestStarted = chunks_.back().started;
     while (
       !chunks_.empty()
       && (
         total > capacityBytes
+        || (!spaceError && space.available < reserve)
         || (
           chunks_.size() > 1
           && maxDurationMilliseconds > 0
@@ -784,6 +788,7 @@ public:
       if (fs::remove(entry.path, removeError)) {
         total = total >= entry.size ? total - entry.size : 0;
         totalDuration = std::max(0.0, totalDuration - entry.duration);
+        if (!spaceError) space.available += entry.size;
       } else {
         refreshLocked();
         return bytesUsed_.load();
@@ -3661,7 +3666,6 @@ int wmain(int count, wchar_t** values) {
     auto lastMetricsWrite = std::chrono::steady_clock::now();
     auto lastDroppedFrames = status.droppedFrames.load();
     auto nextCaptureAttempt = std::chrono::steady_clock::now();
-    auto nextStorageSpaceCheck = std::chrono::steady_clock::now();
     auto captureRetryDelay = 500ms;
     bool shortcutPressed = false;
 
@@ -3683,21 +3687,6 @@ int wmain(int count, wchar_t** values) {
         if (control->command == "clip") encoder.requestClip(control->seconds);
         if (control->command == "flush") encoder.requestFlush(control->requestId);
         if (control->command == "clear") encoder.requestClear(control->requestId);
-      }
-
-      if (now >= nextStorageSpaceCheck) {
-        std::error_code spaceError;
-        const auto storageSpace = fs::space(options.ringPath, spaceError);
-        if (!spaceError && storageSpace.available <= Gigabyte) {
-          {
-            std::lock_guard lock(status.mutex);
-            status.error =
-              L"녹화 저장 드라이브의 남은 용량이 1GB 이하라 녹화를 중단했습니다";
-          }
-          status.running = false;
-          break;
-        }
-        nextStorageSpaceCheck = now + 1s;
       }
 
       if (capture && capture->closed()) {
