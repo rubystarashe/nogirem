@@ -145,6 +145,11 @@ test("종료 모달은 업데이트 레이어보다 위에서 입력을 받는�
   )
   assert.match(updateModalView, /button \{[\s\S]*pointer-events: auto;/)
   assert.match(
+    updateModalView,
+    /\.update-preview-panel \{[\s\S]*color: #000;[\s\S]*background: #ff9d00;/,
+  )
+  assert.match(updateModalView, /\.update-progress-value \{[\s\S]*background: #000;/)
+  assert.match(
     applicationView,
     /\{#if !closeModalVisible && \([\s\S]*applicationUpdateState\.phase === "downloading"/,
   )

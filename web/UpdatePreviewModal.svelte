@@ -52,14 +52,13 @@
     left: 0;
     height: 156px;
     padding: 17px 20px 20px;
-    color: #fff;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(2px);
+    color: #000;
+    background: #ff9d00;
   }
 
   h2 {
     margin: 0;
-    color: #fff;
+    color: #000;
     font-size: 30px;
     font-weight: 700;
     line-height: 1.35;
@@ -73,10 +72,10 @@
     min-width: 168px;
     height: 48px;
     padding: 0 18px;
-    border: 1px solid #fff;
+    border: 1px solid #000;
     border-radius: 0;
     color: #000;
-    background: #fff;
+    background: transparent;
     font-size: 16.5px;
     font-weight: 700;
     cursor: pointer;
@@ -88,8 +87,8 @@
   }
 
   button:hover {
-    color: #fff;
-    background-color: transparent;
+    color: #ff9d00;
+    background-color: #000;
   }
 
   button:disabled {
@@ -107,7 +106,7 @@
   .update-progress > span {
     display: block;
     margin: 0 15px 0 0;
-    color: #fff;
+    color: #000;
     font-family: "NEXON Lv2 Gothic", sans-serif;
     font-size: 80px;
     font-weight: 700;
@@ -125,7 +124,7 @@
 
   .update-progress-value {
     height: 100%;
-    background: #fff;
+    background: #000;
     transition: width 300ms ease-out;
   }
 

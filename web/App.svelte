@@ -2432,6 +2432,25 @@
                   {/if}
                   <div class="developer-tool-row">
                     <div>
+                      <h2>게임 블랙박스</h2>
+                      <p>메인 화면에서 게임 화면 순환 녹화와 클립 저장 기능을 사용할 수 있습니다</p>
+                    </div>
+                    <button
+                      class:active={blackboxFeatureAvailable && blackboxFeatureEnabled}
+                      disabled={!blackboxSettingLoaded || blackboxFeatureAction}
+                      aria-pressed={blackboxFeatureEnabled}
+                      onclick={toggleBlackboxFeature}
+                    >
+                      {blackboxFeatureAction === "saving"
+                        ? "저장 중…"
+                        : (blackboxFeatureEnabled ? "사용 중" : "사용하기")}
+                    </button>
+                  </div>
+                  {#if blackboxFeatureNotice}
+                    <span class="developer-tool-status">{blackboxFeatureNotice}</span>
+                  {/if}
+                  <div class="developer-tool-row">
+                    <div>
                       <h2>Alt+Enter 방지</h2>
                       <p>마비노기 플레이 중 전체 화면 전환 단축키 Alt+Enter 입력을 차단합니다</p>
                     </div>
@@ -2450,25 +2469,6 @@
                   </div>
                   {#if inputGuardNotice}
                     <span class="developer-tool-status">{inputGuardNotice}</span>
-                  {/if}
-                  <div class="developer-tool-row">
-                    <div>
-                      <h2>게임 블랙박스</h2>
-                      <p>메인 화면에서 게임 화면 순환 녹화와 클립 저장 기능을 사용할 수 있습니다</p>
-                    </div>
-                    <button
-                      class:active={blackboxFeatureAvailable && blackboxFeatureEnabled}
-                      disabled={!blackboxSettingLoaded || blackboxFeatureAction}
-                      aria-pressed={blackboxFeatureEnabled}
-                      onclick={toggleBlackboxFeature}
-                    >
-                      {blackboxFeatureAction === "saving"
-                        ? "저장 중…"
-                        : (blackboxFeatureEnabled ? "사용 중" : "사용하기")}
-                    </button>
-                  </div>
-                  {#if blackboxFeatureNotice}
-                    <span class="developer-tool-status">{blackboxFeatureNotice}</span>
                   {/if}
                   <div class="developer-tool-row">
                     <div>
