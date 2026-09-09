@@ -71,6 +71,10 @@ test("새 앱 버전은 주기적으로 확인하고 메인 문구와 우측 하
   )
   assert.match(
     electronMain,
+    /function showApplicationUpdateNotification[\s\S]*background:#ff9d00/,
+  )
+  assert.match(
+    electronMain,
     /마비노기 렘 부스터 새 버전 업데이트가 가능합니다/,
   )
   assert.match(
@@ -79,7 +83,7 @@ test("새 앱 버전은 주기적으로 확인하고 메인 문구와 우측 하
   )
   assert.match(
     applicationStyles,
-    /\.app-version\.update-available \{[\s\S]*background: #ffd400;[\s\S]*font-weight: 900;/,
+    /\.app-version\.update-available \{[\s\S]*background: #ff9d00;[\s\S]*font-weight: 900;/,
   )
 })
 

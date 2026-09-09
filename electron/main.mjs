@@ -2839,7 +2839,7 @@ function showApplicationUpdateNotification(version = null) {
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
 body{display:flex;align-items:flex-end;justify-content:flex-end;padding-bottom:8px;font-family:"Nexon Lv2 Gothic","Malgun Gothic","Segoe UI",sans-serif}
-.notice{position:relative;padding:15px 22px 14px;color:#171717;background:#ffd400;font-size:24px;font-weight:900;line-height:1.15;letter-spacing:-1.1px;white-space:nowrap;clip-path:polygon(0 0,0 0,0 100%,0 100%);animation:notice-in 300ms 80ms linear forwards}
+.notice{position:relative;padding:15px 22px 14px;color:#171717;background:#ff9d00;font-size:24px;font-weight:900;line-height:1.15;letter-spacing:-1.1px;white-space:nowrap;clip-path:polygon(0 0,0 0,0 100%,0 100%);animation:notice-in 300ms 80ms linear forwards}
 .notice.exiting{animation:notice-out 300ms linear forwards}
 .mask{position:absolute;z-index:2;inset:0;background:#171717;pointer-events:none;clip-path:polygon(0 0,0 0,0 100%,0 100%)}
 @keyframes notice-in{to{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}}
