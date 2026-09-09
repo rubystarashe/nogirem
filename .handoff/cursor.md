@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-10 03:07
+Last Updated: 2026-09-10 03:16
 
 ## Current Objective
-새 앱 버전을 주기적으로 확인하고 메인 화면과 우측 하단 오버레이로 안내한다.
+0.3.3 Windows 설치본과 자동 업데이트 자산을 GitHub에 배포한다.
 
 ## Current Status
+- 0.3.3 강제 업데이트 안내 테스트를 제거하고 커밋 `e444d9a`에 태그 `v0.3.3`을 생성해 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.3)로 공개했다. electron-builder가 릴리스를 두 개 만든 경합은 ID `385741914`를 제거하고 ID `385741915`에 네 자산을 통합했다. installer 95,870,091바이트·SHA-256 `A5AF1367…C29E1`, blockmap 101,908바이트·`50BF1590…36348`, latest.yml 342바이트·`B3BD4C13…6224A`, 터보 키 helper 291,840바이트·`D9504362…6A857`이며 GitHub digest와 로컬 해시가 일치하고 공개 URL은 모두 HTTP 200이다. Release 빌드로 갱신된 recorder helper는 369,664바이트·`BBAC9D98…5F4945`다.
 - updater의 `autoDownload`를 끄고 확인과 다운로드를 분리했다. 앱 시작 3초 확인은 새 버전 발견 시 다운로드·모달까지 진행하지만, 사용 중 4시간 주기 확인은 `available` 상태·왼쪽 아래 `새 버전 출시됨`·우측 아래 클릭 통과 오버레이만 표시한다. 두 안내 배경은 블랙박스 노란색이 아니라 업데이트 모달과 같은 주황색 `#ff9d00`을 사용한다. 사용자가 문구를 누를 때 `downloadUpdate()`를 실행해 그때부터 다운로드 모달을 표시한다. 가상 0.3.4 강제 테스트 코드를 제거해 실제 배포 동작으로 복구했으며 전체 Node 140개 테스트, Electron 구문 검사, 앱 프로덕션 빌드와 IDE lint가 통과했다.
 - 0.3.2 진단 2개를 비교했다. En so 환경은 진단 시 uptime 392초이고 여러 JSON이 NUL로 끊겨 실제 강제 재부팅은 확인되지만 기존 ZIP에 Windows BugCheck 이벤트·덤프가 없어 원인 커널 드라이버는 확정할 수 없다. 당시 turbo key·input guard·blackbox·NIC 관리는 모두 꺼져 있었고 DXVK v3.1은 0.3.2 설치 전부터 사용 중이었다.
 - 김효진 환경의 앱/부스트 시작 실패는 0.2.9 메모리 helper가 남긴 23시간 전 lock PID 14160이 다른 프로세스로 재사용된 것이 원인이었다. lock 생성 후 15초 이내이거나 같은 PID의 status heartbeat가 10초 이내일 때만 살아 있는 helper로 인정해 stale PID 재사용 lock을 제거하도록 수정했다. 진단 ZIP에는 최근 14일 Windows System 이벤트 41·1001·6008을 포함하도록 보강했다. 전체 Node 137개 테스트, Electron 구문 검사, 앱 프로덕션 빌드와 IDE lint가 통과했다.
@@ -632,6 +633,7 @@ Last Updated: 2026-09-10 03:07
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- `v0.3.3` 설치본과 자동 업데이트 자산을 공개하고 중복 GitHub 릴리스를 하나로 정리했다. 네 자산의 원격 digest·로컬 SHA-256과 공개 다운로드 HTTP 200을 확인했다.
 - 앱 업데이트 가능 상태를 메인 버전 영역의 `새 버전 출시됨`과 우측 하단 클릭 통과 오버레이로 안내한다. 시작 확인만 자동 다운로드하고 4시간 주기 확인은 알림만 표시하며, 문구 클릭 시에만 다운로드와 업데이트 모달을 시작한다. 디자인 확인용 가상 0.3.4 시작 테스트는 배포 전에 제거했다.
 - 0.3.2 진단 두 건을 분리 분석해 stale helper lock의 PID 재사용 오인을 수정하고 Windows BugCheck·Kernel-Power·예기치 않은 종료 이벤트를 다음 진단 ZIP에 추가했다. 실제 블루스크린은 기존 자료만으로 원인 드라이버를 확정하지 않았다.
 - 업데이트 인터페이스 시각 테스트를 마치고 강제 62% 표시를 제거했다. 최종 진행률 숫자는 900 굵기와 2px 외곽선을 사용한다.
@@ -1447,4 +1449,4 @@ Last Updated: 2026-09-10 03:07
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-전체 회귀 테스트와 Windows 패키징을 통과시킨 뒤 현재 커밋에 `v0.3.3` 태그를 생성하고 GitHub Release 자산과 해시를 검증한다.
+0.3.2 설치본에서 0.3.3 자동 업데이트를 실행해 시작 확인의 다운로드 모달과 설치 후 재실행을 스모크 테스트한다. 실행 중 4시간 주기 확인은 실제 다음 버전에서 알림만 표시되는지 확인한다.
