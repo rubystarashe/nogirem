@@ -1835,14 +1835,6 @@ LONGLONG findCleanRangeStart(
   return std::max<LONGLONG>(0, inputOffset);
 }
 
-LONGLONG combinedMediaDuration(const std::vector<fs::path>& inputs) {
-  LONGLONG duration = 0;
-  for (const auto& input : inputs) {
-    duration += compressedMediaDuration(input);
-  }
-  return duration;
-}
-
 ComPtr<IMFSample> retimePcmSample(
   IMFSample* sample,
   double playbackRate,
@@ -2446,18 +2438,24 @@ bool transcodeChunksExactAtomically(
   }
 }
 
-std::vector<fs::path> selectRecentChunks(const fs::path& directory, int seconds) {
-  auto chunks = completedChunks(directory);
+std::vector<fs::path> selectRecentChunks(
+  std::vector<fs::path> chunks,
+  int seconds
+) {
   if (chunks.empty()) return {};
-  const auto threshold = fs::file_time_type::clock::now() - std::chrono::seconds(seconds + 4);
-  auto first = std::find_if(chunks.begin(), chunks.end(), [&](const fs::path& path) {
-    std::error_code error;
-    return fs::last_write_time(path, error) >= threshold;
-  });
-  if (first == chunks.end()) {
-    return { chunks.back() };
+  const auto targetDuration =
+    static_cast<LONGLONG>(seconds) * 10000000ll;
+  LONGLONG selectedDuration = 0;
+  std::size_t firstIndex = chunks.size() - 1;
+  for (std::size_t index = chunks.size(); index > 0; --index) {
+    firstIndex = index - 1;
+    selectedDuration += compressedMediaDuration(chunks[firstIndex]);
+    if (selectedDuration >= targetDuration) break;
   }
-  return { first, chunks.end() };
+  return {
+    chunks.begin() + static_cast<std::ptrdiff_t>(firstIndex),
+    chunks.end(),
+  };
 }
 
 std::int64_t chunkStartedMilliseconds(const fs::path& path) {
@@ -2689,36 +2687,28 @@ void createClip(
   init_apartment(apartment_type::multi_threaded);
   try {
       const auto sourceFiles = compatibleChunkSuffix(
-        selectRecentChunks(ringDirectory, seconds)
+        completedChunks(ringDirectory)
       );
-      if (sourceFiles.empty()) throw std::runtime_error("저장할 녹화 청크가 없습니다");
+      const auto selectedFiles = selectRecentChunks(sourceFiles, seconds);
+      if (selectedFiles.empty()) throw std::runtime_error("저장할 녹화 청크가 없습니다");
       const auto identifier = std::to_wstring(epochMilliseconds());
       const auto stagingDirectory = clipsDirectory / (L".staging-" + identifier);
       fs::create_directories(stagingDirectory);
       std::vector<fs::path> protectedFiles;
-      for (std::size_t index = 0; index < sourceFiles.size(); ++index) {
+      for (std::size_t index = 0; index < selectedFiles.size(); ++index) {
         const auto destination = stagingDirectory
           / (L"part-" + std::to_wstring(index) + L".mp4");
-        if (!CreateHardLinkW(destination.c_str(), sourceFiles[index].c_str(), nullptr)) {
-          fs::copy_file(sourceFiles[index], destination, fs::copy_options::overwrite_existing);
+        if (!CreateHardLinkW(destination.c_str(), selectedFiles[index].c_str(), nullptr)) {
+          fs::copy_file(selectedFiles[index], destination, fs::copy_options::overwrite_existing);
         }
         protectedFiles.push_back(destination);
       }
       const auto output = clipsDirectory / (L"마비노기-클립-" + identifier + L".mp4");
-      const auto totalDuration = combinedMediaDuration(protectedFiles);
-      const auto requestedDuration = std::min<LONGLONG>(
-        totalDuration,
-        static_cast<LONGLONG>(seconds) * 10000000ll
-      );
-      const auto requestedStart = std::max<LONGLONG>(
-        0,
-        totalDuration - requestedDuration
-      );
-      if (!transcodeChunksExactAtomically(
+      if (!remuxChunksAtomically(
         protectedFiles,
         output,
-        requestedStart,
-        requestedDuration
+        0,
+        LLONG_MAX
       )) {
         throw std::runtime_error("클립 파일을 결합하지 못했습니다");
       }

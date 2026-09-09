@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-09 16:44
+Last Updated: 2026-09-09 16:52
 
 ## Current Objective
-마비노기 플레이 중 빠른 클립 단축키 입력을 게임의 입력 처리와 무관하게 안정적으로 감지한다.
+빠른 클립은 현재 녹화 청크를 먼저 확정한 뒤 설정 길이 이상인 최신 완성 청크를 재인코딩 없이 결합해 신속하게 저장한다.
 
 ## Current Status
+- 빠른 클립 요청은 encoder의 기존 `flushRequested_` 경로에서 현재 `.partial.mp4`를 먼저 finalize·게시하고, 완료를 기다린 뒤 실제 미디어 길이를 뒤에서부터 합산해 설정한 n초 이상이 되는 완성 청크를 선택한다. 선택 청크 전체를 압축 sample remux만 하므로 영상·오디오 재인코딩을 제거했다. 설정값보다 최대 청크 1개 미만만큼 길어질 수 있다. 배치 helper SHA-256은 `D589630D…E9579D`이며 C++ Release 빌드, Node 132개 테스트와 lint가 통과했다.
 - 16:41 재시작 후 PID 28536에서 `recorder-shortcut-ready`와 실제 녹화 시작은 확인됐지만, 사용자가 Pause를 눌러도 `SHORTCUT`이 한 번도 출력되지 않았다. 설정·recorder 실행·등록 성공 뒤 Windows `WM_HOTKEY` 전달 단계에서 끊긴 것으로 확인했다.
 - 게임이 `WM_HOTKEY`를 전달하지 않는 환경을 우회하도록 native 단축키 감지를 입력을 소비하지 않는 `WH_KEYBOARD_LL` 저수준 키보드 hook 전용 메시지 스레드로 교체했다. hook은 설정된 키와 modifier를 감지해 atomic 이벤트만 recorder loop에 전달하고 항상 `CallNextHookEx`를 호출하므로 게임 입력을 차단하지 않는다. recorder loop는 실제 녹화 중이고 포그라운드 프로세스가 마비노기 Client.exe일 때만 `SHORTCUT`을 Electron에 전달한다.
 - 진단 이벤트를 `recorder-shortcut-pressed`와 `recorder-shortcut-ignored` 단계로 추가해 이후에는 물리 키 감지와 게임 포그라운드 판정을 구분할 수 있다. 배치된 helper SHA-256은 `D74E7376…E4B5D5`이며 C++ Release 빌드, Node 132개 테스트, 앱 빌드와 lint가 통과했다.
@@ -280,6 +281,7 @@ Last Updated: 2026-09-09 16:44
 - 프로덕션 빌드, Electron 구문 검사, 전체 테스트 20개와 편집기 린트가 통과했다.
 
 ## Architecture / Important Decisions
+- 빠른 클립과 영상 추출의 정확도 정책을 분리한다. 빠른 클립은 요청 순간 현재 청크를 동기 확정하고 최신 청크들의 실제 duration 합계가 설정 길이 이상이 될 때까지 선택한 뒤 전체 청크를 remux한다. 영상 추출만 프레임 단위 정확 구간 재인코딩을 유지한다.
 - 블랙박스 지원 로그는 AppData `blackbox/blackbox-events.log`와 `blackbox/recorder-helper.log`에 JSONL로 저장한다. current/previous 각 4MB로 제한하고 진단 ZIP 단계에서 사용자 경로·IP·이메일·인증값을 마스킹한다. 로깅 실패는 본 기능 실패로 전파하지 않는다.
 - `ringStorageDrive`는 PowerShell에서 조회한 로컬 고정·이동식 드라이브 ID만 허용하며 Ring은 `<드라이브>\마비노기 렘 블랙박스\Ring` 고정 경로다. `clipStoragePath`는 main의 폴더 선택창 결과만 일시 승인한다. native helper의 `--ring-path`·`--clips-path`와 모든 클립 IPC는 두 위치를 분리해 사용한다.
 - 블랙박스는 Electron renderer나 게임 주입 방식이 아니라 별도 `native/recorder-helper` 프로세스가 소유한다. Electron은 설정·상태·control JSON과 제한된 IPC만 관리한다.
@@ -436,6 +438,7 @@ Last Updated: 2026-09-09 16:44
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. 앱을 재시작하고 새 helper로 빠른 클립을 저장해 요청 순간까지의 현재 청크가 포함되는지, 저장 시간이 짧아졌는지, 첫 1초가 정상 재생되는지 확인한다.
 1. 앱을 재시작하고 마비노기 포그라운드에서 Pause를 눌러 `recorder-shortcut-pressed` 뒤 실제 저장 요청과 오버레이가 발생하는지 확인한다.
 1. 앱을 한 번 완전히 재시작한 뒤 녹화 중 단축키와 빠른 클립 길이를 변경해 recorder PID가 유지되고 새 단축키가 즉시 동작하는지 확인한다.
 1. 앱을 완전히 재시작하고 마비노기를 포커스한 상태에서 `Pause`를 눌러 저장 중→`30초 클립이 저장되었습니다` 전환을 확인한다. 다른 앱을 포커스했을 때에는 저장되지 않아야 한다.
@@ -500,8 +503,7 @@ Last Updated: 2026-09-09 16:44
 20. 마비노기 전면 창에서 `2 누름 → 3 누름 → 일반 키 4 누름·해제 → 3 해제 → 2 해제` 순서로 실제 입력 전환을 확인한다.
 
 ## Known Issues
-- 정확한 시작과 빠른 저장을 동시에 만족시키는 혼합 GOP 방식은 원본과 재인코딩 H.264 extradata가 달라 현재 Media Foundation 출력끼리 단순 연결할 수 없다. 검증 없이 적용하면 중간 키프레임부터 깨질 수 있다.
-- 정확한 빠른 클립은 영상 전체를 재인코딩하므로 3440×1440 환경의 5초 샘플이 약 26초 걸렸다. 30~60초 클립이 기존 120초 완료 제한 안에 드는지 실제 빠른 저장 경로에서 확인해야 하며, GPU surface 직접 공유는 현재 드라이버에서 교착되어 사용할 수 없다.
+- 빠른 클립은 청크 단위 무인코딩 저장이므로 설정 길이보다 최대 현재 청크 길이 미만만큼 길 수 있다. 정확한 시작·종료가 필요하면 영상 추출을 사용한다.
 - clean chunk boundary 수정 전에 생성한 빠른 클립은 첫 영상 패킷이 non-key frame이면 다음 키프레임까지 약 1초간 화면이 정상 표시되지 않을 수 있다. 기존 파일은 재생 가능한 첫 키프레임부터 다시 잘라야 복구되며 새 로직은 새로 저장하는 클립에만 적용된다.
 - 새 recorder 성능 로그는 구현·Release 빌드까지만 검증했다. 실제 장시간 게임에서 첫 1분 로그 생성과 증가 추세 판정은 아직 수동 확인하지 않았다.
 - 2026-09-06부터 남아 있던 개발 Electron main process(PID 13828)와 2026-09-09에 시작한 새 elevated main process(PID 36956)가 동시에 존재해, 이전 창에서는 최신 소스와 helper 상태 계산이 반영되지 않았다. 상태의 2,998.5초는 9.04GB를 24.192Mbps로 나눈 구버전 추정식과 일치했으며 같은 Ring의 실제 MP4 합계는 3,355.061초다. 모든 트레이·Electron 인스턴스를 완전히 종료한 뒤 하나만 다시 실행해야 최신 동작을 검증할 수 있다.
@@ -606,6 +608,7 @@ Last Updated: 2026-09-09 16:44
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 빠른 클립에서 전체 NV12 디코딩·하드웨어 재인코딩을 제거했다. 요청 시 현재 청크를 먼저 확정하고 최신 완성 청크의 실제 duration을 역순 합산해 n초 이상을 선택한 뒤 MP4 remux만 수행한다.
 - 게임에서 전달되지 않던 `RegisterHotKey`/`WM_HOTKEY` 방식을 비차단 `WH_KEYBOARD_LL` 전용 hook thread로 교체하고 키 감지·무시 단계 로그를 추가했다.
 - 블랙박스 설정 저장의 무조건 recorder 재시작을 제거했다. 단축키와 빠른 클립 길이는 live 설정으로 처리하고 단축키만 native control 명령으로 즉시 재등록한다.
 - 빠른 클립 알림을 저장 시작 지속 표시와 길이 포함 완료 표시로 분리했다. 단축키 감지를 recorder의 `RegisterHotKey`로 이동하고 마비노기 포그라운드·실제 녹화 조건을 모두 만족할 때만 저장하도록 제한했다.
@@ -1412,4 +1415,4 @@ Last Updated: 2026-09-09 16:44
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-앱을 재시작해 마비노기 포그라운드에서 Pause를 눌러 저수준 hook 감지와 저장 오버레이를 확인한다.
+앱을 재시작해 마비노기 포그라운드에서 Pause로 빠른 클립을 저장하고 현재 청크 포함·저장 속도·첫 1초 재생을 확인한다.

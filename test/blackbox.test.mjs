@@ -697,7 +697,6 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /compatibleChunkSuffix/)
   assert.match(nativeSource, /MF_PD_DURATION/)
   assert.match(nativeSource, /LONGLONG compressedMediaDuration/)
-  assert.match(nativeSource, /duration \+= compressedMediaDuration\(input\)/)
   assert.match(nativeSource, /createPcmAudioReader/)
   assert.match(nativeSource, /createAacAudioType/)
   assert.doesNotMatch(nativeSource, /combinedDecodedAudioDuration/)
@@ -736,10 +735,17 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /closeWriter\(bool waitForPublish = false\)/)
   assert.match(nativeSource, /durationSeconds/)
   assert.match(nativeSource, /name\.find\(L"\.partial\."\)/)
-  assert.match(nativeSource, /combinedMediaDuration/)
   assert.match(
     nativeSource,
-    /const auto requestedStart = std::max<LONGLONG>\([\s\S]*totalDuration - requestedDuration[\s\S]*transcodeChunksExactAtomically\(/,
+    /selectedDuration \+= compressedMediaDuration[\s\S]*selectedDuration >= targetDuration/,
+  )
+  assert.match(
+    nativeSource,
+    /const auto selectedFiles = selectRecentChunks[\s\S]*remuxChunksAtomically\(/,
+  )
+  assert.match(
+    nativeSource,
+    /if \(flush\) closeWriter\(true\)[\s\S]*if \(clipSeconds > 0\)[\s\S]*createClip\(/,
   )
   assert.match(nativeSource, /CODECAPI_AVEncVideoForceKeyFrame/)
   assert.match(nativeSource, /bool transcodeChunksExact\(/)
