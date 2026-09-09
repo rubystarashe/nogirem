@@ -1496,6 +1496,29 @@ button.direct-donation-card:hover {
   background: transparent;
 }
 
+.turbo-key-immediate-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -17.6px 0 0;
+  color: #666;
+  font-size: 10px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.turbo-key-immediate-option input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: #267c50;
+}
+
+.turbo-key-immediate-option:has(input:disabled) {
+  color: #999;
+  cursor: default;
+}
+
 .turbo-key-picker {
   display: grid;
   grid-template-rows: auto auto auto;
@@ -1871,7 +1894,8 @@ button.direct-donation-card:hover {
 }
 
 .creator-view.paused .developer-tools p,
-.creator-view.paused .developer-tool-status {
+.creator-view.paused .developer-tool-status,
+.creator-view.paused .turbo-key-immediate-option {
   color: #999;
 }
 

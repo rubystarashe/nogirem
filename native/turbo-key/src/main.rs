@@ -115,6 +115,7 @@ struct SharedState {
     stopping: AtomicBool,
     allowed_keys: HashSet<u32>,
     repeat_interval: Duration,
+    initial_repeat_delay: Duration,
 }
 
 #[derive(Serialize)]
@@ -246,6 +247,14 @@ fn parse_repeat_interval_ms(value: &str) -> Result<u64, String> {
         return Err("지원하지 않는 터보 키 입력 간격입니다".to_owned());
     }
     Ok(interval)
+}
+
+fn parse_ignore_initial_delay(value: &str) -> Result<bool, String> {
+    match value {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        _ => Err("터보 키 입력 지연 무시 설정이 올바르지 않습니다".to_owned()),
+    }
 }
 
 fn ideal_processor_from_mask(mask: usize) -> u32 {
@@ -412,7 +421,7 @@ fn press_key(shared: &SharedState, key: KeySpec) -> bool {
     activate_key(
         &mut state,
         key,
-        Instant::now() + Duration::from_millis(INITIAL_REPEAT_DELAY_MS),
+        Instant::now() + shared.initial_repeat_delay,
     );
     shared.changed.notify_all();
     false
@@ -677,6 +686,9 @@ fn run() -> Result<(), String> {
     let interval_ms = argument("interval-ms")
         .ok_or_else(|| "interval-ms 인자가 필요합니다".to_owned())
         .and_then(|value| parse_repeat_interval_ms(&value))?;
+    let ignore_initial_delay = argument("ignore-initial-delay")
+        .ok_or_else(|| "ignore-initial-delay 인자가 필요합니다".to_owned())
+        .and_then(|value| parse_ignore_initial_delay(&value))?;
     write_status(&status_path, false, interval_ms, None)?;
     apply_cpu_affinity(affinity_mask)?;
     apply_process_priority()?;
@@ -700,6 +712,11 @@ fn run() -> Result<(), String> {
         stopping: AtomicBool::new(false),
         allowed_keys: selected_keys,
         repeat_interval: Duration::from_millis(interval_ms),
+        initial_repeat_delay: Duration::from_millis(if ignore_initial_delay {
+            0
+        } else {
+            INITIAL_REPEAT_DELAY_MS
+        }),
     });
     SHARED
         .set(shared.clone())
@@ -878,6 +895,13 @@ mod tests {
     }
 
     #[test]
+    fn ignore_initial_delay_accepts_only_boolean_text() {
+        assert!(parse_ignore_initial_delay("true").unwrap());
+        assert!(!parse_ignore_initial_delay("false").unwrap());
+        assert!(parse_ignore_initial_delay("1").is_err());
+    }
+
+    #[test]
     fn latest_key_replaces_the_previous_key() {
         let shared = SharedState {
             state: Mutex::new(TurboState::default()),
@@ -885,6 +909,7 @@ mod tests {
             stopping: AtomicBool::new(false),
             allowed_keys: HashSet::new(),
             repeat_interval: Duration::from_millis(DEFAULT_REPEAT_INTERVAL_MS),
+            initial_repeat_delay: Duration::from_millis(INITIAL_REPEAT_DELAY_MS),
         };
         let first = KeySpec {
             vk_code: '1' as u32,
@@ -925,6 +950,7 @@ mod tests {
             stopping: AtomicBool::new(false),
             allowed_keys: HashSet::from([first.vk_code, second.vk_code]),
             repeat_interval: Duration::from_millis(DEFAULT_REPEAT_INTERVAL_MS),
+            initial_repeat_delay: Duration::from_millis(INITIAL_REPEAT_DELAY_MS),
         };
 
         press_key(&shared, first);
@@ -962,6 +988,7 @@ mod tests {
             stopping: AtomicBool::new(false),
             allowed_keys: HashSet::new(),
             repeat_interval: Duration::from_millis(DEFAULT_REPEAT_INTERVAL_MS),
+            initial_repeat_delay: Duration::from_millis(INITIAL_REPEAT_DELAY_MS),
         };
         let key = KeySpec {
             vk_code: '1' as u32,
@@ -989,6 +1016,7 @@ mod tests {
             stopping: AtomicBool::new(false),
             allowed_keys: HashSet::new(),
             repeat_interval: Duration::from_millis(DEFAULT_REPEAT_INTERVAL_MS),
+            initial_repeat_delay: Duration::from_millis(INITIAL_REPEAT_DELAY_MS),
         };
         let first = KeySpec {
             vk_code: 'A' as u32,
@@ -1016,6 +1044,7 @@ mod tests {
             stopping: AtomicBool::new(false),
             allowed_keys: HashSet::new(),
             repeat_interval: Duration::from_millis(DEFAULT_REPEAT_INTERVAL_MS),
+            initial_repeat_delay: Duration::from_millis(INITIAL_REPEAT_DELAY_MS),
         };
         press_key(
             &shared,

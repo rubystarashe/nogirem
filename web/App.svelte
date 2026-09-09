@@ -154,6 +154,7 @@
   let turboKeyDraftCodes = []
   let turboKeyIntervalMs = defaultTurboKeyIntervalMs
   let turboKeyDraftIntervalMs = defaultTurboKeyIntervalMs
+  let turboKeyIgnoreInitialDelay = false
   let turboKeyModalVisible = false
   let turboKeyModalCloseSignal = 0
   let turboKeyEnableAfterSettings = false
@@ -798,6 +799,7 @@
     turboKeyRunning = Boolean(state.running)
     turboKeyCodes = state.keys
     turboKeyIntervalMs = state.intervalMs
+    turboKeyIgnoreInitialDelay = Boolean(state.ignoreInitialDelay)
     if (state.reason) turboKeyNotice = state.reason
   }
 
@@ -859,6 +861,7 @@
         enabled: false,
         keys: turboKeyCodes,
         intervalMs: turboKeyIntervalMs,
+        ignoreInitialDelay: turboKeyIgnoreInitialDelay,
       })
       applyTurboKeyState(state)
     } catch (error) {
@@ -892,6 +895,25 @@
     if (turboKeyAction) return
     turboKeyDraftCodes = [...defaultTurboKeyCodes]
     turboKeyDraftIntervalMs = defaultTurboKeyIntervalMs
+  }
+
+  async function toggleTurboKeyIgnoreInitialDelay() {
+    if (!turboKeySettingLoaded || !turboKeyInstalled || turboKeyAction) return
+    turboKeyAction = "saving"
+    turboKeyNotice = ""
+    try {
+      const state = await window.nogirem.setTurboKeySetting({
+        enabled: turboKeyEnabled,
+        keys: turboKeyCodes,
+        intervalMs: turboKeyIntervalMs,
+        ignoreInitialDelay: !turboKeyIgnoreInitialDelay,
+      })
+      applyTurboKeyState(state)
+    } catch (error) {
+      turboKeyNotice = messageOf(error)
+    } finally {
+      turboKeyAction = null
+    }
   }
 
   function handleTurboKeyPickerInput(event) {
@@ -948,6 +970,7 @@
         enabled: turboKeyEnableAfterSettings || turboKeyEnabled,
         keys: turboKeyDraftCodes,
         intervalMs: turboKeyDraftIntervalMs,
+        ignoreInitialDelay: turboKeyIgnoreInitialDelay,
       })
       applyTurboKeyState(state)
       saved = true
@@ -2345,6 +2368,17 @@
                       {/if}
                     </div>
                   </div>
+                  {#if turboKeyInstalled}
+                    <label class="turbo-key-immediate-option">
+                      <input
+                        type="checkbox"
+                        checked={turboKeyIgnoreInitialDelay}
+                        disabled={turboKeyAction}
+                        onchange={toggleTurboKeyIgnoreInitialDelay}
+                      />
+                      <span>키보드 입력 지연을 무시하고 즉시 입력</span>
+                    </label>
+                  {/if}
                   {#if turboKeyNotice}
                     <span class="developer-tool-status">{turboKeyNotice}</span>
                   {/if}

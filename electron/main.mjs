@@ -44,7 +44,9 @@ import { assessExitConfirmation } from "../src/exit-confirmation.mjs"
 import { getGameDirectoryNames, resolveCpuAllocation } from "../src/affinity.mjs"
 import {
   defaultTurboKeyCodes,
+  defaultTurboKeyIgnoreInitialDelay,
   normalizeTurboKeyCodes,
+  normalizeTurboKeyIgnoreInitialDelay,
   normalizeTurboKeyIntervalMs,
 } from "../src/turbo-key-settings.mjs"
 import {
@@ -1875,6 +1877,7 @@ async function getTurboKeySetting() {
   const statusFresh = Date.now() - Number(status?.updatedAt ?? 0) < 5000
   const enabled = Boolean(settings?.enabled && installation.installed)
   const intervalMs = normalizeTurboKeyIntervalMs(settings?.intervalMs)
+  const ignoreInitialDelay = normalizeTurboKeyIgnoreInitialDelay(settings?.ignoreInitialDelay)
   const running = Boolean(
     turboKeyProcess
     && turboKeyProcess.exitCode === null
@@ -1889,6 +1892,7 @@ async function getTurboKeySetting() {
     running,
     keys: normalizeTurboKeyCodes(settings?.keys),
     intervalMs,
+    ignoreInitialDelay,
     repeatHz: Math.round(1000 / intervalMs),
     gameOnly: true,
     reason: installation.reason
@@ -1950,6 +1954,7 @@ function waitForTurboKeyProcessExit(child, timeoutMs) {
 async function launchTurboKeyHelper(
   keys = defaultTurboKeyCodes,
   intervalMs = normalizeTurboKeyIntervalMs(),
+  ignoreInitialDelay = defaultTurboKeyIgnoreInitialDelay,
 ) {
   if (turboKeyProcess && turboKeyProcess.exitCode === null) {
     return getTurboKeySetting()
@@ -1980,6 +1985,7 @@ async function launchTurboKeyHelper(
     `--affinity-mask=0x${latencyMask.toString(16)}`,
     `--keys=${normalizeTurboKeyCodes(keys).join(",")}`,
     `--interval-ms=${normalizeTurboKeyIntervalMs(intervalMs)}`,
+    `--ignore-initial-delay=${normalizeTurboKeyIgnoreInitialDelay(ignoreInitialDelay)}`,
   ], {
     windowsHide: true,
     stdio: "ignore",
@@ -2038,14 +2044,16 @@ async function setTurboKeySetting(setting) {
   const enabled = Boolean(setting?.enabled)
   const keys = normalizeTurboKeyCodes(setting?.keys)
   const intervalMs = normalizeTurboKeyIntervalMs(setting?.intervalMs)
+  const ignoreInitialDelay = normalizeTurboKeyIgnoreInitialDelay(setting?.ignoreInitialDelay)
   if (enabled) {
     await stopTurboKeyHelper()
-    await launchTurboKeyHelper(keys, intervalMs)
+    await launchTurboKeyHelper(keys, intervalMs, ignoreInitialDelay)
     try {
       await writeJsonAtomic(paths.settingsPath, {
         enabled: true,
         keys,
         intervalMs,
+        ignoreInitialDelay,
         updatedAt: Date.now(),
       })
     } catch (error) {
@@ -2058,6 +2066,7 @@ async function setTurboKeySetting(setting) {
       enabled: false,
       keys,
       intervalMs,
+      ignoreInitialDelay,
       updatedAt: Date.now(),
     })
   }
@@ -2084,6 +2093,7 @@ async function downloadTurboKeyHelper() {
     enabled: false,
     keys: normalizeTurboKeyCodes(settings?.keys),
     intervalMs: normalizeTurboKeyIntervalMs(settings?.intervalMs),
+    ignoreInitialDelay: normalizeTurboKeyIgnoreInitialDelay(settings?.ignoreInitialDelay),
     updatedAt: Date.now(),
   })
   return getTurboKeySetting()
@@ -2097,6 +2107,7 @@ async function uninstallTurboKeyHelper() {
     enabled: false,
     keys: normalizeTurboKeyCodes(settings?.keys),
     intervalMs: normalizeTurboKeyIntervalMs(settings?.intervalMs),
+    ignoreInitialDelay: normalizeTurboKeyIgnoreInitialDelay(settings?.ignoreInitialDelay),
     updatedAt: Date.now(),
   })
   await removeTurboKeyHelper(paths.directory)
@@ -2118,6 +2129,7 @@ async function ensureTurboKeyStarted() {
   await launchTurboKeyHelper(
     normalizeTurboKeyCodes(settings.keys),
     normalizeTurboKeyIntervalMs(settings.intervalMs),
+    normalizeTurboKeyIgnoreInitialDelay(settings.ignoreInitialDelay),
   )
 }
 
@@ -4375,6 +4387,7 @@ function registerIpc() {
       || !Array.isArray(setting.keys)
       || !Number.isInteger(setting.intervalMs)
       || normalizeTurboKeyIntervalMs(setting.intervalMs) !== setting.intervalMs
+      || typeof setting.ignoreInitialDelay !== "boolean"
     ) {
       throw new Error("터보 키 설정 값이 올바르지 않습니다")
     }

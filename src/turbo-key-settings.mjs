@@ -1,5 +1,6 @@
 export const defaultTurboKeyCodes = []
 export const defaultTurboKeyIntervalMs = 1
+export const defaultTurboKeyIgnoreInitialDelay = false
 export const turboKeyIntervalOptions = [1, 3, 5, 10, 20, 30]
 
 const selectableTurboKeyCodes = new Set([
@@ -24,4 +25,8 @@ export function normalizeTurboKeyIntervalMs(value) {
   return turboKeyIntervalOptions.includes(interval)
     ? interval
     : defaultTurboKeyIntervalMs
+}
+
+export function normalizeTurboKeyIgnoreInitialDelay(value) {
+  return value === true
 }

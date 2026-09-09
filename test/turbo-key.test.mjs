@@ -3,8 +3,10 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import {
   defaultTurboKeyCodes,
+  defaultTurboKeyIgnoreInitialDelay,
   defaultTurboKeyIntervalMs,
   normalizeTurboKeyCodes,
+  normalizeTurboKeyIgnoreInitialDelay,
   normalizeTurboKeyIntervalMs,
   turboKeyIntervalOptions,
 } from "../src/turbo-key-settings.mjs"
@@ -24,6 +26,13 @@ test("터보 키 입력 간격은 지정된 선택지와 1ms 기본값만 사용
   assert.equal(defaultTurboKeyIntervalMs, 1)
   assert.equal(normalizeTurboKeyIntervalMs(3), 3)
   assert.equal(normalizeTurboKeyIntervalMs(2), 1)
+})
+
+test("터보 키 최초 입력 지연 무시는 명시적인 true만 허용한다", () => {
+  assert.equal(defaultTurboKeyIgnoreInitialDelay, false)
+  assert.equal(normalizeTurboKeyIgnoreInitialDelay(true), true)
+  assert.equal(normalizeTurboKeyIgnoreInitialDelay(false), false)
+  assert.equal(normalizeTurboKeyIgnoreInitialDelay("true"), false)
 })
 
 test("터보 키 helper는 설치본에 포함되지 않는다", async () => {
@@ -148,6 +157,21 @@ test("터보 키 helper는 정밀 타이머와 우선 스케줄링을 사용한�
   assert.doesNotMatch(helperSource, /thread::sleep\(Duration::from_millis\(5\)\)/)
 })
 
+test("터보 키 입력 지연 무시 설정은 UI부터 helper까지 전달된다", async () => {
+  const [applicationView, electronMain, helperSource] = await Promise.all([
+    readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
+    readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../native/turbo-key/src/main.rs", import.meta.url), "utf8"),
+  ])
+
+  assert.match(applicationView, /키보드 입력 지연을 무시하고 즉시 입력/)
+  assert.match(applicationView, /ignoreInitialDelay: !turboKeyIgnoreInitialDelay/)
+  assert.match(electronMain, /--ignore-initial-delay=\$\{normalizeTurboKeyIgnoreInitialDelay/)
+  assert.match(helperSource, /initial_repeat_delay: Duration/)
+  assert.match(helperSource, /Instant::now\(\) \+ shared\.initial_repeat_delay/)
+  assert.match(helperSource, /if ignore_initial_delay \{\s*0\s*\} else \{\s*INITIAL_REPEAT_DELAY_MS/)
+})
+
 test("터보 키 설치 무결성은 매초 다시 계산하지 않고 실행 전에 갱신한다", async () => {
   const electronMain = await readFile(
     new URL("../electron/main.mjs", import.meta.url),
@@ -191,7 +215,7 @@ test("기존 동의를 유지한 채 구버전 터보 키 helper를 시작 시 �
     readFile(new URL("../src/turbo-key-installer.mjs", import.meta.url), "utf8"),
   ])
 
-  assert.match(installerSource, /turboKeyHelperVersion = "0\.1\.6"/)
+  assert.match(installerSource, /turboKeyHelperVersion = "0\.1\.7"/)
   assert.match(
     installerSource,
     /const updateRequired = manifest\.helperVersion !== turboKeyHelperVersion/,
