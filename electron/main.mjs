@@ -2414,7 +2414,26 @@ function showBlackboxClipNotification(message, { persistent = false } = {}) {
   clearTimeout(blackboxClipNotificationTimer)
   blackboxClipNotificationTimer = null
   if (blackboxClipNotificationWindow && !blackboxClipNotificationWindow.isDestroyed()) {
-    blackboxClipNotificationWindow.destroy()
+    const window = blackboxClipNotificationWindow
+    const script = `window.updateNotice?.(${JSON.stringify(message)}, ${persistent})`
+    const updateNotice = () => {
+      if (window.isDestroyed()) return
+      void window.webContents.executeJavaScript(script).catch(error => {
+        console.error("클립 저장 알림 전환 실패", error)
+      })
+    }
+    if (window.webContents.isLoadingMainFrame()) {
+      window.webContents.once("did-finish-load", updateNotice)
+    } else {
+      updateNotice()
+    }
+    if (!persistent) {
+      blackboxClipNotificationTimer = setTimeout(() => {
+        blackboxClipNotificationTimer = null
+        if (!window.isDestroyed()) window.destroy()
+      }, 3300)
+    }
+    return
   }
 
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
@@ -2451,9 +2470,6 @@ function showBlackboxClipNotification(message, { persistent = false } = {}) {
     }
   })
 
-  const exitAnimation = persistent
-    ? ""
-    : ",notice-out 300ms 2180ms linear forwards"
   const document = `<!doctype html>
 <html lang="ko">
 <meta charset="UTF-8">
@@ -2462,11 +2478,42 @@ function showBlackboxClipNotification(message, { persistent = false } = {}) {
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
 body{display:flex;align-items:flex-start;justify-content:flex-end;padding-top:8px;font-family:"Nexon Lv2 Gothic","Malgun Gothic","Segoe UI",sans-serif}
-.notice{padding:15px 22px 14px;color:#171717;background:#ffd400;font-size:28px;font-weight:900;line-height:1.15;letter-spacing:-1.2px;white-space:nowrap;clip-path:polygon(0 0,0 0,0 100%,0 100%);animation:notice-in 300ms 80ms linear forwards${exitAnimation}}
+.notice{position:relative;padding:15px 22px 14px;color:#ffd400;background:#171717;font-size:28px;font-weight:900;line-height:1.15;letter-spacing:-1.2px;white-space:nowrap;clip-path:polygon(0 0,0 0,0 100%,0 100%);animation:notice-in 300ms 80ms linear forwards}
+.notice.complete{color:#171717;background:#ffd400}
+.notice.exiting{animation:notice-out 300ms linear forwards}
+.mask{position:absolute;z-index:2;inset:0;background:#171717;pointer-events:none;clip-path:polygon(0 0,0 0,0 100%,0 100%)}
+.mask.covering{animation:mask-in 300ms linear forwards}
+.mask.revealing{animation:mask-out 300ms linear forwards}
 @keyframes notice-in{to{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}}
 @keyframes notice-out{from{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}to{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%)}}
+@keyframes mask-in{from{clip-path:polygon(0 0,0 0,0 100%,0 100%)}to{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}}
+@keyframes mask-out{from{clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}to{clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%)}}
 </style>
-<body><div class="notice">${escapeHtml(message)}</div></body>
+<body><div class="notice"><span class="text">${escapeHtml(message)}</span><span class="mask"></span></div>
+<script>
+const notice=document.querySelector(".notice")
+const text=document.querySelector(".text")
+const mask=document.querySelector(".mask")
+let transitionTimer=0
+let exitTimer=0
+window.updateNotice=(message,persistent)=>{
+  clearTimeout(transitionTimer)
+  clearTimeout(exitTimer)
+  notice.classList.remove("exiting")
+  mask.className="mask"
+  void mask.offsetWidth
+  mask.classList.add("covering")
+  transitionTimer=setTimeout(()=>{
+    text.textContent=message
+    notice.classList.toggle("complete",!persistent)
+    mask.className="mask revealing"
+    if(!persistent){
+      exitTimer=setTimeout(()=>notice.classList.add("exiting"),2380)
+    }
+  },300)
+}
+${persistent ? "" : "exitTimer=setTimeout(()=>notice.classList.add(\"exiting\"),2380)"}
+</script></body>
 </html>`
   void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(document)}`)
     .then(() => {
@@ -2477,7 +2524,7 @@ body{display:flex;align-items:flex-start;justify-content:flex-end;padding-top:8p
       blackboxClipNotificationTimer = setTimeout(() => {
         blackboxClipNotificationTimer = null
         if (!window.isDestroyed()) window.destroy()
-      }, 2700)
+      }, 2800)
     })
     .catch(error => {
       console.error("클립 저장 알림 표시 실패", error)

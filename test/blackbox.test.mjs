@@ -284,6 +284,14 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(mainSource, /`\$\{state\.clipSeconds\}초 클립이 저장되었습니다`/)
   assert.match(
     mainSource,
+    /window\.updateNotice[\s\S]*mask\.classList\.add\("covering"\)[\s\S]*text\.textContent=message[\s\S]*mask\.className="mask revealing"/,
+  )
+  assert.match(
+    mainSource,
+    /\.notice\{[\s\S]*color:#ffd400;background:#171717[\s\S]*\.notice\.complete\{color:#171717;background:#ffd400/,
+  )
+  assert.match(
+    mainSource,
     /blackbox-manager:set-setting[\s\S]*const current = normalizeBlackboxSetting\([\s\S]*\.\.\.current,[\s\S]*\.\.\.setting/,
   )
   assert.doesNotMatch(mainSource, /blackbox-manager:request-save-clip/)
