@@ -861,7 +861,18 @@ async function acquireHelperLock(statusPath, {
     } catch (error) {
       if (error?.code !== "EEXIST") throw error
       const existing = await readJson(lockPath).catch(() => null)
-      if (isProcessRunning(existing?.pid)) {
+      const existingStatus = await readRuntimeStatusJson(statusPath)
+      const lockAge = Date.now() - Number(existing?.startedAt ?? 0)
+      const recentlyCreated = lockAge >= 0 && lockAge < 15000
+      const statusConfirmsHelper = (
+        existingStatus?.helperPid === existing?.pid
+        && Date.now() - Number(existingStatus?.updatedAt ?? 0) < 10000
+      )
+      const existingHelperIsAlive = (
+        isProcessRunning(existing?.pid)
+        && (recentlyCreated || statusConfirmsHelper)
+      )
+      if (existingHelperIsAlive) {
         const ownerIsCurrent = Number.isInteger(ownerPid)
           && existing?.ownerPid === ownerPid
         const existingOwnerIsAlive = isProcessRunning(existing?.ownerPid)
@@ -4730,6 +4741,31 @@ async function diagnosticResult(operation) {
   }
 }
 
+async function readRecentWindowsFailureEvents() {
+  if (platform() !== "win32") return []
+  const script = [
+    "$startTime = (Get-Date).AddDays(-14)",
+    "$events = @(Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 41, 1001, 6008; StartTime = $startTime } -ErrorAction SilentlyContinue | Select-Object -First 30)",
+    "$result = @($events | ForEach-Object {",
+    "  [pscustomobject]@{",
+    "    timeCreated = if ($_.TimeCreated) { $_.TimeCreated.ToUniversalTime().ToString('o') } else { $null }",
+    "    id = $_.Id",
+    "    provider = $_.ProviderName",
+    "    level = $_.LevelDisplayName",
+    "    message = $_.Message",
+    "  }",
+    "})",
+    "$result | ConvertTo-Json -Compress -Depth 3",
+  ].join("\n")
+  const { stdout } = await execFileAsync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", script],
+    { windowsHide: true, timeout: 15000, maxBuffer: 2 * 1024 * 1024 },
+  )
+  const parsed = JSON.parse(stdout || "[]")
+  return Array.isArray(parsed) ? parsed : [parsed]
+}
+
 function diagnosticFileTimestamp(date = new Date()) {
   const pad = value => String(value).padStart(2, "0")
   return [
@@ -4749,7 +4785,16 @@ async function createApplicationDiagnosticBundle() {
     const model = processor.model.trim() || "알 수 없음"
     processorModels.set(model, (processorModels.get(model) ?? 0) + 1)
   }
-  const [gpu, turboKey, inputGuard, blackbox, startupTray, fastPing, affinity] = await Promise.all([
+  const [
+    gpu,
+    turboKey,
+    inputGuard,
+    blackbox,
+    startupTray,
+    fastPing,
+    affinity,
+    recentWindowsFailures,
+  ] = await Promise.all([
     diagnosticResult(() => app.getGPUInfo("basic")),
     diagnosticResult(() => getTurboKeySetting()),
     diagnosticResult(() => getInputGuardSetting()),
@@ -4757,6 +4802,7 @@ async function createApplicationDiagnosticBundle() {
     diagnosticResult(() => getStartupTraySetting()),
     diagnosticResult(() => ensureFastPingForPrimaryInterface()),
     diagnosticResult(() => readAffinityRuntimeStatus()),
+    diagnosticResult(() => readRecentWindowsFailureEvents()),
   ])
   const diagnostics = {
     generatedAt: new Date().toISOString(),
@@ -4794,6 +4840,7 @@ async function createApplicationDiagnosticBundle() {
       })),
       locale: app.getLocale(),
       gpu,
+      recentWindowsFailures,
     },
     applicationState: {
       activeMabinogiExecutablePath,

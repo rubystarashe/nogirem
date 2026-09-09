@@ -7,6 +7,8 @@
 - DXVK 로그 중간이 NUL 문자로 유실되어 `Creating device`와 swapchain 초기화 문구가 사라져도 Vulkan 로더·GPU 탐색과 실제 `D3D9DeviceEx::ResetSwapChain`·`Device reset` 동작이 함께 확인되면 Vulkan 실행으로 판정한다. DXVK 버전 헤더만 남은 초기화 실패 로그는 계속 제외한다. 최신·업데이트 필요 상태가 확인된 뒤 먼저 요청된 1초 주기 조회의 늦은 `checking` 응답이 도착해 화면을 되돌리지 않도록 초기 조회와 실시간 갱신을 같은 병합 규칙으로 처리하며, 진단 ZIP에도 renderer와 DXVK 런타임 상태를 포함한다.
 - 다수 사용자 진단에서 은행·공공기관 이용 시 설치되는 nProtect Online Security의 `INCA_TKFWFV`가 패스트핑 차단 필터로 잡히는 문제를 확인해 호환 보안 필터로 허용한다. ExitLag의 `nt_ndextlag` 등 실제 네트워크 경로를 처리하는 필터는 계속 차단한다. 원래 DWORD 값을 복원할 때 PowerShell 함수 인자에서 `[uint32]1`이 문자열로 해석되던 호출도 `([uint32]1)` 명시식으로 수정한다.
 - recorder 상태는 전체 Ring 기준 약 5시간으로 정상 갱신됐지만 메인 화면은 helper 시작 당시 2시간 52분에 멈추는 사례를 확인했다. main process의 recorder 상태 관찰 결과를 preload 이벤트로 메인 화면에 직접 전달하고 `runtimeUpdatedAt`을 비교해 이전 폴링 응답이 최신 누적 시간을 덮지 못하게 한다.
+- 0.3.2 사용자 진단에서 0.2.9 메모리 helper가 남긴 23시간 전 lock의 PID가 다른 프로세스로 재사용돼 새 helper가 `이미 실행 중`으로 오인하고 프레임 부스트 시작을 계속 실패한 사례를 확인했다. lock 생성 직후이거나 같은 PID의 최신 status heartbeat가 있을 때만 기존 helper를 살아 있는 것으로 인정해 오래된 PID 재사용 lock을 자동 제거한다.
+- 강제 재부팅 사례는 시스템 uptime과 NUL로 끊긴 상태 파일로 확인됐지만 기존 진단 ZIP에 BugCheck가 없어 원인 드라이버를 확정할 수 없었다. 이후 진단에는 최근 14일의 Windows System 이벤트 41·1001·6008을 포함해 BugCheck 코드, 덤프 경로와 예기치 않은 종료 시각을 확인할 수 있게 한다.
 
 ## 0.3.2
 

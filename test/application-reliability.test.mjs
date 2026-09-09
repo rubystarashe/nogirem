@@ -284,7 +284,7 @@ test("helper 상태 파일 잠금 실패를 복구하고 중복 helper 실행을
   assert.match(electronMain, /import \{ writeJsonAtomic \} from "\.\.\/src\/atomic-json\.mjs"/)
   assert.match(
     electronMain,
-    /async function acquireHelperLock\(statusPath,[\s\S]*openFile\(lockPath, "wx"\)[\s\S]*isProcessRunning\(existing\?\.pid\)/,
+    /async function acquireHelperLock\(statusPath,[\s\S]*openFile\(lockPath, "wx"\)[\s\S]*statusConfirmsHelper[\s\S]*existingStatus\?\.helperPid === existing\?\.pid[\s\S]*recentlyCreated \|\| statusConfirmsHelper/,
   )
   assert.match(
     electronMain,
@@ -293,6 +293,17 @@ test("helper 상태 파일 잠금 실패를 복구하고 중복 helper 실행을
   assert.match(
     electronMain,
     /메모리 상태 기록 실패, 다음 주기에 다시 시도합니다/,
+  )
+})
+
+test("진단 로그는 최근 Windows 블루스크린과 비정상 종료 이벤트를 포함한다", () => {
+  assert.match(
+    electronMain,
+    /async function readRecentWindowsFailureEvents\(\)[\s\S]*Get-WinEvent[\s\S]*Id = 41, 1001, 6008/,
+  )
+  assert.match(
+    electronMain,
+    /diagnosticResult\(\(\) => readRecentWindowsFailureEvents\(\)\)[\s\S]*recentWindowsFailures/,
   )
 })
 
