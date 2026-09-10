@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-10 17:35
+Last Updated: 2026-09-10 17:45
 
 ## Current Objective
-0.3.3에서 VMware 브리지 필터 때문에 패스트핑 적용이 차단되는 문제를 수정한다.
+VC++ 런타임 독립 helper와 VMware 브리지 패스트핑 호환 수정이 포함된 0.3.4를 패키징하고 배포한다.
 
 ## Current Status
+- 앱과 lockfile 버전을 0.3.4로 올렸다. 사용자용·상세 변경 기록은 외부 VC++ 런타임이 없는 환경의 그래픽·블랙박스 helper 실행 수정과 VMware Bridge Protocol 패스트핑 호환 개선을 0.3.4로 분리해 기록한다.
 - 오우야의 0.3.3 진단에서 물리 이더넷의 `thirdPartyBindings`는 `vmware_bridge`, `INSECURE_NPCAP`이었고 Npcap은 이미 `captureBindings`로 허용됐지만 VMware Bridge Protocol만 차단된 것을 확인했다. `vmware_bridge`는 호스트 경로를 우회하는 VPN이 아니라 VM에 물리 네트워크를 연결하는 L2 필터이므로 `compatibleVirtualizationBindings`로 분류해 허용했다. 미확인 타사 필터와 실제 가상/VPN 어댑터 차단은 유지한다. Node 141개 전체 테스트, 앱 프로덕션 빌드와 lint가 통과했고 0.3.4 변경 기록에 반영했다.
 - 최규진의 0.3.3 진단과 화면에서 `radeon-helper.exe`가 종료 코드 `3221225781`(`0xC0000135`)로 실패한 것을 확인했다. 해당 설치본은 `MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`을 외부에서 요구했고 사용자 PC에는 런타임이 없었다. 같은 진단에서 recorder도 30초마다 동일한 코드로 실패해 그래픽 전용 문제가 아니었다. Radeon·recorder·Alt+Enter 방지 CMake를 정적 MSVC 런타임(`/MT`)으로 변경하고 세 helper를 다시 빌드했다. `dumpbin /dependents`에서 외부 MSVCP/VCRUNTIME 의존성이 사라졌고 Radeon helper 직접 실행, Node 141개 전체 테스트, 앱 프로덕션 빌드와 lint가 통과했다. 새 SHA-256은 Radeon `61B0C4B8…07875`, recorder `0B7882AC…E892B`, input guard `731FC4AF…DDF6C`이며 0.3.4 변경 기록에 반영했다.
 - 0.3.3 강제 업데이트 안내 테스트를 제거하고 커밋 `e444d9a`에 태그 `v0.3.3`을 생성해 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.3)로 공개했다. electron-builder가 릴리스를 두 개 만든 경합은 ID `385741914`를 제거하고 ID `385741915`에 네 자산을 통합했다. installer 95,870,091바이트·SHA-256 `A5AF1367…C29E1`, blockmap 101,908바이트·`50BF1590…36348`, latest.yml 342바이트·`B3BD4C13…6224A`, 터보 키 helper 291,840바이트·`D9504362…6A857`이며 GitHub digest와 로컬 해시가 일치하고 공개 URL은 모두 HTTP 200이다. Release 빌드로 갱신된 recorder helper는 369,664바이트·`BBAC9D98…5F4945`다.
