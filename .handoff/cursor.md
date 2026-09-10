@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-11 00:10
+Last Updated: 2026-09-11 00:18
 
 ## Current Objective
-강제 공지 반복 표시 테스트 기능을 제거하고 원격 `NOTICE.md`의 SHA-256 변경 여부로만 공지를 표시하는 운영 흐름을 검증한다.
+공지 모달·프로세스 다수 환경 affinity 수정이 포함된 0.3.5 Windows 설치본을 GitHub에 공개 배포하고 자산 무결성을 검증한다.
 
 ## Current Status
+- 앱과 lockfile 버전을 0.3.5로 올렸다. 전체 Node 144개 테스트, Electron main·bootstrap·preload와 공지·affinity 모듈 구문 검사, IDE lint가 통과했다. input guard·Radeon·recorder·터보 키 Release 빌드와 Vite·NSIS 로컬 패키징도 성공했고 외부 MSVCP/VCRUNTIME 의존성이 없다. 로컬 installer는 96,348,411바이트·SHA-256 `8F18317B…2C510`, blockmap은 102,399바이트·`0BB1F0A6…B4B4C`, `latest.yml`은 342바이트·`0E050804…C2DA`, 터보 키 helper는 291,840바이트·`D9504362…6A857`이다. recorder 배포 바이너리는 680,448바이트·`C3F46BCA…8C01B`로 갱신됐다.
 - `forceApplicationNoticePreview` 상수와 `shouldDisplayApplicationNotice`의 강제 인자를 제거했다. 원격 `NOTICE.md`는 `cache: no-store`로 조회하고 정규화된 문서 SHA-256이 저장된 마지막 닫기 ID와 다를 때만 표시한다. 실제 원격 응답은 HTTP 200이고 로컬 문서와 ID `7ada465f…a84aa`가 일치했으며, 최초 ID는 표시·같은 닫기 ID는 미표시·문서 변경 ID는 다시 표시되는 것을 실행 검증했다. 확인 버튼 여백 변경까지 포함해 공지·안정성 테스트 27개, Electron·공지 모듈 구문 검사, 프로덕션 앱 빌드와 lint가 통과했다.
 - 공지 이미지가 깨진 원인은 URL 오류가 아니라 `notice/noticeimage.png`를 포함한 로컬 `master`가 원격보다 8개 커밋 앞서 GitHub Raw에 파일이 없었던 것이다. 확인 버튼 상단 여백은 5px에서 21px로 늘리고 하단 여백 8px을 추가했다. 커밋 `9de36e4`까지 원격 `master`에 push했으며 Raw 이미지 응답이 HTTP 200, `image/png`, 191,184바이트임을 확인했다.
 - `NOTICE.md`를 마비노기 염색 도우미 개발 설문 공지로 교체했다. 사용자가 제공한 `notice/noticeimage.png`를 저장하고 GitHub Raw URL로 표시하며, 렘 부스터 고급 기능 통합과 별도 프로그램 제공 중 선호 방식 및 추가 희망 기능을 묻는 Google Forms 링크를 연결했다. 공지 테스트 3개와 lint가 통과했다.
@@ -1480,4 +1481,4 @@ Last Updated: 2026-09-11 00:10
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-실제 앱에서 현재 공지를 한 번 닫고 재시작했을 때 다시 나타나지 않는지 확인한 뒤, 원격 `NOTICE.md` 내용을 변경했을 때만 새 모달이 표시되는지 다음 공지 배포에서 확인한다.
+0.3.5 버전·recorder 바이너리·handoff를 release 커밋으로 묶어 원격 `master`에 push한 뒤 `v0.3.5` 태그와 GitHub Release를 생성하고 네 자산의 크기·SHA-256·공개 URL을 검증한다.
