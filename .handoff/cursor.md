@@ -6,6 +6,7 @@ Last Updated: 2026-09-10 17:45
 VC++ 런타임 독립 helper와 VMware 브리지 패스트핑 호환 수정이 포함된 0.3.4를 패키징하고 배포한다.
 
 ## Current Status
+- 0.3.4 배포 전 Node 141개 전체 테스트, Electron main·bootstrap·preload 구문 검사, IDE lint와 Windows x64 NSIS 패키징이 통과했다. 설치본 내부 Radeon·recorder·input guard helper 모두 `dumpbin /dependents`에서 외부 MSVCP/VCRUNTIME 의존성이 없음을 확인했다. 로컬 자산은 installer 96,230,026바이트·SHA-256 `14BD7DE2…AD0E2`, blockmap 102,267바이트·`652FB8A7…B8B0F`, latest.yml 342바이트·`AE395163…E545`, 터보 키 helper 291,840바이트·`D9504362…16A857`이다. 패키징으로 recorder 배치 바이너리가 680,448바이트·`71DEE1C7…B18A7`로 최종 갱신됐다.
 - 앱과 lockfile 버전을 0.3.4로 올렸다. 사용자용·상세 변경 기록은 외부 VC++ 런타임이 없는 환경의 그래픽·블랙박스 helper 실행 수정과 VMware Bridge Protocol 패스트핑 호환 개선을 0.3.4로 분리해 기록한다.
 - 오우야의 0.3.3 진단에서 물리 이더넷의 `thirdPartyBindings`는 `vmware_bridge`, `INSECURE_NPCAP`이었고 Npcap은 이미 `captureBindings`로 허용됐지만 VMware Bridge Protocol만 차단된 것을 확인했다. `vmware_bridge`는 호스트 경로를 우회하는 VPN이 아니라 VM에 물리 네트워크를 연결하는 L2 필터이므로 `compatibleVirtualizationBindings`로 분류해 허용했다. 미확인 타사 필터와 실제 가상/VPN 어댑터 차단은 유지한다. Node 141개 전체 테스트, 앱 프로덕션 빌드와 lint가 통과했고 0.3.4 변경 기록에 반영했다.
 - 최규진의 0.3.3 진단과 화면에서 `radeon-helper.exe`가 종료 코드 `3221225781`(`0xC0000135`)로 실패한 것을 확인했다. 해당 설치본은 `MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`을 외부에서 요구했고 사용자 PC에는 런타임이 없었다. 같은 진단에서 recorder도 30초마다 동일한 코드로 실패해 그래픽 전용 문제가 아니었다. Radeon·recorder·Alt+Enter 방지 CMake를 정적 MSVC 런타임(`/MT`)으로 변경하고 세 helper를 다시 빌드했다. `dumpbin /dependents`에서 외부 MSVCP/VCRUNTIME 의존성이 사라졌고 Radeon helper 직접 실행, Node 141개 전체 테스트, 앱 프로덕션 빌드와 lint가 통과했다. 새 SHA-256은 Radeon `61B0C4B8…07875`, recorder `0B7882AC…E892B`, input guard `731FC4AF…DDF6C`이며 0.3.4 변경 기록에 반영했다.
@@ -640,6 +641,7 @@ VC++ 런타임 독립 helper와 VMware 브리지 패스트핑 호환 수정이 �
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 0.3.4 전체 테스트와 Windows 패키징을 완료하고 설치본 내부 세 C++ helper의 정적 런타임 및 네 배포 자산의 크기·해시를 검증했다.
 - VMware Bridge Protocol의 `vmware_bridge`를 Npcap·nProtect와 같은 명시적 호환 필터로 분리해 물리 어댑터의 패스트핑 적용을 허용했다.
 - 0.3.3 진단의 `0xC0000135`를 외부 VC++ 런타임 DLL 누락으로 확정하고 Radeon·recorder·input guard helper를 정적 런타임으로 재빌드했다.
 - `v0.3.3` 설치본과 자동 업데이트 자산을 공개하고 중복 GitHub 릴리스를 하나로 정리했다. 네 자산의 원격 digest·로컬 SHA-256과 공개 다운로드 HTTP 200을 확인했다.
