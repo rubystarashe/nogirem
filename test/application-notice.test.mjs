@@ -24,9 +24,12 @@ test("공지 내용이 바뀔 때만 새 공지로 판정한다", () => {
   assert.equal(shouldDisplayApplicationNotice(notice, notice.id, true), true)
 })
 
-test("공지 문서에 이미지와 HTTPS 링크 예시가 포함된다", () => {
-  assert.match(noticeMarkdown, /!\[[^\]]+\]\(https:\/\/raw\.githubusercontent\.com\//)
-  assert.match(noticeMarkdown, /\[[^\]]+\]\(https:\/\/github\.com\//)
+test("공지 문서에 염색 도우미 이미지와 HTTPS 설문 링크가 포함된다", () => {
+  assert.match(
+    noticeMarkdown,
+    /!\[[^\]]+\]\(https:\/\/raw\.githubusercontent\.com\/rubystarashe\/nogirem\/master\/notice\/noticeimage\.png\)/,
+  )
+  assert.match(noticeMarkdown, /\[[^\]]+\]\(https:\/\/docs\.google\.com\/forms\//)
 })
 
 test("공지 조회와 닫기 상태가 메인 창 IPC 및 모달에 연결된다", () => {

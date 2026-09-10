@@ -1,11 +1,15 @@
-# 0.3.4 업데이트 안내
+# 마비노기 염색 도우미 개발 설문
 
-![마비노기 렘 부스터 CPU 배치 안내](https://raw.githubusercontent.com/rubystarashe/nogirem/master/public/doc_operation/affinity.png)
+![마비노기 염색 도우미 예시](https://raw.githubusercontent.com/rubystarashe/nogirem/master/notice/noticeimage.png)
 
-0.3.4 버전에서 그래픽 설정과 네트워크 호환성을 개선했습니다.
+원하는 파트에 염색할 색을 고를 수 있는 마비노기 염색 도우미 프로그램을 준비하고 있습니다.
 
-- VC++ 런타임이 없는 PC에서도 그래픽 설정과 블랙박스가 실행됩니다.
-- VMware Bridge Protocol이 연결된 환경에서도 패스트핑을 적용할 수 있습니다.
-- 문제가 계속되면 고급 기능에서 진단 로그를 추출해 보내주세요.
+더 편리한 형태로 제공하기 위해 여러분의 의견을 받고자 합니다.
 
-[0.3.4 릴리스 페이지 열기](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.4)
+- 마비노기 렘 부스터의 고급 기능에 추가
+- 완전히 새로운 별도 프로그램으로 제공
+- 염색 도우미에 추가되었으면 하는 기능 제안
+
+아래 링크에서 설문에 참여해 주세요.
+
+[마비노기 염색 도우미 기능 구현 설문 참여하기](https://docs.google.com/forms/d/e/1FAIpQLSd8mQIKzuAsgJ-PUH1A4Jr2by55f3c4uJgC1XftgKKq5h8-_g/viewform?usp=publish-editor)

@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-10 23:22
+Last Updated: 2026-09-10 23:57
 
 ## Current Objective
-원격 공지 본문의 휠 이동을 목표 위치 기반 감속 애니메이션으로 부드럽게 처리한다.
+원격 공지로 마비노기 염색 도우미의 제공 방식과 추가 희망 기능에 대한 설문 참여를 안내한다.
 
 ## Current Status
+- `NOTICE.md`를 마비노기 염색 도우미 개발 설문 공지로 교체했다. 사용자가 제공한 `notice/noticeimage.png`를 저장하고 GitHub Raw URL로 표시하며, 렘 부스터 고급 기능 통합과 별도 프로그램 제공 중 선호 방식 및 추가 희망 기능을 묻는 Google Forms 링크를 연결했다. 공지 테스트 3개와 lint가 통과했다. `forceApplicationNoticePreview`가 켜져 있어 원격 문서가 반영되면 앱 시작마다 새 설문 공지를 확인할 수 있다.
 - 공지 모달도 `TermsModal`과 같은 부드러운 휠 스크롤을 사용한다. 연속 휠 입력은 목표 위치에 누적하고 `requestAnimationFrame`마다 남은 거리의 18%를 이동해 감속하며, 모달 제거 시 진행 중인 frame을 취소한다. Ctrl+휠은 가로채지 않고 line/page 단위 delta도 픽셀 거리로 정규화한다. 공지·안정성 테스트 27개, 프로덕션 앱 빌드와 lint가 통과했다.
 - 공지 본문에 개발자 문서 페이지와 같은 3px WebKit 스크롤바를 적용했다. track은 중앙 1px 선만 보이는 투명 gradient, thumb는 반투명 검정과 2px radius를 사용한다. 본문에 `margin-right: -12px`, `padding-right: 12px`를 함께 적용해 내용 여백은 유지하면서 스크롤바만 카드 오른쪽 테두리에서 약 4px 위치로 당겼다. 공지·안정성 테스트 27개, 프로덕션 앱 빌드와 lint가 통과했다.
 - 공지 모달의 컴포넌트 자체 제목과 하단 버튼 영역을 제거했다. `App.svelte`의 본문 안에 공지 제목·Markdown·전체 너비 확인 버튼을 순서대로 배치해 카드 전체를 하나의 스크롤 영역으로 사용하며, 카드 내부 패딩을 `24px 26px 20px`에서 `14px 16px`로 줄였다. 확인과 Esc는 기존 닫기 애니메이션을 유지한다. 공지·안정성 테스트 27개, 프로덕션 앱 빌드와 lint가 통과했다.
@@ -1478,4 +1479,4 @@ Last Updated: 2026-09-10 23:22
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-앱을 완전히 재시작해 공지에서 연속 휠 입력이 끊김 없이 누적되고 끝 지점에서 자연스럽게 감속하는지 시각 확인한다.
+`NOTICE.md`와 `notice/noticeimage.png`를 원격 `master`에 반영한 뒤 앱을 재시작해 이미지 로드와 Google Forms 설문 링크 열기를 확인한다.
