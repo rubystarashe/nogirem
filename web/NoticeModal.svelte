@@ -10,11 +10,51 @@
   let closing = $state(false)
   let closeTimer
   let observedCloseSignal = $state()
+  let scrollElement
+  let scrollTarget = 0
+  let scrollFrame
 
   function confirm() {
     if (closing) return
     closing = true
     closeTimer = window.setTimeout(onconfirm, 180)
+  }
+
+  function stopSmoothScroll() {
+    if (scrollFrame) cancelAnimationFrame(scrollFrame)
+    scrollFrame = null
+  }
+
+  function animateSmoothScroll() {
+    if (!scrollElement) {
+      scrollFrame = null
+      return
+    }
+    const distance = scrollTarget - scrollElement.scrollTop
+    if (Math.abs(distance) < 0.5) {
+      scrollElement.scrollTop = scrollTarget
+      scrollFrame = null
+      return
+    }
+    scrollElement.scrollTop += distance * 0.18
+    scrollFrame = requestAnimationFrame(animateSmoothScroll)
+  }
+
+  function smoothScroll(event) {
+    if (event.ctrlKey || !scrollElement) return
+    const maximum = scrollElement.scrollHeight - scrollElement.clientHeight
+    if (maximum <= 0) return
+    const unit = event.deltaMode === 1
+      ? 16
+      : event.deltaMode === 2
+        ? scrollElement.clientHeight
+        : 1
+    const start = scrollFrame ? scrollTarget : scrollElement.scrollTop
+    const next = Math.max(0, Math.min(maximum, start + event.deltaY * unit * 0.8))
+    if (next === start) return
+    event.preventDefault()
+    scrollTarget = next
+    if (!scrollFrame) scrollFrame = requestAnimationFrame(animateSmoothScroll)
   }
 
   $effect(() => {
@@ -27,7 +67,10 @@
     confirm()
   })
 
-  onDestroy(() => window.clearTimeout(closeTimer))
+  onDestroy(() => {
+    window.clearTimeout(closeTimer)
+    stopSmoothScroll()
+  })
 </script>
 
 <div class="notice-backdrop" class:closing>
@@ -38,7 +81,11 @@
     aria-modal="true"
     aria-label={title}
   >
-    <div class="notice-content">
+    <div
+      class="notice-content"
+      bind:this={scrollElement}
+      onwheel={smoothScroll}
+    >
       {@render children?.()}
     </div>
   </div>
