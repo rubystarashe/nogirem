@@ -17,11 +17,12 @@ const [mainSource, preloadSource, appSource, noticeModalSource, packageInfo, not
 
 test("공지 내용이 바뀔 때만 새 공지로 판정한다", () => {
   const notice = normalizeApplicationNotice("# 공지\n\n새 내용")
+  const changedNotice = normalizeApplicationNotice("# 공지\n\n변경된 내용")
 
   assert.equal(notice.id.length, 64)
   assert.equal(shouldDisplayApplicationNotice(notice, null), true)
   assert.equal(shouldDisplayApplicationNotice(notice, notice.id), false)
-  assert.equal(shouldDisplayApplicationNotice(notice, notice.id, true), true)
+  assert.equal(shouldDisplayApplicationNotice(changedNotice, notice.id), true)
 })
 
 test("공지 문서에 염색 도우미 이미지와 HTTPS 설문 링크가 포함된다", () => {
@@ -33,7 +34,12 @@ test("공지 문서에 염색 도우미 이미지와 HTTPS 설문 링크가 포�
 })
 
 test("공지 조회와 닫기 상태가 메인 창 IPC 및 모달에 연결된다", () => {
-  assert.match(mainSource, /const forceApplicationNoticePreview = true/)
+  assert.doesNotMatch(mainSource, /forceApplicationNoticePreview/)
+  assert.match(mainSource, /fetch\(applicationNoticeSourceUrl,[\s\S]*cache: "no-store"/)
+  assert.match(
+    mainSource,
+    /shouldDisplayApplicationNotice\(\s*notice,\s*dismissed\?\.id,\s*\)/,
+  )
   assert.match(mainSource, /application:notice-available/)
   assert.match(mainSource, /application:get-notice/)
   assert.match(mainSource, /application:dismiss-notice/)

@@ -1,13 +1,14 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-11 00:05
+Last Updated: 2026-09-11 00:10
 
 ## Current Objective
-염색 도우미 설문 공지 이미지를 원격 GitHub Raw에서 정상 로드하고 확인 버튼의 본문 간격을 조정한다.
+강제 공지 반복 표시 테스트 기능을 제거하고 원격 `NOTICE.md`의 SHA-256 변경 여부로만 공지를 표시하는 운영 흐름을 검증한다.
 
 ## Current Status
-- 공지 이미지가 깨진 원인은 URL 오류가 아니라 `notice/noticeimage.png`를 포함한 로컬 `master`가 원격보다 8개 커밋 앞서 GitHub Raw에 파일이 없었던 것이다. 확인 버튼 상단 여백은 5px에서 14px로 늘렸고 공지 테스트 3개, 프로덕션 앱 빌드와 lint가 통과했다. 커밋 `9de36e4`까지 원격 `master`에 push했으며 Raw 이미지 응답이 HTTP 200, `image/png`, 191,184바이트임을 확인했다.
-- `NOTICE.md`를 마비노기 염색 도우미 개발 설문 공지로 교체했다. 사용자가 제공한 `notice/noticeimage.png`를 저장하고 GitHub Raw URL로 표시하며, 렘 부스터 고급 기능 통합과 별도 프로그램 제공 중 선호 방식 및 추가 희망 기능을 묻는 Google Forms 링크를 연결했다. 공지 테스트 3개와 lint가 통과했다. `forceApplicationNoticePreview`가 켜져 있어 원격 문서가 반영되면 앱 시작마다 새 설문 공지를 확인할 수 있다.
+- `forceApplicationNoticePreview` 상수와 `shouldDisplayApplicationNotice`의 강제 인자를 제거했다. 원격 `NOTICE.md`는 `cache: no-store`로 조회하고 정규화된 문서 SHA-256이 저장된 마지막 닫기 ID와 다를 때만 표시한다. 실제 원격 응답은 HTTP 200이고 로컬 문서와 ID `7ada465f…a84aa`가 일치했으며, 최초 ID는 표시·같은 닫기 ID는 미표시·문서 변경 ID는 다시 표시되는 것을 실행 검증했다. 확인 버튼 여백 변경까지 포함해 공지·안정성 테스트 27개, Electron·공지 모듈 구문 검사, 프로덕션 앱 빌드와 lint가 통과했다.
+- 공지 이미지가 깨진 원인은 URL 오류가 아니라 `notice/noticeimage.png`를 포함한 로컬 `master`가 원격보다 8개 커밋 앞서 GitHub Raw에 파일이 없었던 것이다. 확인 버튼 상단 여백은 5px에서 21px로 늘리고 하단 여백 8px을 추가했다. 커밋 `9de36e4`까지 원격 `master`에 push했으며 Raw 이미지 응답이 HTTP 200, `image/png`, 191,184바이트임을 확인했다.
+- `NOTICE.md`를 마비노기 염색 도우미 개발 설문 공지로 교체했다. 사용자가 제공한 `notice/noticeimage.png`를 저장하고 GitHub Raw URL로 표시하며, 렘 부스터 고급 기능 통합과 별도 프로그램 제공 중 선호 방식 및 추가 희망 기능을 묻는 Google Forms 링크를 연결했다. 공지 테스트 3개와 lint가 통과했다.
 - 공지 모달도 `TermsModal`과 같은 부드러운 휠 스크롤을 사용한다. 연속 휠 입력은 목표 위치에 누적하고 `requestAnimationFrame`마다 남은 거리의 18%를 이동해 감속하며, 모달 제거 시 진행 중인 frame을 취소한다. Ctrl+휠은 가로채지 않고 line/page 단위 delta도 픽셀 거리로 정규화한다. 공지·안정성 테스트 27개, 프로덕션 앱 빌드와 lint가 통과했다.
 - 공지 본문에 개발자 문서 페이지와 같은 3px WebKit 스크롤바를 적용했다. track은 중앙 1px 선만 보이는 투명 gradient, thumb는 반투명 검정과 2px radius를 사용한다. 본문에 `margin-right: -12px`, `padding-right: 12px`를 함께 적용해 내용 여백은 유지하면서 스크롤바만 카드 오른쪽 테두리에서 약 4px 위치로 당겼다. 공지·안정성 테스트 27개, 프로덕션 앱 빌드와 lint가 통과했다.
 - 공지 모달의 컴포넌트 자체 제목과 하단 버튼 영역을 제거했다. `App.svelte`의 본문 안에 공지 제목·Markdown·전체 너비 확인 버튼을 순서대로 배치해 카드 전체를 하나의 스크롤 영역으로 사용하며, 카드 내부 패딩을 `24px 26px 20px`에서 `14px 16px`로 줄였다. 확인과 Esc는 기존 닫기 애니메이션을 유지한다. 공지·안정성 테스트 27개, 프로덕션 앱 빌드와 lint가 통과했다.
@@ -474,7 +475,6 @@ Last Updated: 2026-09-11 00:05
 1. 수정된 다음 설치본을 이동혁 PC처럼 프로세스가 많은 환경에서 실행해 affinity helper가 10초 뒤 종료되지 않고 마비노기 감지 후 `실시간 부스트중`으로 전환되는지 확인한다.
 1. En so에게 `C:\Windows\Minidump\091026-23359-01.dmp`를 받아 WinDbg `!analyze -v`와 멈춘 프로세서·DPC/ISR 스택을 확인한다. 확보 전에는 반복 재현을 요구하지 않고 프레임 부스트를 끈다.
 1. 개발 앱 또는 다음 설치본을 완전히 재시작해 공지 이미지 로드, 링크의 시스템 브라우저 열기, X·확인·Esc 닫기를 시각 확인한다.
-1. 디자인 확인 후 `forceApplicationNoticePreview`를 `false`로 바꿔 닫은 SHA-256 공지는 문서가 수정될 때까지 다시 표시하지 않도록 운영 모드로 전환한다.
 1. 다음 설치본을 `vmware_bridge`와 Npcap이 함께 연결된 오류 보고 PC에서 실행해 패스트핑 적용·어댑터 재시작·연결 검사를 확인한다.
 1. 정적 C++ helper가 포함된 다음 설치본을 VC++ 재배포 패키지가 없는 PC에서 실행해 그래픽 조회와 블랙박스 시작을 확인한다.
 1. 블루스크린이 발생한 En so 환경에서 재현을 요구하지 말고 `%SystemRoot%\Minidump`의 최신 DMP 또는 Windows BugCheck 이벤트 1001의 stop code·문제 드라이버를 받아 원인을 확정한다.
@@ -1480,4 +1480,4 @@ Last Updated: 2026-09-11 00:05
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-앱의 공지를 다시 열어 원격 염색 도우미 이미지 표시와 확대된 확인 버튼 상단 간격을 시각 확인한다.
+실제 앱에서 현재 공지를 한 번 닫고 재시작했을 때 다시 나타나지 않는지 확인한 뒤, 원격 `NOTICE.md` 내용을 변경했을 때만 새 모달이 표시되는지 다음 공지 배포에서 확인한다.

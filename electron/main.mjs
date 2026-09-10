@@ -120,7 +120,6 @@ const bugReportFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSfx6-QVqsxgUD
 const startupTrayTaskName = "Mabinogi Rem Booster Startup"
 const startupTrayLaunch = process.argv.includes("--startup-tray")
 const applicationUpdateStallTimeoutMs = 45_000
-const forceApplicationNoticePreview = true
 const primaryRendererUnresponsiveTimeoutMs = 5_000
 const primaryWindowRevealTimeoutMs = 8_000
 const trayMenuCloseDelayMs = 75
@@ -925,7 +924,6 @@ async function checkApplicationNotice() {
       if (!shouldDisplayApplicationNotice(
         notice,
         dismissed?.id,
-        forceApplicationNoticePreview,
       )) return null
       notifyApplicationNotice(notice)
       return notice

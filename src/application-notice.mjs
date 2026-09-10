@@ -17,6 +17,6 @@ export function normalizeApplicationNotice(markdown) {
   }
 }
 
-export function shouldDisplayApplicationNotice(notice, dismissedId, force = false) {
-  return Boolean(notice && (force || notice.id !== dismissedId))
+export function shouldDisplayApplicationNotice(notice, dismissedId) {
+  return Boolean(notice && notice.id !== dismissedId)
 }
