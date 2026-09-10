@@ -17,6 +17,7 @@
   import GameWave from "./GameWave.svelte"
   import MarkdownBlocks from "./MarkdownBlocks.svelte"
   import Modal from "./Modal.svelte"
+  import NoticeModal from "./NoticeModal.svelte"
   import TermsModal from "./TermsModal.svelte"
   import UpdatePreviewModal from "./UpdatePreviewModal.svelte"
 
@@ -3397,12 +3398,10 @@
 {/if}
 
 {#if applicationNoticeVisible}
-  <Modal
-    eyebrow="NOTICE"
+  <NoticeModal
     title={applicationNoticeTitle}
-    variant="large"
     closeSignal={applicationNoticeCloseSignal}
-    onclose={dismissApplicationNotice}
+    onconfirm={dismissApplicationNotice}
   >
     <div class="application-notice-content">
       <MarkdownBlocks
@@ -3410,13 +3409,5 @@
         onlink={openApplicationNoticeLink}
       />
     </div>
-    <div class="modal-actions application-notice-actions">
-      <button
-        class="monochrome"
-        onclick={() => applicationNoticeCloseSignal++}
-      >
-        확인
-      </button>
-    </div>
-  </Modal>
+  </NoticeModal>
 {/if}

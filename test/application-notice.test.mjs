@@ -6,10 +6,11 @@ import {
   shouldDisplayApplicationNotice,
 } from "../src/application-notice.mjs"
 
-const [mainSource, preloadSource, appSource, packageInfo, noticeMarkdown] = await Promise.all([
+const [mainSource, preloadSource, appSource, noticeModalSource, packageInfo, noticeMarkdown] = await Promise.all([
   readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
   readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
   readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
+  readFile(new URL("../web/NoticeModal.svelte", import.meta.url), "utf8"),
   readFile(new URL("../package.json", import.meta.url), "utf8"),
   readFile(new URL("../NOTICE.md", import.meta.url), "utf8"),
 ])
@@ -37,6 +38,10 @@ test("공지 조회와 닫기 상태가 메인 창 IPC 및 모달에 연결된�
   assert.match(preloadSource, /getNotice:[\s\S]*application:get-notice/)
   assert.match(preloadSource, /onNoticeAvailable:[\s\S]*application:notice-available/)
   assert.match(appSource, /parseApplicationNotice[\s\S]*applicationNoticeVisible = true/)
-  assert.match(appSource, /application-notice-content[\s\S]*MarkdownBlocks/)
+  assert.match(appSource, /<NoticeModal[\s\S]*application-notice-content[\s\S]*MarkdownBlocks/)
+  assert.match(noticeModalSource, /align-items: center/)
+  assert.match(noticeModalSource, /padding: 24px/)
+  assert.match(noticeModalSource, /background: #fff/)
+  assert.doesNotMatch(noticeModalSource, /class="notice-close"/)
   assert.match(packageInfo, /"NOTICE\.md"/)
 })

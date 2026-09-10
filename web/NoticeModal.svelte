@@ -4,17 +4,29 @@
   let {
     title,
     confirmLabel = "확인",
+    closeSignal = 0,
     onconfirm = () => {},
     children,
   } = $props()
   let closing = $state(false)
   let closeTimer
+  let observedCloseSignal = $state()
 
   function confirm() {
     if (closing) return
     closing = true
     closeTimer = window.setTimeout(onconfirm, 180)
   }
+
+  $effect(() => {
+    if (observedCloseSignal === undefined) {
+      observedCloseSignal = closeSignal
+      return
+    }
+    if (closeSignal === observedCloseSignal) return
+    observedCloseSignal = closeSignal
+    confirm()
+  })
 
   onDestroy(() => window.clearTimeout(closeTimer))
 </script>
@@ -59,8 +71,12 @@
   }
 
   .notice-dialog {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     width: min(100%, 540px);
+    max-height: calc(100vh - 48px);
     padding: 24px 26px 20px;
+    overflow: hidden;
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 14px;
     color: #17191b;
@@ -80,6 +96,8 @@
   }
 
   .notice-content {
+    min-height: 0;
+    overflow: auto;
     color: #53575b;
     font-size: 0.84rem;
     line-height: 1.6;
