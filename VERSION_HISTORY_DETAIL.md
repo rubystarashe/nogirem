@@ -2,6 +2,10 @@
 
 사용자용 요약은 [VERSION_HISTORY.md](VERSION_HISTORY.md)에서 확인할 수 있습니다.
 
+## 0.3.4
+
+- 최규진의 0.3.3 진단에서 Radeon 그래픽 설정과 recorder helper가 종료 코드 `3221225781`(`0xC0000135`)로 실행되지 않았다. 설치본의 C++ helper가 외부 `MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`에 의존한 것이 원인이므로 Radeon·recorder·Alt+Enter 방지 helper를 정적 MSVC 런타임으로 빌드한다. 새 바이너리의 의존성 목록에서 해당 DLL이 제거됐고, VC++ 재배포 패키지가 없는 PC에서도 직접 실행할 수 있다.
+
 ## 0.3.3
 
 - DXVK 로그 중간이 NUL 문자로 유실되어 `Creating device`와 swapchain 초기화 문구가 사라져도 Vulkan 로더·GPU 탐색과 실제 `D3D9DeviceEx::ResetSwapChain`·`Device reset` 동작이 함께 확인되면 Vulkan 실행으로 판정한다. DXVK 버전 헤더만 남은 초기화 실패 로그는 계속 제외한다. 최신·업데이트 필요 상태가 확인된 뒤 먼저 요청된 1초 주기 조회의 늦은 `checking` 응답이 도착해 화면을 되돌리지 않도록 초기 조회와 실시간 갱신을 같은 병합 규칙으로 처리하며, 진단 ZIP에도 renderer와 DXVK 런타임 상태를 포함한다.

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(input_guard_helper LANGUAGES CXX)
 
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 add_executable(input-guard-helper main.cpp)
 target_compile_features(input-guard-helper PRIVATE cxx_std_20)
 target_compile_definitions(
