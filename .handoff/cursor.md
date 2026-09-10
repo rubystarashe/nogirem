@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-10 23:57
+Last Updated: 2026-09-11 00:02
 
 ## Current Objective
-원격 공지로 마비노기 염색 도우미의 제공 방식과 추가 희망 기능에 대한 설문 참여를 안내한다.
+염색 도우미 설문 공지 이미지를 원격 GitHub Raw에서 정상 로드하고 확인 버튼의 본문 간격을 조정한다.
 
 ## Current Status
+- 공지 이미지가 깨진 원인은 URL 오류가 아니라 `notice/noticeimage.png`를 포함한 로컬 `master`가 원격보다 8개 커밋 앞서 GitHub Raw에 파일이 없었던 것이다. 확인 버튼 상단 여백은 5px에서 14px로 늘렸고 공지 테스트 3개, 프로덕션 앱 빌드와 lint가 통과했다. 이 변경을 커밋한 뒤 원격 `master`에 push해 Raw 이미지 접근을 복구해야 한다.
 - `NOTICE.md`를 마비노기 염색 도우미 개발 설문 공지로 교체했다. 사용자가 제공한 `notice/noticeimage.png`를 저장하고 GitHub Raw URL로 표시하며, 렘 부스터 고급 기능 통합과 별도 프로그램 제공 중 선호 방식 및 추가 희망 기능을 묻는 Google Forms 링크를 연결했다. 공지 테스트 3개와 lint가 통과했다. `forceApplicationNoticePreview`가 켜져 있어 원격 문서가 반영되면 앱 시작마다 새 설문 공지를 확인할 수 있다.
 - 공지 모달도 `TermsModal`과 같은 부드러운 휠 스크롤을 사용한다. 연속 휠 입력은 목표 위치에 누적하고 `requestAnimationFrame`마다 남은 거리의 18%를 이동해 감속하며, 모달 제거 시 진행 중인 frame을 취소한다. Ctrl+휠은 가로채지 않고 line/page 단위 delta도 픽셀 거리로 정규화한다. 공지·안정성 테스트 27개, 프로덕션 앱 빌드와 lint가 통과했다.
 - 공지 본문에 개발자 문서 페이지와 같은 3px WebKit 스크롤바를 적용했다. track은 중앙 1px 선만 보이는 투명 gradient, thumb는 반투명 검정과 2px radius를 사용한다. 본문에 `margin-right: -12px`, `padding-right: 12px`를 함께 적용해 내용 여백은 유지하면서 스크롤바만 카드 오른쪽 테두리에서 약 4px 위치로 당겼다. 공지·안정성 테스트 27개, 프로덕션 앱 빌드와 lint가 통과했다.
@@ -1479,4 +1480,4 @@ Last Updated: 2026-09-10 23:57
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-`NOTICE.md`와 `notice/noticeimage.png`를 원격 `master`에 반영한 뒤 앱을 재시작해 이미지 로드와 Google Forms 설문 링크 열기를 확인한다.
+확인 버튼 여백 변경을 커밋하고 로컬 `master`를 push한 뒤 GitHub Raw 이미지 HTTP 200과 앱 공지 이미지 표시를 확인한다.
