@@ -2665,6 +2665,11 @@ button.direct-donation-card:hover {
   font-size: 15px;
 }
 
+.application-notice-content .application-notice-title {
+  font-size: 18px;
+  line-height: 1.35;
+}
+
 .application-notice-content h3 {
   color: #292d30;
   font-size: 13px;
@@ -2702,6 +2707,25 @@ button.direct-donation-card:hover {
 
 .application-notice-content .markdown-link:hover {
   color: #713d00;
+}
+
+.application-notice-confirm {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 5px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  background: #17191b;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.application-notice-confirm:hover {
+  background: #303337;
 }
 
 @keyframes pulse {

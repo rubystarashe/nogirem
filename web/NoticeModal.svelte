@@ -3,7 +3,6 @@
 
   let {
     title,
-    confirmLabel = "확인",
     closeSignal = 0,
     onconfirm = () => {},
     children,
@@ -39,14 +38,8 @@
     aria-modal="true"
     aria-label={title}
   >
-    <h2>{title}</h2>
     <div class="notice-content">
       {@render children?.()}
-    </div>
-    <div class="notice-actions">
-      <button type="button" disabled={closing} onclick={confirm}>
-        {confirmLabel}
-      </button>
     </div>
   </div>
 </div>
@@ -72,10 +65,10 @@
 
   .notice-dialog {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
     width: min(100%, 540px);
     max-height: calc(100vh - 48px);
-    padding: 24px 26px 20px;
+    padding: 14px 16px;
     overflow: hidden;
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 14px;
@@ -89,12 +82,6 @@
     animation: notice-dialog-out 180ms ease-in both;
   }
 
-  h2 {
-    margin: 0 0 12px;
-    font-size: 1.18rem;
-    line-height: 1.35;
-  }
-
   .notice-content {
     min-height: 0;
     overflow: auto;
@@ -105,35 +92,6 @@
 
   .notice-content :global(p) {
     margin: 0;
-  }
-
-  .notice-actions {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 22px;
-  }
-
-  button {
-    min-width: 78px;
-    height: 36px;
-    padding: 0 18px;
-    border: 0;
-    border-radius: 7px;
-    color: #fff;
-    background: #17191b;
-    font: inherit;
-    font-size: 0.82rem;
-    font-weight: 700;
-    cursor: pointer;
-  }
-
-  button:hover:not(:disabled) {
-    background: #303337;
-  }
-
-  button:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
 
   @keyframes notice-backdrop-in {

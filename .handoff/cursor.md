@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-10 22:55
+Last Updated: 2026-09-10 23:10
 
 ## Current Objective
-원격 공지를 기존 흰색 중앙 `NoticeModal`로 표시하고 상하좌우 여백·내부 스크롤·확인 버튼 전환을 검증한다.
+원격 공지의 제목과 확인 버튼을 별도 영역 없이 스크롤 가능한 본문 안에 통합하고 축소된 카드 패딩을 검증한다.
 
 ## Current Status
+- 공지 모달의 컴포넌트 자체 제목과 하단 버튼 영역을 제거했다. `App.svelte`의 본문 안에 공지 제목·Markdown·전체 너비 확인 버튼을 순서대로 배치해 카드 전체를 하나의 스크롤 영역으로 사용하며, 카드 내부 패딩을 `24px 26px 20px`에서 `14px 16px`로 줄였다. 확인과 Esc는 기존 닫기 애니메이션을 유지한다. 공지·안정성 테스트 27개, 프로덕션 앱 빌드와 lint가 통과했다.
 - 원격 공지 렌더링을 어두운 하단형 `Modal`에서 기존 `NoticeModal`로 교체했다. 흰색 카드가 화면 중앙에 놓이고 backdrop의 24px 패딩으로 상하좌우 여백을 유지하며 닫기 아이콘 없이 확인 버튼만 표시한다. 긴 공지는 카드 최대 높이를 화면에서 48px 뺀 값으로 제한하고 본문만 스크롤한다. Esc도 확인과 동일한 닫기 애니메이션을 사용하도록 `closeSignal`을 지원하고 공지 본문·제목·이미지 테두리·링크 색상을 흰 배경에 맞게 변경했다. 공지·안정성 테스트 27개, 프로덕션 앱 빌드와 lint가 통과했다.
 - 이동혁의 0.3.4 진단에서 패스트핑 레지스트리 값과 호환성 검사는 정상이었지만 affinity helper가 12:06:43부터 반복 실행될 때마다 약 10초 뒤 같은 `Get-Process` 명령 제한 시간 초과로 종료됐다. memory helper는 `running: true`, `gameActive: true`였으나 affinity는 `running: false`여서 중앙 문구가 정확히 `부스트 적용 중단됨`을 표시했다. 기존 PowerShell이 모든 프로세스의 `Path`·`StartTime`·`SessionId` 속성을 직렬 조회하던 방식을 PID·이름만 열거하고 나머지는 `QueryFullProcessImageNameW`·`GetProcessTimes`·`ProcessIdToSessionId` Win32 API로 보강하는 방식으로 변경했다. 로컬 self-test에서 프로세스 열거와 native 경로 조회가 10초 안에 완료됐고 affinity 테스트 15개, 전체 Node 144개, 구문 검사와 lint가 통과했다.
 - En so의 0.3.4 진단에서 2026-09-09~10 사이 BugCheck `0x101`이 7회 기록됐고 최신 덤프는 `C:\Windows\Minidump\091026-23359-01.dmp`다. 모든 BugCheck의 Arg1은 `0xC`이며 응답하지 않은 논리 프로세서 Arg4는 `1`, `2`, `10`으로 바뀌어 단일 코어에 고정되지 않았다. 0.3.2·0.3.4뿐 아니라 0.2.5 helper 실행 구간에도 재발해 0.3.4 전용 회귀는 아니다. 최신 충돌 전 프레임 부스트는 Client를 CPU `8-15`, 대부분의 사용자 프로세스를 `0-7`에 배치했고 메모리 helper도 실행 중이었지만 NIC·터보 키·Alt+Enter 방지·블랙박스는 꺼져 있었다. Nogirem은 사용자 프로세스 affinity와 standby list만 조정하며 CPU 클럭·전압·커널 스레드 affinity는 건드리지 않으므로 직접적인 0x101 발생 원인으로 확정할 증거는 없다. 다만 부하 분배 변화가 불안정한 PBO·Curve Optimizer·BIOS·칩셋/장치 드라이버 문제를 재현시키는 촉발 조건일 수 있다. ZIP에는 DMP가 없어 원인 스택은 아직 분석할 수 없다.
@@ -1475,4 +1476,4 @@ Last Updated: 2026-09-10 22:55
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-앱을 완전히 재시작해 기존 흰색 `NoticeModal` 기반 공지의 중앙 배치와 여백·스크롤·닫기 연출을 시각 확인한다.
+앱을 완전히 재시작해 공지 제목과 확인 버튼이 모두 본문 스크롤 영역 안에 있고 축소된 카드 패딩이 적절한지 시각 확인한다.

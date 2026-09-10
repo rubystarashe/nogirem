@@ -3404,10 +3404,18 @@
     onconfirm={dismissApplicationNotice}
   >
     <div class="application-notice-content">
+      <h2 class="application-notice-title">{applicationNoticeTitle}</h2>
       <MarkdownBlocks
         blocks={applicationNoticeBlocks}
         onlink={openApplicationNoticeLink}
       />
+      <button
+        type="button"
+        class="application-notice-confirm"
+        onclick={() => applicationNoticeCloseSignal++}
+      >
+        확인
+      </button>
     </div>
   </NoticeModal>
 {/if}
