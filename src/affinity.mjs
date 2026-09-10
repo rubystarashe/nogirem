@@ -115,6 +115,33 @@ function getProcessStartTime(pid) {
   }
 }
 
+function queryProcessSessionId(pid) {
+  const sessionId = createPointer({ paramsType: [DataType.U32], paramsValue: [0] })
+  try {
+    const ok = nativeCall(
+      "ProcessIdToSessionId",
+      DataType.Boolean,
+      [DataType.U32, DataType.External],
+      [pid, sessionId[0]],
+    )
+    return ok ? Number(readPointer(sessionId, DataType.U32)) : null
+  } finally {
+    freePointer({
+      paramsType: [DataType.U32],
+      paramsValue: sessionId,
+      pointerType: PointerType.RsPointer,
+    })
+  }
+}
+
+function queryProcessStartTime(pid) {
+  try {
+    return new Date(getProcessStartTime(pid)).toISOString()
+  } catch {
+    return null
+  }
+}
+
 function setAffinity(pid, mask) {
   const handle = openProcess(pid, true)
   if (!handle) throw new Error(`OpenProcess failed (Win32 ${lastError()})`)
@@ -444,7 +471,16 @@ export async function createAffinityManager({
   const isGame = processInfo => matchesGameProcess(processInfo, config)
 
   async function listProcesses() {
-    const ps = `$ErrorActionPreference='SilentlyContinue'; Get-Process | ForEach-Object { [pscustomobject]@{ pid=$_.Id; name=($_.ProcessName+'.exe'); path=$_.Path; startTime=if($_.StartTime){$_.StartTime.ToUniversalTime().ToString('O')}else{$null}; sessionId=$_.SessionId } } | ConvertTo-Json -Compress`
+    const ps = String.raw`
+$ErrorActionPreference='SilentlyContinue'
+[Console]::OutputEncoding=[Text.UTF8Encoding]::new()
+Get-Process | ForEach-Object {
+  [pscustomobject]@{
+    pid=$_.Id
+    name=($_.ProcessName+'.exe')
+  }
+} | ConvertTo-Json -Compress
+`
     const { stdout } = await execFileAsync(
       "powershell.exe",
       ["-NoProfile", "-NonInteractive", "-Command", ps],
@@ -457,9 +493,9 @@ export async function createAffinityManager({
     const value = JSON.parse(stdout || "[]")
     const processes = Array.isArray(value) ? value : [value]
     for (const processInfo of processes) {
-      if (!processInfo.path && processInfo.name.toLowerCase() === gameExecutableName) {
-        processInfo.path = queryProcessPath(processInfo.pid)
-      }
+      processInfo.path = queryProcessPath(processInfo.pid)
+      processInfo.startTime = queryProcessStartTime(processInfo.pid)
+      processInfo.sessionId = queryProcessSessionId(processInfo.pid)
     }
     return processes
   }

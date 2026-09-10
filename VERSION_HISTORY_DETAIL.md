@@ -5,6 +5,7 @@
 ## 0.3.5
 
 - 앱 실행과 업데이트 확인 때마다 GitHub `master`의 `NOTICE.md`를 캐시 없이 조회하고, 문서 SHA-256이 마지막으로 닫은 공지와 다르면 메인 화면 최상단 모달로 표시한다. 제목·본문·목록·HTTPS 이미지와 링크를 제한적으로 해석하며 링크는 renderer에서 직접 열지 않고 검증된 IPC를 통해 시스템 브라우저로 연다. 닫은 문서 ID는 userData에 원자 저장하고 네트워크 조회 실패 시 설치본에 포함된 공지로 대체한다. 현재 디자인 테스트를 위해 `forceApplicationNoticePreview`가 켜져 있어 닫기 기록과 관계없이 실행할 때마다 예시 공지를 표시한다.
+- 이동혁의 0.3.4 진단에서 패스트핑은 정상 적용됐지만 affinity helper가 시작할 때마다 정확히 10초 뒤 종료됐다. 프로세스가 많은 환경에서 PowerShell `Get-Process`의 각 항목에 대해 `Path`와 `StartTime`을 조회하느라 제한 시간을 초과한 것이 원인이었다. PowerShell은 PID와 이름만 빠르게 열거하고 실행 경로·시작 시각·세션 ID는 각각 `QueryFullProcessImageNameW`·`GetProcessTimes`·`ProcessIdToSessionId` Win32 API로 조회해 느리거나 접근할 수 없는 개별 프로세스가 전체 affinity 감시 시작을 막지 않도록 한다.
 
 ## 0.3.4
 
