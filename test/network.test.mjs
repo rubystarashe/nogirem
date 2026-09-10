@@ -222,14 +222,14 @@ test("가상 어댑터나 타사 필터 환경에서는 패스트핑 적용을 �
   assert.deepEqual(calls, [false])
 })
 
-test("Npcap과 nProtect 보안 필터는 패스트핑 호환성 차단에서 제외한다", () => {
+test("Npcap과 nProtect 및 VMware 브리지 필터는 패스트핑 호환성 차단에서 제외한다", () => {
   assert.match(
     networkSource,
-    /captureBindings[\s\S]*insecure_npcap\|npcap\(\?:_wifi\)\?[\s\S]*compatibleSecurityBindings[\s\S]*inca_tkfwfv[\s\S]*blockingThirdPartyBindings/,
+    /captureBindings[\s\S]*insecure_npcap\|npcap\(\?:_wifi\)\?[\s\S]*compatibleSecurityBindings[\s\S]*inca_tkfwfv[\s\S]*compatibleVirtualizationBindings[\s\S]*vmware_bridge[\s\S]*blockingThirdPartyBindings/,
   )
   assert.match(
     networkSource,
-    /notmatch "\(\?i\)\^\(insecure_npcap\|npcap\(\?:_wifi\)\?\|inca_tkfwfv\)\$"/,
+    /notmatch "\(\?i\)\^\(insecure_npcap\|npcap\(\?:_wifi\)\?\|inca_tkfwfv\|vmware_bridge\)\$"/,
   )
   assert.match(
     networkSource,

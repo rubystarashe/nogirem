@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-10 17:20
+Last Updated: 2026-09-10 17:35
 
 ## Current Objective
-0.3.3 설치본에서 VC++ 런타임 누락으로 그래픽 설정과 native helper가 실행되지 않는 문제를 수정한다.
+0.3.3에서 VMware 브리지 필터 때문에 패스트핑 적용이 차단되는 문제를 수정한다.
 
 ## Current Status
+- 오우야의 0.3.3 진단에서 물리 이더넷의 `thirdPartyBindings`는 `vmware_bridge`, `INSECURE_NPCAP`이었고 Npcap은 이미 `captureBindings`로 허용됐지만 VMware Bridge Protocol만 차단된 것을 확인했다. `vmware_bridge`는 호스트 경로를 우회하는 VPN이 아니라 VM에 물리 네트워크를 연결하는 L2 필터이므로 `compatibleVirtualizationBindings`로 분류해 허용했다. 미확인 타사 필터와 실제 가상/VPN 어댑터 차단은 유지한다. Node 141개 전체 테스트, 앱 프로덕션 빌드와 lint가 통과했고 0.3.4 변경 기록에 반영했다.
 - 최규진의 0.3.3 진단과 화면에서 `radeon-helper.exe`가 종료 코드 `3221225781`(`0xC0000135`)로 실패한 것을 확인했다. 해당 설치본은 `MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`을 외부에서 요구했고 사용자 PC에는 런타임이 없었다. 같은 진단에서 recorder도 30초마다 동일한 코드로 실패해 그래픽 전용 문제가 아니었다. Radeon·recorder·Alt+Enter 방지 CMake를 정적 MSVC 런타임(`/MT`)으로 변경하고 세 helper를 다시 빌드했다. `dumpbin /dependents`에서 외부 MSVCP/VCRUNTIME 의존성이 사라졌고 Radeon helper 직접 실행, Node 141개 전체 테스트, 앱 프로덕션 빌드와 lint가 통과했다. 새 SHA-256은 Radeon `61B0C4B8…07875`, recorder `0B7882AC…E892B`, input guard `731FC4AF…DDF6C`이며 0.3.4 변경 기록에 반영했다.
 - 0.3.3 강제 업데이트 안내 테스트를 제거하고 커밋 `e444d9a`에 태그 `v0.3.3`을 생성해 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.3)로 공개했다. electron-builder가 릴리스를 두 개 만든 경합은 ID `385741914`를 제거하고 ID `385741915`에 네 자산을 통합했다. installer 95,870,091바이트·SHA-256 `A5AF1367…C29E1`, blockmap 101,908바이트·`50BF1590…36348`, latest.yml 342바이트·`B3BD4C13…6224A`, 터보 키 helper 291,840바이트·`D9504362…6A857`이며 GitHub digest와 로컬 해시가 일치하고 공개 URL은 모두 HTTP 200이다. Release 빌드로 갱신된 recorder helper는 369,664바이트·`BBAC9D98…5F4945`다.
 - updater의 `autoDownload`를 끄고 확인과 다운로드를 분리했다. 앱 시작 3초 확인은 새 버전 발견 시 다운로드·모달까지 진행하지만, 사용 중 4시간 주기 확인은 `available` 상태·왼쪽 아래 `새 버전 출시됨`·우측 아래 클릭 통과 오버레이만 표시한다. 두 안내 배경은 블랙박스 노란색이 아니라 업데이트 모달과 같은 주황색 `#ff9d00`을 사용한다. 사용자가 문구를 누를 때 `downloadUpdate()`를 실행해 그때부터 다운로드 모달을 표시한다. 가상 0.3.4 강제 테스트 코드를 제거해 실제 배포 동작으로 복구했으며 전체 Node 140개 테스트, Electron 구문 검사, 앱 프로덕션 빌드와 IDE lint가 통과했다.
@@ -457,6 +458,7 @@ Last Updated: 2026-09-10 17:20
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. 다음 설치본을 `vmware_bridge`와 Npcap이 함께 연결된 오류 보고 PC에서 실행해 패스트핑 적용·어댑터 재시작·연결 검사를 확인한다.
 1. 정적 C++ helper가 포함된 다음 설치본을 VC++ 재배포 패키지가 없는 PC에서 실행해 그래픽 조회와 블랙박스 시작을 확인한다.
 1. 블루스크린이 발생한 En so 환경에서 재현을 요구하지 말고 `%SystemRoot%\Minidump`의 최신 DMP 또는 Windows BugCheck 이벤트 1001의 stop code·문제 드라이버를 받아 원인을 확정한다.
 1. 0.3.3 설치본에서 0.2.9 stale memory lock을 둔 상태로 실행해 재사용 PID를 기존 helper로 오인하지 않고 프레임 부스트가 정상 시작되는지 확인한다.
@@ -637,6 +639,7 @@ Last Updated: 2026-09-10 17:20
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- VMware Bridge Protocol의 `vmware_bridge`를 Npcap·nProtect와 같은 명시적 호환 필터로 분리해 물리 어댑터의 패스트핑 적용을 허용했다.
 - 0.3.3 진단의 `0xC0000135`를 외부 VC++ 런타임 DLL 누락으로 확정하고 Radeon·recorder·input guard helper를 정적 런타임으로 재빌드했다.
 - `v0.3.3` 설치본과 자동 업데이트 자산을 공개하고 중복 GitHub 릴리스를 하나로 정리했다. 네 자산의 원격 digest·로컬 SHA-256과 공개 다운로드 HTTP 200을 확인했다.
 - 앱 업데이트 가능 상태를 메인 버전 영역의 `새 버전 출시됨`과 우측 하단 클릭 통과 오버레이로 안내한다. 시작 확인만 자동 다운로드하고 4시간 주기 확인은 알림만 표시하며, 문구 클릭 시에만 다운로드와 업데이트 모달을 시작한다. 디자인 확인용 가상 0.3.4 시작 테스트는 배포 전에 제거했다.
@@ -1454,4 +1457,4 @@ Last Updated: 2026-09-10 17:20
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-전체 테스트와 Windows 패키징을 통과시킨 뒤 정적 helper가 포함된 0.3.4 설치본을 배포하고, 오류를 보고한 VC++ 런타임 미설치 PC에서 그래픽 조회와 블랙박스 시작을 재확인한다.
+정적 helper와 VMware 브리지 호환 수정이 포함된 0.3.4 설치본을 배포한 뒤 두 오류 보고 환경에서 각각 그래픽·블랙박스 실행과 패스트핑 적용을 재확인한다.

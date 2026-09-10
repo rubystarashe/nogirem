@@ -57,9 +57,13 @@ $compatibleSecurityBindings = @(
   $thirdPartyBindings |
     Where-Object { $_ -match "(?i)^inca_tkfwfv$" }
 )
+$compatibleVirtualizationBindings = @(
+  $thirdPartyBindings |
+    Where-Object { $_ -match "(?i)^vmware_bridge$" }
+)
 $blockingThirdPartyBindings = @(
   $thirdPartyBindings |
-    Where-Object { $_ -notmatch "(?i)^(insecure_npcap|npcap(?:_wifi)?|inca_tkfwfv)$" }
+    Where-Object { $_ -notmatch "(?i)^(insecure_npcap|npcap(?:_wifi)?|inca_tkfwfv|vmware_bridge)$" }
 )
 $isVirtual = (
   -not [bool]$adapter.HardwareInterface -or
@@ -110,6 +114,7 @@ $noDelay = if (
   thirdPartyBindings = $thirdPartyBindings
   captureBindings = $captureBindings
   compatibleSecurityBindings = $compatibleSecurityBindings
+  compatibleVirtualizationBindings = $compatibleVirtualizationBindings
   blockingThirdPartyBindings = $blockingThirdPartyBindings
   TcpAckFrequency = $ackFrequency
   TCPNoDelay = $noDelay

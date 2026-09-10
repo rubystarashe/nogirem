@@ -5,6 +5,7 @@
 ## 0.3.4
 
 - 최규진의 0.3.3 진단에서 Radeon 그래픽 설정과 recorder helper가 종료 코드 `3221225781`(`0xC0000135`)로 실행되지 않았다. 설치본의 C++ helper가 외부 `MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`에 의존한 것이 원인이므로 Radeon·recorder·Alt+Enter 방지 helper를 정적 MSVC 런타임으로 빌드한다. 새 바이너리의 의존성 목록에서 해당 DLL이 제거됐고, VC++ 재배포 패키지가 없는 PC에서도 직접 실행할 수 있다.
+- 오우야의 0.3.3 진단에서 물리 이더넷 어댑터의 Npcap `INSECURE_NPCAP`은 이미 허용됐지만 VMware Bridge Protocol의 `vmware_bridge`가 타사 필터로 차단됐다. 호스트 인터넷 경로를 우회하지 않고 가상 머신에 물리 네트워크를 연결하는 L2 브리지 필터이므로 별도 호환 가상화 필터로 분류해 패스트핑 적용을 허용한다.
 
 ## 0.3.3
 
