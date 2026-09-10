@@ -84,14 +84,38 @@
 
   .notice-content {
     min-height: 0;
+    margin-right: -12px;
+    padding-right: 12px;
     overflow: auto;
     color: #53575b;
     font-size: 0.84rem;
     line-height: 1.6;
+    scrollbar-color: rgba(20, 20, 20, 0.32) transparent;
+    scrollbar-width: thin;
   }
 
   .notice-content :global(p) {
     margin: 0;
+  }
+
+  .notice-content::-webkit-scrollbar {
+    width: 3px;
+  }
+
+  .notice-content::-webkit-scrollbar-track {
+    background:
+      linear-gradient(
+        to right,
+        transparent 1px,
+        rgba(20, 20, 20, 0.14) 1px,
+        rgba(20, 20, 20, 0.14) 2px,
+        transparent 2px
+      );
+  }
+
+  .notice-content::-webkit-scrollbar-thumb {
+    border-radius: 2px;
+    background: rgba(20, 20, 20, 0.32);
   }
 
   @keyframes notice-backdrop-in {
