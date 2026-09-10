@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-10 22:00
+Last Updated: 2026-09-10 22:18
 
 ## Current Objective
-원격 NOTICE.md 공지 모달의 이미지·링크 표시와 강제 테스트 모드를 검증한다.
+En so 환경에서 반복 발생한 `CLOCK_WATCHDOG_TIMEOUT (0x101)`의 원인을 minidump로 확정하고, 그 전까지 프레임 부스트 사용을 중단하도록 안내한다.
 
 ## Current Status
+- En so의 0.3.4 진단에서 2026-09-09~10 사이 BugCheck `0x101`이 7회 기록됐고 최신 덤프는 `C:\Windows\Minidump\091026-23359-01.dmp`다. 모든 BugCheck의 Arg1은 `0xC`이며 응답하지 않은 논리 프로세서 Arg4는 `1`, `2`, `10`으로 바뀌어 단일 코어에 고정되지 않았다. 0.3.2·0.3.4뿐 아니라 0.2.5 helper 실행 구간에도 재발해 0.3.4 전용 회귀는 아니다. 최신 충돌 전 프레임 부스트는 Client를 CPU `8-15`, 대부분의 사용자 프로세스를 `0-7`에 배치했고 메모리 helper도 실행 중이었지만 NIC·터보 키·Alt+Enter 방지·블랙박스는 꺼져 있었다. Nogirem은 사용자 프로세스 affinity와 standby list만 조정하며 CPU 클럭·전압·커널 스레드 affinity는 건드리지 않으므로 직접적인 0x101 발생 원인으로 확정할 증거는 없다. 다만 부하 분배 변화가 불안정한 PBO·Curve Optimizer·BIOS·칩셋/장치 드라이버 문제를 재현시키는 촉발 조건일 수 있다. ZIP에는 DMP가 없어 원인 스택은 아직 분석할 수 없다.
 - `NOTICE.md` 예시에 CPU 배치 안내 이미지, 0.3.4 개선 목록과 GitHub 릴리스 링크를 작성했다. 앱 실행과 모든 업데이트 확인에서 GitHub Raw `master/NOTICE.md`를 캐시 없이 조회하고 문서 SHA-256을 ID로 사용하며, 닫은 ID는 userData에 저장한다. 제한된 Markdown 제목·본문·목록·HTTPS 이미지·링크를 모달로 표시하고 링크는 검증 IPC를 거쳐 시스템 브라우저로 연다. 원격 조회 실패 시 설치본에 포함된 NOTICE를 사용한다. 현재 `forceApplicationNoticePreview = true`라 닫기 기록과 관계없이 실행할 때마다 표시되는 테스트 상태다. 공지·앱 안정성 테스트 27개, Node 전체 144개, Electron·preload·공지 모듈 구문 검사, 프로덕션 앱 빌드와 lint가 통과했으며 0.3.5 변경 기록에 반영했다.
 - 커밋 `da3f6c6`에 태그 `v0.3.4`를 생성하고 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.4)로 공개했다. 중복 릴리스 없이 ID `386129372` 하나이며 installer·blockmap·`latest.yml`·터보 키 helper 네 자산을 포함한다. 모든 원격 자산의 size와 GitHub SHA-256 digest가 로컬 파일과 일치하고 공개 다운로드 URL은 HTTP 200이다. `master`, 태그와 원격 master 모두 배포 커밋을 가리킨다.
 - 0.3.4 배포 전 Node 141개 전체 테스트, Electron main·bootstrap·preload 구문 검사, IDE lint와 Windows x64 NSIS 패키징이 통과했다. 설치본 내부 Radeon·recorder·input guard helper 모두 `dumpbin /dependents`에서 외부 MSVCP/VCRUNTIME 의존성이 없음을 확인했다. 로컬 자산은 installer 96,230,026바이트·SHA-256 `14BD7DE2…AD0E2`, blockmap 102,267바이트·`652FB8A7…B8B0F`, latest.yml 342바이트·`AE395163…E545`, 터보 키 helper 291,840바이트·`D9504362…16A857`이다. 패키징으로 recorder 배치 바이너리가 680,448바이트·`71DEE1C7…B18A7`로 최종 갱신됐다.
@@ -462,6 +463,7 @@ Last Updated: 2026-09-10 22:00
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. En so에게 `C:\Windows\Minidump\091026-23359-01.dmp`를 받아 WinDbg `!analyze -v`와 멈춘 프로세서·DPC/ISR 스택을 확인한다. 확보 전에는 반복 재현을 요구하지 않고 프레임 부스트를 끈다.
 1. 개발 앱 또는 다음 설치본을 완전히 재시작해 공지 이미지 로드, 링크의 시스템 브라우저 열기, X·확인·Esc 닫기를 시각 확인한다.
 1. 디자인 확인 후 `forceApplicationNoticePreview`를 `false`로 바꿔 닫은 SHA-256 공지는 문서가 수정될 때까지 다시 표시하지 않도록 운영 모드로 전환한다.
 1. 다음 설치본을 `vmware_bridge`와 Npcap이 함께 연결된 오류 보고 PC에서 실행해 패스트핑 적용·어댑터 재시작·연결 검사를 확인한다.
@@ -535,7 +537,7 @@ Last Updated: 2026-09-10 22:00
 20. 마비노기 전면 창에서 `2 누름 → 3 누름 → 일반 키 4 누름·해제 → 3 해제 → 2 해제` 순서로 실제 입력 전환을 확인한다.
 
 ## Known Issues
-- En so 환경의 반복 강제 재부팅은 uptime과 NUL 상태 파일로 확인됐지만 현재 진단에는 BugCheck 코드와 minidump가 없어 Nogirem 기능 또는 GPU·보안 드라이버 중 어느 커널 경로가 원인인지는 아직 확정할 수 없다. 활성 상태였던 Nogirem 기능은 affinity·메모리 helper뿐이며 input guard·turbo key·blackbox·NIC 관리는 꺼져 있었다.
+- En so 환경은 Ryzen 7 5800X3D에서 반복 `CLOCK_WATCHDOG_TIMEOUT (0x101)`이 확인됐다. 이벤트만으로는 하드웨어/펌웨어 불안정과 커널 드라이버의 장시간 인터럽트 차단을 구분할 수 없으므로 최신 minidump 분석이 필요하다. CPU Arg4가 `1`·`2`·`10`으로 바뀌며 발생했고 0.2.5~0.3.4에서 반복되므로 특정 앱 버전이나 단일 논리 코어 문제로 단정하면 안 된다.
 - 빠른 클립은 청크 단위 무인코딩 저장이므로 설정 길이보다 최대 현재 청크 길이 미만만큼 길 수 있다. 정확한 시작·종료가 필요하면 영상 추출을 사용한다.
 - clean chunk boundary 수정 전에 생성한 빠른 클립은 첫 영상 패킷이 non-key frame이면 다음 키프레임까지 약 1초간 화면이 정상 표시되지 않을 수 있다. 기존 파일은 재생 가능한 첫 키프레임부터 다시 잘라야 복구되며 새 로직은 새로 저장하는 클립에만 적용된다.
 - 새 recorder 성능 로그는 구현·Release 빌드까지만 검증했다. 실제 장시간 게임에서 첫 1분 로그 생성과 증가 추세 판정은 아직 수동 확인하지 않았다.
@@ -1469,4 +1471,4 @@ Last Updated: 2026-09-10 22:00
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-앱을 완전히 재시작해 예시 공지 모달의 이미지·링크·스크롤·닫기 연출을 확인하고 사용자 승인 후 강제 테스트 플래그를 끈다.
+En so에게 최신 `C:\Windows\Minidump\091026-23359-01.dmp`를 받아 WinDbg로 원인 스택을 확정한다. 그 전까지 해당 PC에서는 프레임 부스트를 끄고 BIOS 기본값(PBO·Curve Optimizer 해제)에서 안정성을 확인한다.
