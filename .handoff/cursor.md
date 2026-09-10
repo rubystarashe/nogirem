@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-10 17:55
+Last Updated: 2026-09-10 22:00
 
 ## Current Objective
-배포된 0.3.4를 오류 보고 환경에서 재검증한다.
+원격 NOTICE.md 공지 모달의 이미지·링크 표시와 강제 테스트 모드를 검증한다.
 
 ## Current Status
+- `NOTICE.md` 예시에 CPU 배치 안내 이미지, 0.3.4 개선 목록과 GitHub 릴리스 링크를 작성했다. 앱 실행과 모든 업데이트 확인에서 GitHub Raw `master/NOTICE.md`를 캐시 없이 조회하고 문서 SHA-256을 ID로 사용하며, 닫은 ID는 userData에 저장한다. 제한된 Markdown 제목·본문·목록·HTTPS 이미지·링크를 모달로 표시하고 링크는 검증 IPC를 거쳐 시스템 브라우저로 연다. 원격 조회 실패 시 설치본에 포함된 NOTICE를 사용한다. 현재 `forceApplicationNoticePreview = true`라 닫기 기록과 관계없이 실행할 때마다 표시되는 테스트 상태다. 공지·앱 안정성 테스트 27개, Node 전체 144개, Electron·preload·공지 모듈 구문 검사, 프로덕션 앱 빌드와 lint가 통과했으며 0.3.5 변경 기록에 반영했다.
 - 커밋 `da3f6c6`에 태그 `v0.3.4`를 생성하고 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.4)로 공개했다. 중복 릴리스 없이 ID `386129372` 하나이며 installer·blockmap·`latest.yml`·터보 키 helper 네 자산을 포함한다. 모든 원격 자산의 size와 GitHub SHA-256 digest가 로컬 파일과 일치하고 공개 다운로드 URL은 HTTP 200이다. `master`, 태그와 원격 master 모두 배포 커밋을 가리킨다.
 - 0.3.4 배포 전 Node 141개 전체 테스트, Electron main·bootstrap·preload 구문 검사, IDE lint와 Windows x64 NSIS 패키징이 통과했다. 설치본 내부 Radeon·recorder·input guard helper 모두 `dumpbin /dependents`에서 외부 MSVCP/VCRUNTIME 의존성이 없음을 확인했다. 로컬 자산은 installer 96,230,026바이트·SHA-256 `14BD7DE2…AD0E2`, blockmap 102,267바이트·`652FB8A7…B8B0F`, latest.yml 342바이트·`AE395163…E545`, 터보 키 helper 291,840바이트·`D9504362…16A857`이다. 패키징으로 recorder 배치 바이너리가 680,448바이트·`71DEE1C7…B18A7`로 최종 갱신됐다.
 - 앱과 lockfile 버전을 0.3.4로 올렸다. 사용자용·상세 변경 기록은 외부 VC++ 런타임이 없는 환경의 그래픽·블랙박스 helper 실행 수정과 VMware Bridge Protocol 패스트핑 호환 개선을 0.3.4로 분리해 기록한다.
@@ -461,6 +462,8 @@ Last Updated: 2026-09-10 17:55
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 
 ## Pending Tasks
+1. 개발 앱 또는 다음 설치본을 완전히 재시작해 공지 이미지 로드, 링크의 시스템 브라우저 열기, X·확인·Esc 닫기를 시각 확인한다.
+1. 디자인 확인 후 `forceApplicationNoticePreview`를 `false`로 바꿔 닫은 SHA-256 공지는 문서가 수정될 때까지 다시 표시하지 않도록 운영 모드로 전환한다.
 1. 다음 설치본을 `vmware_bridge`와 Npcap이 함께 연결된 오류 보고 PC에서 실행해 패스트핑 적용·어댑터 재시작·연결 검사를 확인한다.
 1. 정적 C++ helper가 포함된 다음 설치본을 VC++ 재배포 패키지가 없는 PC에서 실행해 그래픽 조회와 블랙박스 시작을 확인한다.
 1. 블루스크린이 발생한 En so 환경에서 재현을 요구하지 말고 `%SystemRoot%\Minidump`의 최신 DMP 또는 Windows BugCheck 이벤트 1001의 stop code·문제 드라이버를 받아 원인을 확정한다.
@@ -584,6 +587,9 @@ Last Updated: 2026-09-10 17:55
 - 시작 트레이 예약 작업의 실제 로그온 실행은 설치본과 Windows 재로그인이 필요해 자동 검증하지 않았다.
 
 ## Key Files
+- `NOTICE.md`: GitHub Raw로 제공되는 이미지·링크 포함 원격 공지 원문
+- `src/application-notice.mjs`: 공지 크기 제한, SHA-256 ID와 닫기 여부 판정
+- `test/application-notice.test.mjs`: 공지 해시·예시 문서·IPC·모달·패키징 회귀 테스트
 - `native/*/CMakeLists.txt`: 설치본 C++ helper의 정적 MSVC 런타임 빌드 설정
 - `test/native-runtime.test.mjs`: 모든 C++ helper가 정적 런타임 설정을 유지하는 회귀 테스트
 - `native/input-guard-helper/main.cpp`: 마비노기 포그라운드 한정 Alt+Enter 저수준 입력 차단
@@ -642,6 +648,7 @@ Last Updated: 2026-09-10 17:55
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 이미지·링크를 지원하는 원격 NOTICE 모달과 닫은 문서 SHA-256 저장을 구현하고, 디자인 확인용 항상 표시 플래그를 켰다.
 - 0.3.4 태그와 단일 GitHub Release를 공개하고 네 배포 자산의 크기·SHA-256·HTTP 200을 원격 검증했다.
 - 0.3.4 전체 테스트와 Windows 패키징을 완료하고 설치본 내부 세 C++ helper의 정적 런타임 및 네 배포 자산의 크기·해시를 검증했다.
 - VMware Bridge Protocol의 `vmware_bridge`를 Npcap·nProtect와 같은 명시적 호환 필터로 분리해 물리 어댑터의 패스트핑 적용을 허용했다.
@@ -1462,4 +1469,4 @@ Last Updated: 2026-09-10 17:55
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-최규진 환경에서 그래픽 설정·블랙박스 helper 실행을, 오우야 환경에서 VMware 브리지 연결 상태의 패스트핑 적용과 인터넷 연결 유지를 확인한다.
+앱을 완전히 재시작해 예시 공지 모달의 이미지·링크·스크롤·닫기 연출을 확인하고 사용자 승인 후 강제 테스트 플래그를 끈다.

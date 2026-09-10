@@ -2,6 +2,10 @@
 
 사용자용 요약은 [VERSION_HISTORY.md](VERSION_HISTORY.md)에서 확인할 수 있습니다.
 
+## 0.3.5
+
+- 앱 실행과 업데이트 확인 때마다 GitHub `master`의 `NOTICE.md`를 캐시 없이 조회하고, 문서 SHA-256이 마지막으로 닫은 공지와 다르면 메인 화면 최상단 모달로 표시한다. 제목·본문·목록·HTTPS 이미지와 링크를 제한적으로 해석하며 링크는 renderer에서 직접 열지 않고 검증된 IPC를 통해 시스템 브라우저로 연다. 닫은 문서 ID는 userData에 원자 저장하고 네트워크 조회 실패 시 설치본에 포함된 공지로 대체한다. 현재 디자인 테스트를 위해 `forceApplicationNoticePreview`가 켜져 있어 닫기 기록과 관계없이 실행할 때마다 예시 공지를 표시한다.
+
 ## 0.3.4
 
 - 최규진의 0.3.3 진단에서 Radeon 그래픽 설정과 recorder helper가 종료 코드 `3221225781`(`0xC0000135`)로 실행되지 않았다. 설치본의 C++ helper가 외부 `MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`에 의존한 것이 원인이므로 Radeon·recorder·Alt+Enter 방지 helper를 정적 MSVC 런타임으로 빌드한다. 새 바이너리의 의존성 목록에서 해당 DLL이 제거됐고, VC++ 재배포 패키지가 없는 PC에서도 직접 실행할 수 있다.

@@ -213,6 +213,11 @@
     error: null,
   }
   let applicationUpdateInstalling = false
+  let applicationNoticeVisible = false
+  let applicationNoticeCloseSignal = 0
+  let applicationNoticeId = ""
+  let applicationNoticeTitle = "공지사항"
+  let applicationNoticeBlocks = []
   let pageVisible = true
   let spinnerAnimationVisible = true
   let spinnerFinishTimer
@@ -348,6 +353,102 @@
     flushParagraph()
     flushList()
     return blocks
+  }
+
+  function validNoticeUrl(value) {
+    try {
+      const url = new URL(value)
+      return url.protocol === "https:" && !url.username && !url.password
+    } catch {
+      return false
+    }
+  }
+
+  function parseApplicationNotice(markdown) {
+    const blocks = []
+    let paragraph = []
+    let listItems = []
+
+    const flushParagraph = () => {
+      if (!paragraph.length) return
+      blocks.push({ type: "paragraph", text: paragraph.join(" ") })
+      paragraph = []
+    }
+    const flushList = () => {
+      if (!listItems.length) return
+      blocks.push({ type: "list", items: listItems })
+      listItems = []
+    }
+
+    for (const sourceLine of String(markdown ?? "").split(/\r?\n/)) {
+      const line = sourceLine.trim()
+      const headingMatch = line.match(/^(#{1,3})\s+(.+)$/)
+      const listMatch = line.match(/^[-*]\s+(.+)$/)
+      const imageMatch = line.match(/^!\[([^\]]*)\]\((https:\/\/[^)\s]+)\)$/)
+      const linkMatch = line.match(/^\[([^\]]+)\]\((https:\/\/[^)\s]+)\)$/)
+
+      if (imageMatch && validNoticeUrl(imageMatch[2])) {
+        flushParagraph()
+        flushList()
+        blocks.push({
+          type: "image",
+          alt: decodeMarkdownText(imageMatch[1]),
+          src: imageMatch[2],
+        })
+      } else if (linkMatch && validNoticeUrl(linkMatch[2])) {
+        flushParagraph()
+        flushList()
+        blocks.push({
+          type: "link",
+          text: decodeMarkdownText(linkMatch[1]),
+          href: linkMatch[2],
+        })
+      } else if (headingMatch) {
+        flushParagraph()
+        flushList()
+        blocks.push({
+          type: "heading",
+          level: headingMatch[1].length,
+          text: decodeMarkdownText(headingMatch[2]),
+        })
+      } else if (listMatch) {
+        flushParagraph()
+        listItems.push(decodeMarkdownText(listMatch[1]))
+      } else if (!line) {
+        flushParagraph()
+        flushList()
+      } else {
+        flushList()
+        paragraph.push(decodeMarkdownText(line))
+      }
+    }
+    flushParagraph()
+    flushList()
+    return blocks
+  }
+
+  function showApplicationNotice(notice) {
+    if (!/^[a-f0-9]{64}$/i.test(notice?.id ?? "") || !notice?.markdown) return
+    const blocks = parseApplicationNotice(notice.markdown)
+    const titleIndex = blocks.findIndex(block => block.type === "heading" && block.level === 1)
+    applicationNoticeId = notice.id
+    applicationNoticeTitle = titleIndex >= 0 ? blocks[titleIndex].text : "공지사항"
+    applicationNoticeBlocks = titleIndex >= 0
+      ? blocks.filter((_block, index) => index !== titleIndex)
+      : blocks
+    applicationNoticeVisible = true
+  }
+
+  function dismissApplicationNotice() {
+    const id = applicationNoticeId
+    applicationNoticeVisible = false
+    if (id) void window.nogirem.dismissNotice(id).catch(() => {})
+  }
+
+  function openApplicationNoticeLink(block) {
+    if (validNoticeUrl(block?.href)) {
+      void window.nogirem.openNoticeLink(block.href).catch(() => {})
+    }
   }
 
   function parseVersionHistory(markdown) {
@@ -949,7 +1050,9 @@
   }
 
   function closeTopLayerWithEscape() {
-    if (closeModalVisible) {
+    if (applicationNoticeVisible) {
+      applicationNoticeCloseSignal++
+    } else if (closeModalVisible) {
       if (!closeActionPending) closeModalCloseSignal++
     } else if (networkReconnectModalVisible) {
       if (!networkReconnectAction) closeNetworkReconnectModal("cancel")
@@ -1598,12 +1701,16 @@
     const removeUpdateStateListener = window.nogirem.onUpdateStateChanged(state => {
       applicationUpdateState = state
     })
+    const removeNoticeListener = window.nogirem.onNoticeAvailable(showApplicationNotice)
     syncPageVisibility()
     void window.nogirem.getVisualActivity().then(setWindowVisualActivity)
     void window.nogirem.getUpdateState()
       .then(state => {
         applicationUpdateState = state
       })
+      .catch(() => {})
+    void window.nogirem.getNotice()
+      .then(showApplicationNotice)
       .catch(() => {})
     void window.nogirem.getCreatorPromptDismissed()
       .then(dismissed => {
@@ -1705,6 +1812,7 @@
       removeBlackboxStatusListener()
       removeVisualActivityListener()
       removeUpdateStateListener()
+      removeNoticeListener()
       removeCloseListener()
     }
   })
@@ -3286,4 +3394,29 @@
     installing={applicationUpdateInstalling}
     onInstall={installApplicationUpdate}
   />
+{/if}
+
+{#if applicationNoticeVisible}
+  <Modal
+    eyebrow="NOTICE"
+    title={applicationNoticeTitle}
+    variant="large"
+    closeSignal={applicationNoticeCloseSignal}
+    onclose={dismissApplicationNotice}
+  >
+    <div class="application-notice-content">
+      <MarkdownBlocks
+        blocks={applicationNoticeBlocks}
+        onlink={openApplicationNoticeLink}
+      />
+    </div>
+    <div class="modal-actions application-notice-actions">
+      <button
+        class="monochrome"
+        onclick={() => applicationNoticeCloseSignal++}
+      >
+        확인
+      </button>
+    </div>
+  </Modal>
 {/if}

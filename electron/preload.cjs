@@ -90,6 +90,14 @@ contextBridge.exposeInMainWorld("nogirem", {
     return () => ipcRenderer.removeListener("application:visual-activity-changed", listener)
   },
   getUpdateState: () => ipcRenderer.invoke("application:get-update-state"),
+  getNotice: () => ipcRenderer.invoke("application:get-notice"),
+  dismissNotice: id => ipcRenderer.invoke("application:dismiss-notice", id),
+  openNoticeLink: url => ipcRenderer.invoke("application:open-notice-link", url),
+  onNoticeAvailable: callback => {
+    const listener = (_event, notice) => callback(notice)
+    ipcRenderer.on("application:notice-available", listener)
+    return () => ipcRenderer.removeListener("application:notice-available", listener)
+  },
   checkUpdate: () => ipcRenderer.invoke("application:check-update"),
   installUpdate: () => ipcRenderer.invoke("application:install-update"),
   onUpdateStateChanged: callback => {

@@ -93,6 +93,7 @@
       "native/recorder-helper/bin/recorder-helper.exe",
       "assets/**/*",
       "config.json",
+      "NOTICE.md",
       "icon.ico",
       "icon-paused.png",
       "character-guide.html",

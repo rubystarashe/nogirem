@@ -65,6 +65,11 @@ import {
   resolveBlackboxQuality,
 } from "../src/blackbox-settings.mjs"
 import { createDiagnosticBundle } from "../src/diagnostic-bundle.mjs"
+import {
+  applicationNoticeSourceUrl,
+  normalizeApplicationNotice,
+  shouldDisplayApplicationNotice,
+} from "../src/application-notice.mjs"
 
 const { autoUpdater } = updaterPackage
 protocol.registerSchemesAsPrivileged([{
@@ -115,6 +120,7 @@ const bugReportFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSfx6-QVqsxgUD
 const startupTrayTaskName = "Mabinogi Rem Booster Startup"
 const startupTrayLaunch = process.argv.includes("--startup-tray")
 const applicationUpdateStallTimeoutMs = 45_000
+const forceApplicationNoticePreview = true
 const primaryRendererUnresponsiveTimeoutMs = 5_000
 const primaryWindowRevealTimeoutMs = 8_000
 const trayMenuCloseDelayMs = 75
@@ -184,6 +190,7 @@ let applicationUpdateDownloadStalled = false
 let applicationUpdateCheckPromise = null
 let applicationUpdateDownloadPromise = null
 let applicationUpdaterConfigured = false
+let applicationNoticeCheckPromise = null
 let applicationUpdateState = {
   phase: "idle",
   percent: 0,
@@ -678,6 +685,7 @@ function configureApplicationUpdater() {
 }
 
 async function checkForApplicationUpdate() {
+  void checkApplicationNotice()
   if (!app.isPackaged) return applicationUpdateState
   if (["available", "downloading", "downloaded"].includes(applicationUpdateState.phase)) {
     return applicationUpdateState
@@ -872,6 +880,83 @@ async function readJson(path) {
   }, {
     missingRetryDelaysMs: [10, 20, 40, 80, 160],
   })
+}
+
+function getApplicationNoticeDismissedPath() {
+  return join(app.getPath("userData"), "notice-dismissed.json")
+}
+
+async function readApplicationNoticeMarkdown() {
+  try {
+    const response = await fetch(applicationNoticeSourceUrl, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+      headers: { "User-Agent": `nogirem/${app.getVersion()}` },
+    })
+    if (!response.ok) {
+      throw new Error(`공지사항 조회 실패 (${response.status})`)
+    }
+    return await response.text()
+  } catch (error) {
+    try {
+      return await readFile(join(root, "NOTICE.md"), "utf8")
+    } catch {
+      throw error
+    }
+  }
+}
+
+function notifyApplicationNotice(notice) {
+  if (
+    primaryWindow
+    && !primaryWindow.isDestroyed()
+    && !primaryWindow.webContents.isDestroyed()
+  ) {
+    primaryWindow.webContents.send("application:notice-available", notice)
+  }
+}
+
+async function checkApplicationNotice() {
+  if (applicationNoticeCheckPromise) return applicationNoticeCheckPromise
+  applicationNoticeCheckPromise = (async () => {
+    try {
+      const notice = normalizeApplicationNotice(await readApplicationNoticeMarkdown())
+      const dismissed = await readJson(getApplicationNoticeDismissedPath())
+      if (!shouldDisplayApplicationNotice(
+        notice,
+        dismissed?.id,
+        forceApplicationNoticePreview,
+      )) return null
+      notifyApplicationNotice(notice)
+      return notice
+    } catch (error) {
+      console.error("공지사항 확인 실패", error)
+      return null
+    } finally {
+      applicationNoticeCheckPromise = null
+    }
+  })()
+  return applicationNoticeCheckPromise
+}
+
+async function dismissApplicationNotice(id) {
+  if (!/^[a-f0-9]{64}$/i.test(String(id ?? ""))) return false
+  await writeJsonAtomic(getApplicationNoticeDismissedPath(), {
+    id,
+    dismissedAt: new Date().toISOString(),
+  })
+  return true
+}
+
+function openApplicationNoticeLink(value) {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== "https:" || url.username || url.password) return false
+    void shell.openExternal(url.href)
+    return true
+  } catch {
+    return false
+  }
 }
 
 async function readRuntimeStatusJson(path) {
@@ -5333,6 +5418,18 @@ function registerIpc() {
       throw new Error("허용되지 않은 업데이트 상태 요청입니다")
     }
     return applicationUpdateState
+  })
+  ipcMain.handle("application:get-notice", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return null
+    return checkApplicationNotice()
+  })
+  ipcMain.handle("application:dismiss-notice", (event, id) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
+    return dismissApplicationNotice(id)
+  })
+  ipcMain.handle("application:open-notice-link", (event, url) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
+    return openApplicationNoticeLink(url)
   })
   ipcMain.handle("application:check-update", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
