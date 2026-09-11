@@ -161,6 +161,15 @@ test("CPU 코어 선택 UI와 IPC가 영구 설정 경로에 연결된다", asyn
   assert.match(affinitySource, /processInfo\.path = queryProcessPath/)
   assert.match(affinitySource, /processInfo\.startTime = queryProcessStartTime/)
   assert.match(affinitySource, /processInfo\.sessionId = queryProcessSessionId/)
+  assert.match(affinitySource, /const gameCores = hybrid \? performanceCores : dedicatedGameCores/)
+  assert.match(
+    affinitySource,
+    /lastCoreMode \? allMask \^ gameMask : allocation\.backgroundMask/,
+  )
+  assert.doesNotMatch(
+    mainSource,
+    /ensureFrameBoostStarted\(\)[\s\S]*setMemoryEnabled\(true, \{ purgeOnStart: true \}\)/,
+  )
   assert.match(mainSource, /command: "set-game-core-count"/)
   assert.match(preloadSource, /setGameCpuCoreCount/)
   assert.match(preloadSource, /refreshGameCpuCoreSetting/)
@@ -203,11 +212,11 @@ test("하이브리드 CPU는 E-core를 제외하고 최소 4개 P-core를 게임
 
   const allocation = buildCpuTopologyMasks([...performanceSets, ...efficiencySets], 20)
 
-  assert.equal(allocation.gameMask, 0x0ff0n)
+  assert.equal(allocation.gameMask, 0x0fffn)
   assert.equal(allocation.backgroundMask, 0xff00fn)
   assert.equal(allocation.alternateGameMask, 0x000fn)
   assert.equal(allocation.alternateBackgroundMask, 0xffff0n)
-  assert.deepEqual(allocation.gameCpuIndexes, [4, 5, 6, 7, 8, 9, 10, 11])
+  assert.deepEqual(allocation.gameCpuIndexes, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
   assert.deepEqual(allocation.backgroundCpuIndexes, [0, 1, 2, 3, 12, 13, 14, 15, 16, 17, 18, 19])
   assert.equal(allocation.performanceCoreCount, 6)
   assert.equal(allocation.efficiencyCoreCount, 8)
@@ -234,8 +243,36 @@ test("P-core 수가 홀수여도 최소 4코어 규칙과 SMT 묶음을 유지�
 
   const allocation = buildCpuTopologyMasks([...performanceSets, ...efficiencySets], 14)
 
-  assert.deepEqual(allocation.gameCpuIndexes, [2, 3, 4, 5, 6, 7, 8, 9])
+  assert.deepEqual(allocation.gameCpuIndexes, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
   assert.deepEqual(allocation.backgroundCpuIndexes, [0, 1, 10, 11, 12, 13])
+})
+
+test("Arrow Lake는 선택하지 않은 P-core를 게임과 백그라운드가 공유한다", () => {
+  const performanceIndexes = [0, 1, 6, 7, 8, 9]
+  const efficiencyIndexes = [2, 3, 4, 5]
+  const cpuSets = [
+    ...performanceIndexes.map(logicalProcessorIndex => ({
+      group: 0,
+      logicalProcessorIndex,
+      coreIndex: logicalProcessorIndex,
+      efficiencyClass: 8,
+    })),
+    ...efficiencyIndexes.map(logicalProcessorIndex => ({
+      group: 0,
+      logicalProcessorIndex,
+      coreIndex: logicalProcessorIndex,
+      efficiencyClass: 0,
+    })),
+  ]
+
+  const allocation = buildCpuTopologyMasks(cpuSets, 10, 5)
+
+  assert.equal(allocation.gameMask, 0x3c3n)
+  assert.equal(allocation.backgroundMask, 0x03dn)
+  assert.equal(allocation.alternateGameMask, 0x001n)
+  assert.equal(allocation.alternateBackgroundMask, 0x3fen)
+  assert.deepEqual(allocation.gameCpuIndexes, [0, 1, 6, 7, 8, 9])
+  assert.deepEqual(allocation.backgroundCpuIndexes, [0, 2, 3, 4, 5])
 })
 
 test("입력 장치와 매크로 엔진은 지연 민감 프로세스로 분류한다", async () => {

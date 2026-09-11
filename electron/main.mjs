@@ -4428,7 +4428,7 @@ async function ensureAffinityStarted() {
 async function ensureFrameBoostStarted() {
   return Promise.all([
     ensureAffinityStarted(),
-    setMemoryEnabled(true, { purgeOnStart: true }),
+    setMemoryEnabled(true),
   ])
 }
 

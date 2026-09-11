@@ -801,7 +801,7 @@
     if (performanceCoreCount > 1) {
       unavailable.push({
         label: `P${performanceCoreCount}`,
-        reason: "백그라운드와 입력 프로그램을 위해 남겨 두는 P-core",
+        reason: "게임도 필요할 때 사용하며 백그라운드와 입력 프로그램이 공유하는 P-core",
       })
     }
     for (let index = 1; index <= efficiencyCoreCount; index++) {

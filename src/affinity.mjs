@@ -262,10 +262,11 @@ export function buildCpuTopologyMasks(cpuSets, logicalCpuCount, requestedGameCor
     requestedGameCoreCount,
     performanceCores.length,
   )
-  const gameCores = performanceCores.slice(-gameCoreCount)
+  const dedicatedGameCores = performanceCores.slice(-gameCoreCount)
   const backgroundPerformanceCores = performanceCores.slice(0, -gameCoreCount)
+  const gameCores = hybrid ? performanceCores : dedicatedGameCores
   const alternateGameCores = backgroundPerformanceCores
-  const alternateBackgroundCores = [...gameCores, ...efficiencyCores]
+  const alternateBackgroundCores = [...dedicatedGameCores, ...efficiencyCores]
   const gameCpuIndexes = gameCores.flatMap(core => core.cpuIndexes).sort((left, right) => left - right)
   const backgroundCpuIndexes = [...backgroundPerformanceCores, ...efficiencyCores]
     .flatMap(core => core.cpuIndexes)
@@ -443,7 +444,9 @@ export async function createAffinityManager({
   const gameMask = passiveMode
     ? null
     : (lastCoreMode ? allocation.lastPerformanceCoreMask : allocation.gameMask)
-  const backgroundMask = passiveMode ? allocation.gameMask : allMask ^ gameMask
+  const backgroundMask = passiveMode
+    ? allocation.gameMask
+    : (lastCoreMode ? allMask ^ gameMask : allocation.backgroundMask)
   const latencyMask = allocation.alternateGameMask || backgroundMask
   const modeName = passiveMode ? "passive" : (lastCoreMode ? "last-core" : "half")
   const allocationDescription = passiveMode

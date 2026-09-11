@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-11 17:43
+Last Updated: 2026-09-11 18:02
 
 ## Current Objective
-0.3.5 진단에서 확인된 SoftEther SeLow 패스트핑 오탐과 0샘플 청크로 인한 블랙박스 즉시 종료를 0.3.6에서 수정한다.
+0.3.5 진단에서 확인된 SeLow 패스트핑 오탐, 블랙박스 즉시 종료와 하이브리드 CPU 게임 멈칫을 0.3.6에서 수정한다.
 
 ## Current Status
+- pro Y의 14:57·15:10 진단은 Core Ultra 5 225F 6P+4E, RTX 5060 Ti, DXVK v3.1 환경이며 오류·메모리 부족·블랙박스 부하는 없었다. 두 게임 프로세스 모두 원래 10코어 마스크 `0x3ff`에서 선택한 P코어 5개 `0x3c2`로 제한됐고 사용자는 부스트 중 반복 멈칫을 확인했다. Windows CPU Set의 높은 EfficiencyClass가 P코어라는 판정은 공식 문서 및 Intel의 6P+4E 사양과 일치하므로 P/E 역판정 문제는 아니다. 하이브리드 CPU에서는 선택 P코어를 게임 전용으로 유지하면서 남겨 둔 P코어도 게임과 백그라운드·입력 프로그램이 공유하게 변경해 게임은 모든 P코어를 쓰고 E코어는 제외한다. 이 환경의 새 게임 마스크는 `0x3c3`, 백그라운드는 기존 `0x3d`다. 또한 두 앱 시작에서 여유 메모리가 약 24GB인데도 standby list를 즉시 비웠으므로 `ensureFrameBoostStarted()`의 강제 startup purge를 제거하고 실제 메모리 압력 조건에서만 정리한다. Arrow Lake 전용 사례를 포함한 affinity 테스트 16개, 전체 Node 145개, 구문 검사와 프로덕션 앱 빌드가 통과했고 lint 오류가 없다. 0.3.6 변경 기록에 반영했다.
 - 커다란콧구멍의 0.3.5 진단에서 블랙박스 기능과 recorder 실행 요청은 정상이었고 게임 창 크기 `2546x1370`도 감지했지만, 매번 실행 후 약 0.45~0.57초 만에 정상 코드 0으로 종료됐다. 최종 오류는 `녹화 청크 확정 오류: 싱크에서 샘플이 처리되지 않았기 때문에 작업이 실패했습니다`였고 dropped frame은 5개, 기록된 청크는 0개였다. 첫 writer 준비가 2프레임 허용 시간보다 길면 대기 프레임과 첫 프레임을 폐기하는데, 이 상태에서 writer가 닫히면 영상 샘플이 없는 MP4에 `Finalize()`를 호출해 `MF_E_SINK_NO_SAMPLES_PROCESSED`가 발생하고 encoder 전체를 실패 처리했다. `Mp4Writer::finalize()`가 영상 샘플 0개인 writer는 Finalize하지 않고 partial 파일만 제거하도록 수정해 캡처 재시도를 계속한다. 실제 영상 샘플이 있는 청크의 확정 오류 처리는 유지한다. recorder Release 빌드, 블랙박스 테스트 6개, 전체 Node 144개와 프로덕션 앱 빌드가 통과했고 lint 및 외부 MSVCP/VCRUNTIME 의존성이 없다. 새 recorder는 680,448바이트·SHA-256 `7042B6AF…C7B31`이며 0.3.6 변경 기록에 반영했다.
 - 용건의 0.3.5 진단에서 기본 경로의 물리 `이더넷 2` 어댑터는 가상 어댑터가 아니며 활성 타사 바인딩이 `SeLow`, `INCA_TKFWFV`였다. nProtect는 이미 허용됐지만 SoftEther VPN Server·Bridge의 패킷 캡처 필터 `SeLow`만 차단 목록에 남아 적용이 중단됐고, 실제 상태도 `TcpAckFrequency=1`, `TCPNoDelay=null`이었다. `SeLow`를 Npcap과 같은 호환 캡처 필터로 분류해 허용했으며 가상/VPN 어댑터와 미확인 타사 필터 차단은 유지한다. 네트워크 테스트 21개, 전체 Node 144개, 네트워크 모듈 구문 검사와 프로덕션 앱 빌드가 통과했고 lint 오류가 없다. 사용자용·상세 변경 기록의 0.3.6 섹션에 반영했다.
 - 커밋 `0b409f2`에 태그 `v0.3.5`를 생성하고 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.5)로 공개했다. electron-builder의 동시 릴리스 생성 경합에서 한 요청이 422를 반환했지만 생성된 단일 릴리스 ID `386396260`에 검증된 자산을 다시 업로드해 완성했다. installer·blockmap·`latest.yml`·터보 키 helper 네 자산의 원격 size와 GitHub SHA-256 digest가 로컬 값과 일치하며 공개 다운로드 URL은 모두 HTTP 200이다.
@@ -1484,4 +1485,4 @@ Last Updated: 2026-09-11 17:43
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-블랙박스 0샘플 청크 수정과 새 recorder 바이너리를 커밋한다. 이후 0.3.6 배포 시 해당 환경에서 recorder 유지와 `TCPNoDelay=1` 적용 여부를 확인한다.
+하이브리드 affinity·메모리 시작 동작과 0.3.6 변경 기록을 커밋한다. 이후 0.3.6 배포 시 pro Y 환경의 반복 멈칫, recorder 유지와 `TCPNoDelay=1` 적용 여부를 확인한다.
