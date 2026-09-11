@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-11 19:53
+Last Updated: 2026-09-11 20:00
 
 ## Current Objective
-한글 Windows 사용자 프로필 경로에서 DXVK 압축 파일을 열지 못하는 0.3.6 오류를 0.3.7에서 수정한다.
+DXVK 설치·적용은 최신인데 메인 화면만 확인 중에 남거나 한글 사용자 경로에서 압축 파일을 열지 못하는 0.3.6 오류를 0.3.7에서 수정한다.
 
 ## Current Status
+- 0.3.5 진단에서 설치본 `v3.1`, 게임 적용본, 최신 릴리스 캐시와 main process 상태가 모두 `latest`였지만 메인 화면만 `DXVK 확인 중`으로 표시된 상태 불일치를 확인했다. renderer의 DXVK 이벤트도 확정 상태 보호 병합을 사용하고 값이 없거나 지연된 `checking` 응답이 최신 상태를 지우지 못하게 했다. primary window 전용 IPC로 main process의 확정 DXVK 상태를 2초마다 동기화해 이벤트 유실도 자동 복구한다. DXVK 테스트 10개, 전체 Node 테스트 146개, Electron 구문 검사, 프로덕션 앱 빌드와 lint가 통과했으며 0.3.7 변경 기록에 반영했다.
 - Windows 기본 `tar.exe`가 한글 사용자 프로필이 포함된 절대 경로를 `??`로 변환해 DXVK 압축 파일을 열지 못한 원인을 확인했다. 외부 `tar.exe` 호출과 디스크 임시 해제를 제거하고 Node 내장 gzip 해제 후 TAR 경계를 검사하며 `x64/d3d9.dll`만 메모리에서 읽도록 변경했다. 기존 64MB 다운로드 제한, GitHub SHA-256과 PE/x64 DLL 검증은 유지하고 해제 결과는 256MB로 제한한다. 한글 임시 경로에서 실제 DXVK v3.0.2 다운로드·설치·무결성 검증이 성공했으며 DXVK 테스트 10개, 전체 Node 테스트 146개, 구문 검사, 프로덕션 앱 빌드와 lint가 통과했다. 0.3.7 사용자용·상세 변경 기록에 반영했다.
 - 커밋 `94e118c`와 태그 `v0.3.6`을 원격에 푸시하고 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.6)로 정식 공개했다. 릴리스는 draft·prerelease가 아니며 installer·blockmap·`latest.yml`·터보 키 helper 네 자산의 원격 크기와 GitHub SHA-256 digest가 로컬 검증값과 모두 일치한다. 원격 `master`, 태그와 릴리스 커밋도 `94e118c`로 일치한다.
 - 앱과 lockfile 버전을 0.3.6으로 올렸다. 전체 Node 테스트 145개, 변경 모듈 구문 검사, 프로덕션 앱 빌드, 네이티브 helper 전체 Release 빌드와 Windows x64 NSIS 패키징이 통과했고 lint 오류가 없다. 설치본은 96,440,784바이트·SHA-256 `0843613E…0D591`, blockmap은 102,288바이트·`8A9D6548…BB5BA`, `latest.yml`은 342바이트·`4C6CDDC6…40907`, 터보 키 helper는 291,840바이트·`D9504362…16A857`이다. 배포 recorder와 Release 산출물의 SHA-256은 `637D2FA2…62591`로 일치한다.

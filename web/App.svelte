@@ -132,6 +132,7 @@
   let refreshing = false
   let includeNic = false
   let affinityRuntimeSyncing = false
+  let dxvkRuntimeSyncing = false
   let memoryRuntimeSyncing = false
   let frameBoostAction = null
   let cpuReorderAction = null
@@ -598,6 +599,7 @@
   }
 
   function resolveDxvkStatusUpdate(current, incoming) {
+    if (!incoming?.state) return current
     if (
       ["latest", "update-required"].includes(current?.state)
       && incoming?.state === "checking"
@@ -1636,6 +1638,29 @@
     }
   }
 
+  async function syncDxvkRuntime() {
+    if (
+      closeActionPending
+      || dxvkRuntimeSyncing
+      || document.visibilityState !== "visible"
+    ) return
+
+    dxvkRuntimeSyncing = true
+    try {
+      const status = await window.nogirem.getDxvkRuntimeStatus()
+      if (closeActionPending) return
+      updateService("affinity", {
+        data: {
+          ...services.affinity.data,
+          dxvk: resolveDxvkStatusUpdate(services.affinity.data?.dxvk, status),
+        },
+      })
+    } catch {
+    } finally {
+      dxvkRuntimeSyncing = false
+    }
+  }
+
   async function syncMemoryRuntime() {
     if (
       closeActionPending
@@ -1689,7 +1714,7 @@
       updateService("affinity", {
         data: {
           ...services.affinity.data,
-          dxvk: status,
+          dxvk: resolveDxvkStatusUpdate(services.affinity.data?.dxvk, status),
         },
       })
     })
@@ -1787,6 +1812,8 @@
       void syncAffinityRuntime()
       void syncMemoryRuntime()
     }, 500)
+    void syncDxvkRuntime()
+    const dxvkTimer = window.setInterval(syncDxvkRuntime, 2000)
     const turboKeyTimer = window.setInterval(() => {
       void syncTurboKeySetting()
     }, 1000)
@@ -1798,6 +1825,7 @@
     }, 1000)
     return () => {
       window.clearInterval(timer)
+      window.clearInterval(dxvkTimer)
       window.clearInterval(turboKeyTimer)
       window.clearInterval(inputGuardTimer)
       window.clearInterval(blackboxTimer)

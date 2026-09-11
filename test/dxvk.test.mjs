@@ -203,16 +203,23 @@ test("관리 창의 확인·설치 완료 상태를 메인 화면에 즉시 전�
     /const status = await dxvkRuntimeCheckPromise\s+notifyDxvkRuntimeStatusChanged\(\)\s+return status/,
   )
   assert.match(preloadSource, /onDxvkStatusChanged/)
+  assert.match(preloadSource, /getDxvkRuntimeStatus/)
+  assert.match(mainSource, /optimization:get-dxvk-runtime-status/)
   assert.match(appSource, /removeDxvkStatusListener/)
-  assert.match(appSource, /dxvk: status/)
   assert.match(
     appSource,
-    /function resolveDxvkStatusUpdate[\s\S]*incoming\?\.state === "checking"[\s\S]*return current/,
+    /function resolveDxvkStatusUpdate[\s\S]*if \(!incoming\?\.state\) return current[\s\S]*incoming\?\.state === "checking"[\s\S]*return current/,
   )
   assert.match(
     appSource,
     /dxvk: resolveDxvkStatusUpdate\(current\?\.dxvk, runtime\.dxvk\)/,
   )
+  assert.match(
+    appSource,
+    /dxvk: resolveDxvkStatusUpdate\(services\.affinity\.data\?\.dxvk, status\)/,
+  )
+  assert.match(appSource, /getDxvkRuntimeStatus\(\)/)
+  assert.match(appSource, /setInterval\(syncDxvkRuntime, 2000\)/)
   assert.match(mainSource, /applicationState:[\s\S]*affinity,[\s\S]*dxvk: dxvkRuntimeStatus/)
   assert.match(appSource, /class:checking=\{dxvkLinkState\(\) === "checking"\}/)
   assert.match(appSource, /DXVK 상태 확인 불가/)

@@ -5151,6 +5151,12 @@ function registerIpc() {
   ipcMain.handle("optimization:refresh-nvidia", () => checkGraphics())
   ipcMain.handle("optimization:refresh-network", () => checkNetwork())
   ipcMain.handle("optimization:refresh-affinity", () => checkAffinity({ refreshNic: true }))
+  ipcMain.handle("optimization:get-dxvk-runtime-status", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
+      throw new Error("허용되지 않은 DXVK 상태 조회 요청입니다")
+    }
+    return { ...dxvkRuntimeStatus }
+  })
   ipcMain.handle("optimization:refresh-game-cpu-core-setting", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 CPU 구성 재조회 요청입니다")

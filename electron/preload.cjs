@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld("nogirem", {
   refreshNetwork: () => ipcRenderer.invoke("optimization:refresh-network"),
   refreshAffinity: () => ipcRenderer.invoke("optimization:refresh-affinity"),
   getAffinityRuntime: () => ipcRenderer.invoke("optimization:get-affinity-runtime"),
+  getDxvkRuntimeStatus: () => ipcRenderer.invoke("optimization:get-dxvk-runtime-status"),
   refreshMemory: () => ipcRenderer.invoke("optimization:refresh-memory"),
   getMemoryRuntime: () => ipcRenderer.invoke("optimization:get-memory-runtime"),
   optimizeGraphics: () => ipcRenderer.invoke("optimization:optimize-graphics"),
