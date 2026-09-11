@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-11 18:12
+Last Updated: 2026-09-11 18:17
 
 ## Current Objective
-SeLow 패스트핑 호환, 블랙박스 빈 청크 종료와 하이브리드 CPU 멈칫 수정이 포함된 0.3.6을 패키징해 배포한다.
+0.3.6 배포를 완료하고 SeLow 패스트핑, 블랙박스 빈 청크 재시도와 하이브리드 CPU 멈칫 수정의 실환경 결과를 확인한다.
 
 ## Current Status
+- 커밋 `94e118c`와 태그 `v0.3.6`을 원격에 푸시하고 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.6)로 정식 공개했다. 릴리스는 draft·prerelease가 아니며 installer·blockmap·`latest.yml`·터보 키 helper 네 자산의 원격 크기와 GitHub SHA-256 digest가 로컬 검증값과 모두 일치한다. 원격 `master`, 태그와 릴리스 커밋도 `94e118c`로 일치한다.
 - 앱과 lockfile 버전을 0.3.6으로 올렸다. 전체 Node 테스트 145개, 변경 모듈 구문 검사, 프로덕션 앱 빌드, 네이티브 helper 전체 Release 빌드와 Windows x64 NSIS 패키징이 통과했고 lint 오류가 없다. 설치본은 96,440,784바이트·SHA-256 `0843613E…0D591`, blockmap은 102,288바이트·`8A9D6548…BB5BA`, `latest.yml`은 342바이트·`4C6CDDC6…40907`, 터보 키 helper는 291,840바이트·`D9504362…16A857`이다. 배포 recorder와 Release 산출물의 SHA-256은 `637D2FA2…62591`로 일치한다.
 - handoff와 상세 변경 기록에서 진단 제보자의 이름·닉네임을 제거했다. 이후 진단 기록은 증상·버전·기술 환경만 남기고 제보자 식별자와 진단 ZIP 파일명을 기록하지 않는다.
 - 두 0.3.5 진단은 Core Ultra 5 225F 6P+4E, RTX 5060 Ti, DXVK v3.1 환경이며 오류·메모리 부족·블랙박스 부하는 없었다. 두 게임 프로세스 모두 원래 10코어 마스크 `0x3ff`에서 선택한 P코어 5개 `0x3c2`로 제한됐고 사용자는 부스트 중 반복 멈칫을 확인했다. Windows CPU Set의 높은 EfficiencyClass가 P코어라는 판정은 공식 문서 및 Intel의 6P+4E 사양과 일치하므로 P/E 역판정 문제는 아니다. 하이브리드 CPU에서는 선택 P코어를 게임 전용으로 유지하면서 남겨 둔 P코어도 게임과 백그라운드·입력 프로그램이 공유하게 변경해 게임은 모든 P코어를 쓰고 E코어는 제외한다. 이 환경의 새 게임 마스크는 `0x3c3`, 백그라운드는 기존 `0x3d`다. 또한 두 앱 시작에서 여유 메모리가 약 24GB인데도 standby list를 즉시 비웠으므로 `ensureFrameBoostStarted()`의 강제 startup purge를 제거하고 실제 메모리 압력 조건에서만 정리한다. Arrow Lake 전용 사례를 포함한 affinity 테스트 16개, 전체 Node 145개, 구문 검사와 프로덕션 앱 빌드가 통과했고 lint 오류가 없다. 0.3.6 변경 기록에 반영했다.
@@ -1488,4 +1489,4 @@ SeLow 패스트핑 호환, 블랙박스 빈 청크 종료와 하이브리드 CPU
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-0.3.6 버전·recorder 배포 바이너리·handoff를 커밋하고 `v0.3.6` 태그와 GitHub Release를 게시한다. 게시 후 원격 자산의 크기와 SHA-256을 로컬 결과와 대조한다.
+0.3.6 설치본에서 SeLow 환경의 `TCPNoDelay=1` 적용, 캡처 대상 창이 빠르게 바뀌어도 recorder가 유지되는지, Core Ultra 5 225F에서 부스트 중 반복 멈칫이 완화됐는지 확인한다.
