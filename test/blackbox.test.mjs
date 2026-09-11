@@ -751,6 +751,10 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(nativeSource, /discardQueuedVideoFrames/)
   assert.match(nativeSource, /writerPublisherThread_/)
   assert.match(nativeSource, /closeWriter\(bool waitForPublish = false\)/)
+  assert.match(
+    nativeSource,
+    /if \(!wroteVideoSample_\) \{[\s\S]*writer_\.Reset\(\);[\s\S]*fs::remove\(path_, error\);[\s\S]*return;/,
+  )
   assert.match(nativeSource, /durationSeconds/)
   assert.match(nativeSource, /name\.find\(L"\.partial\."\)/)
   assert.match(

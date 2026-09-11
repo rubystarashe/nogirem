@@ -1468,6 +1468,12 @@ public:
 
   void finalize() {
     if (!writer_) return;
+    if (!wroteVideoSample_) {
+      writer_.Reset();
+      std::error_code error;
+      fs::remove(path_, error);
+      return;
+    }
     const HRESULT result = writer_->Finalize();
     writer_.Reset();
     if (FAILED(result)) {

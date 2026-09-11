@@ -5,6 +5,7 @@
 ## 0.3.6
 
 - 용건의 0.3.5 진단에서 물리 이더넷 어댑터의 `SeLow`가 유일한 차단 필터로 판정돼 `TcpAckFrequency=1`만 남고 `TCPNoDelay`는 적용되지 않았다. `SeLow`는 SoftEther VPN Server·Bridge가 패킷 캡처에 사용하는 경량 필터이며 가상 어댑터나 터널 자체가 아니므로 Npcap과 같은 호환 캡처 필터로 분류한다. 실제 VPN·가상 어댑터와 확인되지 않은 경로 처리 필터는 계속 차단한다.
+- 커다란콧구멍의 0.3.5 진단에서 recorder는 게임 창을 찾아 Windows Graphics Capture를 시작했지만 첫 인코더 준비가 2프레임 허용 시간을 넘어 초기 프레임 5개를 폐기한 직후 캡처 대상 창이 닫혔다. 영상 샘플이 하나도 기록되지 않은 빈 MP4에 `IMFSinkWriter::Finalize()`를 호출해 `MF_E_SINK_NO_SAMPLES_PROCESSED`가 발생했고 이를 치명적 인코더 오류로 처리하면서 helper가 반복 종료됐다. 영상 샘플이 없는 writer는 Finalize하지 않고 불완전 파일만 제거해 recorder가 새 게임 창 탐색을 계속하도록 한다. 실제 샘플이 기록된 청크의 Finalize 실패 처리는 유지한다.
 
 ## 0.3.5
 
