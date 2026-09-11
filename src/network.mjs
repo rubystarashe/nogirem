@@ -51,7 +51,7 @@ $thirdPartyBindings = @(
 )
 $captureBindings = @(
   $thirdPartyBindings |
-    Where-Object { $_ -match "(?i)^(insecure_npcap|npcap(?:_wifi)?)$" }
+    Where-Object { $_ -match "(?i)^(insecure_npcap|npcap(?:_wifi)?|selow)$" }
 )
 $compatibleSecurityBindings = @(
   $thirdPartyBindings |
@@ -63,7 +63,7 @@ $compatibleVirtualizationBindings = @(
 )
 $blockingThirdPartyBindings = @(
   $thirdPartyBindings |
-    Where-Object { $_ -notmatch "(?i)^(insecure_npcap|npcap(?:_wifi)?|inca_tkfwfv|vmware_bridge)$" }
+    Where-Object { $_ -notmatch "(?i)^(insecure_npcap|npcap(?:_wifi)?|selow|inca_tkfwfv|vmware_bridge)$" }
 )
 $isVirtual = (
   -not [bool]$adapter.HardwareInterface -or

@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-11 00:25
+Last Updated: 2026-09-11 17:33
 
 ## Current Objective
-0.3.5 공개 배포가 완료됐으며 새 오류 리포트와 다음 공지 변경을 기다린다.
+0.3.5 진단에서 확인된 SoftEther SeLow 필터의 패스트핑 오탐 차단을 0.3.6에서 수정한다.
 
 ## Current Status
+- 용건의 0.3.5 진단에서 기본 경로의 물리 `이더넷 2` 어댑터는 가상 어댑터가 아니며 활성 타사 바인딩이 `SeLow`, `INCA_TKFWFV`였다. nProtect는 이미 허용됐지만 SoftEther VPN Server·Bridge의 패킷 캡처 필터 `SeLow`만 차단 목록에 남아 적용이 중단됐고, 실제 상태도 `TcpAckFrequency=1`, `TCPNoDelay=null`이었다. `SeLow`를 Npcap과 같은 호환 캡처 필터로 분류해 허용했으며 가상/VPN 어댑터와 미확인 타사 필터 차단은 유지한다. 네트워크 테스트 21개, 전체 Node 144개, 네트워크 모듈 구문 검사와 프로덕션 앱 빌드가 통과했고 lint 오류가 없다. 사용자용·상세 변경 기록의 0.3.6 섹션에 반영했다.
 - 커밋 `0b409f2`에 태그 `v0.3.5`를 생성하고 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.5)로 공개했다. electron-builder의 동시 릴리스 생성 경합에서 한 요청이 422를 반환했지만 생성된 단일 릴리스 ID `386396260`에 검증된 자산을 다시 업로드해 완성했다. installer·blockmap·`latest.yml`·터보 키 helper 네 자산의 원격 size와 GitHub SHA-256 digest가 로컬 값과 일치하며 공개 다운로드 URL은 모두 HTTP 200이다.
 - 앱과 lockfile 버전을 0.3.5로 올렸다. 전체 Node 144개 테스트, Electron main·bootstrap·preload와 공지·affinity 모듈 구문 검사, IDE lint가 통과했다. input guard·Radeon·recorder·터보 키 Release 빌드와 Vite·NSIS 로컬 패키징도 성공했고 외부 MSVCP/VCRUNTIME 의존성이 없다. 로컬 installer는 96,348,411바이트·SHA-256 `8F18317B…2C510`, blockmap은 102,399바이트·`0BB1F0A6…B4B4C`, `latest.yml`은 342바이트·`0E050804…C2DA`, 터보 키 helper는 291,840바이트·`D9504362…6A857`이다. recorder 배포 바이너리는 680,448바이트·`C3F46BCA…8C01B`로 갱신됐다.
 - `forceApplicationNoticePreview` 상수와 `shouldDisplayApplicationNotice`의 강제 인자를 제거했다. 원격 `NOTICE.md`는 `cache: no-store`로 조회하고 정규화된 문서 SHA-256이 저장된 마지막 닫기 ID와 다를 때만 표시한다. 실제 원격 응답은 HTTP 200이고 로컬 문서와 ID `7ada465f…a84aa`가 일치했으며, 최초 ID는 표시·같은 닫기 ID는 미표시·문서 변경 ID는 다시 표시되는 것을 실행 검증했다. 확인 버튼 여백 변경까지 포함해 공지·안정성 테스트 27개, Electron·공지 모듈 구문 검사, 프로덕션 앱 빌드와 lint가 통과했다.
@@ -1482,4 +1483,4 @@ Last Updated: 2026-09-11 00:25
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-0.3.5 사용 환경에서 프로세스가 많은 PC의 프레임 부스트 시작과 공지 닫기·변경 재표시 흐름을 관찰하고, 재현 가능한 오류 리포트가 들어오면 진단 ZIP으로 확인한다.
+SeLow 호환 수정과 0.3.6 변경 기록을 커밋한다. 이후 0.3.6 패키징 요청 시 실제 용건 환경에서 `TCPNoDelay=1` 적용 여부를 확인한다.
