@@ -4,19 +4,19 @@
 
 ## 0.3.6
 
-- 용건의 0.3.5 진단에서 물리 이더넷 어댑터의 `SeLow`가 유일한 차단 필터로 판정돼 `TcpAckFrequency=1`만 남고 `TCPNoDelay`는 적용되지 않았다. `SeLow`는 SoftEther VPN Server·Bridge가 패킷 캡처에 사용하는 경량 필터이며 가상 어댑터나 터널 자체가 아니므로 Npcap과 같은 호환 캡처 필터로 분류한다. 실제 VPN·가상 어댑터와 확인되지 않은 경로 처리 필터는 계속 차단한다.
-- 커다란콧구멍의 0.3.5 진단에서 recorder는 게임 창을 찾아 Windows Graphics Capture를 시작했지만 첫 인코더 준비가 2프레임 허용 시간을 넘어 초기 프레임 5개를 폐기한 직후 캡처 대상 창이 닫혔다. 영상 샘플이 하나도 기록되지 않은 빈 MP4에 `IMFSinkWriter::Finalize()`를 호출해 `MF_E_SINK_NO_SAMPLES_PROCESSED`가 발생했고 이를 치명적 인코더 오류로 처리하면서 helper가 반복 종료됐다. 영상 샘플이 없는 writer는 Finalize하지 않고 불완전 파일만 제거해 recorder가 새 게임 창 탐색을 계속하도록 한다. 실제 샘플이 기록된 청크의 Finalize 실패 처리는 유지한다.
-- pro Y의 두 0.3.5 진단에서 Core Ultra 5 225F의 6 P코어 중 5개만 게임 affinity `0x3c2`로 강제 제한됐고 사용자는 부스트가 켜진 동안 반복적인 멈칫을 확인했다. 하이브리드 CPU에서는 선택한 P코어를 게임 전용으로 격리하되 남겨 둔 P코어도 게임과 백그라운드·입력 프로그램이 공유하게 해, 게임이 모든 P코어를 사용하면서 E코어에는 배치되지 않도록 변경한다. 해당 225F 배치는 게임 `0x3c3`, 백그라운드 `0x3d`로 바뀐다. 두 진단 모두 여유 메모리가 약 24GB인데 앱을 시작할 때마다 standby list를 강제로 비운 기록도 있어, 부스트 시작 시 무조건 정리하지 않고 기존 메모리 압력 조건을 만족할 때만 정리한다.
+- 패스트핑 0.3.5 진단에서 물리 이더넷 어댑터의 `SeLow`가 유일한 차단 필터로 판정돼 `TcpAckFrequency=1`만 남고 `TCPNoDelay`는 적용되지 않았다. `SeLow`는 SoftEther VPN Server·Bridge가 패킷 캡처에 사용하는 경량 필터이며 가상 어댑터나 터널 자체가 아니므로 Npcap과 같은 호환 캡처 필터로 분류한다. 실제 VPN·가상 어댑터와 확인되지 않은 경로 처리 필터는 계속 차단한다.
+- 블랙박스 0.3.5 진단에서 recorder는 게임 창을 찾아 Windows Graphics Capture를 시작했지만 첫 인코더 준비가 2프레임 허용 시간을 넘어 초기 프레임 5개를 폐기한 직후 캡처 대상 창이 닫혔다. 영상 샘플이 하나도 기록되지 않은 빈 MP4에 `IMFSinkWriter::Finalize()`를 호출해 `MF_E_SINK_NO_SAMPLES_PROCESSED`가 발생했고 이를 치명적 인코더 오류로 처리하면서 helper가 반복 종료됐다. 영상 샘플이 없는 writer는 Finalize하지 않고 불완전 파일만 제거해 recorder가 새 게임 창 탐색을 계속하도록 한다. 실제 샘플이 기록된 청크의 Finalize 실패 처리는 유지한다.
+- 두 0.3.5 진단에서 Core Ultra 5 225F의 6 P코어 중 5개만 게임 affinity `0x3c2`로 강제 제한됐고 사용자는 부스트가 켜진 동안 반복적인 멈칫을 확인했다. 하이브리드 CPU에서는 선택한 P코어를 게임 전용으로 격리하되 남겨 둔 P코어도 게임과 백그라운드·입력 프로그램이 공유하게 해, 게임이 모든 P코어를 사용하면서 E코어에는 배치되지 않도록 변경한다. 해당 225F 배치는 게임 `0x3c3`, 백그라운드 `0x3d`로 바뀐다. 두 진단 모두 여유 메모리가 약 24GB인데 앱을 시작할 때마다 standby list를 강제로 비운 기록도 있어, 부스트 시작 시 무조건 정리하지 않고 기존 메모리 압력 조건을 만족할 때만 정리한다.
 
 ## 0.3.5
 
 - 앱 실행과 업데이트 확인 때마다 GitHub `master`의 `NOTICE.md`를 캐시 없이 조회하고, 문서 SHA-256이 마지막으로 닫은 공지와 다르면 메인 화면 최상단 모달로 표시한다. 제목·본문·목록·HTTPS 이미지와 링크를 제한적으로 해석하며 링크는 renderer에서 직접 열지 않고 검증된 IPC를 통해 시스템 브라우저로 연다. 공지는 기존 흰색 `NoticeModal`을 사용해 화면 중앙과 상하좌우 여백을 유지한다. 별도 제목·하단 버튼 영역은 제거하고 제목부터 확인 버튼까지 모두 스크롤 가능한 본문 안에 배치했으며 카드 내부 패딩도 축소했다. 스크롤바는 개발자 문서와 같은 3px 선형 track·얇은 thumb를 사용하고 카드 오른쪽 여백 안쪽으로 당겨 배치한다. 휠 입력은 목표 위치를 누적하고 매 frame 남은 거리의 18%만 이동하는 방식으로 부드럽게 감속한다. 닫은 문서 ID는 userData에 원자 저장하고 네트워크 조회 실패 시 설치본에 포함된 공지로 대체한다. 강제 표시 테스트 플래그는 제거해 같은 SHA-256 공지는 한 번 닫으면 다시 표시하지 않고 `NOTICE.md` 내용이 바뀐 경우에만 새 공지로 표시한다.
-- 이동혁의 0.3.4 진단에서 패스트핑은 정상 적용됐지만 affinity helper가 시작할 때마다 정확히 10초 뒤 종료됐다. 프로세스가 많은 환경에서 PowerShell `Get-Process`의 각 항목에 대해 `Path`와 `StartTime`을 조회하느라 제한 시간을 초과한 것이 원인이었다. PowerShell은 PID와 이름만 빠르게 열거하고 실행 경로·시작 시각·세션 ID는 각각 `QueryFullProcessImageNameW`·`GetProcessTimes`·`ProcessIdToSessionId` Win32 API로 조회해 느리거나 접근할 수 없는 개별 프로세스가 전체 affinity 감시 시작을 막지 않도록 한다.
+- 프로세스가 많은 환경의 0.3.4 진단에서 패스트핑은 정상 적용됐지만 affinity helper가 시작할 때마다 정확히 10초 뒤 종료됐다. PowerShell `Get-Process`의 각 항목에 대해 `Path`와 `StartTime`을 조회하느라 제한 시간을 초과한 것이 원인이었다. PowerShell은 PID와 이름만 빠르게 열거하고 실행 경로·시작 시각·세션 ID는 각각 `QueryFullProcessImageNameW`·`GetProcessTimes`·`ProcessIdToSessionId` Win32 API로 조회해 느리거나 접근할 수 없는 개별 프로세스가 전체 affinity 감시 시작을 막지 않도록 한다.
 
 ## 0.3.4
 
-- 최규진의 0.3.3 진단에서 Radeon 그래픽 설정과 recorder helper가 종료 코드 `3221225781`(`0xC0000135`)로 실행되지 않았다. 설치본의 C++ helper가 외부 `MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`에 의존한 것이 원인이므로 Radeon·recorder·Alt+Enter 방지 helper를 정적 MSVC 런타임으로 빌드한다. 새 바이너리의 의존성 목록에서 해당 DLL이 제거됐고, VC++ 재배포 패키지가 없는 PC에서도 직접 실행할 수 있다.
-- 오우야의 0.3.3 진단에서 물리 이더넷 어댑터의 Npcap `INSECURE_NPCAP`은 이미 허용됐지만 VMware Bridge Protocol의 `vmware_bridge`가 타사 필터로 차단됐다. 호스트 인터넷 경로를 우회하지 않고 가상 머신에 물리 네트워크를 연결하는 L2 브리지 필터이므로 별도 호환 가상화 필터로 분류해 패스트핑 적용을 허용한다.
+- VC++ 런타임이 없는 환경의 0.3.3 진단에서 Radeon 그래픽 설정과 recorder helper가 종료 코드 `3221225781`(`0xC0000135`)로 실행되지 않았다. 설치본의 C++ helper가 외부 `MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`에 의존한 것이 원인이므로 Radeon·recorder·Alt+Enter 방지 helper를 정적 MSVC 런타임으로 빌드한다. 새 바이너리의 의존성 목록에서 해당 DLL이 제거됐고, VC++ 재배포 패키지가 없는 PC에서도 직접 실행할 수 있다.
+- VMware 필터가 설치된 0.3.3 진단에서 물리 이더넷 어댑터의 Npcap `INSECURE_NPCAP`은 이미 허용됐지만 VMware Bridge Protocol의 `vmware_bridge`가 타사 필터로 차단됐다. 호스트 인터넷 경로를 우회하지 않고 가상 머신에 물리 네트워크를 연결하는 L2 브리지 필터이므로 별도 호환 가상화 필터로 분류해 패스트핑 적용을 허용한다.
 
 ## 0.3.3
 
