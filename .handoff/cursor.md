@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-11 18:02
+Last Updated: 2026-09-11 18:12
 
 ## Current Objective
-0.3.5 진단에서 확인된 SeLow 패스트핑 오탐, 블랙박스 즉시 종료와 하이브리드 CPU 게임 멈칫을 0.3.6에서 수정한다.
+SeLow 패스트핑 호환, 블랙박스 빈 청크 종료와 하이브리드 CPU 멈칫 수정이 포함된 0.3.6을 패키징해 배포한다.
 
 ## Current Status
+- 앱과 lockfile 버전을 0.3.6으로 올렸다. 전체 Node 테스트 145개, 변경 모듈 구문 검사, 프로덕션 앱 빌드, 네이티브 helper 전체 Release 빌드와 Windows x64 NSIS 패키징이 통과했고 lint 오류가 없다. 설치본은 96,440,784바이트·SHA-256 `0843613E…0D591`, blockmap은 102,288바이트·`8A9D6548…BB5BA`, `latest.yml`은 342바이트·`4C6CDDC6…40907`, 터보 키 helper는 291,840바이트·`D9504362…16A857`이다. 배포 recorder와 Release 산출물의 SHA-256은 `637D2FA2…62591`로 일치한다.
 - handoff와 상세 변경 기록에서 진단 제보자의 이름·닉네임을 제거했다. 이후 진단 기록은 증상·버전·기술 환경만 남기고 제보자 식별자와 진단 ZIP 파일명을 기록하지 않는다.
 - 두 0.3.5 진단은 Core Ultra 5 225F 6P+4E, RTX 5060 Ti, DXVK v3.1 환경이며 오류·메모리 부족·블랙박스 부하는 없었다. 두 게임 프로세스 모두 원래 10코어 마스크 `0x3ff`에서 선택한 P코어 5개 `0x3c2`로 제한됐고 사용자는 부스트 중 반복 멈칫을 확인했다. Windows CPU Set의 높은 EfficiencyClass가 P코어라는 판정은 공식 문서 및 Intel의 6P+4E 사양과 일치하므로 P/E 역판정 문제는 아니다. 하이브리드 CPU에서는 선택 P코어를 게임 전용으로 유지하면서 남겨 둔 P코어도 게임과 백그라운드·입력 프로그램이 공유하게 변경해 게임은 모든 P코어를 쓰고 E코어는 제외한다. 이 환경의 새 게임 마스크는 `0x3c3`, 백그라운드는 기존 `0x3d`다. 또한 두 앱 시작에서 여유 메모리가 약 24GB인데도 standby list를 즉시 비웠으므로 `ensureFrameBoostStarted()`의 강제 startup purge를 제거하고 실제 메모리 압력 조건에서만 정리한다. Arrow Lake 전용 사례를 포함한 affinity 테스트 16개, 전체 Node 145개, 구문 검사와 프로덕션 앱 빌드가 통과했고 lint 오류가 없다. 0.3.6 변경 기록에 반영했다.
 - 블랙박스 0.3.5 진단에서 기능과 recorder 실행 요청은 정상이었고 게임 창 크기 `2546x1370`도 감지했지만, 매번 실행 후 약 0.45~0.57초 만에 정상 코드 0으로 종료됐다. 최종 오류는 `녹화 청크 확정 오류: 싱크에서 샘플이 처리되지 않았기 때문에 작업이 실패했습니다`였고 dropped frame은 5개, 기록된 청크는 0개였다. 첫 writer 준비가 2프레임 허용 시간보다 길면 대기 프레임과 첫 프레임을 폐기하는데, 이 상태에서 writer가 닫히면 영상 샘플이 없는 MP4에 `Finalize()`를 호출해 `MF_E_SINK_NO_SAMPLES_PROCESSED`가 발생하고 encoder 전체를 실패 처리했다. `Mp4Writer::finalize()`가 영상 샘플 0개인 writer는 Finalize하지 않고 partial 파일만 제거하도록 수정해 캡처 재시도를 계속한다. 실제 영상 샘플이 있는 청크의 확정 오류 처리는 유지한다. recorder Release 빌드, 블랙박스 테스트 6개, 전체 Node 144개와 프로덕션 앱 빌드가 통과했고 lint 및 외부 MSVCP/VCRUNTIME 의존성이 없다. 새 recorder는 680,448바이트·SHA-256 `7042B6AF…C7B31`이며 0.3.6 변경 기록에 반영했다.
@@ -1487,4 +1488,4 @@ Last Updated: 2026-09-11 18:02
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-하이브리드 affinity·메모리 시작 동작과 0.3.6 변경 기록을 커밋한다. 이후 0.3.6 배포 시 해당 진단 환경의 반복 멈칫, recorder 유지와 `TCPNoDelay=1` 적용 여부를 확인한다.
+0.3.6 버전·recorder 배포 바이너리·handoff를 커밋하고 `v0.3.6` 태그와 GitHub Release를 게시한다. 게시 후 원격 자산의 크기와 SHA-256을 로컬 결과와 대조한다.
