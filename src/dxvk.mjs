@@ -1,22 +1,19 @@
 import { createHash, randomUUID } from "node:crypto"
-import { execFile } from "node:child_process"
 import {
   copyFile,
   mkdir,
   readFile,
   rename,
-  rm,
   unlink,
   writeFile,
 } from "node:fs/promises"
 import { basename, dirname, join } from "node:path"
-import { tmpdir } from "node:os"
-import { promisify } from "node:util"
+import { gunzipSync } from "node:zlib"
 
-const execFileAsync = promisify(execFile)
 const latestReleaseUrl = "https://api.github.com/repos/doitsujin/dxvk/releases/latest"
 const releasesUrl = "https://api.github.com/repos/doitsujin/dxvk/releases?per_page=100"
 const maximumArchiveBytes = 64 * 1024 * 1024
+const maximumExtractedArchiveBytes = 256 * 1024 * 1024
 
 function sha256(buffer) {
   return createHash("sha256").update(buffer).digest("hex")
@@ -41,6 +38,60 @@ function validateDll(buffer) {
   ) {
     throw new Error("추출한 DXVK 파일이 x64 DLL 형식이 아닙니다")
   }
+}
+
+function readTarText(buffer, offset, length) {
+  const end = buffer.indexOf(0, offset)
+  const safeEnd = end === -1 || end > offset + length ? offset + length : end
+  return buffer.toString("utf8", offset, safeEnd)
+}
+
+function readTarSize(buffer, offset) {
+  const text = readTarText(buffer, offset, 12).trim()
+  if (!/^[0-7]+$/.test(text)) {
+    throw new Error("DXVK 압축 파일의 TAR 크기 정보가 올바르지 않습니다")
+  }
+  const size = Number.parseInt(text, 8)
+  if (!Number.isSafeInteger(size) || size < 0) {
+    throw new Error("DXVK 압축 파일의 TAR 항목 크기가 올바르지 않습니다")
+  }
+  return size
+}
+
+export function extractDxvkDllFromArchive(archive) {
+  let tar
+  try {
+    tar = gunzipSync(archive, {
+      maxOutputLength: maximumExtractedArchiveBytes,
+    })
+  } catch {
+    throw new Error("DXVK 압축 파일 해제에 실패했습니다")
+  }
+
+  for (let offset = 0; offset + 512 <= tar.length;) {
+    const header = tar.subarray(offset, offset + 512)
+    if (header.every(byte => byte === 0)) break
+
+    const name = readTarText(header, 0, 100)
+    const prefix = readTarText(header, 345, 155)
+    const entry = prefix ? `${prefix}/${name}` : name
+    const size = readTarSize(header, 124)
+    const dataStart = offset + 512
+    const dataEnd = dataStart + size
+    if (dataEnd > tar.length) {
+      throw new Error("DXVK 압축 파일의 TAR 항목 범위가 올바르지 않습니다")
+    }
+
+    const type = header[156]
+    if (
+      (type === 0 || type === 48)
+      && /^[^/]+\/x64\/d3d9\.dll$/i.test(entry)
+    ) {
+      return Buffer.from(tar.subarray(dataStart, dataEnd))
+    }
+    offset = dataStart + Math.ceil(size / 512) * 512
+  }
+  throw new Error("DXVK 압축 파일에서 x64/d3d9.dll을 찾지 못했습니다")
 }
 
 export function detectDxvkRendererFromLog(content) {
@@ -223,92 +274,68 @@ async function installDxvkRelease(vulkanDirectory, release, fetchImpl) {
     return { release, installed, updated: false }
   }
 
-  const workDirectory = join(tmpdir(), `nogirem-dxvk-${randomUUID()}`)
-  const archivePath = join(workDirectory, release.archiveName)
-  await mkdir(workDirectory, { recursive: true })
-  try {
-    const response = await fetchImpl(release.downloadUrl, {
-      headers: { "User-Agent": "mabinogi-rem-booster" },
-    })
-    if (!response.ok) {
-      throw new Error(`DXVK 압축 파일 다운로드 실패 (${response.status})`)
-    }
-    const declaredLength = Number(response.headers.get("content-length"))
-    if (declaredLength > maximumArchiveBytes) {
-      throw new Error("DXVK 압축 파일이 허용 크기를 초과했습니다")
-    }
-    const archive = Buffer.from(await response.arrayBuffer())
-    if (archive.length === 0 || archive.length > maximumArchiveBytes) {
-      throw new Error("DXVK 압축 파일 크기가 올바르지 않습니다")
-    }
-    const archiveSha256 = sha256(archive)
-    if (archiveSha256 !== release.archiveSha256) {
-      throw new Error("DXVK 압축 파일 SHA-256 검증에 실패했습니다")
-    }
-    await writeFile(archivePath, archive)
+  const response = await fetchImpl(release.downloadUrl, {
+    headers: { "User-Agent": "mabinogi-rem-booster" },
+  })
+  if (!response.ok) {
+    throw new Error(`DXVK 압축 파일 다운로드 실패 (${response.status})`)
+  }
+  const declaredLength = Number(response.headers.get("content-length"))
+  if (declaredLength > maximumArchiveBytes) {
+    throw new Error("DXVK 압축 파일이 허용 크기를 초과했습니다")
+  }
+  const archive = Buffer.from(await response.arrayBuffer())
+  if (archive.length === 0 || archive.length > maximumArchiveBytes) {
+    throw new Error("DXVK 압축 파일 크기가 올바르지 않습니다")
+  }
+  const archiveSha256 = sha256(archive)
+  if (archiveSha256 !== release.archiveSha256) {
+    throw new Error("DXVK 압축 파일 SHA-256 검증에 실패했습니다")
+  }
 
-    const { stdout } = await execFileAsync(
-      "tar.exe",
-      ["-tzf", archivePath],
-      { windowsHide: true, maxBuffer: 8 * 1024 * 1024 },
-    )
-    const dllEntry = stdout
-      .split(/\r?\n/)
-      .find(entry => /^[^/]+\/x64\/d3d9\.dll$/i.test(entry))
-    if (!dllEntry) throw new Error("DXVK 압축 파일에서 x64/d3d9.dll을 찾지 못했습니다")
+  const dll = extractDxvkDllFromArchive(archive)
+  validateDll(dll)
 
-    await execFileAsync(
-      "tar.exe",
-      ["-xzf", archivePath, "-C", workDirectory, dllEntry],
-      { windowsHide: true, timeout: 120000 },
-    )
-    const extractedPath = join(workDirectory, ...dllEntry.split("/"))
-    const dll = await readFile(extractedPath)
-    validateDll(dll)
+  await mkdir(vulkanDirectory, { recursive: true })
+  const fileName = `dxvk-${release.version}-d3d9.dll`
+  const destinationPath = join(vulkanDirectory, fileName)
+  const temporaryDllPath = `${destinationPath}.${randomUUID()}.tmp`
+  await writeFile(temporaryDllPath, dll)
+  await unlink(destinationPath).catch(error => {
+    if (error?.code !== "ENOENT") throw error
+  })
+  await rename(temporaryDllPath, destinationPath)
 
-    await mkdir(vulkanDirectory, { recursive: true })
-    const fileName = `dxvk-${release.version}-d3d9.dll`
-    const destinationPath = join(vulkanDirectory, fileName)
-    const temporaryDllPath = `${destinationPath}.${randomUUID()}.tmp`
-    await writeFile(temporaryDllPath, dll)
-    await unlink(destinationPath).catch(error => {
+  const current = {
+    version: release.version,
+    fileName,
+    sha256: sha256(dll),
+    archiveSha256: release.archiveSha256,
+    downloadUrl: release.downloadUrl,
+    releaseUrl: release.releaseUrl,
+    publishedAt: release.publishedAt,
+    installedAt: new Date().toISOString(),
+  }
+  const currentPath = join(vulkanDirectory, "current.json")
+  const temporaryCurrentPath = `${currentPath}.${randomUUID()}.tmp`
+  await writeFile(temporaryCurrentPath, JSON.stringify(current, null, 2), "utf8")
+  await rename(temporaryCurrentPath, currentPath)
+
+  const previousFileName = installed.current?.fileName
+  if (
+    previousFileName
+    && previousFileName !== fileName
+    && basename(previousFileName) === previousFileName
+    && /^dxvk-v[\d.]+-d3d9\.dll$/i.test(previousFileName)
+  ) {
+    await unlink(join(vulkanDirectory, previousFileName)).catch(error => {
       if (error?.code !== "ENOENT") throw error
     })
-    await rename(temporaryDllPath, destinationPath)
-
-    const current = {
-      version: release.version,
-      fileName,
-      sha256: sha256(dll),
-      archiveSha256: release.archiveSha256,
-      downloadUrl: release.downloadUrl,
-      releaseUrl: release.releaseUrl,
-      publishedAt: release.publishedAt,
-      installedAt: new Date().toISOString(),
-    }
-    const currentPath = join(vulkanDirectory, "current.json")
-    const temporaryCurrentPath = `${currentPath}.${randomUUID()}.tmp`
-    await writeFile(temporaryCurrentPath, JSON.stringify(current, null, 2), "utf8")
-    await rename(temporaryCurrentPath, currentPath)
-
-    const previousFileName = installed.current?.fileName
-    if (
-      previousFileName
-      && previousFileName !== fileName
-      && basename(previousFileName) === previousFileName
-      && /^dxvk-v[\d.]+-d3d9\.dll$/i.test(previousFileName)
-    ) {
-      await unlink(join(vulkanDirectory, previousFileName)).catch(error => {
-        if (error?.code !== "ENOENT") throw error
-      })
-    }
-    return {
-      release,
-      installed: await getInstalledDxvk(vulkanDirectory),
-      updated: true,
-    }
-  } finally {
-    await rm(workDirectory, { recursive: true, force: true })
+  }
+  return {
+    release,
+    installed: await getInstalledDxvk(vulkanDirectory),
+    updated: true,
   }
 }
 

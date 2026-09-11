@@ -2,6 +2,10 @@
 
 사용자용 요약은 [VERSION_HISTORY.md](VERSION_HISTORY.md)에서 확인할 수 있습니다.
 
+## 0.3.7
+
+- DXVK 다운로드 후 Windows 기본 `tar.exe`에 압축 파일의 절대 경로를 넘겨 한글 사용자 프로필 경로가 `??`로 변환되고 파일 열기가 실패했다. 외부 `tar.exe` 의존을 제거하고 Node 내장 gzip 해제와 경계 검증된 TAR 항목 탐색으로 `x64/d3d9.dll`만 메모리에서 읽는다. 압축 파일 64MB·해제 결과 256MB 제한, GitHub SHA-256 검증과 DLL PE/x64 검증은 유지한다. 한글 임시 경로에서 실제 DXVK v3.0.2 다운로드·설치·무결성 검증을 완료했다.
+
 ## 0.3.6
 
 - 패스트핑 0.3.5 진단에서 물리 이더넷 어댑터의 `SeLow`가 유일한 차단 필터로 판정돼 `TcpAckFrequency=1`만 남고 `TCPNoDelay`는 적용되지 않았다. `SeLow`는 SoftEther VPN Server·Bridge가 패킷 캡처에 사용하는 경량 필터이며 가상 어댑터나 터널 자체가 아니므로 Npcap과 같은 호환 캡처 필터로 분류한다. 실제 VPN·가상 어댑터와 확인되지 않은 경로 처리 필터는 계속 차단한다.

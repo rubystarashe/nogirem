@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-11 18:17
+Last Updated: 2026-09-11 19:53
 
 ## Current Objective
-0.3.6 배포를 완료하고 SeLow 패스트핑, 블랙박스 빈 청크 재시도와 하이브리드 CPU 멈칫 수정의 실환경 결과를 확인한다.
+한글 Windows 사용자 프로필 경로에서 DXVK 압축 파일을 열지 못하는 0.3.6 오류를 0.3.7에서 수정한다.
 
 ## Current Status
+- Windows 기본 `tar.exe`가 한글 사용자 프로필이 포함된 절대 경로를 `??`로 변환해 DXVK 압축 파일을 열지 못한 원인을 확인했다. 외부 `tar.exe` 호출과 디스크 임시 해제를 제거하고 Node 내장 gzip 해제 후 TAR 경계를 검사하며 `x64/d3d9.dll`만 메모리에서 읽도록 변경했다. 기존 64MB 다운로드 제한, GitHub SHA-256과 PE/x64 DLL 검증은 유지하고 해제 결과는 256MB로 제한한다. 한글 임시 경로에서 실제 DXVK v3.0.2 다운로드·설치·무결성 검증이 성공했으며 DXVK 테스트 10개, 전체 Node 테스트 146개, 구문 검사, 프로덕션 앱 빌드와 lint가 통과했다. 0.3.7 사용자용·상세 변경 기록에 반영했다.
 - 커밋 `94e118c`와 태그 `v0.3.6`을 원격에 푸시하고 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.6)로 정식 공개했다. 릴리스는 draft·prerelease가 아니며 installer·blockmap·`latest.yml`·터보 키 helper 네 자산의 원격 크기와 GitHub SHA-256 digest가 로컬 검증값과 모두 일치한다. 원격 `master`, 태그와 릴리스 커밋도 `94e118c`로 일치한다.
 - 앱과 lockfile 버전을 0.3.6으로 올렸다. 전체 Node 테스트 145개, 변경 모듈 구문 검사, 프로덕션 앱 빌드, 네이티브 helper 전체 Release 빌드와 Windows x64 NSIS 패키징이 통과했고 lint 오류가 없다. 설치본은 96,440,784바이트·SHA-256 `0843613E…0D591`, blockmap은 102,288바이트·`8A9D6548…BB5BA`, `latest.yml`은 342바이트·`4C6CDDC6…40907`, 터보 키 helper는 291,840바이트·`D9504362…16A857`이다. 배포 recorder와 Release 산출물의 SHA-256은 `637D2FA2…62591`로 일치한다.
 - handoff와 상세 변경 기록에서 진단 제보자의 이름·닉네임을 제거했다. 이후 진단 기록은 증상·버전·기술 환경만 남기고 제보자 식별자와 진단 ZIP 파일명을 기록하지 않는다.
@@ -1489,4 +1490,4 @@ Last Updated: 2026-09-11 18:17
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-0.3.6 설치본에서 SeLow 환경의 `TCPNoDelay=1` 적용, 캡처 대상 창이 빠르게 바뀌어도 recorder가 유지되는지, Core Ultra 5 225F에서 부스트 중 반복 멈칫이 완화됐는지 확인한다.
+DXVK 한글 경로 수정 커밋을 포함한 0.3.7을 패키징할 때 실제 설치본에서도 한글 사용자 계정의 DXVK 버전 선택·다운로드·적용을 확인한다.

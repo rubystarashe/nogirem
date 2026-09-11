@@ -4,14 +4,26 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
+import { gzipSync } from "node:zlib"
 import {
   applyInstalledDxvk,
   detectDxvkRendererFromLog,
+  extractDxvkDllFromArchive,
   getDxvkDeploymentStatus,
   getDxvkReleases,
   getInstalledDxvk,
   getLatestDxvkRelease,
 } from "../src/dxvk.mjs"
+
+function createTarGzip(entryName, content) {
+  const header = Buffer.alloc(512)
+  header.write(entryName, 0, 100, "utf8")
+  header.write(`${content.length.toString(8).padStart(11, "0")}\0`, 124, 12, "ascii")
+  header[156] = 48
+  header.write("ustar\0", 257, 6, "ascii")
+  const padding = Buffer.alloc((512 - content.length % 512) % 512)
+  return gzipSync(Buffer.concat([header, content, padding, Buffer.alloc(1024)]))
+}
 
 test("DXVK 장치와 스왑체인 초기화 완료 로그를 Vulkan 실행으로 판정한다", () => {
   const result = detectDxvkRendererFromLog([
@@ -22,6 +34,15 @@ test("DXVK 장치와 스왑체인 초기화 완료 로그를 Vulkan 실행으로
   ].join("\n"))
 
   assert.deepEqual(result, { initialized: true, version: "v2.7.1+" })
+})
+
+test("DXVK 압축 해제는 한글 사용자 경로에 취약한 외부 tar를 사용하지 않는다", async () => {
+  const dll = Buffer.from("MZ-dxvk-test")
+  const archive = createTarGzip("dxvk-3.0.2/x64/d3d9.dll", dll)
+  const source = await readFile(new URL("../src/dxvk.mjs", import.meta.url), "utf8")
+
+  assert.deepEqual(extractDxvkDllFromArchive(archive), dll)
+  assert.doesNotMatch(source, /tar\.exe|node:child_process/)
 })
 
 test("DXVK 헤더만 남은 초기화 실패 로그는 Vulkan 실행으로 판정하지 않는다", () => {
