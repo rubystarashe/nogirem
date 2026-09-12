@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-12 11:13
+Last Updated: 2026-09-12 13:14
 
 ## Current Objective
-0.3.7 설치본에서 주변 캐릭터 강제 간소화 MUO가 문서의 마비노기 설정 목록에 복사되지 않는 문제를 수정한다.
+0.3.7 환경에서 패스트핑이 타사 네트워크 필터로 차단되는 원인을 진단한다.
 
 ## Current Status
+- 0.3.7 네트워크 진단에서 주 물리 이더넷 어댑터에 `vmware_bridge`, `oracle_VBoxNetLwf`, `nt_ndiswgc`가 연결돼 있었다. `vmware_bridge`는 이미 호환 필터이며, `oracle_VBoxNetLwf`는 VirtualBox 브리지 필터, 실제로 반드시 차단해야 하는 `nt_ndiswgc`는 WireSock VPN 등이 사용하는 WinpkFilter NDIS 경량 필터다. 이 필터는 원시 Ethernet frame을 검사·수정·삭제·주입할 수 있으므로 어댑터 재시작을 포함하는 패스트핑 적용을 자동 허용하면 안 된다. 진단 당시 `TcpAckFrequency`와 `TCPNoDelay`는 모두 미설정이며 네트워크 변경은 수행되지 않았다. WireSock/WinpkFilter를 사용하지 않는다면 해당 프로그램과 남은 필터 드라이버를 제거한 뒤 재부팅·재시도하고, 사용 중이라면 패스트핑은 적용하지 않는 것이 안전하다.
 - 0.3.7 진단의 세 앱 시작에서 모두 `copyfile ...Temp\<UUID>.tmp.muo -> Documents\마비노기\설정\목록\주변캐릭터간소화프레임제한해제.muo`가 `ENOENT`로 실패했다. 대상 폴더나 문서 경로가 아니라 ASAR 내부 원본을 `copyFile()`이 임시 추출한 뒤 비동기 복사 전에 임시 파일이 사라지는 것이 원인이다. 원본을 `readFile()`로 버퍼에 유지한 뒤 `writeFile()`하고 바이트 일치를 검증하도록 바꿨으며 `assets/*.muo`를 `asarUnpack`으로 물리 배치했다. 회귀 테스트 25개와 전체 Node 테스트, 구문 검사, Vite 빌드, Windows unpacked 패키징이 통과했다. 패키지의 물리 MUO와 원본 SHA-256은 `8710993D…C1A4E`로 일치한다. 0.3.8 변경 기록에 반영했다.
 - 0.3.7 프리징 진단은 Ryzen 5 7500F 6C/12T, RTX 4060 Ti, 32GB 환경이다. Windows Event 41·6008로 2026-09-12 01:28:48과 01:49:42의 비정상 종료가 확인되며 BugCheck 1001은 없다. 첫 재부팅 뒤 Nogirem 시작 기록 없이 두 번째 프리징이 발생했고 앱은 두 번째 재부팅 뒤 01:54에 시작했으므로 적어도 두 번째 프리징은 Nogirem·affinity·memory helper가 원인이 될 수 없다. 강제 종료로 affinity·memory 상태와 lock·applied marker·DXVK cache가 NUL로 손상됐지만 앱은 복구했다. 현재 메모리는 16GB 이상 여유이고 cleanup은 실행되지 않았으며 블랙박스·터보 키·입력 방지는 꺼져 있고 DXVK도 적용되지 않았다. affinity는 당시 약 130개 사용자 프로세스를 배치했으며 게임 코어 4→3 변경 tick이 12초 걸려 Electron의 10초 대기를 초과했지만 완료됐다. 이는 설정 작업 지연은 설명해도 앱 미실행 상태의 시스템 프리징은 설명하지 못한다. WHEA·Display/nvlddmkm·LiveKernelEvent·스토리지·전원 이벤트가 현재 진단 대상에 없어 하드웨어/펌웨어/드라이버/전원 중 세부 원인은 아직 확정할 수 없다.
 - 커밋 `69da9d8`과 태그 `v0.3.7`을 원격에 푸시하고 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.7)로 정식 공개했다. 릴리스는 draft·prerelease가 아니며 installer·blockmap·`latest.yml`·터보 키 helper 네 자산의 원격 크기와 GitHub SHA-256 digest가 로컬 검증값과 모두 일치한다. 원격 `master`, 태그와 릴리스 커밋도 `69da9d8`로 일치한다.
@@ -562,6 +563,7 @@ Last Updated: 2026-09-12 11:13
 20. 마비노기 전면 창에서 `2 누름 → 3 누름 → 일반 키 4 누름·해제 → 3 해제 → 2 해제` 순서로 실제 입력 전환을 확인한다.
 
 ## Known Issues
+- `nt_ndiswgc` WinpkFilter가 주 네트워크 어댑터에 연결된 환경은 WireSock VPN 등의 패킷 가공 경로와 어댑터 재시작 충돌 위험 때문에 패스트핑을 계속 차단한다. 명시적 호환 필터로 완화하면 안 된다.
 - 간소화 MUO 설치 수정은 Windows unpacked 패키지 구조와 해시까지 검증했지만 문제 환경의 실제 문서 폴더 복사와 게임 반영은 다음 설치본에서 확인해야 한다.
 - Ryzen 5 7500F 환경에서 BugCheck 없는 시스템 프리징·강제 재부팅이 반복됐다. Nogirem이 실행되지 않은 재부팅 사이에도 재발해 앱 단독 원인은 배제되지만, 현재 진단에는 WHEA·GPU TDR·LiveKernelEvent·스토리지 이벤트와 하드웨어 설정이 없어 전원·EXPO/PBO/Curve Optimizer·BIOS·칩셋/GPU/스토리지 드라이버를 구분할 수 없다.
 - Ryzen 7 5800X3D 환경에서 반복 `CLOCK_WATCHDOG_TIMEOUT (0x101)`이 확인됐다. 이벤트만으로는 하드웨어/펌웨어 불안정과 커널 드라이버의 장시간 인터럽트 차단을 구분할 수 없으므로 최신 minidump 분석이 필요하다. CPU Arg4가 `1`·`2`·`10`으로 바뀌며 발생했고 0.2.5~0.3.4에서 반복되므로 특정 앱 버전이나 단일 논리 코어 문제로 단정하면 안 된다.
@@ -1503,4 +1505,4 @@ Last Updated: 2026-09-12 11:13
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-0.3.8로 패키징한 뒤 문제 환경에서 앱을 실행해 문서의 마비노기 설정 목록에 간소화 MUO가 생성되고, 마비노기 재시작 후 `DummyCharRenderModeFPS=-1` 적용 상태가 표시되는지 확인한다.
+문제 환경에서 WireSock VPN 또는 WinpkFilter 기반 프로그램의 사용 여부를 확인한다. 사용하지 않는다면 프로그램 제거 후에도 남은 `nt_ndiswgc` 필터를 정식 제거하고 재부팅한 뒤 패스트핑을 다시 적용한다. 사용 중이면 해당 필터와 패스트핑을 동시에 자동 적용하지 않는다.
