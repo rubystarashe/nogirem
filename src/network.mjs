@@ -65,6 +65,10 @@ $blockingThirdPartyBindings = @(
   $thirdPartyBindings |
     Where-Object { $_ -notmatch "(?i)^(insecure_npcap|npcap(?:_wifi)?|selow|inca_tkfwfv|vmware_bridge)$" }
 )
+$knownBlockingBindings = @(
+  $blockingThirdPartyBindings |
+    Where-Object { $_ -match "(?i)^(nt_rtf64|nt_ndiswgc|nt_ndextlag)$" }
+)
 $isVirtual = (
   -not [bool]$adapter.HardwareInterface -or
   $adapter.InterfaceDescription -match "(?i)virtual|vpn|tap|tun|wintun|wireguard|hyper-v|vmware|virtualbox"
@@ -72,6 +76,12 @@ $isVirtual = (
 $compatible = -not $isVirtual -and $blockingThirdPartyBindings.Count -eq 0
 $compatibilityReason = if ($isVirtual) {
   "VPN 또는 가상 네트워크 어댑터에는 패스트핑을 적용하지 않습니다"
+} elseif ($blockingThirdPartyBindings -contains "nt_rtf64") {
+  "Realtek 네트워크 가속 필터가 연결되어 있어 안전을 위해 패스트핑을 적용하지 않습니다. 이더넷 속성에서 Realtek LightWeight Filter (NDIS6.40)를 해제한 뒤 다시 시도하세요"
+} elseif ($blockingThirdPartyBindings -contains "nt_ndiswgc") {
+  "WireSock 또는 WinpkFilter 네트워크 필터가 연결되어 있어 패스트핑을 적용하지 않습니다"
+} elseif ($blockingThirdPartyBindings -contains "nt_ndextlag") {
+  "ExitLag 네트워크 필터가 연결되어 있어 패스트핑을 적용하지 않습니다"
 } elseif ($blockingThirdPartyBindings.Count -gt 0) {
   "타사 네트워크 필터가 연결된 어댑터에는 패스트핑을 적용하지 않습니다"
 } else {
@@ -103,6 +113,7 @@ $noDelay = if (
 [pscustomobject]@{
   supported = $true
   interfaceAlias = $adapter.Name
+  interfaceDescription = $adapter.InterfaceDescription
   interfaceIndex = $route.InterfaceIndex
   interfaceGuid = $guid
   nextHop = $route.NextHop
@@ -116,6 +127,7 @@ $noDelay = if (
   compatibleSecurityBindings = $compatibleSecurityBindings
   compatibleVirtualizationBindings = $compatibleVirtualizationBindings
   blockingThirdPartyBindings = $blockingThirdPartyBindings
+  knownBlockingBindings = $knownBlockingBindings
   TcpAckFrequency = $ackFrequency
   TCPNoDelay = $noDelay
 } | ConvertTo-Json -Compress

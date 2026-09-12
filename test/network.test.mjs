@@ -237,6 +237,21 @@ test("Npcap·SeLow와 nProtect 및 VMware 브리지 필터는 패스트핑 호�
   )
 })
 
+test("Realtek 네트워크 가속 필터는 차단하고 해제 방법을 안내한다", () => {
+  assert.match(
+    networkSource,
+    /knownBlockingBindings[\s\S]*nt_rtf64\|nt_ndiswgc\|nt_ndextlag/,
+  )
+  assert.match(
+    networkSource,
+    /blockingThirdPartyBindings -contains "nt_rtf64"[\s\S]*Realtek LightWeight Filter \(NDIS6\.40\)를 해제/,
+  )
+  assert.match(
+    networkSource,
+    /interfaceDescription = \$adapter\.InterfaceDescription[\s\S]*knownBlockingBindings = \$knownBlockingBindings/,
+  )
+})
+
 test("IP·기본 경로·게이트웨이·DNS·HTTPS가 모두 정상이면 연결 정상으로 판정한다", async () => {
   const result = await checkNetworkConnectivity({
     runner: async () => ({
