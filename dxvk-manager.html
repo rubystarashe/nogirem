@@ -310,23 +310,28 @@
 
       function selectionNeedsInstall() {
         const selected = selectedRelease()
-        return selectionNeedsDownload()
+        return selected?.compatibility?.compatible !== false
+          && (selectionNeedsDownload()
           || Boolean(
             selected
             && lastStatus?.installed?.current?.version === selected.version
             && !lastStatus?.deployment?.matchesCurrent
-          )
+          ))
       }
 
       function updateSelection() {
         const selected = selectedRelease()
         const isLatest = selected?.version === lastStatus?.latest?.version
-        latestDetail.textContent = selected
+        latestDetail.textContent = selected?.compatibility?.compatible === false
+          ? selected.compatibility.reason
+          : selected
           ? selected.localOnly
             ? "로컬 검증 버전 · 최신 여부 확인 불가"
             : isLatest ? "최신 정식 버전" : "이전 정식 버전"
           : "GitHub 릴리즈 확인이 필요합니다"
-        latestDetail.className = `status-detail ${selected ? "ready" : ""}`
+        latestDetail.className = `status-detail ${
+          selected?.compatibility?.compatible === false ? "warning" : selected ? "ready" : ""
+        }`
         installButton.disabled = busy || !selectionNeedsInstall()
         installButton.textContent = selectionNeedsDownload()
           ? lastStatus?.installed?.installed ? "선택 버전으로 교체" : "다운로드 및 적용"
@@ -354,13 +359,19 @@
         const installed = status.installed
         if (installed.installed) {
           installedVersion.textContent = installed.current.version
-          installedDetail.textContent = installed.integrity
+          installedDetail.textContent = status.installedCompatibility?.compatible === false
+            ? `${status.installedCompatibility.reason} · 호환 버전으로 교체하세요`
+            : installed.integrity
             ? status.deployment.matchesCurrent
               ? "SHA-256 검증·게임 적용 완료"
               : "SHA-256 검증 완료 · 게임 적용 필요"
             : "파일 SHA-256 불일치 · 다시 업데이트하세요"
           installedDetail.className = `status-detail ${
-            installed.integrity && status.deployment.matchesCurrent ? "ready" : "warning"
+            installed.integrity
+              && status.deployment.matchesCurrent
+              && status.installedCompatibility?.compatible !== false
+              ? "ready"
+              : "warning"
           }`
         } else {
           installedVersion.textContent = "없음"
@@ -374,17 +385,20 @@
           for (const release of status.releases) {
             const option = document.createElement("option")
             option.value = release.version
-            option.textContent = release.version === status.latest?.version
+            option.textContent = release.compatibility?.compatible === false
+              ? `${release.version} · 드라이버 호환 안 됨`
+              : release.version === status.latest?.version
               ? `${release.version} · 최신`
               : release.version
             versionSelect.append(option)
           }
-          const selectionExists = status.releases.some(
+          const previousRelease = status.releases.find(
             release => release.version === previousSelection,
           )
-          versionSelect.value = selectionExists
+          versionSelect.value = previousRelease?.compatibility?.compatible !== false
+            && previousRelease
             ? previousSelection
-            : status.latest?.version ?? status.releases[0].version
+            : status.recommended?.version ?? status.latest?.version ?? status.releases[0].version
           versionSelect.disabled = busy
         } else {
           const option = document.createElement("option")

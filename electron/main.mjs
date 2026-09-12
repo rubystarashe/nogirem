@@ -32,6 +32,7 @@ import {
   getInstalledDxvk,
   installDxvkVersion,
 } from "../src/dxvk.mjs"
+import { assessDxvkCompatibility } from "../src/dxvk-compatibility.mjs"
 import { getLatestMuoStatus } from "../src/muo-status.mjs"
 import { writeJsonAtomic } from "../src/atomic-json.mjs"
 import {
@@ -4752,6 +4753,11 @@ async function getDxvkTargetPath() {
   return join(dirname(await resolveMabinogiExecutablePath()), "d3d9_dxvk.dll")
 }
 
+async function getDxvkCompatibility(version) {
+  const gpuInfo = await app.getGPUInfo("complete").catch(() => null)
+  return assessDxvkCompatibility(version, gpuInfo)
+}
+
 function getDxvkLatestCachePath() {
   return join(getDxvkDirectory(), "latest.json")
 }
@@ -4824,6 +4830,20 @@ async function getCachedDxvkReleases() {
 async function evaluateDxvkRuntimeStatus(latest) {
   const installed = await getInstalledDxvk(getDxvkDirectory())
   const deployment = await getDxvkDeploymentStatus(installed, await getDxvkTargetPath())
+  const compatibility = await getDxvkCompatibility(installed.current?.version)
+  if (
+    installed.installed
+    && installed.integrity
+    && deployment.matchesCurrent
+    && !compatibility.compatible
+  ) {
+    return {
+      state: "incompatible",
+      latestVersion: latest.version,
+      compatibility,
+      error: null,
+    }
+  }
   const latestApplied = Boolean(
     installed.installed
     && installed.integrity
@@ -4834,6 +4854,7 @@ async function evaluateDxvkRuntimeStatus(latest) {
   return {
     state: latestApplied ? "latest" : "update-required",
     latestVersion: latest.version,
+    compatibility,
     error: null,
   }
 }
@@ -4841,11 +4862,13 @@ async function evaluateDxvkRuntimeStatus(latest) {
 async function evaluateLocalDxvkRuntimeStatus(error = null) {
   const installed = await getInstalledDxvk(getDxvkDirectory())
   const deployment = await getDxvkDeploymentStatus(installed, await getDxvkTargetPath())
+  const compatibility = await getDxvkCompatibility(installed.current?.version)
   return {
     state: installed.installed && installed.integrity && deployment.matchesCurrent
-      ? "applied-unverified"
+      ? compatibility.compatible ? "applied-unverified" : "incompatible"
       : "unavailable",
     latestVersion: installed.current?.version ?? null,
+    compatibility,
     error: error ? serializeError(error) : null,
   }
 }
@@ -4943,18 +4966,28 @@ async function getDxvkManagerStatus({ checkLatest = false } = {}) {
   ) {
     releases = [{ ...installed.current, localOnly: true }]
   }
+  const gpuInfo = await app.getGPUInfo("complete").catch(() => null)
+  releases = releases.map(release => ({
+    ...release,
+    compatibility: assessDxvkCompatibility(release.version, gpuInfo),
+  }))
+  const installedCompatibility = assessDxvkCompatibility(installed.current?.version, gpuInfo)
+  const recommended = releases.find(release => release.compatibility?.compatible !== false) ?? null
+  const desired = recommended ?? latest
   return {
     installed,
+    installedCompatibility,
     deployment,
     latest,
+    recommended,
     releases,
     releaseCheckError,
-    updateAvailable: latest
+    updateAvailable: desired
       ? !installed.installed
         || !installed.integrity
         || !deployment.matchesCurrent
-        || installed.current?.version !== latest.version
-        || installed.current?.archiveSha256 !== latest.archiveSha256
+        || installed.current?.version !== desired.version
+        || installed.current?.archiveSha256 !== desired.archiveSha256
       : null,
     storagePath: getDxvkDirectory(),
   }
@@ -4965,6 +4998,10 @@ async function updateDxvk(version) {
     throw new Error("마비노기가 실행 중일 때에는 DXVK를 교체할 수 없습니다")
   }
   dxvkUpdatePromise ??= (async () => {
+    const compatibility = await getDxvkCompatibility(version)
+    if (!compatibility.compatible) {
+      throw new Error(compatibility.reason)
+    }
     const installed = await getInstalledDxvk(getDxvkDirectory())
     if (
       installed.installed

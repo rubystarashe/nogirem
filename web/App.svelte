@@ -649,7 +649,10 @@
   function dxvkLinkState() {
     if (services.affinity.data?.renderer?.mode === "direct3d9") return "not-in-use"
     const state = services.affinity.data?.dxvk?.state
-    if (["latest", "update-required", "applied-unverified", "unavailable"].includes(state)) {
+    if (
+      ["latest", "update-required", "applied-unverified", "incompatible", "unavailable"]
+        .includes(state)
+    ) {
       return state
     }
     return "checking"
@@ -2079,13 +2082,13 @@
           <button
             class="dxvk-update-link"
             class:ready={["latest", "applied-unverified"].includes(dxvkLinkState())}
-            class:warning={["not-in-use", "update-required", "unavailable"].includes(dxvkLinkState())}
+            class:warning={["not-in-use", "update-required", "incompatible", "unavailable"].includes(dxvkLinkState())}
             class:checking={dxvkLinkState() === "checking"}
             class:entered={leftTopContentEntered}
             onclick={openDxvkWindow}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              {#if ["not-in-use", "update-required", "unavailable"].includes(dxvkLinkState())}
+              {#if ["not-in-use", "update-required", "incompatible", "unavailable"].includes(dxvkLinkState())}
                 <path d="M1 21h22L12 2 1 21Zm12-3h-2v2h2v-2Zm0-2h-2v-4h2v4Z" />
               {:else if ["latest", "applied-unverified"].includes(dxvkLinkState())}
                 <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9Z" />
@@ -2098,6 +2101,8 @@
                 ? "Vulkan을 사용중이지 않음"
                 : dxvkLinkState() === "update-required"
                   ? "Vulkan 업데이트가 필요함"
+                  : dxvkLinkState() === "incompatible"
+                    ? "Vulkan GPU 드라이버 호환 필요"
                   : dxvkLinkState() === "latest"
                     ? "Vulkan 최신버전 사용중"
                     : dxvkLinkState() === "applied-unverified"

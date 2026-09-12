@@ -14,6 +14,10 @@ import {
   getInstalledDxvk,
   getLatestDxvkRelease,
 } from "../src/dxvk.mjs"
+import {
+  assessDxvkCompatibility,
+  parseWindowsNvidiaDriverVersion,
+} from "../src/dxvk-compatibility.mjs"
 
 function createTarGzip(entryName, content) {
   const header = Buffer.alloc(512)
@@ -139,6 +143,21 @@ test("검증 가능한 이전 DXVK 정식 릴리즈 목록을 반환한다", asy
   assert.deepEqual(releases.map(item => item.version), ["v3.1", "v3.0"])
 })
 
+test("구형 NVIDIA 드라이버에서는 DXVK 3.x를 막고 2.x를 허용한다", () => {
+  const gpuInfo = {
+    gpuDevice: [{
+      vendorId: 0x10de,
+      deviceString: "NVIDIA GeForce GTX 1060 6GB",
+      driverVersion: "32.0.15.6094",
+      gpuPreference: 3,
+    }],
+  }
+
+  assert.equal(parseWindowsNvidiaDriverVersion("32.0.15.6094"), 560.94)
+  assert.equal(assessDxvkCompatibility("v3.1", gpuInfo).compatible, false)
+  assert.equal(assessDxvkCompatibility("v2.7.1", gpuInfo).compatible, true)
+})
+
 test("저장된 DXVK DLL의 SHA-256 무결성을 확인한다", async () => {
   const directory = await mkdtemp(join(tmpdir(), "nogirem-dxvk-status-"))
   const dll = Buffer.from("dxvk-test")
@@ -224,6 +243,7 @@ test("관리 창의 확인·설치 완료 상태를 메인 화면에 즉시 전�
   assert.match(mainSource, /applicationState:[\s\S]*affinity,[\s\S]*dxvk: dxvkRuntimeStatus/)
   assert.match(appSource, /class:checking=\{dxvkLinkState\(\) === "checking"\}/)
   assert.match(appSource, /Vulkan 적용됨 · 최신 확인 불가/)
+  assert.match(appSource, /Vulkan GPU 드라이버 호환 필요/)
   assert.match(appSource, /DXVK 상태 확인 불가/)
   assert.match(appSource, /DXVK 확인 중/)
   assert.match(
@@ -236,4 +256,6 @@ test("관리 창의 확인·설치 완료 상태를 메인 화면에 즉시 전�
   )
   assert.match(managerSource, /로컬 검증 버전 · 최신 여부 확인 불가/)
   assert.match(managerSource, /GitHub 연결 실패 · 저장된 DXVK를 게임에 다시 적용할 수 있습니다/)
+  assert.match(managerSource, /드라이버 호환 안 됨/)
+  assert.match(managerSource, /status\.recommended\?\.version/)
 })
