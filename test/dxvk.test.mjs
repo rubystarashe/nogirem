@@ -191,10 +191,11 @@ test("검증된 DXVK를 게임 폴더의 d3d9_dxvk.dll로 적용한다", async (
 })
 
 test("관리 창의 확인·설치 완료 상태를 메인 화면에 즉시 전달한다", async () => {
-  const [mainSource, preloadSource, appSource] = await Promise.all([
+  const [mainSource, preloadSource, appSource, managerSource] = await Promise.all([
     readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
     readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
     readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
+    readFile(new URL("../dxvk-manager.html", import.meta.url), "utf8"),
   ])
 
   assert.match(mainSource, /optimization:dxvk-status-changed/)
@@ -222,6 +223,17 @@ test("관리 창의 확인·설치 완료 상태를 메인 화면에 즉시 전�
   assert.match(appSource, /setInterval\(syncDxvkRuntime, 2000\)/)
   assert.match(mainSource, /applicationState:[\s\S]*affinity,[\s\S]*dxvk: dxvkRuntimeStatus/)
   assert.match(appSource, /class:checking=\{dxvkLinkState\(\) === "checking"\}/)
+  assert.match(appSource, /Vulkan 적용됨 · 최신 확인 불가/)
   assert.match(appSource, /DXVK 상태 확인 불가/)
   assert.match(appSource, /DXVK 확인 중/)
+  assert.match(
+    mainSource,
+    /installed\.current\?\.version === version[\s\S]*applyInstalledDxvk/,
+  )
+  assert.match(
+    mainSource,
+    /releases = \[\{\s*\.\.\.installed\.current, localOnly: true \}\]/,
+  )
+  assert.match(managerSource, /로컬 검증 버전 · 최신 여부 확인 불가/)
+  assert.match(managerSource, /GitHub 연결 실패 · 저장된 DXVK를 게임에 다시 적용할 수 있습니다/)
 })

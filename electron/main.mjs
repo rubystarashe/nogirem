@@ -4838,6 +4838,18 @@ async function evaluateDxvkRuntimeStatus(latest) {
   }
 }
 
+async function evaluateLocalDxvkRuntimeStatus(error = null) {
+  const installed = await getInstalledDxvk(getDxvkDirectory())
+  const deployment = await getDxvkDeploymentStatus(installed, await getDxvkTargetPath())
+  return {
+    state: installed.installed && installed.integrity && deployment.matchesCurrent
+      ? "applied-unverified"
+      : "unavailable",
+    latestVersion: installed.current?.version ?? null,
+    error: error ? serializeError(error) : null,
+  }
+}
+
 async function loadCachedDxvkRuntimeStatus() {
   const latest = await readJson(getDxvkLatestCachePath())
   if (
@@ -4873,13 +4885,17 @@ async function refreshDxvkRuntimeStatus({ force = false } = {}) {
         checkedAt: new Date().toISOString(),
       }).catch(() => {})
     } catch (error) {
-      dxvkRuntimeStatus = ["latest", "update-required"].includes(previousStatus.state)
-        ? { ...previousStatus, error: serializeError(error) }
-        : {
-            state: "unavailable",
-            latestVersion: null,
-            error: serializeError(error),
-          }
+      const localStatus = await evaluateLocalDxvkRuntimeStatus(error)
+      if (localStatus.state === "applied-unverified") {
+        dxvkRuntimeStatus = ["latest", "update-required"].includes(previousStatus.state)
+          && previousStatus.latestVersion === localStatus.latestVersion
+          ? { ...localStatus, state: "latest" }
+          : localStatus
+      } else {
+        dxvkRuntimeStatus = ["latest", "update-required"].includes(previousStatus.state)
+          ? { ...previousStatus, error: serializeError(error) }
+          : localStatus
+      }
     } finally {
       dxvkRuntimeCheckPromise = null
     }
@@ -4909,13 +4925,30 @@ function scheduleDxvkRuntimeRefresh() {
 async function getDxvkManagerStatus({ checkLatest = false } = {}) {
   const installed = await getInstalledDxvk(getDxvkDirectory())
   const deployment = await getDxvkDeploymentStatus(installed, await getDxvkTargetPath())
-  const releases = checkLatest ? await getCachedDxvkReleases() : []
-  const latest = releases[0] ?? null
+  let releases = []
+  let releaseCheckError = null
+  if (checkLatest) {
+    try {
+      releases = await getCachedDxvkReleases()
+    } catch (error) {
+      releaseCheckError = serializeError(error)
+    }
+  }
+  const latest = releaseCheckError ? null : releases[0] ?? null
+  if (
+    releases.length === 0
+    && installed.installed
+    && installed.integrity
+    && installed.current?.version
+  ) {
+    releases = [{ ...installed.current, localOnly: true }]
+  }
   return {
     installed,
     deployment,
     latest,
     releases,
+    releaseCheckError,
     updateAvailable: latest
       ? !installed.installed
         || !installed.integrity
@@ -4932,6 +4965,18 @@ async function updateDxvk(version) {
     throw new Error("마비노기가 실행 중일 때에는 DXVK를 교체할 수 없습니다")
   }
   dxvkUpdatePromise ??= (async () => {
+    const installed = await getInstalledDxvk(getDxvkDirectory())
+    if (
+      installed.installed
+      && installed.integrity
+      && installed.current?.version === version
+    ) {
+      const deployment = await applyInstalledDxvk(
+        getDxvkDirectory(),
+        await getDxvkTargetPath(),
+      )
+      return { installed, updated: false, deployment }
+    }
     const releases = await getCachedDxvkReleases()
     const result = await installDxvkVersion(
       getDxvkDirectory(),

@@ -322,7 +322,9 @@
         const selected = selectedRelease()
         const isLatest = selected?.version === lastStatus?.latest?.version
         latestDetail.textContent = selected
-          ? isLatest ? "최신 정식 버전" : "이전 정식 버전"
+          ? selected.localOnly
+            ? "로컬 검증 버전 · 최신 여부 확인 불가"
+            : isLatest ? "최신 정식 버전" : "이전 정식 버전"
           : "GitHub 릴리즈 확인이 필요합니다"
         latestDetail.className = `status-detail ${selected ? "ready" : ""}`
         installButton.disabled = busy || !selectionNeedsInstall()
@@ -380,7 +382,9 @@
           const selectionExists = status.releases.some(
             release => release.version === previousSelection,
           )
-          versionSelect.value = selectionExists ? previousSelection : status.latest.version
+          versionSelect.value = selectionExists
+            ? previousSelection
+            : status.latest?.version ?? status.releases[0].version
           versionSelect.disabled = busy
         } else {
           const option = document.createElement("option")
@@ -404,7 +408,14 @@
         setBusy(true, "GitHub에서 최신 정식 릴리즈를 확인하고 있습니다")
         try {
           render(await window.dxvkManager.checkUpdate())
-          message.textContent = lastStatus.installed.installed
+          if (lastStatus.releaseCheckError) {
+            message.classList.add("error")
+            message.textContent = lastStatus.deployment.matchesCurrent
+              ? "GitHub 연결 실패 · 적용된 DXVK의 최신 여부를 확인할 수 없습니다"
+              : "GitHub 연결 실패 · 저장된 DXVK를 게임에 다시 적용할 수 있습니다"
+          } else {
+            message.classList.remove("error")
+            message.textContent = lastStatus.installed.installed
             && lastStatus.installed.integrity
             && !lastStatus.deployment.matchesCurrent
             && lastStatus.installed.current.version === lastStatus.latest?.version
@@ -412,6 +423,7 @@
             : lastStatus.updateAvailable
             ? "다운로드할 수 있는 DXVK가 있습니다"
             : "설치된 DXVK가 최신 상태입니다"
+          }
         } catch (error) {
           message.classList.add("error")
           message.textContent = errorMessage(error)

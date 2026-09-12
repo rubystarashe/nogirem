@@ -601,7 +601,7 @@
   function resolveDxvkStatusUpdate(current, incoming) {
     if (!incoming?.state) return current
     if (
-      ["latest", "update-required"].includes(current?.state)
+      ["latest", "update-required", "applied-unverified"].includes(current?.state)
       && incoming?.state === "checking"
     ) {
       return current
@@ -649,7 +649,9 @@
   function dxvkLinkState() {
     if (services.affinity.data?.renderer?.mode === "direct3d9") return "not-in-use"
     const state = services.affinity.data?.dxvk?.state
-    if (["latest", "update-required", "unavailable"].includes(state)) return state
+    if (["latest", "update-required", "applied-unverified", "unavailable"].includes(state)) {
+      return state
+    }
     return "checking"
   }
 
@@ -2076,7 +2078,7 @@
           </button>
           <button
             class="dxvk-update-link"
-            class:ready={dxvkLinkState() === "latest"}
+            class:ready={["latest", "applied-unverified"].includes(dxvkLinkState())}
             class:warning={["not-in-use", "update-required", "unavailable"].includes(dxvkLinkState())}
             class:checking={dxvkLinkState() === "checking"}
             class:entered={leftTopContentEntered}
@@ -2085,7 +2087,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true">
               {#if ["not-in-use", "update-required", "unavailable"].includes(dxvkLinkState())}
                 <path d="M1 21h22L12 2 1 21Zm12-3h-2v2h2v-2Zm0-2h-2v-4h2v4Z" />
-              {:else if dxvkLinkState() === "latest"}
+              {:else if ["latest", "applied-unverified"].includes(dxvkLinkState())}
                 <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9Z" />
               {:else}
                 <path d="M12 4V1L8 5l4 4V6a6 6 0 0 1 5.65 8H19.7A8 8 0 0 0 12 4Zm-5.65 6H4.3A8 8 0 0 0 12 20v3l4-4-4-4v3a6 6 0 0 1-5.65-8Z" />
@@ -2098,6 +2100,8 @@
                   ? "Vulkan 업데이트가 필요함"
                   : dxvkLinkState() === "latest"
                     ? "Vulkan 최신버전 사용중"
+                    : dxvkLinkState() === "applied-unverified"
+                      ? "Vulkan 적용됨 · 최신 확인 불가"
                     : dxvkLinkState() === "unavailable"
                       ? "DXVK 상태 확인 불가"
                       : "DXVK 확인 중"}
