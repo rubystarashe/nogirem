@@ -2,6 +2,7 @@ import { open, readdir, stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import { extname, join, relative } from "node:path"
 import AdmZip from "adm-zip"
+import { reportIdPattern } from "./report-response.mjs"
 
 const maximumFileBytes = 5 * 1024 * 1024
 const maximumBundleSourceBytes = 25 * 1024 * 1024
@@ -172,8 +173,12 @@ export async function createDiagnosticBundle({
   outputPath,
   userDataPath,
   diagnostics,
+  reportId,
   redactionOptions = {},
 }) {
+  if (!reportIdPattern.test(String(reportId ?? ""))) {
+    throw new Error("진단 로그 고유값이 올바르지 않습니다")
+  }
   const entries = await collectDiagnosticEntries(userDataPath, {
     ...redactionOptions,
     privatePaths: [
@@ -193,6 +198,11 @@ export async function createDiagnosticBundle({
     },
   )
   zip.addFile("diagnostics.json", Buffer.from(sanitizedDiagnostics))
+  zip.addFile("report.json", Buffer.from(JSON.stringify({
+    schemaVersion: 1,
+    reportId,
+    createdAt: diagnostics.generatedAt,
+  }, null, 2)))
   for (const entry of entries) {
     zip.addFile(`files/${entry.name}`, Buffer.from(entry.content))
   }
@@ -214,6 +224,6 @@ export async function createDiagnosticBundle({
   })
   return {
     outputPath,
-    fileCount: entries.length + 2,
+    fileCount: entries.length + 3,
   }
 }

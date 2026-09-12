@@ -62,7 +62,10 @@ test("진단 ZIP에 시스템 요약과 마스킹된 로그 목록을 만든다"
   await createDiagnosticBundle({
     outputPath,
     userDataPath: directory,
+    reportId: "ad2dd07f-23a9-40c2-8340-a45fd5c068fb",
     diagnostics: {
+      reportId: "ad2dd07f-23a9-40c2-8340-a45fd5c068fb",
+      generatedAt: "2026-09-12T13:27:00.000Z",
       version: "0.3.0",
       path: "C:\\Users\\Tester\\app.exe",
     },
@@ -74,10 +77,15 @@ test("진단 ZIP에 시스템 요약과 마스킹된 로그 목록을 만든다"
   const zip = new AdmZip(outputPath)
   const names = zip.getEntries().map(entry => entry.entryName)
   assert.ok(names.includes("diagnostics.json"))
+  assert.ok(names.includes("report.json"))
   assert.ok(!names.includes("README.txt"))
   assert.ok(names.includes("included-files.json"))
   assert.ok(names.includes("files/status.json"))
   assert.match(zip.readAsText("diagnostics.json"), /"version": "0\.3\.0"/)
+  assert.match(
+    zip.readAsText("report.json"),
+    /"reportId": "ad2dd07f-23a9-40c2-8340-a45fd5c068fb"/,
+  )
   assert.doesNotMatch(zip.readAsText("files/status.json"), /Tester/)
 })
 

@@ -220,6 +220,10 @@
   let applicationNoticeId = ""
   let applicationNoticeTitle = "공지사항"
   let applicationNoticeBlocks = []
+  let applicationReportResponses = []
+  let applicationReportResponseVisible = false
+  let applicationReportResponseCloseSignal = 0
+  let activeApplicationReportResponse = null
   let pageVisible = true
   let spinnerAnimationVisible = true
   let spinnerFinishTimer
@@ -445,6 +449,39 @@
     const id = applicationNoticeId
     applicationNoticeVisible = false
     if (id) void window.nogirem.dismissNotice(id).catch(() => {})
+  }
+
+  function showApplicationReportResponses(responses) {
+    if (!Array.isArray(responses)) return
+    const knownIds = new Set(
+      applicationReportResponses.map(response => response.responseId),
+    )
+    const additions = []
+    for (const response of responses) {
+      if (
+        typeof response?.responseId !== "string"
+        || typeof response?.reportId !== "string"
+        || typeof response?.title !== "string"
+        || typeof response?.message !== "string"
+        || knownIds.has(response.responseId)
+      ) continue
+      knownIds.add(response.responseId)
+      additions.push(response)
+    }
+    if (!additions.length) return
+    applicationReportResponses = [...applicationReportResponses, ...additions]
+    activeApplicationReportResponse = applicationReportResponses[0]
+    applicationReportResponseVisible = true
+  }
+
+  function dismissApplicationReportResponse() {
+    const responseId = activeApplicationReportResponse?.responseId
+    if (responseId) {
+      void window.nogirem.acknowledgeReportResponse(responseId).catch(() => {})
+    }
+    applicationReportResponses = applicationReportResponses.slice(1)
+    activeApplicationReportResponse = applicationReportResponses[0] ?? null
+    applicationReportResponseVisible = Boolean(activeApplicationReportResponse)
   }
 
   function openApplicationNoticeLink(block) {
@@ -891,7 +928,7 @@
       const result = await window.nogirem.exportDiagnosticLogs()
       if (!result.canceled) {
         const fileName = result.filePath.split(/[\\/]/).pop()
-        diagnosticLogNotice = `${fileName} 저장 완료`
+        diagnosticLogNotice = `${fileName} 저장 완료 · 고유값 ${result.reportId}`
       }
     } catch (error) {
       diagnosticLogNotice = messageOf(error)
@@ -1058,7 +1095,9 @@
   }
 
   function closeTopLayerWithEscape() {
-    if (applicationNoticeVisible) {
+    if (applicationReportResponseVisible) {
+      applicationReportResponseCloseSignal++
+    } else if (applicationNoticeVisible) {
       applicationNoticeCloseSignal++
     } else if (closeModalVisible) {
       if (!closeActionPending) closeModalCloseSignal++
@@ -1733,6 +1772,9 @@
       applicationUpdateState = state
     })
     const removeNoticeListener = window.nogirem.onNoticeAvailable(showApplicationNotice)
+    const removeReportResponseListener = window.nogirem.onReportResponsesAvailable(
+      showApplicationReportResponses,
+    )
     syncPageVisibility()
     void window.nogirem.getVisualActivity().then(setWindowVisualActivity)
     void window.nogirem.getUpdateState()
@@ -1742,6 +1784,9 @@
       .catch(() => {})
     void window.nogirem.getNotice()
       .then(showApplicationNotice)
+      .catch(() => {})
+    void window.nogirem.getReportResponses()
+      .then(showApplicationReportResponses)
       .catch(() => {})
     void window.nogirem.getCreatorPromptDismissed()
       .then(dismissed => {
@@ -1847,6 +1892,7 @@
       removeVisualActivityListener()
       removeUpdateStateListener()
       removeNoticeListener()
+      removeReportResponseListener()
       removeCloseListener()
     }
   })
@@ -3434,7 +3480,47 @@
   />
 {/if}
 
-{#if applicationNoticeVisible}
+{#if applicationReportResponseVisible && activeApplicationReportResponse}
+  {#key activeApplicationReportResponse.responseId}
+    <NoticeModal
+      title={activeApplicationReportResponse.title}
+      closeSignal={applicationReportResponseCloseSignal}
+      onconfirm={dismissApplicationReportResponse}
+    >
+      <div class="report-response-content">
+        <div class="report-response-heading">
+          <span>BUG REPORT RESPONSE</span>
+          <time>
+            {new Date(activeApplicationReportResponse.answeredAt).toLocaleDateString("ko-KR")}
+          </time>
+        </div>
+        <h2>{activeApplicationReportResponse.title}</h2>
+        <p>{activeApplicationReportResponse.message}</p>
+        <dl>
+          <div>
+            <dt>리포트 고유값</dt>
+            <dd>{activeApplicationReportResponse.reportId}</dd>
+          </div>
+          {#if activeApplicationReportResponse.minimumVersion}
+            <div>
+              <dt>반영 버전</dt>
+              <dd>{activeApplicationReportResponse.minimumVersion}</dd>
+            </div>
+          {/if}
+        </dl>
+        <button
+          type="button"
+          class="report-response-confirm"
+          onclick={() => applicationReportResponseCloseSignal++}
+        >
+          확인했습니다
+        </button>
+      </div>
+    </NoticeModal>
+  {/key}
+{/if}
+
+{#if applicationNoticeVisible && !applicationReportResponseVisible}
   <NoticeModal
     title={applicationNoticeTitle}
     closeSignal={applicationNoticeCloseSignal}

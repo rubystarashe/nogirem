@@ -93,6 +93,17 @@ contextBridge.exposeInMainWorld("nogirem", {
   getUpdateState: () => ipcRenderer.invoke("application:get-update-state"),
   getNotice: () => ipcRenderer.invoke("application:get-notice"),
   dismissNotice: id => ipcRenderer.invoke("application:dismiss-notice", id),
+  getReportResponses: () => ipcRenderer.invoke("application:get-report-responses"),
+  acknowledgeReportResponse: responseId => {
+    return ipcRenderer.invoke("application:acknowledge-report-response", responseId)
+  },
+  onReportResponsesAvailable: callback => {
+    const listener = (_event, responses) => callback(responses)
+    ipcRenderer.on("application:report-responses-available", listener)
+    return () => {
+      ipcRenderer.removeListener("application:report-responses-available", listener)
+    }
+  },
   openNoticeLink: url => ipcRenderer.invoke("application:open-notice-link", url),
   onNoticeAvailable: callback => {
     const listener = (_event, notice) => callback(notice)

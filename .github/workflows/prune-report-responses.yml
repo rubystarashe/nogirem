@@ -1,0 +1,35 @@
+name: 오래된 REPORT 응답 정리
+
+on:
+  schedule:
+    - cron: "17 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 가져오기
+        uses: actions/checkout@v4
+
+      - name: Node.js 준비
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 7일 지난 응답 제거
+        run: node scripts/prune-report-responses.mjs
+
+      - name: 변경사항 커밋
+        run: |
+          if git diff --quiet -- REPORT.json; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add REPORT.json
+          git commit -m "chore(report): prune expired responses"
+          git push

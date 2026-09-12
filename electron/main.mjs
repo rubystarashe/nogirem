@@ -7,7 +7,7 @@ import { setTimeout as delay } from "node:timers/promises"
 import { Readable } from "node:stream"
 import { promisify } from "node:util"
 import { fileURLToPath } from "node:url"
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, screen, shell, Tray } from "electron"
 import updaterPackage from "electron-updater"
 import {
@@ -71,6 +71,12 @@ import {
   normalizeApplicationNotice,
   shouldDisplayApplicationNotice,
 } from "../src/application-notice.mjs"
+import {
+  normalizeReportResponseDocument,
+  reportIdPattern,
+  reportResponseSourceUrl,
+  selectOwnedReportResponses,
+} from "../src/report-response.mjs"
 
 const { autoUpdater } = updaterPackage
 protocol.registerSchemesAsPrivileged([{
@@ -118,6 +124,7 @@ const creatorChannelUrl = "https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zE
 const directDonationUrl = "https://thedirectdonation.org/"
 const operationPolicyUrl = "https://mabinogi.nexon.com/page/archive/guide_view.asp?id=4889849&num=7&playtarget=1"
 const bugReportFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSfx6-QVqsxgUDKsYCMAyg7A51ZYBMrMa_17OGzzQF_gGOum1w/viewform?usp=publish-editor"
+const testReportId = "00000000-0000-4000-8000-000000000001"
 const startupTrayTaskName = "Mabinogi Rem Booster Startup"
 const startupTrayLaunch = process.argv.includes("--startup-tray")
 const applicationUpdateStallTimeoutMs = 45_000
@@ -191,6 +198,8 @@ let applicationUpdateCheckPromise = null
 let applicationUpdateDownloadPromise = null
 let applicationUpdaterConfigured = false
 let applicationNoticeCheckPromise = null
+let applicationReportResponseCheckPromise = null
+const applicationReportResponseNotifiedIds = new Set()
 let applicationUpdateState = {
   phase: "idle",
   percent: 0,
@@ -686,6 +695,7 @@ function configureApplicationUpdater() {
 
 async function checkForApplicationUpdate() {
   void checkApplicationNotice()
+  void checkApplicationReportResponses()
   if (!app.isPackaged) return applicationUpdateState
   if (["available", "downloading", "downloaded"].includes(applicationUpdateState.phase)) {
     return applicationUpdateState
@@ -943,6 +953,174 @@ async function dismissApplicationNotice(id) {
   await writeJsonAtomic(getApplicationNoticeDismissedPath(), {
     id,
     dismissedAt: new Date().toISOString(),
+  })
+  return true
+}
+
+function getOwnedReportIdsPath() {
+  return join(app.getPath("userData"), "report-owned.json")
+}
+
+function getReportResponseCachePath() {
+  return join(app.getPath("userData"), "report-response-cache.json")
+}
+
+function getReportResponseAcknowledgementsPath() {
+  return join(app.getPath("userData"), "report-response-acknowledgements.json")
+}
+
+async function recordOwnedReportId(reportId) {
+  if (!reportIdPattern.test(String(reportId ?? ""))) {
+    throw new Error("진단 로그 고유값이 올바르지 않습니다")
+  }
+  const stored = await readJson(getOwnedReportIdsPath())
+  const reportIds = Array.isArray(stored?.reportIds)
+    ? stored.reportIds.filter(entry => (
+      reportIdPattern.test(String(entry?.id ?? ""))
+      && typeof entry?.createdAt === "string"
+    ))
+    : []
+  if (!reportIds.some(entry => entry.id === reportId)) {
+    reportIds.push({
+      id: reportId,
+      createdAt: new Date().toISOString(),
+    })
+  }
+  await writeJsonAtomic(getOwnedReportIdsPath(), {
+    schemaVersion: 1,
+    reportIds,
+  })
+}
+
+async function readOwnedReportIds(includeTestId = false) {
+  const stored = await readJson(getOwnedReportIdsPath())
+  const reportIds = Array.isArray(stored?.reportIds)
+    ? stored.reportIds
+      .map(entry => entry?.id)
+      .filter(id => reportIdPattern.test(String(id ?? "")))
+    : []
+  return [
+    ...new Set([
+      ...reportIds,
+      ...(includeTestId ? [testReportId] : []),
+    ]),
+  ]
+}
+
+async function readReportResponseDocument() {
+  if (!app.isPackaged) {
+    return {
+      document: normalizeReportResponseDocument(
+        await readFile(join(root, "REPORT.json"), "utf8"),
+      ),
+      localFixture: true,
+    }
+  }
+
+  const cache = await readJson(getReportResponseCachePath())
+  const cachedDocument = (() => {
+    try {
+      return cache?.document
+        ? normalizeReportResponseDocument(cache.document)
+        : null
+    } catch {
+      return null
+    }
+  })()
+  try {
+    const response = await fetch(reportResponseSourceUrl, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+      headers: {
+        "User-Agent": `nogirem/${app.getVersion()}`,
+        ...(typeof cache?.etag === "string"
+          ? { "If-None-Match": cache.etag }
+          : {}),
+      },
+    })
+    if (response.status === 304 && cachedDocument) {
+      return { document: cachedDocument, localFixture: false }
+    }
+    if (!response.ok) {
+      throw new Error(`버그 리포트 답변 조회 실패 (${response.status})`)
+    }
+    const content = await response.text()
+    const document = normalizeReportResponseDocument(content)
+    const etag = response.headers.get("etag")
+      ?? `"${createHash("sha256").update(content).digest("hex")}"`
+    await writeJsonAtomic(getReportResponseCachePath(), {
+      etag,
+      document,
+      checkedAt: new Date().toISOString(),
+    })
+    return { document, localFixture: false }
+  } catch (error) {
+    if (cachedDocument) {
+      return { document: cachedDocument, localFixture: false }
+    }
+    throw error
+  }
+}
+
+function notifyApplicationReportResponses(responses) {
+  if (
+    responses.length
+    && primaryWindow
+    && !primaryWindow.isDestroyed()
+    && !primaryWindow.webContents.isDestroyed()
+  ) {
+    primaryWindow.webContents.send("application:report-responses-available", responses)
+  }
+}
+
+async function checkApplicationReportResponses() {
+  if (applicationReportResponseCheckPromise) {
+    return applicationReportResponseCheckPromise
+  }
+  applicationReportResponseCheckPromise = (async () => {
+    try {
+      const { document, localFixture } = await readReportResponseDocument()
+      const [ownedReportIds, storedAcknowledgements] = await Promise.all([
+        readOwnedReportIds(localFixture),
+        readJson(getReportResponseAcknowledgementsPath()),
+      ])
+      const acknowledgedResponseIds = Array.isArray(storedAcknowledgements?.responseIds)
+        ? storedAcknowledgements.responseIds
+        : []
+      const responses = selectOwnedReportResponses(
+        document,
+        ownedReportIds,
+        acknowledgedResponseIds,
+      ).filter(response => (
+        !applicationReportResponseNotifiedIds.has(response.responseId)
+      ))
+      for (const response of responses) {
+        applicationReportResponseNotifiedIds.add(response.responseId)
+      }
+      notifyApplicationReportResponses(responses)
+      return responses
+    } catch (error) {
+      console.error("버그 리포트 답변 확인 실패", error)
+      return []
+    } finally {
+      applicationReportResponseCheckPromise = null
+    }
+  })()
+  return applicationReportResponseCheckPromise
+}
+
+async function acknowledgeApplicationReportResponse(responseId) {
+  const normalizedId = String(responseId ?? "")
+  if (!normalizedId || normalizedId.length > 100) return false
+  const stored = await readJson(getReportResponseAcknowledgementsPath())
+  const responseIds = new Set(
+    Array.isArray(stored?.responseIds) ? stored.responseIds : [],
+  )
+  responseIds.add(normalizedId)
+  await writeJsonAtomic(getReportResponseAcknowledgementsPath(), {
+    schemaVersion: 1,
+    responseIds: [...responseIds],
+    updatedAt: new Date().toISOString(),
   })
   return true
 }
@@ -5091,6 +5269,7 @@ function diagnosticFileTimestamp(date = new Date()) {
 }
 
 async function createApplicationDiagnosticBundle() {
+  const reportId = randomUUID()
   const processorModels = new Map()
   for (const processor of cpus()) {
     const model = processor.model.trim() || "알 수 없음"
@@ -5116,6 +5295,7 @@ async function createApplicationDiagnosticBundle() {
     diagnosticResult(() => readRecentWindowsFailureEvents()),
   ])
   const diagnostics = {
+    reportId,
     generatedAt: new Date().toISOString(),
     application: {
       name: app.getName(),
@@ -5178,7 +5358,7 @@ async function createApplicationDiagnosticBundle() {
     },
   }
   const defaultName =
-    `nogirem-diagnostics-${app.getVersion()}-${diagnosticFileTimestamp()}.zip`
+    `nogirem-diagnostics-${app.getVersion()}-${diagnosticFileTimestamp()}-${reportId}.zip`
   const result = await dialog.showSaveDialog(primaryWindow, {
     title: "진단 로그 압축파일 저장",
     defaultPath: join(app.getPath("downloads"), defaultName),
@@ -5194,15 +5374,18 @@ async function createApplicationDiagnosticBundle() {
     outputPath,
     userDataPath: app.getPath("userData"),
     diagnostics,
+    reportId,
     redactionOptions: {
       privatePaths: [root, app.getPath("exe"), app.getAppPath()],
     },
   })
+  await recordOwnedReportId(reportId)
   shell.showItemInFolder(outputPath)
   return {
     canceled: false,
     filePath: outputPath,
     fileCount: created.fileCount,
+    reportId,
   }
 }
 
@@ -5512,6 +5695,14 @@ function registerIpc() {
   ipcMain.handle("application:dismiss-notice", (event, id) => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
     return dismissApplicationNotice(id)
+  })
+  ipcMain.handle("application:get-report-responses", event => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return []
+    return checkApplicationReportResponses()
+  })
+  ipcMain.handle("application:acknowledge-report-response", (event, responseId) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false
+    return acknowledgeApplicationReportResponse(responseId)
   })
   ipcMain.handle("application:open-notice-link", (event, url) => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) return false

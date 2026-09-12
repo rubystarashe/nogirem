@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-12 14:51
+Last Updated: 2026-09-12 22:36
 
 ## Current Objective
-0.3.8 Windows 설치본과 자동 업데이트 자산을 검증해 GitHub에 정식 배포한다.
+0.3.9 버그 리포트 UUID와 앱 내 답변 모달을 검증하고 다음 Windows 설치본을 준비한다.
 
 ## Current Status
+- 진단 ZIP마다 UUID를 생성해 파일명·`diagnostics.json`·`report.json`에 기록하고, 성공적으로 저장한 UUID를 AppData 소유 목록에 보존한다. 앱 실행 및 기존 업데이트 확인 시 GitHub Raw `REPORT.json`을 ETag 조건부 요청하고, 로컬 소유 UUID와 일치하는 미확인 답변만 모달로 표시한다. 서버에는 사용자 UUID를 보내지 않는다. 개발 앱은 예약 테스트 UUID의 `forceDisplay` 응답을 매 실행 표시하며 현재 디자인 확인용 앱을 실행했다. 답변 후 7일 지난 항목은 일일 GitHub Actions가 제거한다. REPORT·진단 회귀를 포함한 전체 Node 테스트 153개, Electron·preload·스크립트 구문 검사, 프로덕션 빌드와 lint가 통과했다.
 - 0.3.8을 Windows x64 NSIS로 빌드해 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.8)로 정식 공개했다. 전체 Node 테스트 149개, Electron·신규 DXVK 호환 모듈 구문 검사, 프로덕션 앱 빌드, input guard·Radeon·recorder·터보 키 helper Release 빌드와 패키징이 통과했고 lint 오류가 없다. electron-builder의 installer·blockmap 동시 릴리스 생성 경합에서 한 요청이 422를 반환했지만 생성된 단일 릴리스에 네 자산을 다시 업로드했다. 첫 빌드 값이 남은 `latest.yml`도 최종 installer의 실제 SHA-512·크기로 교정했다. 최종 설치본은 96,625,968바이트·SHA-256 `B53D5FB5…7946A1`, blockmap은 102,356바이트·`0020F264…3E940A`, `latest.yml`은 342바이트·`5DED6D02…94B45A`, 터보 키 helper는 291,840바이트·`D9504362…16A857`이며 GitHub SHA-256 digest와 일치한다. 최종 recorder와 패키지 내부 파일도 `8F251E6A…36BF6E`로 일치하고, `asarUnpack` MUO는 원본과 `8710993D…C1A4E`로 일치한다.
 - 0.3.7 흰 화면 진단은 Windows 10 19045, Ryzen 5 5600G 내장 Radeon `31.0.12027.9001`, GTX 1060 6GB의 NVIDIA 560.94 환경이다. 저장된 공식 DXVK v3.1 DLL과 게임 폴더 적용본의 SHA-256이 일치하고 실제 `Client.exe`도 DXVK v3.1 Vulkan swapchain을 사용했으므로 설치·상태 판정 오류가 아니다. 사용자가 Vulkan을 끄면 즉시 정상화됐으므로 흰 화면은 DXVK 경로와 인과관계가 있다. DXVK 3.x는 Vulkan 1.4급 기능과 최신 드라이버를 요구하지만 앱은 GPU 드라이버 호환성을 확인하지 않고 최신 v3.1을 허용했다. WDDM `32.0.15.6094`를 NVIDIA 560.94로 변환해 575.51 미만이면 DXVK 3.x를 비호환으로 차단하고, 릴리즈 목록에서 최신 호환 2.x를 기본 선택하도록 변경했다. 이미 적용된 비호환 버전은 `incompatible` 상태와 드라이버 호환 안내로 표시하고 IPC에서도 재적용을 거부한다. DXVK 테스트 11개, 전체 Node 테스트 149개, 구문 검사와 프로덕션 앱 빌드가 통과했으며 0.3.8 변경 기록에 반영했다.
 - 0.3.0 DXVK 진단은 Windows의 앱 네트워크 접근이 `ERR_NETWORK_ACCESS_DENIED`로 차단돼 자동 업데이트와 GitHub DXVK API가 모두 실패했고 `releases.json`이 빈 배열과 `fetch failed`만 저장한 상태다. 로컬 저장소에는 SHA-256이 확인된 공식 v3.1 DLL과 설치 메타데이터가 정상적으로 있었지만 게임 폴더의 `d3d9_dxvk.dll`은 해당 DLL과 일치하지 않아 관리 창의 `게임 적용 필요` 판정 자체는 맞았다. 다만 구버전은 최신 목록 조회가 실패하면 선택지를 `확인 전`으로 비우고 로컬 DLL 재적용도 온라인 조회에 의존했다. 최신 조회 실패를 로컬 상태에서 분리하고 검증된 설치 버전을 오프라인 선택지로 유지해 게임 폴더에 다시 적용하도록 변경했다. 적용은 됐지만 최신 여부만 조회하지 못한 메인 상태는 `applied-unverified`와 `Vulkan 적용됨 · 최신 확인 불가`로 구분한다. DXVK 테스트 10개, Electron 구문 검사와 프로덕션 앱 빌드가 통과했고 0.3.8 변경 기록에 반영했다.
@@ -361,6 +362,8 @@ Last Updated: 2026-09-12 14:51
 - 청크 호환성은 실제 캡처 frame 수에 따라 흔들리는 container frame rate 분수를 비교하지 않고 codec·해상도·sequence header로 판정한다. 저장 범위는 선택 청크의 media duration 합계에서 마지막 요청 초만 정확히 추출한다.
 - 클립·편집 remux는 영상과 AAC를 함께 복사하며 두 stream의 PTS·DTS를 청크별로 재기준화한다. 오디오 연결 실패는 영상 녹화를 중단하지 않는 부분 실패로 상태에 표시한다.
 - 진단 ZIP은 사용자 경로·IP·이메일·인증값을 마스킹하고 Ring·Clips·실행 파일·브라우저 cache를 제외한다. 파일당 최근 5MB, 전체 25MB 한도로 수집한다.
+- 진단 ZIP 생성마다 UUID를 새로 발급해 파일명과 ZIP 내부 두 메타데이터에 기록한다. 저장 완료된 UUID만 로컬 소유 목록에 추가하며 REPORT 서버에는 전송하지 않고 내려받은 응답을 로컬 대조한다.
+- 패키지 앱의 REPORT 조회는 GitHub Raw ETag를 `If-None-Match`로 재전송하고 `304` 또는 네트워크 실패 시 마지막 검증 캐시를 사용한다. 개발 앱은 패키지의 로컬 테스트 문서를 사용한다.
 - recorder helper는 설치본에 내장하고 `asarUnpack`한다. 빌드 전용 공식 C++/WinRT projection은 NuGet 2.0.240111.5를 고정 SHA-256으로 검증해 생성한다.
 - `src/turbo-key-installer.mjs`가 helper 자산명·프로토콜 버전, GitHub Release 조회, SHA-256·PE 검증, AppData 원자 설치와 실행 파일·manifest 제거를 소유한다.
 - 배포본은 현재 앱 버전 태그의 정식 GitHub Release와 고정 자산명만 허용한다. 설치 상태는 `current.json`의 helper·프로토콜 버전과 실행 파일 해시를 실행 전마다 대조한다.
@@ -489,9 +492,11 @@ Last Updated: 2026-09-12 14:51
 - 개발자 CPU 재정렬 기능은 4~52개의 짝수 논리 CPU와 기본 절반 분할 모드에서 허용한다.
 - 코드 주석은 한국어로 작성하고 JS·Svelte 줄 끝 세미콜론은 사용하지 않는다. C++처럼 문법상 필수인 언어는 예외다.
 - 진단 제보자의 이름·닉네임·진단 ZIP 파일명은 handoff와 변경 기록에 남기지 않고 증상·버전·기술 환경만 비식별화해 기록한다.
+- REPORT 응답에는 이메일·사용자명·시스템 경로 등 개인정보와 민감한 진단 원문을 기록하지 않는다.
 
 ## Pending Tasks
 1. 0.3.8 설치본을 NVIDIA 560.94·GTX 1060 환경에서 실행해 DXVK 3.x가 비호환으로 표시되고 v2.7.1이 기본 선택되며 교체 후 게임 흰 화면이 사라지는지 확인한다.
+1. 실행 중인 개발 앱에서 테스트 REPORT 답변 모달의 크기·문구·Esc·확인 동작을 시각 검증하고 실제 배포 전 `forceDisplay` 테스트 항목을 제거한다.
 1. 0.3.8 설치본에서 GitHub 접근을 차단한 채 검증된 DXVK의 게임 적용 파일을 제거하고, 관리 창이 로컬 버전을 표시하며 다운로드 없이 `게임에 적용`을 완료하는지 확인한다.
 1. 0.3.8 설치본을 RX 570·Polaris 레거시 드라이버 환경에서 실행해 기본 helper 실패 후 레거시 모드가 설정을 조회·적용하는지 확인한다.
 1. 0.3.8 설치본을 문제 환경에서 실행해 `문서\마비노기\설정\목록\주변캐릭터간소화프레임제한해제.muo`가 생성되고 게임 재시작 후 상태가 적용으로 바뀌는지 확인한다.
@@ -624,6 +629,7 @@ Last Updated: 2026-09-12 14:51
 - 시작 안정성 회귀는 정적 계약 테스트와 웹 빌드까지 통과했지만 실제 저사양·보안 프로그램 환경의 8초 강제 표시는 설치본 수동 검증이 필요하다.
 - 프레임리스 창에는 시스템 최소화 버튼이 없으며 현재 커스텀 UI는 닫기만 제공한다.
 - 앱 자동 업데이트는 패키징된 앱에서만 동작하며 GitHub Release에 설치 파일·blockmap·`latest.yml` 세 자산이 모두 있어야 한다.
+- 현재 `REPORT.json`은 개발 디자인 검증용 예약 UUID와 `forceDisplay` 응답을 포함한다. 패키지 앱은 예약 UUID를 소유 목록에 넣지 않지만 실제 배포 전 테스트 응답 자체를 제거해야 한다.
 - Affinity는 기존 단일 프로세서 그룹과 최대 52개 논리 CPU 제한을 유지하므로 다중 프로세서 그룹 시스템은 지원하지 않는다.
 - 시작 트레이 예약 작업의 실제 로그온 실행은 설치본과 Windows 재로그인이 필요해 자동 검증하지 않았다.
 
@@ -646,6 +652,9 @@ Last Updated: 2026-09-12 14:51
 - `web/App.svelte`: 고급 기능 블랙박스 UI와 전체 화면 설정 모달
 - `src/diagnostic-bundle.mjs`: 진단 로그 선별·용량 제한·개인정보 마스킹·ZIP 생성
 - `test/diagnostic-bundle.test.mjs`: 마스킹·파일 제외·ZIP 내용·IPC/UI 계약 회귀 테스트
+- `src/report-response.mjs`: REPORT 문서 검증·소유 UUID 답변 선택·7일 만료 정리
+- `REPORT.json`: GitHub Raw로 제공할 버그 리포트 답변과 현재 디자인 테스트 항목
+- `test/report-response.test.mjs`: UUID 매칭·확인·강제 표시·만료·IPC/UI 계약 회귀 테스트
 - `blackbox-editor.html`: 별도 블랙박스 영상 추출 창 구조
 - `web/blackbox-editor.js`: 고정 트랙 재생, 플레이바, 가이드 드래그, 미리보기와 추출 제어
 - `electron/blackbox-editor-preload.cjs`: 편집 창 전용 제한 IPC
@@ -694,6 +703,9 @@ Last Updated: 2026-09-12 14:51
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 진단 ZIP마다 UUID를 파일명·시스템 요약·`report.json`에 넣고 성공적으로 추출한 UUID만 AppData에 기록하도록 변경했다.
+- 앱 실행과 업데이트 확인에 REPORT ETag 조건부 조회를 연결하고 소유 UUID의 미확인 답변을 기존 흰색 모달 디자인으로 표시한다.
+- 테스트 REPORT 응답과 답변 후 7일이 지난 항목을 정리하는 스크립트·일일 GitHub Actions를 추가했다. 전체 Node 테스트 153개와 프로덕션 빌드가 통과했다.
 - NVIDIA 575.51 미만 드라이버에서는 DXVK 3.x를 비호환 처리하고 관리 창이 최신 호환 2.x를 기본 선택하도록 변경했다.
 - DXVK GitHub 조회 실패 시 검증된 로컬 버전을 선택·재적용하고 메인 화면에서 적용 완료와 최신 확인 실패를 분리 표시하도록 개선했다.
 - Radeon helper 기본 실행 실패·충돌 시 AMD 레거시 드라이버 초기화로 재시도하고 ADLX 접근 위반을 오류 JSON으로 복구하도록 개선했다.
@@ -1519,4 +1531,4 @@ Last Updated: 2026-09-12 14:51
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-0.3.8 자동 업데이트와 신규 설치를 실기기에서 확인하고, NVIDIA 560.94·GTX 1060 문제 환경에서 호환 DXVK 2.x 교체 후 흰 화면이 사라지는지 검증한다.
+실행 중인 개발 앱에서 REPORT 답변 모달 디자인과 닫기 동작을 확인한 뒤 테스트 응답을 제거하고, 0.3.8 자동 업데이트 및 NVIDIA 560.94·GTX 1060의 호환 DXVK 2.x 교체를 검증한다.
