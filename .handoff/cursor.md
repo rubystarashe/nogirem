@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-12 23:48
+Last Updated: 2026-09-13 02:28
 
 ## Current Objective
-0.3.9 버그 리포트 UUID와 앱 내 답변 모달을 검증하고 다음 Windows 설치본을 준비한다.
+0.3.9 Windows 설치본과 자동 업데이트 자산을 검증해 GitHub에 정식 배포한다.
 
 ## Current Status
+- 앱과 lockfile 버전을 0.3.9로 올렸다. 전체 Node 테스트 153개, 프로덕션 앱 빌드, input guard·Radeon·recorder·터보 키 helper Release 빌드와 Windows x64 NSIS 패키징이 통과했고 lint 오류가 없다. 설치본은 96,729,805바이트·SHA-256 `86EBF818…B70015`, blockmap은 102,439바이트·`A07B23F7…A6E23C`, `latest.yml`은 342바이트·`47386512…818FD7`, 터보 키 helper는 291,840바이트·`D9504362…16A857`이다. 배포 recorder와 패키지 내부 파일은 `40F8DB9C…38519`로 일치하고, `asarUnpack` MUO도 원본과 `8710993D…C1A4E`로 일치한다. 아직 버전 커밋·태그·원격 릴리스 게시는 진행 전이다.
 - 0.3.8 유선 패스트핑 진단에서 주 경로가 무선 랜에서 물리 `이더넷`으로 바뀐 뒤 `TcpAckFrequency=1`, `TCPNoDelay=null` 상태로 적용이 차단됐다. 유선 어댑터의 활성 타사 바인딩은 허용된 nProtect `INCA_TKFWFV`와 차단된 `nt_rtf64`였으며, 후자는 Realtek Dragon·일부 OEM 네트워크 부스트가 설치하는 Realtek LightWeight Filter (NDIS6.40)다. 이 커널 NDIS 필터는 어댑터 재시작 중 충돌·BSOD 사례가 있어 자동 허용 목록에 넣지 않았다. 대신 일반 타사 필터 오류를 Realtek 필터 해제 방법이 포함된 구체적 안내로 바꾸고, 이후 진단에 어댑터 설명과 알려진 차단 필터 분류를 포함했다. 네트워크 테스트 22개를 포함한 전체 Node 테스트 154개, 구문 검사, 프로덕션 앱 빌드와 lint가 통과했으며 0.3.9 변경 기록에 반영했다.
 - 진단 ZIP마다 UUID를 생성해 파일명·`diagnostics.json`·`report.json`에 기록하고, 성공적으로 저장한 UUID를 AppData 소유 목록에 보존한다. 앱 실행 및 기존 업데이트 확인 시 GitHub Raw `REPORT.json`을 ETag 조건부 요청하고, 로컬 소유 UUID와 일치하는 미확인 답변만 모달로 표시한다. 서버에는 사용자 UUID를 보내지 않는다. 디자인 확인용 예약 UUID와 강제 모달 응답은 제거했다. 답변 후 7일 지난 항목은 일일 GitHub Actions가 제거한다.
 - 0.3.8을 Windows x64 NSIS로 빌드해 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.8)로 정식 공개했다. 전체 Node 테스트 149개, Electron·신규 DXVK 호환 모듈 구문 검사, 프로덕션 앱 빌드, input guard·Radeon·recorder·터보 키 helper Release 빌드와 패키징이 통과했고 lint 오류가 없다. electron-builder의 installer·blockmap 동시 릴리스 생성 경합에서 한 요청이 422를 반환했지만 생성된 단일 릴리스에 네 자산을 다시 업로드했다. 첫 빌드 값이 남은 `latest.yml`도 최종 installer의 실제 SHA-512·크기로 교정했다. 최종 설치본은 96,625,968바이트·SHA-256 `B53D5FB5…7946A1`, blockmap은 102,356바이트·`0020F264…3E940A`, `latest.yml`은 342바이트·`5DED6D02…94B45A`, 터보 키 helper는 291,840바이트·`D9504362…16A857`이며 GitHub SHA-256 digest와 일치한다. 최종 recorder와 패키지 내부 파일도 `8F251E6A…36BF6E`로 일치하고, `asarUnpack` MUO는 원본과 `8710993D…C1A4E`로 일치한다.
@@ -1530,4 +1531,4 @@ Last Updated: 2026-09-12 23:48
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-`nt_rtf64`가 연결된 유선 환경에서 0.3.9의 구체적 해제 안내를 확인하고, 필터를 해제한 뒤 `TCPNoDelay=1` 적용과 어댑터 재연결을 실기기로 검증한다. 이어 실제 진단 UUID 답변 전달과 NVIDIA 560.94·GTX 1060의 호환 DXVK 2.x 교체를 확인한다.
+0.3.9 버전 변경과 재빌드된 recorder를 커밋해 `master`를 푸시하고, `v0.3.9` 정식 GitHub Release에 검증된 네 자산을 게시한 뒤 원격 digest와 최신 릴리스 상태를 확인한다.
