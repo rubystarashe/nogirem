@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-12 13:32
+Last Updated: 2026-09-12 14:51
 
 ## Current Objective
-구형 GPU 드라이버에 DXVK 3.x를 적용한 뒤 마비노기가 흰 화면으로 남는 문제를 진단하고 비호환 적용을 방지한다.
+0.3.8 Windows 설치본과 자동 업데이트 자산을 검증해 GitHub에 정식 배포한다.
 
 ## Current Status
+- 앱과 lockfile 버전을 0.3.8로 올렸다. 전체 Node 테스트 149개, Electron·신규 DXVK 호환 모듈 구문 검사, 프로덕션 앱 빌드, input guard·Radeon·recorder·터보 키 helper Release 빌드와 Windows x64 NSIS 패키징이 통과했고 lint 오류가 없다. 로컬 설치본은 96,625,803바이트·SHA-256 `E23204F1…F8E76B`, blockmap은 102,350바이트·`90FF9B43…89EEE6`, `latest.yml`은 342바이트·`CC05C173…1FC70`, 터보 키 helper는 291,840바이트·`D9504362…16A857`이다. 배포 recorder와 패키지 내부 파일은 `45C54865…FE724`로 일치하고, `asarUnpack` MUO도 원본과 `8710993D…C1A4E`로 일치한다. 아직 버전 커밋·태그·원격 릴리스 게시는 진행 전이다.
 - 0.3.7 흰 화면 진단은 Windows 10 19045, Ryzen 5 5600G 내장 Radeon `31.0.12027.9001`, GTX 1060 6GB의 NVIDIA 560.94 환경이다. 저장된 공식 DXVK v3.1 DLL과 게임 폴더 적용본의 SHA-256이 일치하고 실제 `Client.exe`도 DXVK v3.1 Vulkan swapchain을 사용했으므로 설치·상태 판정 오류가 아니다. 사용자가 Vulkan을 끄면 즉시 정상화됐으므로 흰 화면은 DXVK 경로와 인과관계가 있다. DXVK 3.x는 Vulkan 1.4급 기능과 최신 드라이버를 요구하지만 앱은 GPU 드라이버 호환성을 확인하지 않고 최신 v3.1을 허용했다. WDDM `32.0.15.6094`를 NVIDIA 560.94로 변환해 575.51 미만이면 DXVK 3.x를 비호환으로 차단하고, 릴리즈 목록에서 최신 호환 2.x를 기본 선택하도록 변경했다. 이미 적용된 비호환 버전은 `incompatible` 상태와 드라이버 호환 안내로 표시하고 IPC에서도 재적용을 거부한다. DXVK 테스트 11개, 전체 Node 테스트 149개, 구문 검사와 프로덕션 앱 빌드가 통과했으며 0.3.8 변경 기록에 반영했다.
 - 0.3.0 DXVK 진단은 Windows의 앱 네트워크 접근이 `ERR_NETWORK_ACCESS_DENIED`로 차단돼 자동 업데이트와 GitHub DXVK API가 모두 실패했고 `releases.json`이 빈 배열과 `fetch failed`만 저장한 상태다. 로컬 저장소에는 SHA-256이 확인된 공식 v3.1 DLL과 설치 메타데이터가 정상적으로 있었지만 게임 폴더의 `d3d9_dxvk.dll`은 해당 DLL과 일치하지 않아 관리 창의 `게임 적용 필요` 판정 자체는 맞았다. 다만 구버전은 최신 목록 조회가 실패하면 선택지를 `확인 전`으로 비우고 로컬 DLL 재적용도 온라인 조회에 의존했다. 최신 조회 실패를 로컬 상태에서 분리하고 검증된 설치 버전을 오프라인 선택지로 유지해 게임 폴더에 다시 적용하도록 변경했다. 적용은 됐지만 최신 여부만 조회하지 못한 메인 상태는 `applied-unverified`와 `Vulkan 적용됨 · 최신 확인 불가`로 구분한다. DXVK 테스트 10개, Electron 구문 검사와 프로덕션 앱 빌드가 통과했고 0.3.8 변경 기록에 반영했다.
 - 0.3.7 그래픽 진단은 Windows 10 19045, Ryzen 5 3500, Radeon RX 570, 드라이버 `31.0.21923.11000` 환경이다. 설치본은 정적 런타임이 적용된 0.3.7 helper를 정상 경로에서 실행했지만 helper가 JSON·stderr를 남기기 전에 비정상 종료해 화면에 실행 파일 경로와 `Command failed`만 표시됐다. AMD는 일부 레거시 GPU·드라이버에서 기본 ADLX 초기화가 지원되지 않을 수 있어 `InitializeWithIncompatibleDriver()` 사용을 권장한다. 기본 초기화 실패 시 helper 내부에서 레거시 초기화로 전환하고, 프로세스 자체가 충돌하면 Electron이 `--legacy-driver`로 새 프로세스를 한 번 더 실행하도록 했다. 두 실행 모두 ADLX 접근 위반이 발생하면 SEH가 종료 코드 포함 한국어 오류 JSON을 반환한다. Radeon 테스트 5개, 전체 Node 테스트 148개, 두 초기화 모드의 실제 실행, 프로덕션 앱 빌드와 경고 없는 Release 빌드가 통과했다. 새 helper는 268,800바이트·SHA-256 `A5E87647…B12D64`이며 0.3.8 변경 기록에 반영했다.
@@ -490,6 +491,7 @@ Last Updated: 2026-09-12 13:32
 - 진단 제보자의 이름·닉네임·진단 ZIP 파일명은 handoff와 변경 기록에 남기지 않고 증상·버전·기술 환경만 비식별화해 기록한다.
 
 ## Pending Tasks
+1. 0.3.8 버전 커밋을 생성하고 `master`를 푸시한 뒤 `v0.3.8` 태그와 GitHub Release를 게시해 네 배포 자산의 원격 크기·digest·공개 상태를 검증한다.
 1. 0.3.8 설치본을 NVIDIA 560.94·GTX 1060 환경에서 실행해 DXVK 3.x가 비호환으로 표시되고 v2.7.1이 기본 선택되며 교체 후 게임 흰 화면이 사라지는지 확인한다.
 1. 0.3.8 설치본에서 GitHub 접근을 차단한 채 검증된 DXVK의 게임 적용 파일을 제거하고, 관리 창이 로컬 버전을 표시하며 다운로드 없이 `게임에 적용`을 완료하는지 확인한다.
 1. 0.3.8 설치본을 RX 570·Polaris 레거시 드라이버 환경에서 실행해 기본 helper 실패 후 레거시 모드가 설정을 조회·적용하는지 확인한다.
@@ -1518,4 +1520,4 @@ Last Updated: 2026-09-12 13:32
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-0.3.8로 패키징한 뒤 GTX 1060·NVIDIA 560.94 문제 환경에서 DXVK 관리 창의 권장 버전이 v2.7.1로 선택되는지 확인하고, 마비노기를 종료한 상태에서 교체 후 흰 화면이 사라지는지 검증한다.
+0.3.8 버전 변경과 재빌드된 recorder를 커밋하고 `master`를 푸시한 뒤 정식 GitHub Release를 게시하고 네 자산의 원격 digest를 로컬 SHA-256과 대조한다.
