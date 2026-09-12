@@ -6,6 +6,7 @@ import {
   buildCpuTopologyMasks,
   defaultGamePhysicalCoreCount,
   hasLiveAppliedAffinityEntries,
+  listNativeProcesses,
   matchesGameProcess,
 } from "../src/affinity.mjs"
 
@@ -84,6 +85,14 @@ test("지원하지 않는 논리 CPU 수는 마스크를 만들지 않는다", (
   assert.throws(() => buildCpuHalfMasks(54), /Unsupported logical CPU count/)
 })
 
+test("프로세스 목록을 PowerShell 없이 Win32 스냅샷으로 조회한다", () => {
+  const processes = listNativeProcesses()
+  const current = processes.find(processInfo => processInfo.pid === process.pid)
+
+  assert.ok(current)
+  assert.match(current.name, /\.exe$/i)
+})
+
 test("4코어 비하이브리드 CPU는 백그라운드 1코어를 남기고 게임에 3코어를 준다", () => {
   const cpuSets = Array.from({ length: 8 }, (_, logicalProcessorIndex) => ({
     group: 0,
@@ -154,7 +163,10 @@ test("CPU 코어 선택 UI와 IPC가 영구 설정 경로에 연결된다", asyn
   assert.match(mainSource, /failureReason/)
   assert.match(mainSource, /attempt < 450/)
   assert.match(mainSource, /CPU 재정렬 원상복구 확인이 지연되고 있습니다/)
-  assert.match(affinitySource, /timeout: 10000/)
+  assert.doesNotMatch(affinitySource, /powershell\.exe/i)
+  assert.match(affinitySource, /CreateToolhelp32Snapshot/)
+  assert.match(affinitySource, /Process32FirstW/)
+  assert.match(affinitySource, /Process32NextW/)
   assert.doesNotMatch(affinitySource, /path=\$_\.Path/)
   assert.doesNotMatch(affinitySource, /startTime=if\(\$_\.StartTime\)/)
   assert.match(affinitySource, /ProcessIdToSessionId/)

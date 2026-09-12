@@ -1,18 +1,19 @@
-import { execFile } from "node:child_process"
 import { existsSync } from "node:fs"
-import { promisify } from "node:util"
 import { cpus } from "node:os"
 import { readFile, writeFile, unlink } from "node:fs/promises"
 import { basename, dirname, join } from "node:path"
 import { setTimeout as delay } from "node:timers/promises"
 import { DataType, PointerType, createPointer, freePointer, load, open, restorePointer } from "ffi-rs"
 
-const execFileAsync = promisify(execFile)
-
 open({ library: "kernel32", path: "kernel32.dll" })
 
 const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 const PROCESS_SET_INFORMATION = 0x0200
+const TH32CS_SNAPPROCESS = 0x00000002
+const PROCESS_ENTRY_SIZE_X64 = 568
+const PROCESS_ENTRY_PID_OFFSET = 8
+const PROCESS_ENTRY_NAME_OFFSET = 44
+const PROCESS_ENTRY_NAME_BYTES = 260 * 2
 const ERROR_INSUFFICIENT_BUFFER = 122
 
 function nativeCall(funcName, retType, paramsType, paramsValue) {
@@ -139,6 +140,48 @@ function queryProcessStartTime(pid) {
     return new Date(getProcessStartTime(pid)).toISOString()
   } catch {
     return null
+  }
+}
+
+export function listNativeProcesses() {
+  const snapshot = nativeCall(
+    "CreateToolhelp32Snapshot",
+    DataType.External,
+    [DataType.U32, DataType.U32],
+    [TH32CS_SNAPPROCESS, 0],
+  )
+  if (!snapshot) throw new Error(`프로세스 목록 조회 실패 (Win32 ${lastError()})`)
+
+  const entry = Buffer.alloc(PROCESS_ENTRY_SIZE_X64)
+  entry.writeUInt32LE(PROCESS_ENTRY_SIZE_X64, 0)
+  const processes = []
+  try {
+    let available = nativeCall(
+      "Process32FirstW",
+      DataType.Boolean,
+      [DataType.External, DataType.U8Array],
+      [snapshot, entry],
+    )
+    while (available) {
+      const pid = entry.readUInt32LE(PROCESS_ENTRY_PID_OFFSET)
+      const name = entry
+        .subarray(
+          PROCESS_ENTRY_NAME_OFFSET,
+          PROCESS_ENTRY_NAME_OFFSET + PROCESS_ENTRY_NAME_BYTES,
+        )
+        .toString("utf16le")
+        .split("\0", 1)[0]
+      if (name) processes.push({ pid, name })
+      available = nativeCall(
+        "Process32NextW",
+        DataType.Boolean,
+        [DataType.External, DataType.U8Array],
+        [snapshot, entry],
+      )
+    }
+    return processes
+  } finally {
+    closeHandle(snapshot)
   }
 }
 
@@ -474,27 +517,7 @@ export async function createAffinityManager({
   const isGame = processInfo => matchesGameProcess(processInfo, config)
 
   async function listProcesses() {
-    const ps = String.raw`
-$ErrorActionPreference='SilentlyContinue'
-[Console]::OutputEncoding=[Text.UTF8Encoding]::new()
-Get-Process | ForEach-Object {
-  [pscustomobject]@{
-    pid=$_.Id
-    name=($_.ProcessName+'.exe')
-  }
-} | ConvertTo-Json -Compress
-`
-    const { stdout } = await execFileAsync(
-      "powershell.exe",
-      ["-NoProfile", "-NonInteractive", "-Command", ps],
-      {
-        windowsHide: true,
-        maxBuffer: 16 * 1024 * 1024,
-        timeout: 10000,
-      },
-    )
-    const value = JSON.parse(stdout || "[]")
-    const processes = Array.isArray(value) ? value : [value]
+    const processes = listNativeProcesses()
     for (const processInfo of processes) {
       processInfo.path = queryProcessPath(processInfo.pid)
       processInfo.startTime = queryProcessStartTime(processInfo.pid)

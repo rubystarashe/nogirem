@@ -2,6 +2,10 @@
 
 사용자용 요약은 [VERSION_HISTORY.md](VERSION_HISTORY.md)에서 확인할 수 있습니다.
 
+## 0.3.10
+
+- affinity helper가 부스트 상태를 5초마다 갱신할 때 프로세스 PID와 이름을 얻으려고 매번 `powershell.exe Get-Process`를 실행해 작업 관리자에 PowerShell이 반복 표시됐다. 실행 경로·시작 시각·세션 ID는 이미 Win32 API로 조회하고 있었으므로 목록 열거도 `CreateToolhelp32Snapshot`과 `Process32FirstW`·`Process32NextW`로 교체했다. affinity 감시 중 외부 프로세스를 생성하지 않으며 현재 프로세스를 포함한 네이티브 목록 조회는 약 19ms에 완료됐다.
+
 ## 0.3.9
 
 - 진단 ZIP을 만들 때 제출 건마다 UUID를 생성해 파일명·`diagnostics.json`·`report.json`에 함께 기록한다. 성공적으로 저장한 UUID는 로컬 소유 목록에 보관하며 서버에는 전송하지 않는다.
