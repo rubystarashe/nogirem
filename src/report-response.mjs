@@ -53,7 +53,7 @@ export function selectOwnedReportResponses(
     return owned.has(response.reportId)
       && Number.isFinite(answeredAt)
       && expiresAt > now
-      && (response.forceDisplay === true || !acknowledged.has(response.responseId))
+      && !acknowledged.has(response.responseId)
   })
 }
 

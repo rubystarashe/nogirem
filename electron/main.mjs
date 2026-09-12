@@ -124,7 +124,6 @@ const creatorChannelUrl = "https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zE
 const directDonationUrl = "https://thedirectdonation.org/"
 const operationPolicyUrl = "https://mabinogi.nexon.com/page/archive/guide_view.asp?id=4889849&num=7&playtarget=1"
 const bugReportFormUrl = "https://docs.google.com/forms/d/e/1FAIpQLSfx6-QVqsxgUDKsYCMAyg7A51ZYBMrMa_17OGzzQF_gGOum1w/viewform?usp=publish-editor"
-const testReportId = "00000000-0000-4000-8000-000000000001"
 const startupTrayTaskName = "Mabinogi Rem Booster Startup"
 const startupTrayLaunch = process.argv.includes("--startup-tray")
 const applicationUpdateStallTimeoutMs = 45_000
@@ -992,19 +991,14 @@ async function recordOwnedReportId(reportId) {
   })
 }
 
-async function readOwnedReportIds(includeTestId = false) {
+async function readOwnedReportIds() {
   const stored = await readJson(getOwnedReportIdsPath())
   const reportIds = Array.isArray(stored?.reportIds)
     ? stored.reportIds
       .map(entry => entry?.id)
       .filter(id => reportIdPattern.test(String(id ?? "")))
     : []
-  return [
-    ...new Set([
-      ...reportIds,
-      ...(includeTestId ? [testReportId] : []),
-    ]),
-  ]
+  return [...new Set(reportIds)]
 }
 
 async function readReportResponseDocument() {
@@ -1013,7 +1007,6 @@ async function readReportResponseDocument() {
       document: normalizeReportResponseDocument(
         await readFile(join(root, "REPORT.json"), "utf8"),
       ),
-      localFixture: true,
     }
   }
 
@@ -1039,7 +1032,7 @@ async function readReportResponseDocument() {
       },
     })
     if (response.status === 304 && cachedDocument) {
-      return { document: cachedDocument, localFixture: false }
+      return { document: cachedDocument }
     }
     if (!response.ok) {
       throw new Error(`버그 리포트 답변 조회 실패 (${response.status})`)
@@ -1053,10 +1046,10 @@ async function readReportResponseDocument() {
       document,
       checkedAt: new Date().toISOString(),
     })
-    return { document, localFixture: false }
+    return { document }
   } catch (error) {
     if (cachedDocument) {
-      return { document: cachedDocument, localFixture: false }
+      return { document: cachedDocument }
     }
     throw error
   }
@@ -1079,9 +1072,9 @@ async function checkApplicationReportResponses() {
   }
   applicationReportResponseCheckPromise = (async () => {
     try {
-      const { document, localFixture } = await readReportResponseDocument()
+      const { document } = await readReportResponseDocument()
       const [ownedReportIds, storedAcknowledgements] = await Promise.all([
-        readOwnedReportIds(localFixture),
+        readOwnedReportIds(),
         readJson(getReportResponseAcknowledgementsPath()),
       ])
       const acknowledgedResponseIds = Array.isArray(storedAcknowledgements?.responseIds)

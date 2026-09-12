@@ -42,22 +42,6 @@ test("자신이 추출한 진단 로그의 미확인 답변만 선택한다", ()
   assert.deepEqual(selected.map(item => item.responseId), ["response-1"])
 })
 
-test("강제 디자인 응답은 확인 기록이 있어도 표시한다", () => {
-  const document = normalizeReportResponseDocument({
-    schemaVersion: 1,
-    responses: [response({ forceDisplay: true })],
-  })
-
-  const selected = selectOwnedReportResponses(
-    document,
-    [ownedReportId],
-    ["response-1"],
-    Date.parse("2026-09-13T00:00:00.000Z"),
-  )
-
-  assert.equal(selected.length, 1)
-})
-
 test("답변 시각이 7일 지난 항목을 정리한다", () => {
   const document = normalizeReportResponseDocument({
     schemaVersion: 1,
@@ -95,5 +79,5 @@ test("REPORT 조회와 모달이 시작 및 업데이트 확인에 연결된다"
   assert.match(appSource, /report-response-content/)
   assert.match(appSource, /리포트 고유값/)
   assert.match(packageInfo, /"REPORT\.json"/)
-  assert.equal(normalizeReportResponseDocument(reportDocument).responses.length, 1)
+  assert.equal(normalizeReportResponseDocument(reportDocument).responses.length, 0)
 })
