@@ -107,18 +107,17 @@ export function createRadeonManager({
 }
 
 async function runNativeHelper(apply) {
+  const helperPath = resolveHelperPath()
   try {
-    const { stdout } = await execFileAsync(
-      resolveHelperPath(),
-      apply ? ["--apply"] : [],
-      {
+    return await runRadeonHelperWithFallback(
+      args => execFileAsync(helperPath, args, {
         windowsHide: true,
         timeout: 30000,
         encoding: "utf8",
         maxBuffer: 1024 * 1024,
-      },
+      }),
+      apply,
     )
-    return JSON.parse(stdout.trim())
   } catch (error) {
     if (error?.code === "ENOENT") {
       return {
@@ -133,6 +132,28 @@ async function runNativeHelper(apply) {
     }
     throw error
   }
+}
+
+export async function runRadeonHelperWithFallback(execute, apply) {
+  const argumentSets = [
+    apply ? ["--apply"] : [],
+    apply ? ["--legacy-driver", "--apply"] : ["--legacy-driver"],
+  ]
+  let initialError
+  for (const args of argumentSets) {
+    try {
+      const { stdout } = await execute(args)
+      return JSON.parse(stdout.trim())
+    } catch (error) {
+      if (error instanceof SyntaxError) throw error
+      if (!initialError) {
+        initialError = error
+        continue
+      }
+      throw error
+    }
+  }
+  throw initialError
 }
 
 const defaultManager = createRadeonManager({ runHelper: runNativeHelper })

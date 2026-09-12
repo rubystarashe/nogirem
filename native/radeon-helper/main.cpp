@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -217,13 +218,14 @@ void printResult(
     std::cout << output.str() << std::endl;
 }
 
-int main(int argc, char** argv)
+int runHelper(int argc, char** argv)
 {
-    SetConsoleOutputCP(CP_UTF8);
     bool apply = false;
+    bool legacyDriver = false;
     for (int index = 1; index < argc; ++index)
     {
         if (std::string(argv[index]) == "--apply") apply = true;
+        if (std::string(argv[index]) == "--legacy-driver") legacyDriver = true;
     }
 
     std::vector<GoalState> goals = {
@@ -235,7 +237,14 @@ int main(int argc, char** argv)
     std::vector<std::string> gpuNames;
     std::string error;
 
-    ADLX_RESULT result = g_ADLX.Initialize();
+    ADLX_RESULT result = legacyDriver
+        ? g_ADLX.InitializeWithIncompatibleDriver()
+        : g_ADLX.Initialize();
+    if (!legacyDriver && !ADLX_SUCCEEDED(result))
+    {
+        g_ADLX.Terminate();
+        result = g_ADLX.InitializeWithIncompatibleDriver();
+    }
     if (!ADLX_SUCCEEDED(result))
     {
         printResult(false, gpuNames, goals, "AMD ADLX 초기화 실패: " + std::to_string(result));
@@ -293,4 +302,24 @@ int main(int argc, char** argv)
     g_ADLX.Terminate();
     printResult(!gpuNames.empty(), gpuNames, goals, error);
     return 0;
+}
+
+int main(int argc, char** argv)
+{
+    SetConsoleOutputCP(CP_UTF8);
+    __try
+    {
+        return runHelper(argc, argv);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        std::printf(
+            "{\"detected\":false,\"gpus\":[],\"goals\":[],\"allMet\":false,"
+            "\"reason\":\"AMD \\ub4dc\\ub77c\\uc774\\ubc84 \\uc124\\uc815 API "
+            "\\uc2e4\\ud589 \\uc911 \\uc624\\ub958\\uac00 \\ubc1c\\uc0dd"
+            "\\ud588\\uc2b5\\ub2c8\\ub2e4 (0x%08lX)\"}\n",
+            GetExceptionCode());
+        std::fflush(stdout);
+        return 0;
+    }
 }

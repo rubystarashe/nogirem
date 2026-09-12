@@ -3,6 +3,7 @@ import test from "node:test"
 import {
   createRadeonManager,
   normalizeRadeonResult,
+  runRadeonHelperWithFallback,
 } from "../src/radeon.mjs"
 
 function helperResult(overrides = {}) {
@@ -102,4 +103,19 @@ test("Radeon 적용 후 남은 목표가 있으면 실패한다", async () => {
   })
 
   await assert.rejects(() => manager.apply(), /Radeon Anti-Lag 켜기/)
+})
+
+test("Radeon helper 비정상 종료 시 레거시 드라이버 모드로 재시도한다", async () => {
+  const calls = []
+  const result = await runRadeonHelperWithFallback(async args => {
+    calls.push(args)
+    if (calls.length === 1) throw new Error("helper crash")
+    return { stdout: JSON.stringify(helperResult()) }
+  }, true)
+
+  assert.equal(result.detected, true)
+  assert.deepEqual(calls, [
+    ["--apply"],
+    ["--legacy-driver", "--apply"],
+  ])
 })

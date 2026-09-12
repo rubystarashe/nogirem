@@ -5,6 +5,7 @@
 ## 0.3.8
 
 - 0.3.7 설치본은 ASAR 내부 간소화 MUO를 `copyFile()`로 문서 폴더에 복사할 때 Electron이 만든 임시 원본을 비동기 복사 전에 정리해 `ENOENT`가 발생했다. 앱을 재시작해도 매번 같은 단계에서 실패했다. ASAR 원본을 버퍼로 먼저 읽고 대상에 기록한 뒤 바이트 일치를 검증하며, MUO 자산을 `asarUnpack`으로 물리 배치해 임시 추출 경로에 의존하지 않도록 수정했다.
+- Windows 10·Radeon RX 570·Polaris용 23.11.1 계열 드라이버 환경에서 ADLX helper가 JSON을 반환하기 전에 비정상 종료해 그래픽 설정 전체가 `Command failed`로 표시됐다. 기본 ADLX 초기화가 실패하면 AMD가 레거시 GPU·드라이버에 권장하는 incompatible-driver 초기화로 전환하고, helper 프로세스 자체가 종료되면 Electron이 레거시 모드로 한 번 더 실행한다. ADLX 내부 접근 위반도 구조화된 한국어 오류 JSON으로 변환해 앱과 진단에서 원인 코드를 확인할 수 있게 했다.
 
 ## 0.3.7
 
