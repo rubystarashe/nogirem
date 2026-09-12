@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-12 02:23
+Last Updated: 2026-09-12 11:13
 
 ## Current Objective
-0.3.7 환경에서 간헐적인 시스템 프리징과 강제 재부팅이 발생한 원인을 진단한다.
+0.3.7 설치본에서 주변 캐릭터 강제 간소화 MUO가 문서의 마비노기 설정 목록에 복사되지 않는 문제를 수정한다.
 
 ## Current Status
+- 0.3.7 진단의 세 앱 시작에서 모두 `copyfile ...Temp\<UUID>.tmp.muo -> Documents\마비노기\설정\목록\주변캐릭터간소화프레임제한해제.muo`가 `ENOENT`로 실패했다. 대상 폴더나 문서 경로가 아니라 ASAR 내부 원본을 `copyFile()`이 임시 추출한 뒤 비동기 복사 전에 임시 파일이 사라지는 것이 원인이다. 원본을 `readFile()`로 버퍼에 유지한 뒤 `writeFile()`하고 바이트 일치를 검증하도록 바꿨으며 `assets/*.muo`를 `asarUnpack`으로 물리 배치했다. 회귀 테스트 25개와 전체 Node 테스트, 구문 검사, Vite 빌드, Windows unpacked 패키징이 통과했다. 패키지의 물리 MUO와 원본 SHA-256은 `8710993D…C1A4E`로 일치한다. 0.3.8 변경 기록에 반영했다.
 - 0.3.7 프리징 진단은 Ryzen 5 7500F 6C/12T, RTX 4060 Ti, 32GB 환경이다. Windows Event 41·6008로 2026-09-12 01:28:48과 01:49:42의 비정상 종료가 확인되며 BugCheck 1001은 없다. 첫 재부팅 뒤 Nogirem 시작 기록 없이 두 번째 프리징이 발생했고 앱은 두 번째 재부팅 뒤 01:54에 시작했으므로 적어도 두 번째 프리징은 Nogirem·affinity·memory helper가 원인이 될 수 없다. 강제 종료로 affinity·memory 상태와 lock·applied marker·DXVK cache가 NUL로 손상됐지만 앱은 복구했다. 현재 메모리는 16GB 이상 여유이고 cleanup은 실행되지 않았으며 블랙박스·터보 키·입력 방지는 꺼져 있고 DXVK도 적용되지 않았다. affinity는 당시 약 130개 사용자 프로세스를 배치했으며 게임 코어 4→3 변경 tick이 12초 걸려 Electron의 10초 대기를 초과했지만 완료됐다. 이는 설정 작업 지연은 설명해도 앱 미실행 상태의 시스템 프리징은 설명하지 못한다. WHEA·Display/nvlddmkm·LiveKernelEvent·스토리지·전원 이벤트가 현재 진단 대상에 없어 하드웨어/펌웨어/드라이버/전원 중 세부 원인은 아직 확정할 수 없다.
 - 커밋 `69da9d8`과 태그 `v0.3.7`을 원격에 푸시하고 [GitHub Release](https://github.com/rubystarashe/nogirem/releases/tag/v0.3.7)로 정식 공개했다. 릴리스는 draft·prerelease가 아니며 installer·blockmap·`latest.yml`·터보 키 helper 네 자산의 원격 크기와 GitHub SHA-256 digest가 로컬 검증값과 모두 일치한다. 원격 `master`, 태그와 릴리스 커밋도 `69da9d8`로 일치한다.
 - 앱과 lockfile 버전을 0.3.7로 올렸다. 전체 Node 테스트 146개, 변경 모듈 구문 검사, 프로덕션 앱 빌드, 네이티브 helper 전체 Release 빌드와 Windows x64 NSIS 패키징이 통과했고 lint 오류가 없다. 설치본은 96,465,336바이트·SHA-256 `11181964…6F23F`, blockmap은 102,174바이트·`8B130DAC…06CA8`, `latest.yml`은 342바이트·`A14D50CE…61822`, 터보 키 helper는 291,840바이트·`D9504362…16A857`이다. 배포 recorder와 Release 산출물 SHA-256은 `09A1EC84…58067`로 일치한다.
@@ -485,6 +486,7 @@ Last Updated: 2026-09-12 02:23
 - 진단 제보자의 이름·닉네임·진단 ZIP 파일명은 handoff와 변경 기록에 남기지 않고 증상·버전·기술 환경만 비식별화해 기록한다.
 
 ## Pending Tasks
+1. 0.3.8 설치본을 문제 환경에서 실행해 `문서\마비노기\설정\목록\주변캐릭터간소화프레임제한해제.muo`가 생성되고 게임 재시작 후 상태가 적용으로 바뀌는지 확인한다.
 1. 앱을 완전히 재시작해 흰색 공지 카드가 화면 중앙에서 상하좌우 여백을 유지하고 이미지·링크·내부 스크롤·확인·Esc 닫기가 정상인지 시각 확인한다.
 1. 수정된 다음 설치본을 프로세스가 많은 환경에서 실행해 affinity helper가 10초 뒤 종료되지 않고 마비노기 감지 후 `실시간 부스트중`으로 전환되는지 확인한다.
 1. 블루스크린 진단 환경에서 `C:\Windows\Minidump\091026-23359-01.dmp`를 받아 WinDbg `!analyze -v`와 멈춘 프로세서·DPC/ISR 스택을 확인한다. 확보 전에는 반복 재현을 요구하지 않고 프레임 부스트를 끈다.
@@ -560,6 +562,7 @@ Last Updated: 2026-09-12 02:23
 20. 마비노기 전면 창에서 `2 누름 → 3 누름 → 일반 키 4 누름·해제 → 3 해제 → 2 해제` 순서로 실제 입력 전환을 확인한다.
 
 ## Known Issues
+- 간소화 MUO 설치 수정은 Windows unpacked 패키지 구조와 해시까지 검증했지만 문제 환경의 실제 문서 폴더 복사와 게임 반영은 다음 설치본에서 확인해야 한다.
 - Ryzen 5 7500F 환경에서 BugCheck 없는 시스템 프리징·강제 재부팅이 반복됐다. Nogirem이 실행되지 않은 재부팅 사이에도 재발해 앱 단독 원인은 배제되지만, 현재 진단에는 WHEA·GPU TDR·LiveKernelEvent·스토리지 이벤트와 하드웨어 설정이 없어 전원·EXPO/PBO/Curve Optimizer·BIOS·칩셋/GPU/스토리지 드라이버를 구분할 수 없다.
 - Ryzen 7 5800X3D 환경에서 반복 `CLOCK_WATCHDOG_TIMEOUT (0x101)`이 확인됐다. 이벤트만으로는 하드웨어/펌웨어 불안정과 커널 드라이버의 장시간 인터럽트 차단을 구분할 수 없으므로 최신 minidump 분석이 필요하다. CPU Arg4가 `1`·`2`·`10`으로 바뀌며 발생했고 0.2.5~0.3.4에서 반복되므로 특정 앱 버전이나 단일 논리 코어 문제로 단정하면 안 된다.
 - 빠른 클립은 청크 단위 무인코딩 저장이므로 설정 길이보다 최대 현재 청크 길이 미만만큼 길 수 있다. 정확한 시작·종료가 필요하면 영상 추출을 사용한다.
@@ -613,6 +616,10 @@ Last Updated: 2026-09-12 02:23
 - 시작 트레이 예약 작업의 실제 로그온 실행은 설치본과 Windows 재로그인이 필요해 자동 검증하지 않았다.
 
 ## Key Files
+- `assets/주변캐릭터간소화프레임제한해제.muo`: 문서의 마비노기 설정 목록에 설치하는 간소화 설정 원본
+- `electron/main.mjs`: 패키지 MUO 읽기·대상 기록·바이트 검증과 간소화 상태 조회
+- `package.json`: MUO를 물리 파일로 배치하는 `asarUnpack` 설정
+- `test/application-reliability.test.mjs`: ASAR 임시 `copyFile()` 재사용 방지와 설치 검증 계약 테스트
 - `NOTICE.md`: GitHub Raw로 제공되는 이미지·링크 포함 원격 공지 원문
 - `src/application-notice.mjs`: 공지 크기 제한, SHA-256 ID와 닫기 여부 판정
 - `test/application-notice.test.mjs`: 공지 해시·예시 문서·IPC·모달·패키징 회귀 테스트
@@ -674,6 +681,7 @@ Last Updated: 2026-09-12 02:23
 - `vite.config.mjs`: Svelte 렌더러 빌드 설정
 
 ## Recent Changes
+- 간소화 MUO 설치를 ASAR 임시 원본 `copyFile()`에서 버퍼 읽기·기록·바이트 검증 방식으로 교체하고 MUO를 `asarUnpack`에 포함했다.
 - 이미지·링크를 지원하는 원격 NOTICE 모달과 닫은 문서 SHA-256 저장을 구현하고, 디자인 확인용 항상 표시 플래그를 켰다.
 - 0.3.4 태그와 단일 GitHub Release를 공개하고 네 배포 자산의 크기·SHA-256·HTTP 200을 원격 검증했다.
 - 0.3.4 전체 테스트와 Windows 패키징을 완료하고 설치본 내부 세 C++ helper의 정적 런타임 및 네 배포 자산의 크기·해시를 검증했다.
@@ -1495,4 +1503,4 @@ Last Updated: 2026-09-12 02:23
 - 정확 재인코딩의 첫 PCM sample 내부에서 요청 시점 전 frame을 제거해 AAC frame 경계의 최대 약 21ms 선행도 없앴다. 실제 비정렬 시작점 추출은 통과했지만 실행 중 recorder 잠금 때문에 배포용 local bin 갱신은 남아 있다.
 
 ## Next Recommended Step
-프리징 환경에서 Nogirem을 실행하지 않은 채 기본 BIOS 설정으로 확인하고, 재발 시 이벤트 뷰어의 WHEA-Logger·Display/nvlddmkm·Kernel-Power 전후 이벤트와 신뢰성 기록의 LiveKernelEvent 코드를 확보한다. EXPO/PBO/Curve Optimizer가 켜져 있으면 우선 기본값으로 되돌리고 BIOS·AMD 칩셋·NVIDIA 드라이버 및 전원 연결을 점검한다.
+0.3.8로 패키징한 뒤 문제 환경에서 앱을 실행해 문서의 마비노기 설정 목록에 간소화 MUO가 생성되고, 마비노기 재시작 후 `DummyCharRenderModeFPS=-1` 적용 상태가 표시되는지 확인한다.

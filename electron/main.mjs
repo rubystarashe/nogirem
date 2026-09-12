@@ -6282,8 +6282,14 @@ async function installCharacterSimplificationFile() {
   const sourcePath = join(root, "assets", characterSimplificationFileName)
   const settingsDirectory = join(app.getPath("documents"), "마비노기", "설정")
   const destinationDirectory = join(settingsDirectory, "목록")
+  const destinationPath = join(destinationDirectory, characterSimplificationFileName)
+  const source = await readFile(sourcePath)
   await mkdir(destinationDirectory, { recursive: true })
-  await copyFile(sourcePath, join(destinationDirectory, characterSimplificationFileName))
+  await writeFile(destinationPath, source)
+  const installed = await readFile(destinationPath)
+  if (!installed.equals(source)) {
+    throw new Error("주변 캐릭터 간소화 파일 복사 검증에 실패했습니다")
+  }
   await unlink(join(settingsDirectory, characterSimplificationFileName)).catch(error => {
     if (error?.code !== "ENOENT") throw error
   })

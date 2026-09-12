@@ -104,6 +104,7 @@
       "package.json"
     ],
     "asarUnpack": [
+      "assets/*.muo",
       "native/input-guard-helper/bin/input-guard-helper.exe",
       "native/radeon-helper/bin/radeon-helper.exe",
       "native/recorder-helper/bin/recorder-helper.exe"

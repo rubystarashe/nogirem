@@ -22,6 +22,10 @@ const applicationStyles = await readFile(
   new URL("../web/styles.css", import.meta.url),
   "utf8",
 )
+const packageSource = await readFile(
+  new URL("../package.json", import.meta.url),
+  "utf8",
+)
 const gameWave = await readFile(
   new URL("../web/GameWave.svelte", import.meta.url),
   "utf8",
@@ -334,6 +338,17 @@ test("강제 간소화 미적용 상태는 빠른 런타임 조회마다 직접 
     electronMain,
     /return \{[\s\S]*characterSimplification,[\s\S]*dxvk: dxvkRuntimeStatus/,
   )
+})
+
+test("패키지의 간소화 MUO는 ASAR 임시 copyFile 없이 문서 설정 목록에 설치한다", () => {
+  const installSource = /async function installCharacterSimplificationFile\(\) \{([\s\S]*?)\n\}/
+    .exec(electronMain)?.[1] ?? ""
+  assert.match(installSource, /const source = await readFile\(sourcePath\)/)
+  assert.match(installSource, /await writeFile\(destinationPath, source\)/)
+  assert.match(installSource, /const installed = await readFile\(destinationPath\)/)
+  assert.match(installSource, /installed\.equals\(source\)/)
+  assert.doesNotMatch(installSource, /copyFile\(/)
+  assert.match(packageSource, /"asarUnpack": \[\s*"assets\/\*\.muo"/)
 })
 
 test("helper 상태 파일 잠금 실패를 복구하고 중복 helper 실행을 막는다", () => {
