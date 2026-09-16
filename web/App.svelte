@@ -15,6 +15,7 @@
   import creatorChannelAvatarUrl from "./creator-channel-avatar.jpg"
   import directDonationLogoUrl from "./direct-donation-logo.svg"
   import GameWave from "./GameWave.svelte"
+  import { createSmoothWheelScroller } from "./smooth-wheel-scroll.mjs"
   import MarkdownBlocks from "./MarkdownBlocks.svelte"
   import Modal from "./Modal.svelte"
   import NoticeModal from "./NoticeModal.svelte"
@@ -270,8 +271,7 @@
   let pendingCreatorTab = null
   let creatorTabTransitionPhase = "idle"
   let creatorContentElement
-  let creatorScrollTarget = 0
-  let creatorScrollFrame
+  const creatorScroller = createSmoothWheelScroller(() => creatorContentElement)
   let creatorChannelProfile = null
 
   const versionText = "공개 사용자 버전"
@@ -538,47 +538,6 @@
     creatorTabTransitionPhase = "leaving"
   }
 
-  function stopCreatorScroll() {
-    if (creatorScrollFrame) cancelAnimationFrame(creatorScrollFrame)
-    creatorScrollFrame = null
-  }
-
-  function animateCreatorScroll() {
-    if (!creatorContentElement) {
-      creatorScrollFrame = null
-      return
-    }
-    const distance = creatorScrollTarget - creatorContentElement.scrollTop
-    if (Math.abs(distance) < 0.5) {
-      creatorContentElement.scrollTop = creatorScrollTarget
-      creatorScrollFrame = null
-      return
-    }
-    creatorContentElement.scrollTop += distance * 0.18
-    creatorScrollFrame = requestAnimationFrame(animateCreatorScroll)
-  }
-
-  function smoothCreatorScroll(event) {
-    if (event.ctrlKey || !creatorContentElement) return
-    const maximum = creatorContentElement.scrollHeight - creatorContentElement.clientHeight
-    if (maximum <= 0) return
-    const unit = event.deltaMode === 1
-      ? 16
-      : event.deltaMode === 2
-        ? creatorContentElement.clientHeight
-        : 1
-    const start = creatorScrollFrame
-      ? creatorScrollTarget
-      : creatorContentElement.scrollTop
-    const next = Math.max(0, Math.min(maximum, start + event.deltaY * unit * 0.8))
-    if (next === start) return
-    event.preventDefault()
-    creatorScrollTarget = next
-    if (!creatorScrollFrame) {
-      creatorScrollFrame = requestAnimationFrame(animateCreatorScroll)
-    }
-  }
-
   function finishCreatorTabTransition(event) {
     if (event.target !== event.currentTarget) return
     if (
@@ -587,8 +546,7 @@
     ) {
       creatorTab = pendingCreatorTab
       pendingCreatorTab = null
-      stopCreatorScroll()
-      creatorScrollTarget = 0
+      creatorScroller.reset()
       if (creatorContentElement) creatorContentElement.scrollTop = 0
       creatorTabTransitionPhase = "entering"
     } else if (
@@ -1988,7 +1946,7 @@
       window.clearTimeout(leftTopContentTimer)
       window.clearTimeout(creatorNavigationTimer)
       window.clearTimeout(spinnerFinishTimer)
-      stopCreatorScroll()
+      creatorScroller.stop()
       document.removeEventListener("visibilitychange", syncPageVisibility)
       window.removeEventListener("keydown", handleApplicationKeydown, true)
       removeGraphicsStatusListener()
@@ -2482,7 +2440,7 @@
             class="creator-content"
             aria-label={activeCreatorSection().label}
             bind:this={creatorContentElement}
-            onwheel={smoothCreatorScroll}
+            onwheel={creatorScroller.handleWheel}
           >
             <div
               class="creator-content-inner"
