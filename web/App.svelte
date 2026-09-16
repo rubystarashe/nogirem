@@ -2775,6 +2775,25 @@
                   {#if turboKeyNotice}
                     <span class="developer-tool-status">{turboKeyNotice}</span>
                   {/if}
+                  <div class="developer-tool-row developer-tool-row-nested overlay-tool-row">
+                    <div>
+                      <h2>오버레이</h2>
+                      <p>게임 화면의 원하는 영역을 복제해 화면 중앙 근처에 표시합니다</p>
+                    </div>
+                    <button disabled aria-label="오버레이 모듈 준비 중">
+                      준비 중
+                    </button>
+                    <div class="overlay-tool-example">
+                      <span>스킬 슬롯 지정</span>
+                      <svg viewBox="0 0 20 12" aria-hidden="true">
+                        <path d="M1 6h16m-4-4 4 4-4 4" />
+                      </svg>
+                      <strong>쿨타임을 보기 쉬운 위치에 표시</strong>
+                    </div>
+                    <small class="overlay-tool-download">
+                      기능 모듈은 터보 키처럼 별도 다운로드 방식으로 제공될 예정입니다
+                    </small>
+                  </div>
                   <div class="developer-tool-row">
                     <div>
                       <h2>게임 블랙박스</h2>

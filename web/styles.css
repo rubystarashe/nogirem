@@ -1344,6 +1344,34 @@ button.direct-donation-card:hover {
   font-size: 10px;
 }
 
+.overlay-tool-example {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #777;
+  font-size: 10px;
+}
+
+.overlay-tool-example svg {
+  width: 20px;
+  height: 12px;
+  fill: none;
+  stroke: #999;
+  stroke-width: 1.2;
+}
+
+.overlay-tool-example strong {
+  color: #555;
+  font-weight: 600;
+}
+
+.overlay-tool-download {
+  grid-column: 1 / -1;
+  color: #999;
+  font-size: 9px;
+}
+
 .developer-tool-stack {
   display: grid;
   gap: 5px;
@@ -1978,6 +2006,19 @@ button.direct-donation-card:hover {
 .creator-view.paused .developer-tool-status,
 .creator-view.paused .turbo-key-immediate-option {
   color: #999;
+}
+
+.creator-view.paused .overlay-tool-example,
+.creator-view.paused .overlay-tool-download {
+  color: #777;
+}
+
+.creator-view.paused .overlay-tool-example strong {
+  color: #aaa;
+}
+
+.creator-view.paused .overlay-tool-example svg {
+  stroke: #888;
 }
 
 .creator-view.paused .developer-tools button {
