@@ -3755,9 +3755,12 @@ async function clearBlackboxRecording() {
     })
     const completed = await waitForBlackboxStatus(
       value => Number(value?.clearCompletedId) === requestId,
-      10000,
+      60000,
     )
     if (!completed) throw new Error("순환 녹화를 제한 시간 안에 비우지 못했습니다")
+    if (Number(completed.bytesUsed) > 0) {
+      throw new Error("사용 중인 녹화 청크가 있어 일부 파일을 정리하지 못했습니다")
+    }
     await Promise.all(ringStoragePaths
       .filter(candidate => resolve(candidate).toLowerCase() !== activeRingKey)
       .map(candidate => rm(candidate, { recursive: true, force: true })))

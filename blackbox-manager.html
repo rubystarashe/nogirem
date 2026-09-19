@@ -1664,10 +1664,13 @@
           "모든 드라이브의 녹화 청크를 정리하고 있습니다",
           () => window.blackboxManager.clearRecording(),
         )
-        message.classList.remove("error")
-        message.textContent = result?.cleared
-          ? "모든 드라이브의 녹화 청크를 정리했습니다"
-          : ""
+        if (result?.cleared) {
+          message.classList.remove("error")
+          message.textContent = "모든 드라이브의 녹화 청크를 정리했습니다"
+        } else if (result?.canceled) {
+          message.classList.remove("error")
+          message.textContent = "녹화 청크 정리를 취소했습니다"
+        }
       })
       shortcutInput.addEventListener("focus", () => {
         shortcutInput.classList.add("capturing")

@@ -2188,35 +2188,36 @@
             </svg>
             <span>주변 캐릭터 강제 간소화</span>
           </button>
+          {@const dxvkState = dxvkLinkState()}
           <button
             class="dxvk-update-link"
-            class:ready={["latest", "applied-unverified"].includes(dxvkLinkState())}
-            class:warning={["not-in-use", "update-required", "incompatible", "unavailable"].includes(dxvkLinkState())}
-            class:checking={dxvkLinkState() === "checking"}
+            class:ready={["latest", "applied-unverified"].includes(dxvkState)}
+            class:warning={["not-in-use", "update-required", "incompatible", "unavailable"].includes(dxvkState)}
+            class:checking={dxvkState === "checking"}
             class:entered={leftTopContentEntered}
             onclick={openDxvkWindow}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              {#if ["not-in-use", "update-required", "incompatible", "unavailable"].includes(dxvkLinkState())}
+              {#if ["not-in-use", "update-required", "incompatible", "unavailable"].includes(dxvkState)}
                 <path d="M1 21h22L12 2 1 21Zm12-3h-2v2h2v-2Zm0-2h-2v-4h2v4Z" />
-              {:else if ["latest", "applied-unverified"].includes(dxvkLinkState())}
+              {:else if ["latest", "applied-unverified"].includes(dxvkState)}
                 <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9Z" />
               {:else}
                 <path d="M12 4V1L8 5l4 4V6a6 6 0 0 1 5.65 8H19.7A8 8 0 0 0 12 4Zm-5.65 6H4.3A8 8 0 0 0 12 20v3l4-4-4-4v3a6 6 0 0 1-5.65-8Z" />
               {/if}
             </svg>
             <span>
-              {dxvkLinkState() === "not-in-use"
+              {dxvkState === "not-in-use"
                 ? "Vulkan을 사용중이지 않음"
-                : dxvkLinkState() === "update-required"
+                : dxvkState === "update-required"
                   ? "Vulkan 업데이트가 필요함"
-                  : dxvkLinkState() === "incompatible"
+                  : dxvkState === "incompatible"
                     ? "Vulkan GPU 드라이버 호환 필요"
-                  : dxvkLinkState() === "latest"
+                  : dxvkState === "latest"
                     ? "Vulkan 최신버전 사용중"
-                    : dxvkLinkState() === "applied-unverified"
+                    : dxvkState === "applied-unverified"
                       ? "Vulkan 적용됨 · 최신 확인 불가"
-                    : dxvkLinkState() === "unavailable"
+                    : dxvkState === "unavailable"
                       ? "DXVK 상태 확인 불가"
                       : "DXVK 확인 중"}
             </span>

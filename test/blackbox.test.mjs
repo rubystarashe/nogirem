@@ -357,7 +357,13 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.match(mainSource, /application:save-blackbox-clip/)
   assert.match(mainSource, /application:clear-blackbox-recording/)
   assert.match(mainSource, /ringStoragePaths\.map\(candidate => \([\s\S]*rm\(candidate/)
+  assert.match(mainSource, /clearCompletedId\) === requestId,[\s\S]*60000/)
+  assert.match(mainSource, /Number\(completed\.bytesUsed\) > 0/)
   assert.match(mainSource, /저장된 클립은 삭제하지 않습니다/)
+  assert.match(
+    managerSource,
+    /if \(result\?\.cleared\)[\s\S]*else if \(result\?\.canceled\)/,
+  )
   assert.match(preloadSource, /getBlackboxSetting/)
   assert.match(preloadSource, /clearBlackboxRecording/)
   assert.match(packageSource, /native\/recorder-helper\/bin\/recorder-helper\.exe/)
