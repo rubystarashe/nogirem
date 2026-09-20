@@ -1,33 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-16T00:22:00.000Z",
+  "generatedAt": "2026-09-20T20:54:22.226Z",
   "responses": [
-    {
-      "reportId": "7d02ca27-fe34-4a4a-a698-dd2a5ddba0c2",
-      "responseId": "radeon-legacy-helper-20260913",
-      "answeredAt": "2026-09-13T03:09:00.000Z",
-      "expiresAt": "2026-09-20T03:09:00.000Z",
-      "title": "Radeon 그래픽 설정 오류 확인 및 개선",
-      "message": "진단에서 Radeon RX 570 레거시 드라이버 환경의 그래픽 설정 helper가 레거시 모드 재시도 후에도 종료되는 문제를 확인했습니다. 결과 출력 후 종료 과정과 비정상 종료 결과 복구를 개선했습니다. 0.3.11 업데이트 후 다시 시도해 주세요. 계속 실패하면 새로 표시되는 16진수 종료 코드와 함께 진단 로그를 다시 보내 주세요.",
-      "minimumVersion": "0.3.11"
-    },
-    {
-      "reportId": "bb7e3120-d921-41c7-befd-cca75357079b",
-      "responseId": "window-transition-flicker-20260914",
-      "answeredAt": "2026-09-13T19:27:00.000Z",
-      "expiresAt": "2026-09-20T19:27:00.000Z",
-      "title": "화면 깜빡임 확인 및 개선",
-      "message": "첨부된 진단 파일이 0바이트여서 당시 시스템 상태는 확인할 수 없었습니다. 다만 프로그램 최소화 순간 메인 창을 작업 표시줄에서 먼저 제거한 뒤 숨기면서 Windows 창 상태가 두 번 연속 전환되는 경로를 확인했습니다. 0.3.12에서는 창을 먼저 숨긴 뒤 작업 표시줄에서 제거하도록 순서를 바꿔 순간적인 깜빡임 가능성을 줄였습니다. 업데이트 후 다시 확인해 주세요. 계속 반복되면 정상 생성된 진단 ZIP과 깜빡임이 발생한 정확한 동작을 함께 보내 주세요.",
-      "minimumVersion": "0.3.12"
-    },
-    {
-      "reportId": "24a8f331-8892-4ec0-9b59-d5ddd014fd92",
-      "responseId": "audio-noise-diagnosis-20260914",
-      "answeredAt": "2026-09-13T19:27:00.000Z",
-      "expiresAt": "2026-09-20T19:27:00.000Z",
-      "title": "오디오 노이즈 진단 결과",
-      "message": "진단상 프로그램은 Windows 오디오 형식·볼륨·드라이버를 변경하지 않았고 오디오 엔진도 CPU 제한 대상에서 제외돼 있어 직접 원인은 확인되지 않았습니다. 다만 프레임 부스트가 Discord·Game Bar·Logitech 같은 사용자 백그라운드 앱의 CPU 범위를 제한하므로 특정 앱 소리에서만 노이즈가 난다면 간접 영향 가능성이 있습니다. 원인을 구분하려면 ① 프레임 부스트 끔·Vulkan 켬 ② 프레임 부스트 켬·Vulkan 끔 상태를 각각 시험한 뒤, 어느 상태에서 발생하는지와 사용 중인 오디오 출력 장치를 알려 주세요."
-    },
     {
       "reportId": "bbfcb8c1-1ce0-4cae-9a72-58d739ea1a87",
       "responseId": "fast-ping-stale-adapter-20260914",
