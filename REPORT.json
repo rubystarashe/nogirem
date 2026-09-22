@@ -1,70 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-21T22:02:31.597Z",
+  "generatedAt": "2026-09-22T21:25:41.465Z",
   "responses": [
-    {
-      "reportId": "ccfa3f7b-5375-4fe6-93f1-4b805ce734fa",
-      "responseId": "fast-ping-helper-timeout-20260915",
-      "answeredAt": "2026-09-15T00:03:00.000Z",
-      "expiresAt": "2026-09-22T00:03:00.000Z",
-      "title": "패스트핑 관리자 helper 오류 확인 및 개선",
-      "message": "진단에서 패스트핑 값은 실제로 적용되지 않은 상태였습니다. 첫 시도는 인터넷 연결 확인이 지나치게 엄격해 정상 연결을 실패로 판정했고, 이후 시도는 네트워크 helper가 결과를 남기기 전에 실행 제한 시간을 넘겨 실제 원인 대신 관리자 helper 오류가 표시됐습니다. 0.3.12에서는 DNS 또는 HTTPS 중 하나가 정상이면 연결을 인정하고, helper를 PowerShell 중계 없이 직접 실행하며 내부 작업별 제한 시간과 구체적인 실패 원인을 표시하도록 개선했습니다. 업데이트 후 패스트핑 적용을 다시 실행해 주세요. 계속 실패하면 새로 표시되는 오류와 함께 진단 로그를 보내 주세요.",
-      "minimumVersion": "0.3.12"
-    },
-    {
-      "reportId": "6cfda0f1-9a8e-4a90-b0ed-4515c557f5e8",
-      "responseId": "powershell-antivirus-command-line-20260915",
-      "answeredAt": "2026-09-15T00:03:00.000Z",
-      "expiresAt": "2026-09-22T00:03:00.000Z",
-      "title": "백신의 PowerShell 명령줄 차단 확인 및 개선",
-      "message": "진단에서 백신이 긴 PowerShell 명령줄을 차단해 패스트핑 결과 파일이 생성되지 않았고 메모리 최적화 helper도 시작되지 않은 것을 확인했습니다. 긴 명령어 전체를 백신 예외로 등록할 필요가 없도록 0.3.12에서는 동적 PowerShell 본문을 명령줄에서 제거해 짧고 고정된 명령의 표준입력으로 전달하고, 메모리·Affinity·네트워크 helper는 PowerShell을 거치지 않고 직접 실행하도록 개선했습니다. 업데이트 후 별도 명령줄 예외 없이 다시 확인해 주세요. 같은 탐지명이 계속 나타나면 차단된 새 명령줄과 진단 로그를 보내 주세요.",
-      "minimumVersion": "0.3.12"
-    },
-    {
-      "reportId": "759b051c-5c9c-4896-87e5-9c8f3d4b3b6e",
-      "responseId": "powershell-stdin-json-20260915-1",
-      "answeredAt": "2026-09-15T01:30:00.000Z",
-      "expiresAt": "2026-09-22T01:30:00.000Z",
-      "title": "패스트핑·TCP 설정 오류 확인 및 수정",
-      "message": "진단에서 0.3.12의 PowerShell 표준입력 처리 문제로 패스트핑과 TCP 자동 조정 결과가 빈 값이 되어 `Unexpected end of JSON input` 오류가 발생한 것을 확인했습니다. 같은 문제로 Windows 시작 시 트레이 실행 설정 조회도 실패할 수 있었습니다. 0.3.13에서는 여러 줄 PowerShell 본문과 한국어 문자열을 UTF-8로 끝까지 읽은 뒤 하나의 스크립트로 실행하도록 수정했습니다. 업데이트 후 패스트핑 최적화와 Windows 시작 시 트레이 실행 설정을 다시 켜 주세요. 계속 실패하면 새 진단 로그를 보내 주세요.",
-      "minimumVersion": "0.3.13"
-    },
-    {
-      "reportId": "3681b1d5-b1fc-4ba5-beb2-f338f1292244",
-      "responseId": "powershell-stdin-json-20260915-2",
-      "answeredAt": "2026-09-15T01:30:00.000Z",
-      "expiresAt": "2026-09-22T01:30:00.000Z",
-      "title": "패스트핑·TCP 설정 오류 확인 및 수정",
-      "message": "진단에서 0.3.12의 PowerShell 표준입력 처리 문제로 패스트핑과 TCP 자동 조정 결과가 빈 값이 되어 `Unexpected end of JSON input` 오류가 발생한 것을 확인했습니다. 같은 문제로 Windows 시작 시 트레이 실행 설정 조회도 실패할 수 있었습니다. 0.3.13에서는 여러 줄 PowerShell 본문과 한국어 문자열을 UTF-8로 끝까지 읽은 뒤 하나의 스크립트로 실행하도록 수정했습니다. 업데이트 후 패스트핑 최적화와 Windows 시작 시 트레이 실행 설정을 다시 켜 주세요. 계속 실패하면 새 진단 로그를 보내 주세요.",
-      "minimumVersion": "0.3.13"
-    },
-    {
-      "reportId": "0a159e33-9b88-4a97-8a9c-fe8a52128443",
-      "responseId": "powershell-stdin-json-20260915-3",
-      "answeredAt": "2026-09-15T01:30:00.000Z",
-      "expiresAt": "2026-09-22T01:30:00.000Z",
-      "title": "패스트핑·TCP 설정 오류 확인 및 수정",
-      "message": "진단에서 0.3.12의 PowerShell 표준입력 처리 문제로 패스트핑과 TCP 자동 조정 결과가 빈 값이 되어 `Unexpected end of JSON input` 오류가 발생한 것을 확인했습니다. 같은 문제로 Windows 시작 시 트레이 실행 설정 조회도 실패할 수 있었습니다. 0.3.13에서는 여러 줄 PowerShell 본문과 한국어 문자열을 UTF-8로 끝까지 읽은 뒤 하나의 스크립트로 실행하도록 수정했습니다. 업데이트 후 패스트핑 최적화와 Windows 시작 시 트레이 실행 설정을 다시 켜 주세요. 계속 실패하면 새 진단 로그를 보내 주세요.",
-      "minimumVersion": "0.3.13"
-    },
-    {
-      "reportId": "a99847cb-81f0-4895-b723-5e2ae3d04625",
-      "responseId": "powershell-stdin-json-20260915-4",
-      "answeredAt": "2026-09-15T01:30:00.000Z",
-      "expiresAt": "2026-09-22T01:30:00.000Z",
-      "title": "패스트핑·TCP 설정 오류 확인 및 수정",
-      "message": "진단에서 0.3.12의 PowerShell 표준입력 처리 문제로 패스트핑과 TCP 자동 조정 결과가 빈 값이 되어 `Unexpected end of JSON input` 오류가 발생한 것을 확인했습니다. 같은 문제로 Windows 시작 시 트레이 실행 설정 조회도 실패할 수 있었습니다. 0.3.13에서는 여러 줄 PowerShell 본문과 한국어 문자열을 UTF-8로 끝까지 읽은 뒤 하나의 스크립트로 실행하도록 수정했습니다. 업데이트 후 패스트핑 최적화와 Windows 시작 시 트레이 실행 설정을 다시 켜 주세요. 계속 실패하면 새 진단 로그를 보내 주세요.",
-      "minimumVersion": "0.3.13"
-    },
-    {
-      "reportId": "506d31c3-b057-44e2-91b2-80e3f0a6bbcd",
-      "responseId": "blackbox-editor-black-screen-20260916",
-      "answeredAt": "2026-09-15T16:24:00.000Z",
-      "expiresAt": "2026-09-22T16:24:00.000Z",
-      "title": "블랙박스 검정 화면 확인 및 개선",
-      "message": "진단에서 제보 시간대에도 블랙박스 녹화 프로세스와 청크 생성이 계속된 것을 확인해, 블랙박스가 꺼져서 영상 파일이 누락된 상황은 아니었습니다. 다만 기존 로그에는 영상 추출 편집기의 청크 로딩과 시간 이동 상태가 기록되지 않아, 청크 자체에 검정 화면이 저장됐는지 편집기가 정상 청크를 표시하지 못했는지는 확정할 수 없었습니다. 0.3.14에서는 프레임 데이터가 준비된 뒤에만 해당 시점으로 이동하고, 청크 로딩이나 시간 이동이 멈추면 자동으로 한 번 다시 불러오며 청크 경계 선택도 보정했습니다. 편집기 재생 단계도 진단 로그에 추가했습니다. 업데이트 후 같은 시간대를 다시 확인해 주세요. 계속 검정 화면이면 새 진단 ZIP과 문제가 발생한 시간대의 청크 파일을 함께 보내 주시면 원인을 확정하겠습니다.",
-      "minimumVersion": "0.3.14"
-    },
     {
       "reportId": "57eb29db-c3b2-4508-9384-4a0a17957dd0",
       "responseId": "powershell-path-startup-tray-20260916",
