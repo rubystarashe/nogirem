@@ -445,6 +445,14 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     /async function latestCompletedBlackboxAnchor\(\)[\s\S]*await flushBlackboxForEditor\(\)[\s\S]*"--mode=latest"[\s\S]*latestEndMilliseconds/,
   )
   assert.match(nativeSource, /flushRequestId > 0\)[\s\S]*joinWriterPublisher\(\)/)
+  assert.match(
+    nativeSource,
+    /std::vector<fs::path> completedChunks[\s\S]*chunkStartedMilliseconds\(left\)[\s\S]*chunkStartedMilliseconds\(right\)/,
+  )
+  assert.doesNotMatch(
+    nativeSource,
+    /std::vector<fs::path> completedChunks[\s\S]{0,1200}last_write_time/,
+  )
   assert.match(nativeSource, /mode == L"latest"/)
   assert.match(mainSource, /protocol\.handle\("nogirem-blackbox"/)
   assert.match(mainSource, /async function localVideoResponse/)

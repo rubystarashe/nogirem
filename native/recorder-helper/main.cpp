@@ -845,6 +845,8 @@ GraphicsCaptureItem createCaptureItem(HWND window) {
   return item;
 }
 
+std::int64_t chunkStartedMilliseconds(const fs::path& path);
+
 std::vector<fs::path> completedChunks(const fs::path& directory) {
   std::vector<fs::path> chunks;
   std::error_code error;
@@ -862,12 +864,10 @@ std::vector<fs::path> completedChunks(const fs::path& directory) {
     }
   }
   std::sort(chunks.begin(), chunks.end(), [](const fs::path& left, const fs::path& right) {
-    std::error_code leftError;
-    std::error_code rightError;
-    const auto leftTime = fs::last_write_time(left, leftError);
-    const auto rightTime = fs::last_write_time(right, rightError);
-    if (leftError || rightError) return left.filename() < right.filename();
-    return leftTime < rightTime;
+    const auto leftStarted = chunkStartedMilliseconds(left);
+    const auto rightStarted = chunkStartedMilliseconds(right);
+    if (leftStarted != rightStarted) return leftStarted < rightStarted;
+    return left.filename() < right.filename();
   });
   return chunks;
 }
@@ -898,7 +898,6 @@ void clearRingDirectory(const fs::path& directory) {
   removeIncompleteChunks(directory);
 }
 
-std::int64_t chunkStartedMilliseconds(const fs::path& path);
 LONGLONG compressedMediaDuration(const fs::path& input);
 
 double completedChunkDurationSeconds(const fs::path& path) {
