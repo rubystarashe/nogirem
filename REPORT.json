@@ -1,15 +1,5 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-22T21:25:41.465Z",
-  "responses": [
-    {
-      "reportId": "57eb29db-c3b2-4508-9384-4a0a17957dd0",
-      "responseId": "powershell-path-startup-tray-20260916",
-      "answeredAt": "2026-09-16T00:22:00.000Z",
-      "expiresAt": "2026-09-23T00:22:00.000Z",
-      "title": "Windows 시작 트레이 실행 오류 확인 및 수정",
-      "message": "진단에서 Windows 시작 트레이 실행이 `spawn powershell.exe ENOENT`로 반복 종료됐고, 같은 원인으로 메모리 최적화와 일부 상태 조회도 실패한 것을 확인했습니다. 실행 환경의 PATH에 Windows PowerShell 폴더가 없는데 프로그램이 파일 이름만으로 PowerShell을 실행한 것이 원인이었습니다. 교체 배포한 최신 0.3.14에서는 PATH와 무관하게 Windows 시스템의 PowerShell 고정 경로를 직접 사용합니다. 사용자 환경 변수에 경로를 수동 추가하지 않아도 되며, 최신 0.3.14 설치본으로 업데이트한 뒤 Windows 시작 시 트레이 실행을 다시 켜 주세요. 계속 실패하면 새 진단 로그를 보내 주세요.",
-      "minimumVersion": "0.3.14"
-    }
-  ]
+  "generatedAt": "2026-09-23T21:34:48.077Z",
+  "responses": []
 }
