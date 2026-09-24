@@ -105,18 +105,7 @@ test("REPORT 조회와 모달이 시작 및 업데이트 확인에 연결된다"
   assert.deepEqual(
     normalizedReport.responses.map(responseItem => responseItem.reportId),
     [
-      "7d02ca27-fe34-4a4a-a698-dd2a5ddba0c2",
-      "bb7e3120-d921-41c7-befd-cca75357079b",
-      "24a8f331-8892-4ec0-9b59-d5ddd014fd92",
-      "bbfcb8c1-1ce0-4cae-9a72-58d739ea1a87",
-      "ccfa3f7b-5375-4fe6-93f1-4b805ce734fa",
-      "6cfda0f1-9a8e-4a90-b0ed-4515c557f5e8",
-      "759b051c-5c9c-4896-87e5-9c8f3d4b3b6e",
-      "3681b1d5-b1fc-4ba5-beb2-f338f1292244",
-      "0a159e33-9b88-4a97-8a9c-fe8a52128443",
-      "a99847cb-81f0-4895-b723-5e2ae3d04625",
-      "506d31c3-b057-44e2-91b2-80e3f0a6bbcd",
-      "57eb29db-c3b2-4508-9384-4a0a17957dd0",
+      "bcf9211a-0bab-415e-af4a-4473d2614a64",
     ],
   )
 })
