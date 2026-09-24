@@ -2081,10 +2081,7 @@ bool remuxChunks(
         signature.audioSampleRate > 0
           ? 1024ll * 10000000ll / signature.audioSampleRate
           : 1024ll * 10000000ll / AudioSampleRate;
-      LONGLONG fileAudioTime = std::max<LONGLONG>(
-        0,
-        requestedStart - fileStart
-      );
+      LONGLONG fileAudioTime = 0;
       while (true) {
         DWORD actualStream = 0;
         DWORD flags = 0;
@@ -2117,16 +2114,21 @@ bool remuxChunks(
         fileAudioTime = std::max(fileAudioTime, relativeTime + duration);
         if (globalTime + duration <= audioRequestedStart) continue;
         if (globalTime >= audioRequestedEnd) break;
+        const auto skippedInputDuration = std::max<LONGLONG>(
+          0,
+          audioRequestedStart - globalTime
+        );
         const auto availableInputDuration = std::min(
           fileEnd,
           audioRequestedEnd
-        ) - globalTime;
+        ) - std::max(globalTime, audioRequestedStart);
         if (availableInputDuration <= 0) break;
         sample = retimePcmSample(
           sample.Get(),
           playbackRate,
           duration,
-          availableInputDuration
+          availableInputDuration,
+          skippedInputDuration
         );
         if (!sample) break;
         const auto mappedOutputTime = std::max<LONGLONG>(

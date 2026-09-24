@@ -767,6 +767,11 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.doesNotMatch(nativeSource, /combinedDecodedAudioDuration/)
   assert.match(nativeSource, /const LONGLONG fileStart = outputTime;/)
   assert.match(nativeSource, /const LONGLONG globalTime = fileStart \+ relativeTime;/)
+  assert.match(nativeSource, /LONGLONG fileAudioTime = 0;/)
+  assert.doesNotMatch(
+    nativeSource,
+    /LONGLONG fileAudioTime = std::max<LONGLONG>\(\s*0,\s*requestedStart - fileStart/,
+  )
   assert.match(nativeSource, /relativeTime \+ 2500000ll < fileAudioTime/)
   assert.match(nativeSource, /const auto mappedOutputTime = std::max<LONGLONG>/)
   assert.match(nativeSource, /sample->DeleteItem\(MFSampleExtension_DecodeTimestamp\)/)
@@ -789,7 +794,14 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     nativeSource,
     /const auto skippedDuration = std::max<LONGLONG>[\s\S]*availableDuration,[\s\S]*skippedDuration/,
   )
-  assert.match(nativeSource, /const auto availableInputDuration = std::min\(\s*fileEnd,\s*audioRequestedEnd\s*\) - globalTime;/)
+  assert.match(
+    nativeSource,
+    /const auto skippedInputDuration = std::max<LONGLONG>[\s\S]*audioRequestedStart - globalTime[\s\S]*availableInputDuration,[\s\S]*skippedInputDuration/,
+  )
+  assert.match(
+    nativeSource,
+    /const auto availableInputDuration = std::min\(\s*fileEnd,\s*audioRequestedEnd\s*\) - std::max\(globalTime, audioRequestedStart\);/,
+  )
   assert.match(nativeSource, /wideInteger\(arguments, L"speed-milli", 1000\)/)
   assert.match(nativeSource, /std::cerr << "PROGRESS "/)
   assert.match(nativeSource, /removeIncompleteChunks/)
