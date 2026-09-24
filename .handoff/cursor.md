@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-24 17:13
+Last Updated: 2026-09-24 17:38
 
 ## Current Objective
 0.3.16 앱의 수정 사항을 안정화하고, 개발 중인 오버레이 기능을 이후 별도 모듈 방식으로 구현한다.
@@ -14,7 +14,7 @@ Last Updated: 2026-09-24 17:13
 - Vulkan 적용 후 `latest` 이벤트가 와도 메인 화면에 이전 상태가 남던 Svelte 의존성 추적 문제를 수정했다.
 - 영상 클립의 첫 청크에서 선택 이전 오디오가 재생되던 remux 시각 초기화를 수정했다.
 - 송승준 리포트에 패스트핑 상태 조회 실패와 9950X3D 프레임 드랍 점검 절차를 답변했다.
-- 전체 Node 테스트, Vite 프로덕션 빌드와 변경 파일 lint가 통과했다.
+- 0.3.16 전체 Node 테스트 178개와 네이티브 helper·Vite·NSIS 패키징을 통과하고 GitHub Latest Release로 배포했다.
 
 ## Architecture / Important Decisions
 - 부드러운 스크롤은 `web/smooth-wheel-scroll.mjs`의 `createSmoothWheelScroller`를 앱·약관·공지에서 공유한다.
@@ -41,6 +41,7 @@ Last Updated: 2026-09-24 17:13
 ## Known Issues
 - 새 스크롤 보정은 자동 테스트와 빌드만 검증됐으며 실제 장치별 휠 감각 확인이 필요하다.
 - 일부 DXVK 버전은 Windows Smart App Control에서 `0xC0E90002`로 차단될 수 있다.
+- 0.3.16 설치본은 Authenticode 인증서 서명이 없어 Windows 검증 결과가 `NotSigned`다.
 - 오버레이 버튼은 의도적으로 `개발 중` 상태다.
 - 사용 중인 녹화 청크가 Windows 파일 잠금으로 삭제되지 않으면 정리 오류를 표시하며 해당 파일은 남는다.
 
@@ -67,6 +68,7 @@ Last Updated: 2026-09-24 17:13
 - 제보 클립의 첫 6.42초가 첫 청크 경계와 일치함을 확인하고 빠른 클립의 수정 시각 정렬을 시작 시각 정렬로 교체했다.
 - 첫 청크의 `fileAudioTime`을 선택점으로 미리 이동시키던 로직을 제거하고 경계 sample의 앞부분도 잘라냈다. 440Hz/880Hz 합성 영상의 4초 지점 추출 결과는 880Hz 구간과 2.005초 길이로 확인했다.
 - 만료된 리포트 답변 12개를 정리하고 `bcf9211a-0bab-415e-af4a-4473d2614a64` 진단 답변을 추가했다.
+- 원격 REPORT 자동 정리 커밋을 병합하고 `v0.3.16` 태그와 GitHub Release를 공개했다. 네 자산의 원격 digest가 로컬 SHA-256과 일치한다.
 
 ## Next Recommended Step
 새 helper로 실제 게임 영상의 중간 구간을 추출해 첫 청크 오디오가 선택 시점부터 시작하는지 재생 확인한다.
