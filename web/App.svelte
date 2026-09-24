@@ -2739,8 +2739,8 @@
                       <h2>오버레이</h2>
                       <p>게임 화면의 원하는 영역을 복제해 화면 중앙 근처에 표시합니다</p>
                     </div>
-                    <button disabled aria-label="오버레이 모듈 준비 중">
-                      준비 중
+                    <button disabled aria-label="오버레이 모듈 개발 중">
+                      개발 중
                     </button>
                     <div class="overlay-tool-example">
                       <span>스킬 슬롯 지정</span>

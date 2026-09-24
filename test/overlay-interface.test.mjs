@@ -19,7 +19,7 @@ test("고급 기능에 스킬 쿨타임 확인용 오버레이 인터페이스�
     applicationView,
     /기능 모듈은 터보 키처럼 별도 다운로드 방식으로 제공될 예정입니다/,
   )
-  assert.match(applicationView, /<button disabled aria-label="오버레이 모듈 준비 중">/)
+  assert.match(applicationView, /<button disabled aria-label="오버레이 모듈 개발 중">[\s\S]*개발 중/)
   assert.match(applicationStyles, /\.overlay-tool-example/)
 })
 
