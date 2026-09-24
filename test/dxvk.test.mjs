@@ -249,7 +249,15 @@ test("관리 창의 확인·설치 완료 상태를 메인 화면에 즉시 전�
   assert.match(appSource, /getDxvkRuntimeStatus\(\)/)
   assert.match(appSource, /setInterval\(syncDxvkRuntime, 2000\)/)
   assert.match(mainSource, /applicationState:[\s\S]*affinity,[\s\S]*dxvk: dxvkRuntimeStatus/)
-  assert.match(appSource, /\{@const dxvkState = dxvkLinkState\(\)\}/)
+  assert.match(
+    appSource,
+    /function dxvkLinkState\(affinityData\)[\s\S]*affinityData\?\.dxvk\?\.state/,
+  )
+  assert.match(
+    appSource,
+    /\{@const dxvkState = dxvkLinkState\(services\.affinity\.data\)\}/,
+  )
+  assert.doesNotMatch(appSource, /\{@const dxvkState = dxvkLinkState\(\)\}/)
   assert.match(appSource, /class:checking=\{dxvkState === "checking"\}/)
   assert.match(appSource, /dxvkState === "update-required"[\s\S]*Vulkan 업데이트가 필요함/)
   assert.match(appSource, /Vulkan 적용됨 · 최신 확인 불가/)

@@ -657,9 +657,9 @@
     void window.nogirem.openDxvkManager()
   }
 
-  function dxvkLinkState() {
-    const state = services.affinity.data?.dxvk?.state
-    if (services.affinity.data?.renderer?.mode === "direct3d9") return "not-in-use"
+  function dxvkLinkState(affinityData) {
+    const state = affinityData?.dxvk?.state
+    if (affinityData?.renderer?.mode === "direct3d9") return "not-in-use"
     if (
       ["latest", "update-required", "applied-unverified", "incompatible", "unavailable"]
         .includes(state)
@@ -2188,7 +2188,7 @@
             </svg>
             <span>주변 캐릭터 강제 간소화</span>
           </button>
-          {@const dxvkState = dxvkLinkState()}
+          {@const dxvkState = dxvkLinkState(services.affinity.data)}
           <button
             class="dxvk-update-link"
             class:ready={["latest", "applied-unverified"].includes(dxvkState)}
