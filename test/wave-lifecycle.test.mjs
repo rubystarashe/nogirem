@@ -18,14 +18,16 @@ function fixture() {
   function advance(ms){const until=now+ms;while(true){const next=[...timers].sort((a,b)=>a[1].at-b[1].at)[0];if(!next||next[1].at>until)break;now=next[1].at;timers.delete(next[0]);next[1].fn()}now=until}
   return {wave,advance}
 }
-test('startup completion starts ambient waves without toggling boost',()=>{
+test('startup completion waits 4.5 seconds before ambient waves',()=>{
   const {wave,advance}=fixture();wave.finishStartup();advance(450)
-  assert.equal(wave.inspect().ambientCircles,10)
+  assert.equal(wave.inspect().ambientCircles,0)
+  advance(4499);assert.equal(wave.inspect().ambientCircles,0)
+  advance(1);assert.equal(wave.inspect().ambientCircles,10)
   advance(6200);assert.equal(wave.inspect().ambientPending,true)
 })
-test('startup finale immediately hands off to ambient waves',()=>{
+test('startup finale enforces the full 4.5 second ambient delay',()=>{
   const {wave,advance}=fixture();wave.setStartupMuted(true);wave.allowStartup()
-  advance(1500);wave.finishStartup();advance(449)
+  advance(1500);wave.finishStartup();advance(10449)
   assert.equal(wave.inspect().ambientCircles,0)
   advance(1);assert.equal(wave.inspect().ambientCircles,10)
 })
