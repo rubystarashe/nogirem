@@ -25,9 +25,9 @@ test('startup completion waits 4.5 seconds before ambient waves',()=>{
   advance(1);assert.equal(wave.inspect().ambientCircles,10)
   advance(6200);assert.equal(wave.inspect().ambientPending,true)
 })
-test('startup finale enforces the full 4.5 second ambient delay',()=>{
+test('last startup wave cue enforces the full 4.5 second ambient delay',()=>{
   const {wave,advance}=fixture();wave.setStartupMuted(true);wave.allowStartup()
-  advance(1500);wave.finishStartup();advance(10449)
+  advance(1500);wave.finishStartup();advance(6949)
   assert.equal(wave.inspect().ambientCircles,0)
   advance(1);assert.equal(wave.inspect().ambientCircles,10)
 })

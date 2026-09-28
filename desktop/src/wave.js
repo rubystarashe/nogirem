@@ -516,7 +516,7 @@ window.createNogiremWave = function(canvas, onEvent) {
         6200,
         ...circles.map(circle => circle.time + (circle.duration ?? circle.size * 8)),
       )
-      ambientBlockedUntil = startedAt + finalStartupWaveEnd
+      ambientBlockedUntil = startedAt + track.at(-1)
       cancelAnimationFrame(animationFrame)
       animationFrame = null
       requestDraw()
@@ -549,7 +549,7 @@ window.createNogiremWave = function(canvas, onEvent) {
           window.clearTimeout(drawWakeTimer)
           drawWakeTimer = null
         }
-        scheduleAmbientWaves(4500)
+        if (!ambientTimer) scheduleAmbientWaves(4500)
         onstartupidle()
       }
       startupIdleTimer = window.setTimeout(finishStartupSequence, Math.max(0, Math.ceil(finalStartupWaveEnd - initialTimelineElapsed)))
