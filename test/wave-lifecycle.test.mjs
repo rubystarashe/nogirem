@@ -20,13 +20,12 @@ function fixture() {
 }
 test('startup completion starts ambient waves without toggling boost',()=>{
   const {wave,advance}=fixture();wave.finishStartup();advance(450)
-  assert.equal(wave.inspect().ambientPending,true)
-  advance(1200);assert.equal(wave.inspect().circles,10)
+  assert.equal(wave.inspect().ambientCircles,10)
   advance(6200);assert.equal(wave.inspect().ambientPending,true)
 })
 test('startup finale immediately hands off to ambient waves',()=>{
   const {wave,advance}=fixture();wave.setStartupMuted(true);wave.allowStartup()
-  advance(1500);wave.finishStartup();advance(5949)
+  advance(1500);wave.finishStartup();advance(449)
   assert.equal(wave.inspect().ambientCircles,0)
   advance(1);assert.equal(wave.inspect().ambientCircles,10)
 })

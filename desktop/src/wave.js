@@ -177,13 +177,13 @@ window.createNogiremWave = function(canvas, onEvent) {
     if (pageVisible) requestDraw()
   }
 
-  function scheduleAmbientWaves(delayMs = 1200) {
+  function scheduleAmbientWaves(delayMs = 1200, ignoreStartupBlock = false) {
     stopAmbientWaves()
     if (!ambientEnabled || !pageVisible) return
     const boostTransitionPending = backgroundTransition?.targetDark === false
     if (mode !== "background" || (darkBackground && !boostTransitionPending)) return
     const startupRemaining = Math.max(0, ambientBlockedUntil - performance.now())
-    const scheduledDelay = startupRemaining > 0
+    const scheduledDelay = startupRemaining > 0 && !ignoreStartupBlock
       ? startupRemaining + delayMs
       : delayMs
     ambientTimer = window.setTimeout(() => {
@@ -549,7 +549,9 @@ window.createNogiremWave = function(canvas, onEvent) {
           window.clearTimeout(drawWakeTimer)
           drawWakeTimer = null
         }
-        scheduleAmbientWaves(0)
+        if (!ambientTimer && !circles.some(circle => circle.kind === "ambient")) {
+          scheduleAmbientWaves(0)
+        }
         onstartupidle()
       }
       startupIdleTimer = window.setTimeout(finishStartupSequence, Math.max(0, Math.ceil(finalStartupWaveEnd - initialTimelineElapsed)))
@@ -647,7 +649,7 @@ window.createNogiremWave = function(canvas, onEvent) {
       active = true
       mode = "background"
       onstartuphidden()
-      scheduleAmbientWaves()
+      scheduleAmbientWaves(0, true)
       requestDraw()
     }, 450)
   }
