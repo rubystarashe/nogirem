@@ -1,5 +1,6 @@
 Unicode true
 !include "MUI2.nsh"
+!include "FileFunc.nsh"
 !include "LogicLib.nsh"
 !include "x64.nsh"
 Name "마비노기 렘 부스터"
@@ -8,11 +9,8 @@ UninstallIcon "${APP_DIRECTORY}\icon.ico"
 OutFile "${OUTPUT_FILE}"
 InstallDir "$PROGRAMFILES64\Nogirem"
 RequestExecutionLevel admin
+SilentInstall silent
 SetCompressor /SOLID lzma
-!define MUI_ABORTWARNING
-!define MUI_FINISHPAGE_RUN "$INSTDIR\nogirem.exe"
-!insertmacro MUI_PAGE_INSTFILES
-!insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "Korean"
@@ -79,6 +77,16 @@ Section "Install"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\NogiremDioxus" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\NogiremDioxus" "InstallLocation" "$INSTDIR"
   Delete "$APPDATA\마비노기 렘 부스터\instance\installer-close-request"
+  ${GetParameters} $1
+  ClearErrors
+  ${GetOptions} "$1" "/S" $2
+  IfErrors launch_app
+  Goto install_done
+
+  launch_app:
+  Exec '"$INSTDIR\nogirem.exe"'
+
+  install_done:
 SectionEnd
 
 Section "Uninstall"
@@ -94,7 +102,7 @@ Section "Uninstall"
     MessageBox MB_ICONSTOP "실행 중인 앱을 정상 종료한 뒤 다시 제거해 주세요."
     Abort
   ${EndIf}
-  ; User settings, recordings and original optimization snapshots are retained.
+  ; 사용자 설정, 녹화 파일, 최적화 원본 스냅샷은 유지한다.
   !include "${UNINSTALL_MANIFEST}"
   Delete "$INSTDIR\Uninstall.exe"
   Delete "$DESKTOP\마비노기 렘 부스터.lnk"

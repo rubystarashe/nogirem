@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
-const [packager, signer, bridge, workers, updater, launcher, installer] = await Promise.all([
+const [packager, signer, bridge, workers, updater, launcher, installer, installerScript] = await Promise.all([
   readFile(new URL('../scripts/package-dioxus.mjs', import.meta.url), 'utf8'),
   readFile(new URL('../scripts/sign-update.mjs', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/src/bridge.rs', import.meta.url), 'utf8'),
@@ -10,6 +10,7 @@ const [packager, signer, bridge, workers, updater, launcher, installer] = await 
   readFile(new URL('../desktop/backend/src/updater.rs', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/portable.nsi', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/backend/src/update_install.rs', import.meta.url), 'utf8'),
+  readFile(new URL('../desktop/installer.nsi', import.meta.url), 'utf8'),
 ])
 
 test('포터블 배포물은 내부 파일을 캐시에 준비하는 단일 EXE다', () => {
@@ -31,6 +32,9 @@ test('설치형과 포터블은 별도 서명 업데이트 매니페스트를 �
   assert.match(updater, /if portable\{"portable-update\.json"\}else\{"update\.json"\}/)
   assert.match(updater, /nogirem-dioxus-portable-\{\}\.exe/)
   assert.match(installer, /replace_file\(&payload,target\)/)
+  assert.match(installerScript, /SilentInstall silent/)
+  assert.match(installerScript, /\$\{GetOptions\} "\$1" "\/S"/)
+  assert.match(installerScript, /Exec '"\$INSTDIR\\nogirem\.exe"'/)
 })
 
 test('포터블도 공유 설정 경로를 사용하고 실행 위치만 업데이트 모드로 전달한다', () => {
