@@ -1,0 +1,70 @@
+import { spawn } from 'node:child_process'
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
+const root = dirname(dirname(fileURLToPath(import.meta.url)))
+function run(file, args, timeoutMs = 180_000) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(file, args, { cwd: root, stdio: 'inherit', windowsHide: true })
+    const timer = setTimeout(() => { child.kill(); reject(new Error(`${file} timed out`)) }, timeoutMs)
+    child.once('error', error => { clearTimeout(timer); reject(error) })
+    child.once('exit', code => { clearTimeout(timer); code === 0 ? resolve() : reject(new Error(`${file} exited ${code}`)) })
+  })
+}
+if (!process.env.NOGIREM_TEST_EXE) await run('cargo', ['build', '--locked', '--manifest-path', 'desktop/Cargo.toml'])
+const executable = process.env.NOGIREM_TEST_EXE || join(root, 'desktop/target/debug/nogirem-desktop.exe')
+const directory = await mkdtemp(join(tmpdir(), 'nogirem-dioxus-smoke-'))
+const reportPath = join(directory, 'report.json')
+console.log(`Smoke reports: ${directory}`)
+try {
+  await run(executable, ['--smoke-test', `--smoke-report=${reportPath}`], 60_000)
+  const report = JSON.parse(await readFile(reportPath, 'utf8'))
+  await writeFile(join(directory, 'ui.json'), JSON.stringify(report, null, 2))
+  console.log('UI smoke finished')
+  if (!report.passed) throw new Error(report.error)
+  await run(executable, ['--smoke-test', '--smoke-startup', `--smoke-report=${reportPath}`], 60_000)
+  const startup = JSON.parse(await readFile(reportPath, 'utf8'))
+  await writeFile(join(directory, 'startup.json'), JSON.stringify(startup, null, 2))
+  console.log('Startup smoke finished')
+  await run(executable, ['--smoke-test', '--smoke-visual-activity', `--smoke-report=${reportPath}`], 60_000)
+  const visualActivity = JSON.parse(await readFile(reportPath, 'utf8'))
+  await writeFile(join(directory, 'visual-activity.json'), JSON.stringify(visualActivity, null, 2))
+  if (!visualActivity.passed) throw new Error(JSON.stringify(visualActivity))
+  console.log('Visual activity: pulse/canvas pause on blur or hide, stay idle on updates, and resume on focus passed.')
+  await run(executable, ['--smoke-test', '--smoke-creator-prompt', `--smoke-report=${reportPath}`], 60_000)
+  const creatorPrompt = JSON.parse(await readFile(reportPath, 'utf8'))
+  await writeFile(join(directory, 'creator-prompt.json'), JSON.stringify(creatorPrompt, null, 2))
+  if (!creatorPrompt.passed) throw new Error(JSON.stringify(creatorPrompt))
+  console.log('Creator prompt: startup visibility, no display counting, opening clicks and two-click cutoff passed.')
+  if (!startup.passed) throw new Error(startup.error)
+  await run(executable, ['--smoke-test', '--smoke-escape', '--smoke-native-keys', `--smoke-report=${reportPath}`], 60_000)
+  const escape = JSON.parse(await readFile(reportPath, 'utf8'))
+  await writeFile(join(directory, 'escape.json'), JSON.stringify(escape, null, 2))
+  console.log('Escape smoke finished')
+  if (!escape.passed) throw new Error(JSON.stringify(escape))
+  await run(executable, ['--smoke-test', '--smoke-boost', `--smoke-report=${reportPath}`], 60_000)
+  const boost = JSON.parse(await readFile(reportPath, 'utf8'))
+  await writeFile(join(directory, 'boost-mask.json'), JSON.stringify(boost, null, 2))
+  if (!boost.passed) throw new Error(JSON.stringify(boost))
+  console.log('Boost mask: stop/start repeats, pending backend, state updates and failure rollback passed.')
+  await run(executable, ['--smoke-test', '--smoke-terms', `--smoke-report=${reportPath}`], 60_000)
+  const terms = JSON.parse(await readFile(reportPath, 'utf8'))
+  await writeFile(join(directory, 'terms-scroll.json'), JSON.stringify(terms, null, 2))
+  if (!terms.passed) throw new Error(JSON.stringify(terms))
+  console.log('Terms: smooth wheel, bottom boundary, fixed footer, cleanup and reopen passed.')
+  await run(executable, ['--smoke-test', '--smoke-announcements', `--smoke-report=${reportPath}`], 60_000)
+  const announcements = JSON.parse(await readFile(reportPath, 'utf8'))
+  await writeFile(join(directory, 'announcements.json'), JSON.stringify(announcements, null, 2))
+  if (!announcements.passed) throw new Error(JSON.stringify(announcements))
+  console.log('Announcements: table layout, report queue, duplicates, confirmation and Escape passed.')
+  await run(executable, ['--smoke-test', '--smoke-updater', `--smoke-report=${reportPath}`], 60_000)
+  const updater = JSON.parse(await readFile(reportPath, 'utf8'))
+  await writeFile(join(directory, 'updater.json'), JSON.stringify(updater, null, 2))
+  if (!updater.passed) throw new Error(JSON.stringify(updater))
+
+
+  console.log('Dioxus/WebView2: UI events, inline settings, keyboard, auxiliary windows, tray, startup audio seek, click ripple, centering and hidden prewarming passed.')
+} finally {
+  console.log(`Smoke reports retained: ${directory}`)
+}

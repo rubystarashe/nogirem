@@ -73,11 +73,10 @@ ADLX의 공개 기능 제약 때문에 Radeon 설정은 마비노기 전용이 �
 적용되며 앱을 종료해도 유지됩니다. 다른 게임에도 영향을 줄 수 있으므로 앱에서
 적용 전에 별도로 안내합니다. Radeon에는 최대 프레임 400 FPS를 적용하지 않습니다.
 
-### 자동 업데이트
+### Dioxus 전환 브랜치
 
-설치된 앱은 시작 3초 후와 실행 중 4시간마다 GitHub의 최신 정식 버전을 확인합니다.
-새 버전이 있으면 앱 안에서 다운로드 진행률을 표시하고, 다운로드가 끝나면
-`새 버전 설치` 버튼으로 업데이트할 수 있습니다.
+이 브랜치는 Dioxus Desktop / WebView2를 사용합니다. Rust 자동 업데이트는 같은 GitHub 저장소의 서명된 `update.json`을 사용합니다.
+기존 Electron은 `latest.yml`로 0.3.17 전환 버전을 받습니다. 배포 준비는 [RELEASE_PREPARATION.md](./RELEASE_PREPARATION.md)를 확인하세요. 구조와 검증 범위는 [DIOXUS_MIGRATION.md](./DIOXUS_MIGRATION.md)를 확인하세요.
 
 ## 안전한 작동 방식
 
@@ -160,49 +159,45 @@ Shift, Ctrl, Alt, Windows 키를 포함한 조합키와
 
 ## 개발
 
-Node.js 20 이상이 필요합니다. Windows 설치 파일을 만들려면
-Rust 1.98.1 `x86_64-pc-windows-msvc` 도구 체인도 필요합니다.
+개발 환경에는 Windows x64, Node.js 20 이상(빌드·테스트 도구), Rust MSVC 도구 체인, Visual Studio C++ Build Tools와
+Windows SDK, WebView2 Evergreen Runtime이 필요합니다.
 
 ```powershell
-npm install
+npm ci
 npm test
-npm run app:dev
-```
-
-프로덕션 화면 빌드와 앱 실행:
-
-```powershell
-npm run app:build
+npm run test:desktop
+npm run app:smoke
 npm run app
 ```
 
-Windows 설치 파일 패키징:
+`app:smoke`는 실제 Dioxus 창과 WebView2를 사용하지만, 최적화 서비스는 메모리상의
+모의 서비스로 대체하므로 시스템 설정을 바꾸지 않습니다. 일반 `app`은 관리자 권한으로
+기존 최적화 기능을 실행합니다. `app:dev`도 같은 Rust 개발 빌드를 실행합니다.
 
 ```powershell
+npm run app:check
+npm run app:build
 npm run package:win
 ```
 
-생성 파일:
+설치 패키징에는 NSIS가 필요합니다. `NSIS_MAKENSIS`에 `makensis.exe` 경로를 지정하거나
+NSIS 기본 설치 경로를 사용하세요. 네이티브 헬퍼는 기존 `native:*` 명령으로 빌드할 수 있으며,
+패키징은 준비된 바이너리를 그대로 사용합니다. 선택적 터보 키 헬퍼도 먼저 빌드해야 합니다.
 
-- `release/nogirem-setup-<version>.exe`
-- `release/nogirem-setup-<version>.exe.blockmap`
-- `release/latest.yml`
-- `release/turbo-key-helper-win32-x64-v<helper-version>.exe`
+생성 파일은 `release/dioxus-<version>-<timestamp>/`에 저장됩니다.
 
-## GitHub Release 배포
+- `nogirem-dioxus-setup-<version>.exe`: Windows 설치기
+- `app/`: Dioxus 실행 파일과 Rust 백엔드, 네이티브 헬퍼, 리소스 (Node 런타임 없음)
+- `turbo-key-helper-win32-x64-v<helper-version>.exe`: 별도 배포할 선택적 헬퍼
+- `build.json`: 패키지 구성 정보
 
-배포 전에 `package.json`의 버전을 올리고 변경 기록을 갱신합니다.
+설치기는 WebView2가 없으면 Microsoft 서명을 검증한 부트스트래퍼로 설치합니다.
+이 경우 인터넷 연결이 필요합니다. 기존 사용자 설정과 녹화 폴더는 보존합니다.
 
-```powershell
-gh auth login
-npm run release:github
-```
+## 배포
 
-배포 스크립트는 로그인된 GitHub CLI 토큰을 자동으로 사용합니다. CI에서는
-`GH_TOKEN` 또는 `GITHUB_TOKEN` 환경 변수를 사용할 수 있습니다. 토큰에는
-`rubystarashe/nogirem` 저장소의 Contents 쓰기 권한이 필요합니다.
-배포 전에 작업 트리가 깨끗한지 확인하고 현재 버전 태그를 생성·게시하므로,
-버전 변경 사항은 먼저 커밋해야 합니다.
-
-자동 업데이트와 선택적 터보 키 다운로드가 정상 동작하려면 GitHub 정식 Release에
-설치 파일, blockmap, `latest.yml`과 별도 터보 키 helper 자산이 모두 게시되어야 합니다.
+이 브랜치의 `release:github`은 실수로 공개하지 않도록 차단되어 있습니다. 서명된 로컬 빌드와 배포 묶음 준비는 `scripts/package-dioxus.mjs`, `scripts/prepare-release.mjs`를 사용합니다.
+태그 생성, 게시, 이전 Electron 업데이트 피드 변경은 수행하지 않습니다.
+Dioxus 릴리스의 버전은 `package.json`과 `desktop/Cargo.toml`에서 함께 관리하세요.
+선택적 터보 키 다운로드를 제공하려면 해당 버전의 정식 Release에 별도 헬퍼 자산을
+게시해야 합니다.

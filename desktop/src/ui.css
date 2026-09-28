@@ -1,0 +1,10 @@
+/* Desktop-only integration. Component visuals live in the original stylesheet. */
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+.native-error{position:fixed;inset:0;z-index:1100;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:25px;background:#fff;color:#b11}
+.native-error button{padding:7px 12px;border:1px solid #ccc;background:#f8f8f8;color:#222;cursor:pointer}
+.interface-starting .boost-home{visibility:hidden}
+.modal-sheet:focus{outline:none}
+
+/* Keep the border above the full-size canvas from the first startup paint. */
+.game-wave::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 1px #c8c8c8}
+html.nogirem-logo-mask .boost-home>img{visibility:hidden}

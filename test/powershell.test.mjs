@@ -12,7 +12,7 @@ const execFileAsync = promisify(execFile)
 
 const [powerShellSource, mainSource, networkSource, nicSource] = await Promise.all([
   readFile(new URL("../src/powershell.mjs", import.meta.url), "utf8"),
-  readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
+  readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
   readFile(new URL("../src/network.mjs", import.meta.url), "utf8"),
   readFile(new URL("../src/nic.mjs", import.meta.url), "utf8"),
 ])
@@ -69,26 +69,25 @@ process.stdout.write(stdout)
 })
 
 test("메모리와 affinity helper는 PowerShell 없이 직접 분리 실행한다", () => {
-  const helperStart = mainSource.indexOf("async function launchDetachedElectronHelper(")
-  const helperEnd = mainSource.indexOf("async function stopAffinityHelper()", helperStart)
+  const helperStart = mainSource.indexOf("async function launchDetachedServiceHelper(")
+  const helperEnd = mainSource.indexOf("async function stopAffinityHelper(", helperStart)
   const helperSource = mainSource.slice(helperStart, helperEnd)
 
-  assert.match(helperSource, /spawn\(process\.execPath, helperArguments,/)
+  assert.match(helperSource, /spawn\(app\.getPath\("exe"\), helperArguments,/)
   assert.match(helperSource, /detached: true/)
   assert.match(helperSource, /child\.unref\(\)/)
-  assert.match(helperSource, /launchMemoryHelper[\s\S]*launchDetachedElectronHelper\(helperArguments\)/)
-  assert.match(helperSource, /launchAffinityHelper[\s\S]*launchDetachedElectronHelper\(helperArguments\)/)
+  assert.match(helperSource, /launchMemoryHelper[\s\S]*launchDetachedServiceHelper\(helperArguments\)/)
+  assert.match(helperSource, /launchAffinityHelper[\s\S]*launchDetachedServiceHelper\(helperArguments\)/)
 })
 
-test("메모리 helper의 주기적 게임 감지는 네이티브 프로세스 목록을 사용한다", () => {
-  const detectionStart = mainSource.indexOf("async function detectMabinogi()")
-  const detectionEnd = mainSource.indexOf("async function runMemoryHelper()", detectionStart)
-  const detectionSource = mainSource.slice(detectionStart, detectionEnd)
-
-  assert.match(detectionSource, /listNativeProcesses\(\)/)
-  assert.match(detectionSource, /queryProcessPath\(processInfo\.pid\)/)
-  assert.match(detectionSource, /matchesGameProcess\(/)
-  assert.doesNotMatch(detectionSource, /runPowerShellScript|Get-Process|powershell\.exe/i)
+test("메모리 helper의 주기적 게임 감지는 Rust Win32 프로세스 목록을 사용한다", async () => {
+  const memory = await readFile(new URL("../desktop/backend/src/memory.rs", import.meta.url), "utf8")
+  const processes = await readFile(new URL("../desktop/backend/src/process.rs", import.meta.url), "utf8")
+  assert.match(memory, /game_watch\.active\(&config\)/)
+  assert.match(processes, /Process32FirstW/)
+  assert.match(processes, /QueryFullProcessImageNameW/)
+  assert.match(processes, /matches_game/)
+  assert.doesNotMatch(memory + processes, /runPowerShellScript|Get-Process|powershell\.exe/i)
 })
 
 test("PowerShell 표준입력 실행 결과를 UTF-8로 반환한다", {

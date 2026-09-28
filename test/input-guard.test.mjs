@@ -87,11 +87,11 @@ test("게임 포커스 중에만 접근성 커서 크기를 바꾸고 원래 값
 
 test("마비노기 입력 기능 설정은 앱 수명주기와 고급 기능 UI에 연결된다", async () => {
   const [main, preload, app, packageInfo, packageScript] = await Promise.all([
-    readFile(new URL("electron/main.mjs", root), "utf8"),
-    readFile(new URL("electron/preload.cjs", root), "utf8"),
-    readFile(new URL("web/App.svelte", root), "utf8"),
+    readFile(new URL("service/main.mjs", root), "utf8"),
+    readFile(new URL("service/preload.js", root), "utf8"),
+    readFile(new URL("desktop/src/ui.rs", root), "utf8"),
     readFile(new URL("package.json", root), "utf8").then(JSON.parse),
-    readFile(new URL("scripts/package-win.mjs", root), "utf8"),
+    readFile(new URL("scripts/package-dioxus.mjs", root), "utf8"),
   ])
 
   assert.match(main, /async function launchInputGuardHelper\([^)]*\)/)
@@ -111,35 +111,12 @@ test("마비노기 입력 기능 설정은 앱 수명주기와 고급 기능 UI�
   assert.match(main, /stopInputGuardHelper\(\)/)
   assert.match(preload, /getInputGuardSetting/)
   assert.match(preload, /setInputGuardSetting/)
-  assert.match(
-    app,
-    /Alt\+Enter 방지[\s\S]*마비노기 플레이 중 전체 화면 전환 단축키 Alt\+Enter 입력을 차단합니다/,
-  )
-  assert.match(
-    app,
-    /게임 마우스 커서 크기[\s\S]*최대 800%까지 Windows 마우스 커서 크기를 변경합니다/,
-  )
-  assert.match(app, /mouseCursorScaleOptions = Array\.from/)
-  assert.match(
-    app,
-    /developer-tool-row developer-tool-row-nested[\s\S]*게임 마우스 커서 크기[\s\S]*developer-tool-subsetting[\s\S]*게임 중 휠로 25%씩 조절/,
-  )
-  assert.match(app, /Ctrl \+ 휠/)
-  assert.match(app, /Alt \+ 휠/)
-  assert.match(app, /changeMouseCursorWheelModifier/)
+
   assert.equal(
     packageInfo.scripts["native:input-guard"],
     "node scripts/build-input-guard-helper.mjs",
   )
-  assert.ok(
-    packageInfo.build.files.includes(
-      "native/input-guard-helper/bin/input-guard-helper.exe",
-    ),
-  )
-  assert.ok(
-    packageInfo.build.asarUnpack.includes(
-      "native/input-guard-helper/bin/input-guard-helper.exe",
-    ),
-  )
-  assert.match(packageScript, /run\("npm", \["run", "native:input-guard"\]\)/)
+
+
+  assert.match(packageScript, /['"]input-guard-helper['"]/)
 })

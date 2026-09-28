@@ -1,5 +1,5 @@
 export const reportResponseSourceUrl = (
-  "https://raw.githubusercontent.com/rubystarashe/nogirem/master/REPORT.json"
+  "https://raw.githubusercontent.com/rubystarashe/nogirem/main/REPORT.json"
 )
 export const maximumReportResponseBytes = 1024 * 1024
 export const reportResponseRetentionDays = 7

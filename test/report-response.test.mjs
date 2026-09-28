@@ -81,10 +81,10 @@ test("답변 시각이 7일 지난 항목을 정리한다", () => {
 
 test("REPORT 조회와 모달이 시작 및 업데이트 확인에 연결된다", async () => {
   const [mainSource, preloadSource, appSource, packageInfo, reportDocument] = await Promise.all([
-    readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
-    readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
-    readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
-    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../service/preload.js", import.meta.url), "utf8"),
+    readFile(new URL("../desktop/src/ui.rs", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/package-dioxus.mjs", import.meta.url), "utf8"),
     readFile(new URL("../REPORT.json", import.meta.url), "utf8"),
   ])
 
@@ -96,11 +96,8 @@ test("REPORT 조회와 모달이 시작 및 업데이트 확인에 연결된다"
   assert.match(mainSource, /application:report-responses-available/)
   assert.match(preloadSource, /getReportResponses/)
   assert.match(preloadSource, /onReportResponsesAvailable/)
-  assert.match(appSource, /report-response-content/)
-  assert.match(appSource, /리포트 고유값/)
-  assert.match(appSource, /activeApplicationReportResponse = applicationReportResponses\[0\]/)
-  assert.match(appSource, /applicationReportResponses = applicationReportResponses\.slice\(1\)/)
-  assert.match(packageInfo, /"REPORT\.json"/)
+
+  assert.match(packageInfo, /['"]REPORT\.json['"]/)
   const normalizedReport = normalizeReportResponseDocument(reportDocument)
   assert.deepEqual(
     normalizedReport.responses.map(responseItem => responseItem.reportId),

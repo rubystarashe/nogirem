@@ -1,0 +1,499 @@
+[
+  [
+    {
+      "label": "Esc",
+      "disabled": true
+    },
+    {
+      "spacer": 0.5
+    },
+    {
+      "label": "F1",
+      "code": 112,
+      "groupStart": true
+    },
+    {
+      "label": "F2",
+      "code": 113,
+      "groupStart": false
+    },
+    {
+      "label": "F3",
+      "code": 114,
+      "groupStart": false
+    },
+    {
+      "label": "F4",
+      "code": 115,
+      "groupStart": false
+    },
+    {
+      "label": "F5",
+      "code": 116,
+      "groupStart": true
+    },
+    {
+      "label": "F6",
+      "code": 117,
+      "groupStart": false
+    },
+    {
+      "label": "F7",
+      "code": 118,
+      "groupStart": false
+    },
+    {
+      "label": "F8",
+      "code": 119,
+      "groupStart": false
+    },
+    {
+      "label": "F9",
+      "code": 120,
+      "groupStart": true
+    },
+    {
+      "label": "F10",
+      "code": 121,
+      "groupStart": false
+    },
+    {
+      "label": "F11",
+      "code": 122,
+      "groupStart": false
+    },
+    {
+      "label": "F12",
+      "code": 123,
+      "groupStart": false
+    },
+    {
+      "spacer": 0.5
+    },
+    {
+      "label": "Prt",
+      "disabled": true
+    },
+    {
+      "label": "Scr",
+      "disabled": true
+    },
+    {
+      "label": "Pause",
+      "disabled": true
+    }
+  ],
+  [
+    {
+      "label": "`",
+      "code": 192
+    },
+    {
+      "label": "1",
+      "code": 49
+    },
+    {
+      "label": "2",
+      "code": 50
+    },
+    {
+      "label": "3",
+      "code": 51
+    },
+    {
+      "label": "4",
+      "code": 52
+    },
+    {
+      "label": "5",
+      "code": 53
+    },
+    {
+      "label": "6",
+      "code": 54
+    },
+    {
+      "label": "7",
+      "code": 55
+    },
+    {
+      "label": "8",
+      "code": 56
+    },
+    {
+      "label": "9",
+      "code": 57
+    },
+    {
+      "label": "0",
+      "code": 48
+    },
+    {
+      "label": "-",
+      "code": 189
+    },
+    {
+      "label": "=",
+      "code": 187
+    },
+    {
+      "label": "Back",
+      "code": 8,
+      "units": 2
+    },
+    {
+      "spacer": 0.5
+    },
+    {
+      "label": "Ins",
+      "code": 45
+    },
+    {
+      "label": "Home",
+      "code": 36
+    },
+    {
+      "label": "PgUp",
+      "code": 33
+    },
+    {
+      "spacer": 0.5
+    },
+    {
+      "label": "Num",
+      "disabled": true
+    },
+    {
+      "label": "/",
+      "code": 111
+    },
+    {
+      "label": "*",
+      "code": 106
+    },
+    {
+      "label": "-",
+      "code": 109
+    }
+  ],
+  [
+    {
+      "label": "Tab",
+      "code": 9,
+      "units": 1.5
+    },
+    {
+      "label": "Q",
+      "code": 81
+    },
+    {
+      "label": "W",
+      "code": 87
+    },
+    {
+      "label": "E",
+      "code": 69
+    },
+    {
+      "label": "R",
+      "code": 82
+    },
+    {
+      "label": "T",
+      "code": 84
+    },
+    {
+      "label": "Y",
+      "code": 89
+    },
+    {
+      "label": "U",
+      "code": 85
+    },
+    {
+      "label": "I",
+      "code": 73
+    },
+    {
+      "label": "O",
+      "code": 79
+    },
+    {
+      "label": "P",
+      "code": 80
+    },
+    {
+      "label": "[",
+      "code": 219
+    },
+    {
+      "label": "]",
+      "code": 221
+    },
+    {
+      "label": "\\",
+      "code": 220,
+      "units": 1.5
+    },
+    {
+      "spacer": 0.5
+    },
+    {
+      "label": "Del",
+      "code": 46
+    },
+    {
+      "label": "End",
+      "code": 35
+    },
+    {
+      "label": "PgDn",
+      "code": 34
+    },
+    {
+      "spacer": 0.5
+    },
+    {
+      "label": "7",
+      "code": 103
+    },
+    {
+      "label": "8",
+      "code": 104
+    },
+    {
+      "label": "9",
+      "code": 105
+    },
+    {
+      "label": "+",
+      "code": 107
+    }
+  ],
+  [
+    {
+      "label": "Caps",
+      "disabled": true,
+      "units": 1.8
+    },
+    {
+      "label": "A",
+      "code": 65
+    },
+    {
+      "label": "S",
+      "code": 83
+    },
+    {
+      "label": "D",
+      "code": 68
+    },
+    {
+      "label": "F",
+      "code": 70
+    },
+    {
+      "label": "G",
+      "code": 71
+    },
+    {
+      "label": "H",
+      "code": 72
+    },
+    {
+      "label": "J",
+      "code": 74
+    },
+    {
+      "label": "K",
+      "code": 75
+    },
+    {
+      "label": "L",
+      "code": 76
+    },
+    {
+      "label": ";",
+      "code": 186
+    },
+    {
+      "label": "'",
+      "code": 222
+    },
+    {
+      "label": "Enter",
+      "code": 13,
+      "units": 2.2
+    },
+    {
+      "spacer": 4
+    },
+    {
+      "label": "4",
+      "code": 100
+    },
+    {
+      "label": "5",
+      "code": 101
+    },
+    {
+      "label": "6",
+      "code": 102
+    },
+    {
+      "label": "+",
+      "code": 107
+    }
+  ],
+  [
+    {
+      "label": "Shift",
+      "disabled": true,
+      "units": 2.3
+    },
+    {
+      "label": "Z",
+      "code": 90
+    },
+    {
+      "label": "X",
+      "code": 88
+    },
+    {
+      "label": "C",
+      "code": 67
+    },
+    {
+      "label": "V",
+      "code": 86
+    },
+    {
+      "label": "B",
+      "code": 66
+    },
+    {
+      "label": "N",
+      "code": 78
+    },
+    {
+      "label": "M",
+      "code": 77
+    },
+    {
+      "label": ",",
+      "code": 188
+    },
+    {
+      "label": ".",
+      "code": 190
+    },
+    {
+      "label": "/",
+      "code": 191
+    },
+    {
+      "label": "Shift",
+      "disabled": true,
+      "units": 2.7
+    },
+    {
+      "spacer": 1.5
+    },
+    {
+      "label": "↑",
+      "code": 38
+    },
+    {
+      "spacer": 1.5
+    },
+    {
+      "label": "1",
+      "code": 97
+    },
+    {
+      "label": "2",
+      "code": 98
+    },
+    {
+      "label": "3",
+      "code": 99
+    },
+    {
+      "label": "Enter",
+      "code": 13
+    }
+  ],
+  [
+    {
+      "label": "Ctrl",
+      "disabled": true,
+      "units": 1.4
+    },
+    {
+      "label": "Win",
+      "disabled": true,
+      "units": 1.3
+    },
+    {
+      "label": "Alt",
+      "disabled": true,
+      "units": 1.3
+    },
+    {
+      "label": "Space",
+      "code": 32,
+      "units": 6.2
+    },
+    {
+      "label": "Alt",
+      "disabled": true,
+      "units": 1.3
+    },
+    {
+      "label": "Win",
+      "disabled": true,
+      "units": 1.3
+    },
+    {
+      "label": "Menu",
+      "disabled": true,
+      "units": 1.3
+    },
+    {
+      "label": "Ctrl",
+      "disabled": true,
+      "units": 1.4
+    },
+    {
+      "spacer": 0.5
+    },
+    {
+      "label": "←",
+      "code": 37
+    },
+    {
+      "label": "↓",
+      "code": 40
+    },
+    {
+      "label": "→",
+      "code": 39
+    },
+    {
+      "spacer": 0.5
+    },
+    {
+      "label": "0",
+      "code": 96,
+      "units": 2
+    },
+    {
+      "label": ".",
+      "code": 110
+    },
+    {
+      "label": "Enter",
+      "code": 13
+    }
+  ]
+]

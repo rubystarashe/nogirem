@@ -1953,6 +1953,13 @@ bool remuxChunks(
   std::optional<MediaSignature> expectedSignature;
 
   for (std::size_t fileIndex = 0; fileIndex < inputs.size(); ++fileIndex) {
+    const auto fileDuration = compressedMediaDuration(inputs[fileIndex]);
+    if (outputTime + fileDuration <= effectiveStart) {
+      outputTime += fileDuration;
+      if (onProgress) onProgress(fileIndex + 1, inputs.size());
+      continue;
+    }
+    if (outputTime >= requestedEnd) break;
     auto reader = createCompressedVideoReader(inputs[fileIndex]);
 
     ComPtr<IMFMediaType> mediaType;
@@ -1972,13 +1979,6 @@ bool remuxChunks(
       throw std::runtime_error("해상도 또는 인코딩 형식이 다른 청크는 결합할 수 없습니다");
     }
     expectedSignature = signature;
-    const auto fileDuration = compressedMediaDuration(inputs[fileIndex]);
-    if (outputTime + fileDuration <= effectiveStart) {
-      outputTime += fileDuration;
-      if (onProgress) onProgress(fileIndex + 1, inputs.size());
-      continue;
-    }
-    if (outputTime >= requestedEnd) break;
     const LONGLONG defaultDuration = fallbackSampleDuration(signature);
     ComPtr<IMFSourceReader> audioReader;
     if (signature.hasAudio) audioReader = createPcmAudioReader(inputs[fileIndex]);
@@ -4137,21 +4137,23 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
   try {
     if (mode == L"track" || mode == L"index") {
       const auto ringPaths = utilityRingPaths(arguments);
-      const auto anchorMilliseconds = wideInteger(
-        arguments,
-        L"anchor-ms",
-        epochMilliseconds()
-      );
-      const int seconds = std::clamp(
-        static_cast<int>(wideInteger(arguments, L"seconds", 900)),
-        30,
-        21600
-      );
-      const auto chunks = compatibleChunkSuffix(selectAnchoredChunks(
-          ringPaths,
-          anchorMilliseconds,
-          seconds
-      ));
+      const auto anchorMilliseconds = wideInteger(arguments, L"anchor-ms", epochMilliseconds());
+      int seconds = static_cast<int>(std::clamp<std::int64_t>(
+        wideInteger(arguments, L"seconds", 900), 30, 2147483647));
+      if (mode == L"index" && arguments.find(L"all") != arguments.end()) {
+        auto earliest = anchorMilliseconds;
+        for (const auto& ringPath : ringPaths) {
+          for (const auto& chunk : completedChunks(ringPath)) {
+            const auto started = chunkStartedMilliseconds(chunk);
+            if (started > 0 && started <= anchorMilliseconds) earliest = std::min(earliest, started);
+          }
+        }
+        seconds = static_cast<int>(std::clamp<std::int64_t>((anchorMilliseconds-earliest+999)/1000,30,2147483647));
+      }
+      const auto selected = selectAnchoredChunks(ringPaths, anchorMilliseconds, seconds);
+      // Indexing serves each file separately; codec/resolution compatibility is only
+      // required when remuxing a continuous track, never when listing recordings.
+      const auto chunks = mode == L"track" ? compatibleChunkSuffix(selected) : selected;
       if (chunks.empty() && mode == L"track") {
         throw std::runtime_error("편집할 녹화 청크가 없습니다");
       }
@@ -4223,21 +4225,11 @@ int runUtilityMode(const std::map<std::wstring, std::wstring>& arguments) {
         inputs.push_back(input->second);
       } else {
         const auto ringPaths = utilityRingPaths(arguments);
-        const auto anchorMilliseconds = wideInteger(
-          arguments,
-          L"anchor-ms",
-          epochMilliseconds()
-        );
-        const int seconds = std::clamp(
-          static_cast<int>(wideInteger(arguments, L"seconds", 900)),
-          30,
-          21600
-        );
-        inputs = compatibleChunkSuffix(selectAnchoredChunks(
-          ringPaths,
-          anchorMilliseconds,
-          seconds
-        ));
+        const auto anchorMilliseconds = wideInteger(arguments,L"anchor-ms",epochMilliseconds());
+        const int seconds = static_cast<int>(std::clamp<std::int64_t>(wideInteger(arguments,L"seconds",900),30,2147483647));
+        // Keep the same source timeline as index mode. Dropping a codec prefix here
+        // would shift every selected media offset and export the wrong recording.
+        inputs = selectAnchoredChunks(ringPaths,anchorMilliseconds,seconds);
       }
       fs::create_directories(outputPath.parent_path());
       composeExtraction(inputs, outputPath, pieces, playbackRate);

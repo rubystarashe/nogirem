@@ -1,0 +1,33 @@
+[package]
+name = "nogirem-desktop"
+version = "0.4.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+nogirem-backend = { path = "backend" }
+dioxus = { version = "0.7.3", features = ["desktop"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["process", "io-util", "sync", "time", "rt"] }
+rfd = { version = "0.15", features = ["common-controls-v6"] }
+image = { version = "0.25", default-features = false, features = ["ico", "png"] }
+
+urlencoding = "2"
+
+base64 = "0.22"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Graphics_Dwm", "Win32_Security", "Win32_System_Threading", "Win32_System_Com", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+
+pulldown-cmark = "0.13"
+
+[profile.release]
+lto = "thin"
+strip = true
+codegen-units = 1
+
+
+
+
+
+[patch.crates-io]
+dioxus-desktop = { path = "vendor/dioxus-desktop" }

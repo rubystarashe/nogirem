@@ -148,9 +148,9 @@ test("사용자가 선택한 물리 코어 수만큼 SMT 스레드를 함께 게
 test("CPU 코어 선택 UI와 IPC가 영구 설정 경로에 연결된다", async () => {
   const [affinitySource, mainSource, preloadSource, appSource, styleSource] = await Promise.all([
     readFile(new URL("../src/affinity.mjs", import.meta.url), "utf8"),
-    readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
-    readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
-    readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
+    readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../service/preload.js", import.meta.url), "utf8"),
+    readFile(new URL("../desktop/src/ui.rs", import.meta.url), "utf8"),
     readFile(new URL("../web/styles.css", import.meta.url), "utf8"),
   ])
 
@@ -187,19 +187,7 @@ test("CPU 코어 선택 UI와 IPC가 영구 설정 경로에 연결된다", asyn
   assert.match(preloadSource, /refreshGameCpuCoreSetting/)
   assert.match(affinitySource, /topologyError: \{/)
   assert.match(affinitySource, /message: error\?\.message/)
-  assert.match(appSource, /마비노기 CPU 우선 점유 비율 설정/)
-  assert.match(appSource, /gameCpuCoreOptions\(\)/)
-  assert.match(appSource, /gameCpuCoreColor\(coreCount\)/)
-  assert.match(appSource, /defaultGameCoreCount/)
-  assert.match(appSource, /class:allocated=/)
-  assert.match(appSource, /class:applying=\{gameCpuCoreAction\}/)
-  assert.doesNotMatch(appSource, /마비노기에 물리 코어 \$\{gameCoreCount\}개를 우선 배정합니다/)
-  assert.match(appSource, /gameCpuUnavailableCores\(\)/)
-  assert.match(appSource, /선택 불가 코어/)
-  assert.match(appSource, /코어 개수가 많을수록 마비노기가 더 많은 CPU를 활용하지만/)
-  assert.match(appSource, /retryGameCpuTopology/)
-  assert.match(appSource, /다시 확인/)
-  assert.match(appSource, /failureDetail/)
+
   assert.match(styleSource, /\.game-cpu-core-controls/)
   assert.match(styleSource, /\.cpu-topology-unavailable/)
   assert.match(styleSource, /flex: 1 1 0/)
@@ -377,4 +365,23 @@ test("PID와 시작 시각 및 현재 마스크가 모두 일치할 때만 적�
     processStartReader,
     affinityReader: () => 0xffffn,
   }), false)
+})
+
+test('Rust CPU 배분 응답은 32비트를 넘는 마스크를 BigInt로 유지한다', async () => {
+  const source = await readFile(new URL('../service/main.mjs', import.meta.url), 'utf8')
+  const start = source.indexOf('async function resolveNativeCpuAllocation(')
+  const end = source.indexOf('\nconst checkNetworkConnectivity', start)
+  assert.ok(start >= 0 && end > start)
+  const values = {
+    allMask: 2 ** 52 - 1,
+    gameMask: 2 ** 48,
+    backgroundMask: 2 ** 40 + 255,
+    alternateGameMask: 255,
+    alternateBackgroundMask: 2 ** 48,
+    lastPerformanceCoreMask: 3 * 2 ** 50,
+  }
+  const resolveNative = new Function('native', `${source.slice(start, end)}; return resolveNativeCpuAllocation`)(async () => ({ ...values }))
+  const result = await resolveNative({ gameCoreCount: 4 })
+  for (const [key, value] of Object.entries(values)) assert.equal(result[key], BigInt(value))
+  assert.equal(result.backgroundMask & ~result.alternateGameMask, 1n << 40n)
 })

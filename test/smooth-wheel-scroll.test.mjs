@@ -68,3 +68,20 @@ test("렌더러 프레임이 오래 지연되면 남은 스크롤을 즉시 보�
   fixture.scroller.stop()
   assert.equal(fixture.cancelled(), null)
 })
+
+
+test("정수 픽셀 WebView에서도 스크롤이 종료되어 스크롤바 이동을 되돌리지 않는다", () => {
+  const fixture = createFixture()
+  let position = 0
+  Object.defineProperty(fixture.element, "scrollTop", {
+    get: () => position,
+    set: value => { position = Math.round(value) },
+  })
+  fixture.wheel(100)
+  for (let n=1;n<=60;n++) fixture.draw(n*1000/60)
+  assert.equal(position, 80)
+  fixture.element.scrollTop = 1600
+  fixture.draw(1100)
+  assert.equal(position, 1600)
+  assert.equal(fixture.wheel(120), false)
+})

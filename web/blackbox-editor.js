@@ -162,7 +162,7 @@ function formatTime(seconds) {
 }
 
 function setTrackLengthInputs(totalSeconds) {
-  const normalized = Math.max(30, Math.min(21600, Math.round(Number(totalSeconds) || 900)))
+  const normalized = Math.max(30, Math.min(2147483647, Math.round(Number(totalSeconds) || 900)))
   trackHoursInput.value = String(Math.floor(normalized / 3600))
   trackMinutesInput.value = String(Math.floor(normalized % 3600 / 60))
   trackSecondsInput.value = String(normalized % 60)
@@ -610,8 +610,14 @@ async function applyTrack(result, preserveFromEnd = 0) {
   setTrackLengthInputs(requestedTrackSeconds)
   anchorTime.textContent = `${new Date(result.anchorAt).toLocaleTimeString("ko-KR")} 기준`
   if (!initialTrackLoaded) {
-    selectionDuration = Math.min(60, timelineDuration)
-    selectionStart = Math.max(0, timelineDuration - selectionDuration)
+    // Open on recorded media, never the arbitrary minute before the anchor.
+    // A short last recording may be separated from older recordings by a gap.
+    const latest = trackSegments.at(-1)
+    const end = latest ? latest.timelineStart + latest.duration : timelineDuration
+    const desiredStart = Math.max(0, end - 60)
+    const first = trackSegments.find(segment => segment.timelineStart + segment.duration > desiredStart)
+    selectionStart = first ? Math.max(desiredStart, first.timelineStart) : desiredStart
+    selectionDuration = Math.min(60, Math.max(0, end - selectionStart))
     initialTrackLoaded = true
   } else {
     selectionStart = Math.max(
@@ -645,12 +651,12 @@ async function applyTrack(result, preserveFromEnd = 0) {
 }
 
 async function changeTrackSeconds(seconds) {
-  const normalized = Math.max(30, Math.min(21600, Math.round(Number(seconds) || 900)))
+  const normalized = seconds === "all" ? "all" : Math.max(30, Math.min(2147483647, Math.round(Number(seconds) || 900)))
   const preserveFromEnd = Math.max(
     0,
     timelineDuration - selectionStart - selectionDuration,
   )
-  setBusy(true, `같은 기준 시점에서 최근 ${formatTime(normalized)} 영상을 준비하고 있습니다`)
+  setBusy(true, normalized === "all" ? "전체 녹화 목록을 준비하고 있습니다" : `같은 기준 시점에서 최근 ${formatTime(normalized)} 영상을 준비하고 있습니다`)
   setNotice("")
   stopTimelinePlayback()
   try {
@@ -1114,3 +1120,19 @@ async function initialize() {
 }
 
 void initialize()
+
+// A valid recording can be much shorter than the displayed wall-clock range.
+// Make intentional gaps distinguishable from decoding failures, and reachable at any zoom.
+document.querySelector(".seek-recorded").addEventListener("click", event => {
+  event.stopPropagation()
+  if (busy || !trackSegments.length) return
+  const nearest = trackSegments.reduce((best, segment) => {
+    const distance = value => Math.max(value.timelineStart - timelineCursor, timelineCursor - (value.timelineStart + value.duration), 0)
+    return distance(segment) < distance(best) ? segment : best
+  })
+  stopTimelinePlayback()
+  setTimelineCursor(Math.max(nearest.timelineStart + 0.05,
+    Math.min(nearest.timelineStart + nearest.duration - 0.05, timelineCursor)))
+})
+
+document.querySelector(".all-recordings").addEventListener("click", () => { void changeTrackSeconds("all") })

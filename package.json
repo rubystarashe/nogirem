@@ -1,143 +1,66 @@
 {
   "name": "nogirem",
   "productName": "마비노기 렘 부스터",
-  "version": "0.3.16",
+  "version": "0.4.0",
   "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/rubystarashe/nogirem.git"
   },
   "type": "module",
-  "main": "electron/bootstrap.mjs",
   "scripts": {
-    "app": "electron .",
-    "app:dev": "node scripts/run-app-dev.mjs",
-    "app:build": "vite build",
+    "app": "node scripts/run-dioxus.mjs",
+    "app:dev": "node scripts/run-dioxus.mjs",
+    "app:build": "cargo build --release --locked --manifest-path desktop/Cargo.toml",
     "native:input-guard": "node scripts/build-input-guard-helper.mjs",
     "native:radeon": "node scripts/build-radeon-helper.mjs",
     "native:recorder": "node scripts/build-recorder-helper.mjs",
     "native:turbo-key": "node scripts/build-turbo-key.mjs",
-    "package:win": "node scripts/package-win.mjs",
-    "release:github": "node scripts/package-win.mjs --publish",
+    "package:win": "node scripts/package-dioxus.mjs",
+    "release:github": "node scripts/package-dioxus.mjs --publish",
     "report:prune": "node scripts/prune-report-responses.mjs",
-    "start": "node src/index.mjs --apply",
-    "start:quiet": "node src/index.mjs --apply --quiet",
-    "start:last-core": "node src/index.mjs --apply --last-core",
-    "start:last-core:quiet": "node src/index.mjs --apply --last-core --quiet",
-    "start:passive": "node src/index.mjs --apply --passive",
-    "start:passive:quiet": "node src/index.mjs --apply --passive --quiet",
-    "dry-run": "node src/index.mjs --dry-run",
-    "dry-run:last-core": "node src/index.mjs --dry-run --last-core",
-    "dry-run:passive": "node src/index.mjs --dry-run --passive",
-    "reset": "node src/index.mjs --apply --reset-all",
-    "reset:quiet": "node src/index.mjs --apply --reset-all --quiet",
-    "start:memory": "node src/index.mjs --apply --memory-cleaner",
-    "start:memory:quiet": "node src/index.mjs --apply --memory-cleaner --quiet",
-    "memory:status": "node src/index.mjs --memory-status --quiet",
-    "muo:status": "node src/muo-status.mjs",
-    "muo:status:json": "node src/muo-status.mjs --json",
-    "nvidia:status": "node src/index.mjs --nvidia-status",
-    "nvidia:apply": "node src/index.mjs --nvidia-apply",
-    "graphics:status": "node src/index.mjs --graphics-status",
-    "graphics:apply": "node src/index.mjs --graphics-apply",
-    "fast-ping:status": "node src/index.mjs --fast-ping-status",
-    "fast-ping:apply": "node src/index.mjs --apply --fast-ping-status",
-    "fast-ping:restart": "node src/index.mjs --apply --fast-ping-restart",
-    "tcp:status": "node src/index.mjs --tcp-auto-tuning-status",
-    "tcp:apply": "node src/index.mjs --apply --tcp-auto-tuning-status",
-    "nic-rss:status": "node src/index.mjs --nic-rss-status",
-    "nic-rss:apply": "node src/index.mjs --apply --nic-rss-apply",
-    "nic-rss:restore": "node src/index.mjs --apply --nic-rss-restore",
-    "test": "node --test",
-    "self-test": "node src/index.mjs --self-test"
-  },
-  "dependencies": {
-    "adm-zip": "^0.6.0",
-    "electron-updater": "^6.8.9",
-    "ffi-rs": "^1.3.4",
-    "koffi": "^3.2.0",
-    "svelte": "^5.38.7"
-  },
-  "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^5.1.1",
-    "concurrently": "^9.2.1",
-    "electron": "^37.4.0",
-    "electron-builder": "^26.15.3",
-    "vite": "^6.2.6",
-    "wait-on": "^8.0.4"
+    "start": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply",
+    "start:quiet": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --quiet",
+    "start:last-core": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --last-core",
+    "start:last-core:quiet": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --last-core --quiet",
+    "start:passive": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --passive",
+    "start:passive:quiet": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --passive --quiet",
+    "dry-run": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --dry-run",
+    "dry-run:last-core": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --dry-run --last-core",
+    "dry-run:passive": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --dry-run --passive",
+    "reset": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --reset-all",
+    "reset:quiet": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --reset-all --quiet",
+    "start:memory": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --memory-cleaner",
+    "start:memory:quiet": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --memory-cleaner --quiet",
+    "memory:status": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --memory-status --quiet",
+    "muo:status": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --muo-status",
+    "muo:status:json": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --muo-status --json",
+    "nvidia:status": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --nvidia-status",
+    "nvidia:apply": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --nvidia-apply",
+    "graphics:status": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --graphics-status",
+    "graphics:apply": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --graphics-apply",
+    "fast-ping:status": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --fast-ping-status",
+    "fast-ping:apply": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --fast-ping-status",
+    "fast-ping:restart": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --fast-ping-restart",
+    "tcp:status": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --tcp-auto-tuning-status",
+    "tcp:apply": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --tcp-auto-tuning-status",
+    "nic-rss:status": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --nic-rss-status",
+    "nic-rss:apply": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --nic-rss-apply",
+    "nic-rss:restore": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply --nic-rss-restore",
+    "test": "node --test test/*.test.mjs service/*.test.mjs",
+    "self-test": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --self-test",
+    "app:check": "cargo check --locked --manifest-path desktop/Cargo.toml",
+    "app:smoke": "node scripts/test-dioxus.mjs",
+    "test:desktop": "cargo test --locked --manifest-path desktop/Cargo.toml",
+    "test:backend": "cargo test --manifest-path desktop/backend/Cargo.toml --locked",
+    "test:backend-integration": "node scripts/test-native-backend.mjs"
   },
   "engines": {
     "node": ">=20"
   },
-  "build": {
-    "appId": "com.ryut.rem.mabinogi-booster",
-    "productName": "마비노기 렘 부스터",
-    "artifactName": "nogirem-setup-${version}.${ext}",
-    "compression": "maximum",
-    "electronLanguages": [
-      "ko",
-      "en-US"
-    ],
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "!dist/main1.png",
-      "!dist/main3.jpg",
-      "!dist/logo.png",
-      "!dist/doc_minimize/introduce.png",
-      "electron/**/*",
-      "src/**/*",
-      "native/input-guard-helper/bin/input-guard-helper.exe",
-      "native/radeon-helper/bin/radeon-helper.exe",
-      "native/recorder-helper/bin/recorder-helper.exe",
-      "assets/**/*",
-      "config.json",
-      "NOTICE.md",
-      "REPORT.json",
-      "icon.ico",
-      "icon-paused.png",
-      "character-guide.html",
-      "dxvk-guide.html",
-      "blackbox-manager.html",
-      "blackbox-editor.html",
-      "public/doc_dxvk/**/*",
-      "package.json"
-    ],
-    "asarUnpack": [
-      "assets/*.muo",
-      "native/input-guard-helper/bin/input-guard-helper.exe",
-      "native/radeon-helper/bin/radeon-helper.exe",
-      "native/recorder-helper/bin/recorder-helper.exe"
-    ],
-    "win": {
-      "icon": "icon.ico",
-      "requestedExecutionLevel": "requireAdministrator",
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ]
-    },
-    "nsis": {
-      "oneClick": true,
-      "runAfterFinish": true,
-      "include": "build/installer.nsh",
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "마비노기 렘 부스터"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "rubystarashe",
-        "repo": "nogirem",
-        "releaseType": "release"
-      }
-    ]
+  "devDependencies": {
+    "adm-zip": "^0.6.1",
+    "ffi-rs": "^1.3.4",
+    "koffi": "^3.2.0"
   }
 }

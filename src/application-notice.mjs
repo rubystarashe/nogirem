@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto"
 
 export const applicationNoticeSourceUrl = (
-  "https://raw.githubusercontent.com/rubystarashe/nogirem/master/NOTICE.md"
+  "https://raw.githubusercontent.com/rubystarashe/nogirem/main/NOTICE.md"
 )
 export const maximumApplicationNoticeBytes = 1024 * 1024
 

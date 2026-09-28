@@ -10,3 +10,8 @@ native/radeon-helper/build/
 native/recorder-helper/build/
 native/input-guard-helper/build/
 native/turbo-key/target/
+
+desktop/target/
+
+native/recorder-helper/tools-bin/
+desktop/backend/target/

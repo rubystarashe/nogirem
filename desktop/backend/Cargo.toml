@@ -1,0 +1,25 @@
+[package]
+name = "nogirem-backend"
+version = "0.4.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+aes = "0.8"
+cbc = "0.1"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "json"] }
+sha2 = "0.10"
+flate2 = "1"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+libloading = "0.8.9"
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+windows-sys = { version = "0.61", features = ["Win32_System_Console", "Win32_Foundation", "Win32_Security", "Win32_System_Threading", "Win32_System_RemoteDesktop", "Win32_System_Diagnostics_ToolHelp", "Win32_System_SystemInformation", "Win32_Storage_FileSystem"] }
+uuid = { version = "1", features = ["v4"] }
+urlencoding = "2"
+
+ed25519-dalek = "2.2"
+semver = "1"

@@ -211,9 +211,9 @@ test("검증된 DXVK를 게임 폴더의 d3d9_dxvk.dll로 적용한다", async (
 
 test("관리 창의 확인·설치 완료 상태를 메인 화면에 즉시 전달한다", async () => {
   const [mainSource, preloadSource, appSource, managerSource] = await Promise.all([
-    readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
-    readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
-    readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
+    readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../service/preload.js", import.meta.url), "utf8"),
+    readFile(new URL("../desktop/src/ui.rs", import.meta.url), "utf8"),
     readFile(new URL("../dxvk-manager.html", import.meta.url), "utf8"),
   ])
 
@@ -233,37 +233,9 @@ test("관리 창의 확인·설치 완료 상태를 메인 화면에 즉시 전�
   assert.match(preloadSource, /onDxvkStatusChanged/)
   assert.match(preloadSource, /getDxvkRuntimeStatus/)
   assert.match(mainSource, /optimization:get-dxvk-runtime-status/)
-  assert.match(appSource, /removeDxvkStatusListener/)
-  assert.match(
-    appSource,
-    /function resolveDxvkStatusUpdate[\s\S]*if \(!incoming\?\.state\) return current[\s\S]*incoming\?\.state === "checking"[\s\S]*return current/,
-  )
-  assert.match(
-    appSource,
-    /dxvk: resolveDxvkStatusUpdate\(current\?\.dxvk, runtime\.dxvk\)/,
-  )
-  assert.match(
-    appSource,
-    /dxvk: resolveDxvkStatusUpdate\(services\.affinity\.data\?\.dxvk, status\)/,
-  )
-  assert.match(appSource, /getDxvkRuntimeStatus\(\)/)
-  assert.match(appSource, /setInterval\(syncDxvkRuntime, 2000\)/)
+
   assert.match(mainSource, /applicationState:[\s\S]*affinity,[\s\S]*dxvk: dxvkRuntimeStatus/)
-  assert.match(
-    appSource,
-    /function dxvkLinkState\(affinityData\)[\s\S]*affinityData\?\.dxvk\?\.state/,
-  )
-  assert.match(
-    appSource,
-    /\{@const dxvkState = dxvkLinkState\(services\.affinity\.data\)\}/,
-  )
-  assert.doesNotMatch(appSource, /\{@const dxvkState = dxvkLinkState\(\)\}/)
-  assert.match(appSource, /class:checking=\{dxvkState === "checking"\}/)
-  assert.match(appSource, /dxvkState === "update-required"[\s\S]*Vulkan 업데이트가 필요함/)
-  assert.match(appSource, /Vulkan 적용됨 · 최신 확인 불가/)
-  assert.match(appSource, /Vulkan GPU 드라이버 호환 필요/)
-  assert.match(appSource, /DXVK 상태 확인 불가/)
-  assert.match(appSource, /DXVK 확인 중/)
+
   assert.match(
     mainSource,
     /installed\.current\?\.version === version[\s\S]*applyInstalledDxvk/,

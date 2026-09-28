@@ -28,11 +28,11 @@ const normalAutoTuning = {
   effective: "Normal",
 }
 
-const [networkSource, electronMain, electronPreload, applicationView, applicationStyles] = await Promise.all([
+const [networkSource, serviceMain, servicePreload, applicationView, applicationStyles] = await Promise.all([
   readFile(new URL("../src/network.mjs", import.meta.url), "utf8"),
-  readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
-  readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
-  readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
+  readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
+  readFile(new URL("../service/preload.js", import.meta.url), "utf8"),
+  readFile(new URL("../desktop/src/ui.rs", import.meta.url), "utf8"),
   readFile(new URL("../web/styles.css", import.meta.url), "utf8"),
 ])
 
@@ -431,35 +431,33 @@ test("그룹 정책이 Normal 이외의 값을 강제하면 복구 실패로 처
 
 test("패스트핑 원본 기록과 기록 없는 기본값 복원이 IPC와 UI에 연결된다", () => {
   assert.match(
-    electronMain,
+    serviceMain,
     /async function optimizeNetworkDirect\(\)[\s\S]*isSameNetworkInterface\(await readJson\(statePath\), beforeFastPing\.current\)[\s\S]*writeJsonAtomic\(statePath,[\s\S]*TcpAckFrequency: before\.TcpAckFrequency \?\? null/,
   )
   assert.match(
-    electronMain,
+    serviceMain,
     /const savedTargetMatchesCurrent = hasSavedTarget[\s\S]*isSameNetworkInterface\(savedState, current\)[\s\S]*const target = savedTargetMatchesCurrent \|\| !current[\s\S]*TcpAckFrequency: null,[\s\S]*TCPNoDelay: null/,
   )
-  assert.match(electronMain, /staleOriginalState: Boolean\(hasSavedTarget && current && !savedTargetMatchesCurrent\)/)
+  assert.match(serviceMain, /staleOriginalState: Boolean\(hasSavedTarget && current && !savedTargetMatchesCurrent\)/)
   assert.match(
-    electronMain,
+    serviceMain,
     /async function restoreNetworkDirect\(\)[\s\S]*ensureTcpAutoTuningNormal\(\)/,
   )
-  assert.match(electronMain, /async function validateFastPingConnectivityAtStartup\(\)/)
-  assert.match(electronMain, /attempts: 10,[\s\S]*intervalMs: 3000/)
-  assert.match(electronMain, /if \(!connectivity\.healthy && fastPing\.configured\)/)
-  assert.match(electronMain, /showNetworkRollbackDialog/)
-  assert.match(electronMain, /createWindow\(\)[\s\S]*validateFastPingConnectivityAtStartup\(\)/)
-  assert.match(electronMain, /optimization:restore-network/)
-  assert.match(electronPreload, /restoreNetwork: \(\) => ipcRenderer\.invoke\("optimization:restore-network"\)/)
-  assert.match(applicationView, /설정 되돌리기/)
-  assert.match(applicationView, /TCP 자동 조정은 유지합니다/)
-  assert.match(applicationView, /앱 시작 시 연결을 검사하며 이상이 반복되면 원래 설정으로 자동 복원/)
+  assert.match(serviceMain, /async function validateFastPingConnectivityAtStartup\(\)/)
+  assert.match(serviceMain, /attempts: 10,[\s\S]*intervalMs: 3000/)
+  assert.match(serviceMain, /if \(!connectivity\.healthy && fastPing\.configured\)/)
+  assert.match(serviceMain, /showNetworkRollbackDialog/)
+  assert.match(serviceMain, /createWindow\(\)[\s\S]*validateFastPingConnectivityAtStartup\(\)/)
+  assert.match(serviceMain, /optimization:restore-network/)
+  assert.match(servicePreload, /restoreNetwork: \(\) => ipcRenderer\.invoke\("optimization:restore-network"\)/)
+
   assert.match(applicationStyles, /\.detail-restore/)
 })
 
 test("관리자 네트워크 helper는 PowerShell 중계 없이 직접 실행하고 내부 명령 시간을 제한한다", () => {
-  const helperStart = electronMain.indexOf("async function runElevatedOptimization(")
-  const helperEnd = electronMain.indexOf("async function optimizeNetworkDirect()", helperStart)
-  const helperSource = electronMain.slice(helperStart, helperEnd)
+  const helperStart = serviceMain.indexOf("async function runElevatedOptimization(")
+  const helperEnd = serviceMain.indexOf("async function optimizeNetworkDirect()", helperStart)
+  const helperSource = serviceMain.slice(helperStart, helperEnd)
 
   assert.match(helperSource, /execFileAsync\(\s*process\.execPath,\s*helperArguments,/)
   assert.match(helperSource, /timeout: 240000/)

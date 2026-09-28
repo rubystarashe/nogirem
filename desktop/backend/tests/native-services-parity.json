@@ -1,0 +1,2965 @@
+[
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": true,
+          "value": null
+        },
+        {
+          "key": "maxFrameRate",
+          "available": true,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": true,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": true,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": null,
+      "verticalSyncSource": "판정 불가",
+      "maxFrameRateEnabled": true,
+      "maxFrameRate": 400,
+      "threadedOptimizationEnabled": true,
+      "preferMaximumPerformance": true,
+      "ultraLowLatency": true,
+      "ultraLowLatencyCplState": true,
+      "ultraLowLatencyDriverEnabled": true,
+      "maxPreRenderedFramesOne": true
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": true
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": true
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": true,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": false,
+          "value": null
+        },
+        {
+          "key": "maxFrameRate",
+          "available": false,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": false,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": false,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": null,
+      "verticalSyncSource": "판정 불가",
+      "maxFrameRateEnabled": false,
+      "maxFrameRate": null,
+      "threadedOptimizationEnabled": false,
+      "preferMaximumPerformance": false,
+      "ultraLowLatency": false,
+      "ultraLowLatencyCplState": false,
+      "ultraLowLatencyDriverEnabled": false,
+      "maxPreRenderedFramesOne": false
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": false
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": false
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": false,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": true,
+          "value": 138504007
+        },
+        {
+          "key": "maxFrameRate",
+          "available": true,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": true,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": true,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": false,
+      "verticalSyncSource": "NVIDIA 프로그램 프로필 강제 끄기",
+      "maxFrameRateEnabled": true,
+      "maxFrameRate": 400,
+      "threadedOptimizationEnabled": true,
+      "preferMaximumPerformance": true,
+      "ultraLowLatency": true,
+      "ultraLowLatencyCplState": true,
+      "ultraLowLatencyDriverEnabled": true,
+      "maxPreRenderedFramesOne": true
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": true
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": true
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": true,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": false,
+          "value": 138504007
+        },
+        {
+          "key": "maxFrameRate",
+          "available": false,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": false,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": false,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": null,
+      "verticalSyncSource": "판정 불가",
+      "maxFrameRateEnabled": false,
+      "maxFrameRate": null,
+      "threadedOptimizationEnabled": false,
+      "preferMaximumPerformance": false,
+      "ultraLowLatency": false,
+      "ultraLowLatencyCplState": false,
+      "ultraLowLatencyDriverEnabled": false,
+      "maxPreRenderedFramesOne": false
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": false
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": false
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": false,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": true,
+          "value": 1199655232
+        },
+        {
+          "key": "maxFrameRate",
+          "available": true,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": true,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": true,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": true,
+      "verticalSyncSource": "NVIDIA 프로그램 프로필",
+      "maxFrameRateEnabled": true,
+      "maxFrameRate": 400,
+      "threadedOptimizationEnabled": true,
+      "preferMaximumPerformance": true,
+      "ultraLowLatency": true,
+      "ultraLowLatencyCplState": true,
+      "ultraLowLatencyDriverEnabled": true,
+      "maxPreRenderedFramesOne": true
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": true
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": true
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": true,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": false,
+          "value": 1199655232
+        },
+        {
+          "key": "maxFrameRate",
+          "available": false,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": false,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": false,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": null,
+      "verticalSyncSource": "판정 불가",
+      "maxFrameRateEnabled": false,
+      "maxFrameRate": null,
+      "threadedOptimizationEnabled": false,
+      "preferMaximumPerformance": false,
+      "ultraLowLatency": false,
+      "ultraLowLatencyCplState": false,
+      "ultraLowLatencyDriverEnabled": false,
+      "maxPreRenderedFramesOne": false
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": false
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": false
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": false,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": true,
+          "value": 845218372
+        },
+        {
+          "key": "maxFrameRate",
+          "available": true,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": true,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": true,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": true,
+      "verticalSyncSource": "NVIDIA 프로그램 프로필",
+      "maxFrameRateEnabled": true,
+      "maxFrameRate": 400,
+      "threadedOptimizationEnabled": true,
+      "preferMaximumPerformance": true,
+      "ultraLowLatency": true,
+      "ultraLowLatencyCplState": true,
+      "ultraLowLatencyDriverEnabled": true,
+      "maxPreRenderedFramesOne": true
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": true
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": true
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": true,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": false,
+          "value": 845218372
+        },
+        {
+          "key": "maxFrameRate",
+          "available": false,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": false,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": false,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": null,
+      "verticalSyncSource": "판정 불가",
+      "maxFrameRateEnabled": false,
+      "maxFrameRate": null,
+      "threadedOptimizationEnabled": false,
+      "preferMaximumPerformance": false,
+      "ultraLowLatency": false,
+      "ultraLowLatencyCplState": false,
+      "ultraLowLatencyDriverEnabled": false,
+      "maxPreRenderedFramesOne": false
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": false
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": false
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": false,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": true,
+          "value": 1898385441
+        },
+        {
+          "key": "maxFrameRate",
+          "available": true,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": true,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": true,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": true,
+      "verticalSyncSource": "NVIDIA 프로그램 프로필",
+      "maxFrameRateEnabled": true,
+      "maxFrameRate": 400,
+      "threadedOptimizationEnabled": true,
+      "preferMaximumPerformance": true,
+      "ultraLowLatency": true,
+      "ultraLowLatencyCplState": true,
+      "ultraLowLatencyDriverEnabled": true,
+      "maxPreRenderedFramesOne": true
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": true
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": true
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": true,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": false,
+          "value": 1898385441
+        },
+        {
+          "key": "maxFrameRate",
+          "available": false,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": false,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": false,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": null,
+      "verticalSyncSource": "판정 불가",
+      "maxFrameRateEnabled": false,
+      "maxFrameRate": null,
+      "threadedOptimizationEnabled": false,
+      "preferMaximumPerformance": false,
+      "ultraLowLatency": false,
+      "ultraLowLatencyCplState": false,
+      "ultraLowLatencyDriverEnabled": false,
+      "maxPreRenderedFramesOne": false
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": false
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": false
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": false,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": true,
+          "value": 321147478
+        },
+        {
+          "key": "maxFrameRate",
+          "available": true,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": true,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": true,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": true,
+      "verticalSyncSource": "NVIDIA 프로그램 프로필",
+      "maxFrameRateEnabled": true,
+      "maxFrameRate": 400,
+      "threadedOptimizationEnabled": true,
+      "preferMaximumPerformance": true,
+      "ultraLowLatency": true,
+      "ultraLowLatencyCplState": true,
+      "ultraLowLatencyDriverEnabled": true,
+      "maxPreRenderedFramesOne": true
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": true
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": true
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": true,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": false,
+          "value": 321147478
+        },
+        {
+          "key": "maxFrameRate",
+          "available": false,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": false,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": false,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": null,
+      "verticalSyncSource": "판정 불가",
+      "maxFrameRateEnabled": false,
+      "maxFrameRate": null,
+      "threadedOptimizationEnabled": false,
+      "preferMaximumPerformance": false,
+      "ultraLowLatency": false,
+      "ultraLowLatencyCplState": false,
+      "ultraLowLatencyDriverEnabled": false,
+      "maxPreRenderedFramesOne": false
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": false
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": false
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": false,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": true,
+          "value": 1620202130
+        },
+        {
+          "key": "maxFrameRate",
+          "available": true,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": true,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": true,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": true,
+      "verticalSyncSource": "마비노기 내부 설정",
+      "maxFrameRateEnabled": true,
+      "maxFrameRate": 400,
+      "threadedOptimizationEnabled": true,
+      "preferMaximumPerformance": true,
+      "ultraLowLatency": true,
+      "ultraLowLatencyCplState": true,
+      "ultraLowLatencyDriverEnabled": true,
+      "maxPreRenderedFramesOne": true
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": true
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": true
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": true,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": false,
+          "value": 1620202130
+        },
+        {
+          "key": "maxFrameRate",
+          "available": false,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": false,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": false,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": null,
+      "verticalSyncSource": "판정 불가",
+      "maxFrameRateEnabled": false,
+      "maxFrameRate": null,
+      "threadedOptimizationEnabled": false,
+      "preferMaximumPerformance": false,
+      "ultraLowLatency": false,
+      "ultraLowLatencyCplState": false,
+      "ultraLowLatencyDriverEnabled": false,
+      "maxPreRenderedFramesOne": false
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": false
+          }
+        },
+        "applyFailures": []
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": false
+        }
+      },
+      "applyFailures": [],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": false,
+          "met": true,
+          "error": null
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": true,
+          "value": 0
+        },
+        {
+          "key": "maxFrameRate",
+          "available": true,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": true,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": true,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": true,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": null,
+      "verticalSyncSource": "판정 불가",
+      "maxFrameRateEnabled": true,
+      "maxFrameRate": 400,
+      "threadedOptimizationEnabled": true,
+      "preferMaximumPerformance": true,
+      "ultraLowLatency": true,
+      "ultraLowLatencyCplState": true,
+      "ultraLowLatencyDriverEnabled": true,
+      "maxPreRenderedFramesOne": true
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": true
+          }
+        },
+        "applyFailures": [
+          {
+            "key": "lowLatencyEnabled",
+            "reason": "failure"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": true
+        }
+      },
+      "applyFailures": [
+        {
+          "key": "lowLatencyEnabled",
+          "reason": "failure"
+        }
+      ],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": true,
+          "met": false,
+          "error": "failure"
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "nvidia-checks",
+    "args": [
+      [
+        {
+          "key": "verticalSync",
+          "available": false,
+          "value": 0
+        },
+        {
+          "key": "maxFrameRate",
+          "available": false,
+          "value": 400
+        },
+        {
+          "key": "threadedOptimization",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "powerManagement",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "lowLatencyCpl",
+          "available": false,
+          "value": 2
+        },
+        {
+          "key": "lowLatencyEnabled",
+          "available": false,
+          "value": 1
+        },
+        {
+          "key": "maxPreRenderedFrames",
+          "available": false,
+          "value": 1
+        }
+      ],
+      {
+        "available": true,
+        "enabled": true
+      }
+    ],
+    "expected": {
+      "verticalSyncEnabled": null,
+      "verticalSyncSource": "판정 불가",
+      "maxFrameRateEnabled": false,
+      "maxFrameRate": null,
+      "threadedOptimizationEnabled": false,
+      "preferMaximumPerformance": false,
+      "ultraLowLatency": false,
+      "ultraLowLatencyCplState": false,
+      "ultraLowLatencyDriverEnabled": false,
+      "maxPreRenderedFramesOne": false
+    }
+  },
+  {
+    "kind": "nvidia-normalize",
+    "args": [
+      {
+        "nvidia": true,
+        "goals": {
+          "verticalSyncOff": false,
+          "maxFrameRate400": true,
+          "threadedOptimizationOn": true,
+          "preferMaximumPerformance": true,
+          "ultraLowLatency": true,
+          "support": {
+            "ultraLowLatency": false
+          }
+        },
+        "applyFailures": [
+          {
+            "key": "lowLatencyEnabled",
+            "reason": "failure"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "nvidia": true,
+      "goals": {
+        "verticalSyncOff": false,
+        "maxFrameRate400": true,
+        "threadedOptimizationOn": true,
+        "preferMaximumPerformance": true,
+        "ultraLowLatency": true,
+        "support": {
+          "ultraLowLatency": false
+        }
+      },
+      "applyFailures": [
+        {
+          "key": "lowLatencyEnabled",
+          "reason": "failure"
+        }
+      ],
+      "detected": true,
+      "vendor": "nvidia",
+      "vendorLabel": "NVIDIA",
+      "title": "NVIDIA 프로필",
+      "scope": "application",
+      "scopeLabel": "마비노기 프로그램 프로필",
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "수직 동기화 끄기",
+          "supported": true,
+          "met": false,
+          "error": null
+        },
+        {
+          "key": "maxFrameRate400",
+          "label": "최대 프레임 400 FPS",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "threadedOptimizationOn",
+          "label": "스레드 최적화",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "preferMaximumPerformance",
+          "label": "최고 성능 선호",
+          "supported": true,
+          "met": true,
+          "error": null
+        },
+        {
+          "key": "ultraLowLatency",
+          "label": "저지연 모드 울트라",
+          "supported": false,
+          "met": false,
+          "error": "failure"
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "radeon",
+    "args": [
+      {
+        "detected": true,
+        "gpus": [
+          {
+            "name": "AMD"
+          }
+        ],
+        "goals": [
+          {
+            "key": "verticalSyncOff",
+            "label": "Vsync",
+            "supported": true,
+            "met": true,
+            "currentValue": 0
+          }
+        ],
+        "allMet": true
+      },
+      {
+        "enabled": true,
+        "available": true
+      }
+    ],
+    "expected": {
+      "supported": true,
+      "detected": true,
+      "amd": true,
+      "vendor": "amd",
+      "vendorLabel": "AMD Radeon",
+      "title": "AMD Radeon 전역 설정",
+      "scope": "global",
+      "scopeLabel": "Radeon GPU 전역 설정",
+      "persistentGlobal": true,
+      "reason": null,
+      "gpus": [
+        {
+          "name": "AMD"
+        }
+      ],
+      "gameVerticalSync": {
+        "enabled": true,
+        "available": true
+      },
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "Vsync",
+          "supported": true,
+          "met": false,
+          "currentValue": "0 · 게임 설정 켜기"
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "radeon",
+    "args": [
+      {
+        "detected": true,
+        "gpus": [
+          {
+            "name": "AMD"
+          }
+        ],
+        "goals": [
+          {
+            "key": "verticalSyncOff",
+            "label": "Vsync",
+            "supported": true,
+            "met": true,
+            "currentValue": 0
+          }
+        ],
+        "allMet": true
+      },
+      {
+        "enabled": true,
+        "available": false
+      }
+    ],
+    "expected": {
+      "supported": true,
+      "detected": true,
+      "amd": true,
+      "vendor": "amd",
+      "vendorLabel": "AMD Radeon",
+      "title": "AMD Radeon 전역 설정",
+      "scope": "global",
+      "scopeLabel": "Radeon GPU 전역 설정",
+      "persistentGlobal": true,
+      "reason": null,
+      "gpus": [
+        {
+          "name": "AMD"
+        }
+      ],
+      "gameVerticalSync": {
+        "enabled": true,
+        "available": false
+      },
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "Vsync",
+          "supported": true,
+          "met": false,
+          "currentValue": "0 · 게임 설정 켜기"
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "radeon",
+    "args": [
+      {
+        "detected": true,
+        "gpus": [
+          {
+            "name": "AMD"
+          }
+        ],
+        "goals": [
+          {
+            "key": "verticalSyncOff",
+            "label": "Vsync",
+            "supported": true,
+            "met": true,
+            "currentValue": 0
+          }
+        ],
+        "allMet": true
+      },
+      {
+        "enabled": false,
+        "available": true
+      }
+    ],
+    "expected": {
+      "supported": true,
+      "detected": true,
+      "amd": true,
+      "vendor": "amd",
+      "vendorLabel": "AMD Radeon",
+      "title": "AMD Radeon 전역 설정",
+      "scope": "global",
+      "scopeLabel": "Radeon GPU 전역 설정",
+      "persistentGlobal": true,
+      "reason": null,
+      "gpus": [
+        {
+          "name": "AMD"
+        }
+      ],
+      "gameVerticalSync": {
+        "enabled": false,
+        "available": true
+      },
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "Vsync",
+          "supported": true,
+          "met": true,
+          "currentValue": "0"
+        }
+      ],
+      "allMet": true
+    }
+  },
+  {
+    "kind": "radeon",
+    "args": [
+      {
+        "detected": true,
+        "gpus": [
+          {
+            "name": "AMD"
+          }
+        ],
+        "goals": [
+          {
+            "key": "verticalSyncOff",
+            "label": "Vsync",
+            "supported": true,
+            "met": true,
+            "currentValue": 0
+          }
+        ],
+        "allMet": true
+      },
+      {
+        "enabled": false,
+        "available": false
+      }
+    ],
+    "expected": {
+      "supported": true,
+      "detected": true,
+      "amd": true,
+      "vendor": "amd",
+      "vendorLabel": "AMD Radeon",
+      "title": "AMD Radeon 전역 설정",
+      "scope": "global",
+      "scopeLabel": "Radeon GPU 전역 설정",
+      "persistentGlobal": true,
+      "reason": null,
+      "gpus": [
+        {
+          "name": "AMD"
+        }
+      ],
+      "gameVerticalSync": {
+        "enabled": false,
+        "available": false
+      },
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "Vsync",
+          "supported": true,
+          "met": false,
+          "currentValue": "0 · 게임 설정 켜기"
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "radeon",
+    "args": [
+      {
+        "detected": true,
+        "gpus": [
+          {
+            "name": "AMD"
+          }
+        ],
+        "goals": [
+          {
+            "key": "verticalSyncOff",
+            "label": "Vsync",
+            "supported": true,
+            "met": true,
+            "currentValue": 0
+          }
+        ],
+        "allMet": true
+      },
+      {
+        "enabled": null,
+        "available": true
+      }
+    ],
+    "expected": {
+      "supported": true,
+      "detected": true,
+      "amd": true,
+      "vendor": "amd",
+      "vendorLabel": "AMD Radeon",
+      "title": "AMD Radeon 전역 설정",
+      "scope": "global",
+      "scopeLabel": "Radeon GPU 전역 설정",
+      "persistentGlobal": true,
+      "reason": null,
+      "gpus": [
+        {
+          "name": "AMD"
+        }
+      ],
+      "gameVerticalSync": {
+        "enabled": null,
+        "available": true
+      },
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "Vsync",
+          "supported": true,
+          "met": false,
+          "currentValue": "0 · 게임 설정 켜기"
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "radeon",
+    "args": [
+      {
+        "detected": true,
+        "gpus": [
+          {
+            "name": "AMD"
+          }
+        ],
+        "goals": [
+          {
+            "key": "verticalSyncOff",
+            "label": "Vsync",
+            "supported": true,
+            "met": true,
+            "currentValue": 0
+          }
+        ],
+        "allMet": true
+      },
+      {
+        "enabled": null,
+        "available": false
+      }
+    ],
+    "expected": {
+      "supported": true,
+      "detected": true,
+      "amd": true,
+      "vendor": "amd",
+      "vendorLabel": "AMD Radeon",
+      "title": "AMD Radeon 전역 설정",
+      "scope": "global",
+      "scopeLabel": "Radeon GPU 전역 설정",
+      "persistentGlobal": true,
+      "reason": null,
+      "gpus": [
+        {
+          "name": "AMD"
+        }
+      ],
+      "gameVerticalSync": {
+        "enabled": null,
+        "available": false
+      },
+      "goalsList": [
+        {
+          "key": "verticalSyncOff",
+          "label": "Vsync",
+          "supported": true,
+          "met": false,
+          "currentValue": "0 · 게임 설정 켜기"
+        }
+      ],
+      "allMet": false
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v2.7",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.6094"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v2.7",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.7551"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v2.7",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.8000"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v2.7",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "invalid"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v3.0",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.6094"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": false,
+      "checked": true,
+      "driverVersion": "560.94",
+      "minimumDriverVersion": "575.51",
+      "reason": "NVIDIA 560.94 드라이버는 DXVK 3.x 요구사항을 충족하지 않습니다"
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v3.0",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.7551"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "driverVersion": "575.51",
+      "minimumDriverVersion": "575.51",
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v3.0",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.8000"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "driverVersion": "580.00",
+      "minimumDriverVersion": "575.51",
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v3.0",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "invalid"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": false,
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v3.0.2",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.6094"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": false,
+      "checked": true,
+      "driverVersion": "560.94",
+      "minimumDriverVersion": "575.51",
+      "reason": "NVIDIA 560.94 드라이버는 DXVK 3.x 요구사항을 충족하지 않습니다"
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v3.0.2",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.7551"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "driverVersion": "575.51",
+      "minimumDriverVersion": "575.51",
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v3.0.2",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.8000"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "driverVersion": "580.00",
+      "minimumDriverVersion": "575.51",
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "v3.0.2",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "invalid"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": false,
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "garbage",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.6094"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "garbage",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.7551"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "garbage",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "32.0.15.8000"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "reason": null
+    }
+  },
+  {
+    "kind": "dxvk-compatibility",
+    "args": [
+      "garbage",
+      {
+        "gpuDevice": [
+          {
+            "vendorId": 4318,
+            "driverVersion": "invalid"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "compatible": true,
+      "checked": true,
+      "reason": null
+    }
+  },
+  {
+    "kind": "notice",
+    "args": [
+      ""
+    ],
+    "expected": null
+  },
+  {
+    "kind": "notice",
+    "args": [
+      " \r\n "
+    ],
+    "expected": null
+  },
+  {
+    "kind": "notice",
+    "args": [
+      "# 공지\r\n내용\r\n"
+    ],
+    "expected": {
+      "id": "5abda6b596a0957e4809e3cbbe82333e486120361625d9f7da7906b565fccca9",
+      "markdown": "# 공지\n내용"
+    }
+  },
+  {
+    "kind": "notice",
+    "args": [
+      "🧪 공지"
+    ],
+    "expected": {
+      "id": "bec8a9195ae1a69b1df430e5baf4b733488d22d60bd5cca2453bd2b0e1664bba",
+      "markdown": "🧪 공지"
+    }
+  },
+  {
+    "kind": "report",
+    "args": [
+      {
+        "schemaVersion": 1,
+        "responses": [
+          {
+            "reportId": "e3cd9d27-5b53-4ad8-8e50-6b8a9d6faebf",
+            "responseId": "reply",
+            "title": "test",
+            "message": "내용",
+            "answeredAt": "2026-09-28T00:00:00Z"
+          },
+          {
+            "reportId": "invalid"
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "schemaVersion": 1,
+      "generatedAt": null,
+      "responses": [
+        {
+          "reportId": "e3cd9d27-5b53-4ad8-8e50-6b8a9d6faebf",
+          "responseId": "reply",
+          "title": "test",
+          "message": "내용",
+          "answeredAt": "2026-09-28T00:00:00Z"
+        }
+      ]
+    }
+  },
+  {
+    "kind": "channel",
+    "args": [
+      "<script type=\"application/ld+json\">{\"name\":\"이름\",\"alternateName\":\"@creator\",\"image\":\"https://example.com/avatar=s88\",\"interactionStatistic\":[{\"interactionType\":{\"@type\":\"FollowAction\"},\"userInteractionCount\":\"1,234\"}]}</script>\"content\":\"동영상 23개\""
+    ],
+    "expected": {
+      "name": "이름",
+      "handle": "@creator",
+      "subscriberCount": 1234,
+      "videoCount": 23,
+      "avatarUrl": "https://example.com/avatar=s88",
+      "channelUrl": "https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zEBHg"
+    }
+  },
+  {
+    "kind": "channel",
+    "args": [
+      "<script type=\"application/ld+json\">{\"name\":\"이름\",\"alternateName\":\"@creator\",\"image\":\"https://example.com/avatar=s88\",\"interactionStatistic\":[{\"interactionType\":{\"@type\":\"FollowAction\"},\"userInteractionCount\":\"invalid\"}]}</script>\"content\":\"동영상 23개\""
+    ],
+    "expected": {
+      "name": "이름",
+      "handle": "@creator",
+      "subscriberCount": null,
+      "videoCount": 23,
+      "avatarUrl": "https://example.com/avatar=s88",
+      "channelUrl": "https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zEBHg"
+    }
+  },
+  {
+    "kind": "channel",
+    "args": [
+      "<script type=\"application/ld+json\">{\"name\":\"이름\",\"alternateName\":\"@creator\",\"image\":\"https://example.com/avatar=s88\",\"interactionStatistic\":[{\"interactionType\":{\"@type\":\"FollowAction\"},\"userInteractionCount\":null}]}</script>\"content\":\"동영상 23개\""
+    ],
+    "expected": {
+      "name": "이름",
+      "handle": "@creator",
+      "subscriberCount": 0,
+      "videoCount": 23,
+      "avatarUrl": "https://example.com/avatar=s88",
+      "channelUrl": "https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zEBHg"
+    }
+  },
+  {
+    "kind": "muo",
+    "args": [
+      "TVVPMgEABwCACgAA8ZMR1Y/ck3MGfY1n9YFl00kccOqACgAAeAB5ACsAMwA3ADIAbAArAEMAeABMAGYAMgByAG4AVwBvAGoAaABxAFcAWQBMAE4AVABFAHcAWQB5AHoAbwB2AHAAbwAxAG4AVwBtAFUASQBTAHAAZQBNAG0AQQBRAHAAYgBhAGwAagB0ADkAbABPAHQATwBkAGgASQBSAEMANgA0AFYAYwBXAGsALwA1AHoAMgBvAHEAeQBuAGMAOABoAFkASgA2AGwATwBwAEQASQBsAC8AawAzAE8AKwBNADEAdAA0AGgAMABOAHkARgBVAFoAagBBADcAMAAyADgAaAB6ADgAeABYAE8AaABtAFoAYQBrAEsAbAB3AGwAQgBtAFQARgBqAEwAWABiAE8AawBEAGQATABlAEUAZwBUADcAMgBvAGYAQgBjAG4AbQA1AG8AdABFAEsAeABQAGIANgBnAG4AUABCAFAAZAA5AEQAagBrAEQAUAB2AHcAbwA1AGYAZgBaAHcAbgBEAGgAWABLAGEAUQBFAGoAeAAxAGEAeQBNAG0AbABZAFoAYwBKAFMATAA2AGQAUQAvAHoAVQAvAHYALwBkAHAALwBhAEYAWQBsAFkAVABrAGIAbQBEAEQATQA2ADYASQA1AEMAaQBHAEEAUgA0AHcANwA2AEoAZwBFAEYAaABMAG4ATQAzAEwAKwBsAE4AaQBiAEYAegBZAEkATgAzAEgATAB6AE4AcQBnAHUANABOADIAVABGADYAZQBKADQASgBBADMANQBmAHUAcwBzADAATQBUAEIARgBqAGMAdwBsAE0ALwBvAFEANwAyAFQAdQBGAHEAcQB5AHAAaQBnADUAegB5AFAARwBQAGQAUgAwAGsAZwBGAEsARwAvAEQAKwBEAFEAYQBWAEsATQA1AHUAVwAxAG0AWQB0AE8AMgBPAFIAegA2AFYAawBNAGUAQgBGADcAZgA0AEgAOAA2AE0AYwBOAGkARgA5ADkAWQAyADkATABTAFIAbgBmACsARgBzAGMAdwBVAEwAdwBGAHcAQQA3AGIAcAB1AFcANABMAGUAZABDAFoAZQBRAEcAeAAvAFEATAB2ADQASABIAEEAQgA2AGoAawBLAFAAbAA1AFgAdQBqAHQAcgA2AFgAKwBPAGsATwBkAGUAUwBIAFYAZwB0ADQAbgBhAGoAZABkAG8AYQBSADEAQQBoADkAdgBCAGwAOABoAG0AOQBpAE0ANABvADYASQAyAEsAUgBhAEYAZQBRAEMAOABtAFEAZABLAFQASgBwAGsAWAA3AEQAOQBoADAAUQBRAHIAZABBAHgARQBYAEoAYgBOAGYASQBoADUAUgBLACsAUQBJAGwAYwBCAHMANABaAHAAWABzAEoASAAxADAAVABRAFYAWABVADQAVQBBADcAagAxAG4ATQBoAG0AeAB4AGwARAB1AFMARAB3AG0ARwBVAEcATQBSADQAagBWAHMAUQBtAFkARQA3AHIAdABhADUAZAB6AFUASwA1AFoAcgAwAGsANABzADgATABXAGMAQgAvAG4AVgA4AEEASwBmACsAWAA1AG8AWgB6ADIAaQBMAHQASwBYAGUASwBVAFIANABIAGkAdwBtAEgAMAAzADIAMwBYAFYAMQBWAFoAbwArAFEATgAxAEgALwBRAEoAbQB1AGgAagBHAGwAdAB3AFYAKwBOADMAYQAwAEUAYQBBAEEAOAAyAHoAWABPADgAMwB3AHkAeABmAFYAVgA4AGQAawBSAGYAVgB2AGYAeQBlADgAcQA3AFUAUwBWAGQANwByAHEAYQBBAFcAUwBSAEUANABuAHIASQBIAFIASwBqAFMAZQBuAHQALwByAFEAcQBOADkARwBaAFUAcABMAFAAeQBQAFUATQBOAGoAKwBWADMALwBXADgAMQBYAE4AMQA3AGUALwBBAE0AdQAwAEUAdgBVAC8AbABYAFkAbwBZADAAOQBiADIAMAB0ADgALwA0AGQATgBkAHUAeQA0AFEAUwBTAEQAVgBTAGMAdgBnAFIANgA0AEIANQBwAFoAegBtADUAWQBYAEkAcgBjAFoAeQBkADAAOQBjAHQAbQBmAGEAUwBFADMAZQBDAHYAZgA2AHAAVgBTAHQANwAyAFoAMwB0ADIAaABrAGUAbwBlAC8ASQAvAG8AcwBpAHcAegBXAGEATwA1AE4AaAA2AEIAeABHACsAcgBaAGsAagBKAHAAMABqAGYAaABTAEEAQwBTAE8AcQB3AFgAQwBJAHIAawBpAC8AeABIAC8AQQBZAEwAbABnAFoAYQA3AE8AaAA2AGoAUgBRADUAUgBhAHQAcABHAGUALwBPAHoAcwBwAFkAVgBVAFEAegBBADcAdgBhAHgAYgBOAEcATAAvAGMAMQBxAC8ATABuAEMAagBNAC8AVAAwAGMAdABlAFgAbQBSAGgAcQBoAEwAeAAyADQAYgAzAG0AYgAxAHAAWQAwAGsAcgB4AEoAUQAvADcAVABDAG0ASAAxAGQAegB1AG4AMwBnAHkASgBBAGcAVgAyAFQAbgBwAHUATwBTAE4AbQBwAGUARgBwAGQAUABTAGwAaABoAEUAMgBkAFkAVgB4AHMAMwBLADIAWABCAEUAcAA0ADEAKwBOAEQASwBqAE8AcgA3AFgAegA0AHUAMwBMAFMAcgBQAHQAQgBtAG0ARgBZADYAVwBsAE8AdwByAFcAOQA4AEUASgBuAG4ANgBqAHcAegBWADAAcQBnAGEAbwAyACsAbgArAFMAcgBmAFYAaABaADkAQgBKADQASgBpAGkATwB1AG0AUQBSAEkAQQBMAEoAcwBxAG0ATQBiAFcASgBYAFkAbwBUAGQAWgAvAFUAVwA5ADUATwBYAFUATgBGAGoAegByAGcAMQA5ADQAVABaADUAbQBCAHIAVgB5AFgAUQBYAEoAegAvAEQANgBEAEQAdgA3AHgARgBkADgAQwBYAE8AOQBxAHEAZgBSADIAaABwADMATwBhADIAbgA0ADkAYwBvAEMASwA5ADUASABVAG4ANABUAEoAaABuADMAbgBmAHUALwBMAHgAMABnAGYAaQBYAEwAbwBVAC8AdwBXAGkAcwBSAG0AZgB1AE8ARABKAG4AbgBNADAAbQBUADMAOQBHADIAbgBqAE0AdgB6ACsAUABLAFgAdgBMAGIASgB1ADMAWQBqAGkAbwBmAEMANABVAFgALwBLADgAbgBpAGUAVABDAFkANgA2AFUAcgBhAFQAYQB0AFgANQBLAGoAOAA4AFAARwA4AFcASAA2AGYAMQBJADQAVQBKAC8AaAAzAGoAeQA3ADkAcwBaADIAZAA1AE4AcwBpACsAMwA3AFUAbwBFADYAZAAwAEYAcgBBAGEAdABRADAAcgB6AGIAbgAwAE4AUQA2AGsAaQBXAFoAaQBsAEUAMQBEADIAMwBnAGMAZQBUADQAZgBRAFIAUAA5AGkAawBQADQAbgBnAEYAagBSADMAagBWAE4AMwBQAGMANQBMAHAAdwA5AG0AVwB3AEwASwBiAEsANgB2AFIAQgB5AEwAMABJAFkANQBWACsASwBvAG8ANgBwAEgAYwBPACsAagAvAGMAVQAzADAAdABQAFIAVAA2AEkAYQB2AHYAeQBKAGYAQwBQAEwAaAB2AHEAegB4AHMAMwAzAFUAcgBGAGEAcABXADcAMQBrAHEANwBSAFoAKwBHAFgATgB0AE0ANwBZADQAcwBqAFEAaQBaAEMANABtAEMAVgAyAFYAcQB6ADUAYgB2AEkAWABaAFMAZgBFAHAANABRAHEALwBQAHEAUAB1ADgAbgBIAHoARwBiAEgAdwAvAGEAbAB5AGsAdgBjADIAMAB6AHMARgA2ADcAcwA5AEYARQBFAFAATgBSAGMATgBRAFoAYgBXAEoASABnAEIAdgBHADIAagBvAFcAUgB3AFEAWgByAHUAQQAvAEQAYgArAEYAcgByAHkARAB2ADcAdQBTAGIAQwB6ADcAeQBpAG0AdgBYAHIARwBnAHQAUQBmADgAdAAwADgARABlAGQAYQBIADIAKwA3AGgARABwACsANwBjAEoANwAzAGQAOABUAG0ANgBTADYAUQA2AHUAVgBTAGIAWAAxADYATwBKAE0ATwBMAGcAagBrAHIAbwBSAFQAbwBlAHEAegBmAEUAKwBCAGUAcwBDADYATABBAGYAawBRAHoATwBnAEEANgBwACsAdgA5AGcAaQA1AEQAagBSAEwAVQB3ADYAWABNAGwAWAA1ADcAeABtADIATQBrAFYASQBSADgAdgBxAFUANQB1AEwAegBFAEoANAB1ACsANgBiAGYAUQBpAGIAZABLAFMAegA0AEwAZgBZADgAcQA0AE4ATwBKAHAATQBTAEcAeAAyAE4AZwA1AEMANAA1AG0AeAB0AHQAOQBpAHEAOABpAEwARwB5AEQARwBCAHMAWQB4AE0AaABXAGYATwBHADkARABhAFEAdwBqAGkAcwBNAFAAUwBCAGEAcQBHADcAegBjAGEAcAB1AFcASABSADAAVgBXAGkAUwBtAHQAWQA0AE8ANQBmADEAQgAwAGEAWABxAFoAWABCAHoAagBGADkAUwBaAGoAcQB0AEEAOABkAFEAdABEAEoAVABVAG4AbwArADkANABaAGoAeQBCADIAMgBVAHIANwBtAHUAUgBYAEsAQgBrAHgAQgB5ADMAaABNAFoARgBGAFYASwA2AGUAZgBSAGoAZABvAGcAYgBnAEEAUgAwAC8AdwAyAEQAYwBPADcATgBXACsAaQAxAGwAcQBjAEEASABNAGkARQBsAFIANQBjAEQAVABaAEcAaQB5ADcAdgBaAHUAWQBOACsARABOAGoAbwBqAGgAMwBWAFoAcABSAGcAKwBSAFoAeABFAGsAVgAxAE8AdgBKAGcAQgB5AGwAdwAxAE4ASABSAEcAbQBVAEQAMQBMADUARgBVAHcANAAvAFUAOQBtAEUAWQBuAGYAWQB2ADcAbwBkAFYATAAvADYARgBsAGkAMgBnAHAAOQBVADgARgBFAHYASQBFAFQATwAxAHcAOQBQAFQATABDAEYASAB4AEEAdwBDAFMAYwBFAFEASQB0AEIAbAA2ADEAbABxAE0AVwBJAFIAawBjAEsAaQBJAHQAZwBsAE4AbwAwAGoAQQBTAG8AZABqAHYALwBuAFgAYgB4AEIAYgBNAEMAMQBVAFMATABtAEYASwB5AHEANQAzADYAMQBMAFQASQAwAFQASgBtAHAAKwBxAEgAMgBuACsAcABVAHYATAByAE4AQgBpAGoAWQBxAEYAagBGAEsAQQBpADYARABPADYAUQBkAFUASQBtAEkAUgB0AFAANgBNADcANgB4AE0AWQBUADkAVQArADUAOABlAFoASwBZAGEAdQBKAG0AMQB5AC8AOABQAHEAZgA5AHcARABYAGMATwBQAE0AZwBVADIASgBOACsAZQB2AE8ANAA5AE8AQgBmAGIAbwBLADMAQQBHAFQAVQBaADUATgByAHQAaQBUAHMASwBWADMAdgBnAEUAbQBhAG8AVABzAEoAbgBFACsAQQBNAEQAZAByAGYAUQBUAFkANwBOAEkAUgBXAHYARgBXAEwARgAwAE0AZgA0AC8ARABJADcAawBDAHQANQBwACsAVAA5AG4AVgBSAFIAZwBiADUAVgBLAGEAaABuAEYATAB5ADkAcQBaAFMAZQBZAFkAMQBYAG8ASgAwAHYAYwA3AEYAVgBXAG4AdgBBAEkAWQBxAG0AZgB5AHoAdQBTADMAcwA4AEsAMQBmAEkAawBJAEQATwBqAHIANwBZAEMARABkAFYAUwBiAGYAaABCAEcAQQA1ACsASQBDAFMAOQB6AEgAYgBqAC8AMgBWAGQAZgBSAHgAeABFAHoAVQA0AGoASgBFAE0ATABtAEEAQQBBAFkASAAxAEEANgBiAFIARgBvAFAAeQB6AG8ANwBGAGgAWQBvADcATwBFAG4ASwBhAFAAVABnAHcATQB5AGEANgB3AFoAMgBZAEQAaQBBAFIAMgBsAGMAVwBhAGIAWgBmAE4AcAB6AE0AbgBWAE0ASQBrADEARwBEAFQAYgBCAG8AcQBoAG4AcAA3AGsAVgBtADMAMgByAGkAZgB6AEIAYQBrAE8AWgBYAHYAUgA3ADIAcABFAEQAdwB2AEoAeABSACsAcABlAHYAawBvAEQARQBDADQASgBnAHoAbQBiAHoATQBPAE8AeQAxADkAOQBKAEYAVwBGAEYAMgA2AFEAZQBSADIANQA2AFUATQBPACsASABiAEIAcABWAHoAawBXAG4AZABqAGYAegBLAEYAagAwAE0ARQBZAFEAawBMAFoAKwBEAE4AUgB1AEQAWAA4ADYAegB1AGsAcgBDAEkANwBRAE8ATwA5AFgAMQBvAHgAVQBSAHQAUgBNAGYAKwBEAGkAVgB5AFUAMAB0ADkARABLAEwAVABQAFkAUwBpAHcAUABxADAAUwBnACsASQBKAHkAeQBTADgAZABjAEYAVQBCAGoAWABQADIASwBTAEMAKwB6AHEAMgBTACsATQBXADYAZgBSAGIASABIAFMATABxAGoAQQBvAGcAcwBhADQASABIAFkANgA5AEcAZAAvAGwASABuAHIAaQBJAE0ANwA1ADkAZAAwAHUAdwBHAEwAZgA3AHAAOQBrADEAdgBKAHEAdQBlAHAAbQBzACsAVgB3AEcAaAArAHoAcQBWAHYAZABhAGwAcABaAEEATABGAEQANwBIAGMAaAB0AHQAYQBFAHIAQgBwAEsANAB6ADAASAB5AHEAYQB4AGgAYQBxADAAZAA3ADgAbQBOAEIAaQBLAHgASwBpAFIAQgB5AEYAWgBmAHoAcQAzADAAbwBJAHYAZABLADAAUABMADUAeQAvAG4ARwB0AHcATABWAEsAbQAwADMAUABTAFcAcwBiAEQAbwBYADIAcwA3AFMAMgB0AGcAYQAyAG0AaAAwAHAAbQBkAGgANwA2AFYARgBHAEYAUQBvAFEAYQAxAHcARAA2AGwAQwBxACsAdwBuAHQAUQBlAHUAMgBtAFgAOABZAFoAeAAyACsASgBNAFAAeAAzAGkAWgAvAEIAWQAxAG8AMABDAGMAcQBEAFYAWgBQAFoAbABSAG0A"
+    ],
+    "expected": {
+      "format": "muo2",
+      "xmlText": "<client_options><game_option><GraphicEffect Shadow=\"0\" Flash=\"0\" ReflectionDetail=\"0\" UseFootStepEffect=\"0\" Outline=\"0\" UseWholeEffect=\"0\" AlphaFog=\"0\" UseGlowEffect=\"0\" AutoVisionCorrection=\"0\" AutoVisionCorrectionFPS=\"0\" MinimumVisionRate=\"50\" DummyCharRenderMode=\"1\" DummyCharRenderModeFPS=\"-1\" ExcludePartyFromDummyCharRender=\"0\" UseDemiGodSimplificationMode=\"2\" NoEffectOption=\"0\" UseMyEffect=\"1\" CameraVibrateDisable2025=\"1\"/><skill><target_prepared_attack><skill name=\"Urgent Shot\" race=\"elffemale\"/><skill name=\"Act 2: Angry Rush\" race=\"elffemale\"/><skill name=\"Support Shot\" race=\"elffemale\"/><skill name=\"Tri Assault\" race=\"elffemale\"/><skill name=\"Flame Burst\" race=\"elffemale\"/><skill name=\"Shooter&apos;s Eye\" race=\"elffemale\"/><skill name=\"Crash Shot\" race=\"elffemale\"/><skill name=\"Line Force\" race=\"elffemale\"/><skill name=\"Dust Shot\" race=\"elffemale\"/><skill name=\"Mirage Missile\" race=\"elffemale\"/><skill name=\"Iron Wall Hit\" race=\"elffemale\"/><skill name=\"Hydro Pierce\" race=\"elffemale\"/><skill name=\"Death Marker\" race=\"elffemale\"/><skill name=\"Bash\" race=\"elffemale\"/><skill name=\"Magnum Shot\" race=\"elffemale\"/><skill name=\"Divine Link\" race=\"elffemale\"/><skill name=\"Fatal Scope\" race=\"elffemale\"/><skill name=\"Assault\" race=\"elffemale\"/><skill name=\"Smash\" race=\"elffemale\"/><skill name=\"Judgement Blade\" race=\"elffemale\"/><skill name=\"Heavy Artillery\" race=\"elffemale\"/><skill name=\"Cross Buster\" race=\"elffemale\"/><skill name=\"Devastation Cannon\" race=\"elffemale\"/><skill name=\"Party Healing\" race=\"elffemale\"/><skill name=\"Fireball\" race=\"elffemale\"/><skill name=\"Far Away\" race=\"elffemale\"/><skill name=\"Judgment Strike\" race=\"elffemale\"/><skill name=\"Melody Shock\" race=\"elffemale\"/><skill name=\"Fire Leap Attack\" race=\"elffemale\"/><skill name=\"WindMill\" race=\"elffemale\"/><skill name=\"Lightning Smash\" race=\"elffemale\"/><skill name=\"Downbeat Accent\" race=\"elffemale\"/><skill name=\"Act 1: Accidental Crash\" race=\"elffemale\"/><skill name=\"Ice Windmill\" race=\"elffemale\"/><skill name=\"Shuriken Charging\" race=\"elffemale\"/><skill name=\"Scythe Slash\" race=\"elffemale\"/><skill name=\"Thunder\" race=\"elffemale\"/><skill name=\"Explosion Lunge\" race=\"elffemale\"/><skill name=\"Tracking Step\" race=\"elffemale\"/><skill name=\"Wire Web\" race=\"elffemale\"/><skill name=\"Act 4: Jealousy Incarnate\" race=\"elffemale\"/><skill name=\"Grand Finale\" race=\"elffemale\"/><skill name=\"Radiant Condemnation\" race=\"elffemale\"/><skill name=\"Latent Ignition\" race=\"elffemale\"/></target_prepared_attack></skill></game_option><metadata_owner accountId=\"698046171\" serverId=\"mabikr1\" characterId=\"4503599655915404\"/></client_options>"
+    }
+  }
+]

@@ -1,0 +1,101 @@
+
+  .terms-backdrop {
+    position: fixed;
+    z-index: 450;
+    inset: 0;
+    background: #191c1e;
+    animation: terms-in 180ms ease-out both;
+  }
+
+  .terms-backdrop.closing {
+    pointer-events: none;
+    animation: terms-out 180ms ease-in both;
+  }
+
+  .terms-modal {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    color: #f3f5f7;
+    background: #191c1e;
+  }
+
+  .terms-modal > header {
+    position: relative;
+    min-height: 48px;
+    margin: 0;
+    padding: 14px 52px 10px 18px;
+    border-bottom: 1px solid #343a3d;
+  }
+
+  .terms-modal > header > h2 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  .terms-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 30px;
+    height: 30px;
+    padding: 5px;
+    color: #aeb5b9;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .terms-close:hover:not(:disabled) {
+    color: #fff;
+  }
+
+  .terms-close svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+  }
+
+  .terms-scroll {
+    min-height: 0;
+    padding: 8px 20px 18px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    color-scheme: dark;
+    scrollbar-width: thin;
+    scrollbar-color: #737b80 transparent;
+    overscroll-behavior: contain;
+  }
+
+  .terms-modal > footer {
+    min-height: 52px;
+    padding: 10px 16px;
+    border-top: 1px solid #343a3d;
+    background: #151719;
+  }
+
+  @keyframes terms-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes terms-out {
+    from {
+      opacity: 1;
+    }
+
+    to {
+      opacity: 0;
+    }
+  }
+
+  .terms-scroll::-webkit-scrollbar { width: 8px; }
+  .terms-scroll::-webkit-scrollbar-track { background: transparent; }
+  .terms-scroll::-webkit-scrollbar-thumb { background: #737b80; border-radius: 4px; }
+  .terms-scroll::-webkit-scrollbar-button { display: none; }

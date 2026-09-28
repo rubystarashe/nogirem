@@ -1,0 +1,136 @@
+[package]
+name = "dioxus-desktop"
+version = { workspace = true }
+authors = ["Jonathan Kelley"]
+edition = "2021"
+description = "WebView renderer for Dioxus"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/DioxusLabs/dioxus/"
+homepage = "https://dioxuslabs.com/learn/0.7/getting_started"
+keywords = ["dom", "ui", "gui", "react"]
+rust-version = "1.76.0"
+
+[dependencies]
+dioxus-core = { workspace = true, features = ["serialize"] }
+dioxus-html = { workspace = true, features = ["serialize"] }
+dioxus-document = { workspace = true }
+dioxus-signals = { workspace = true, optional = true }
+dioxus-interpreter-js = { workspace = true, features = ["binary-protocol", "serialize"] }
+dioxus-cli-config = { workspace = true }
+dioxus-asset-resolver = { workspace = true, features = ["native"] }
+generational-box = { workspace = true }
+dioxus-devtools = { workspace = true, optional = true }
+
+anyhow = { workspace = true }
+image = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+wry = { workspace = true, default-features = false, features = ["os-webview", "protocol", "drag-drop"] }
+futures-channel = { workspace = true }
+tokio = { workspace = true, features = [
+  "sync",
+  "rt-multi-thread",
+  "rt",
+  "time",
+  "macros",
+  "fs",
+  "io-util",
+], optional = true }
+infer = { workspace = true }
+dunce = { workspace = true }
+slab = { workspace = true }
+rustc-hash = { workspace = true }
+dioxus-hooks = { workspace = true }
+futures-util = { workspace = true }
+percent-encoding = { workspace = true }
+async-trait = { workspace = true }
+tao = { workspace = true, features = ["rwh_05"] }
+dioxus-history = { workspace = true }
+base64 = { workspace = true }
+libc = "0.2.174"
+rand = { workspace = true, features = ["std_rng"] }
+subtle = { version = "2.6", features = ["const-generics"] }
+bytes = { workspace = true }
+webbrowser = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+signal-hook = "0.3.18"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+wry = { workspace = true, features = ["os-webview", "protocol", "drag-drop", "linux-body"] }
+
+[target.'cfg(any(target_os = "windows",target_os = "macos",target_os = "linux",target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+global-hotkey = "0.7.0"
+rfd = { version = "0.17.2", default-features = false, features = ["xdg-portal"] }
+muda = { workspace = true }
+
+[target.'cfg(any(target_os = "windows",target_os = "macos",target_os = "linux"))'.dependencies]
+tray-icon = { workspace = true }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+objc = "0.2.7"
+objc_id = "0.1.1"
+
+# use rustls on android
+[target.'cfg(target_os = "android")'.dependencies]
+tungstenite = { workspace = true, features = ["rustls"] }
+jni = "0.21.1"
+ndk = { version = "0.9.0" }
+ndk-sys = { version = "0.6.0" }
+ndk-context = { version = "0.1.1" }
+
+# use native tls on other platforms
+[target.'cfg(not(target_os = "android"))'.dependencies]
+tungstenite = { workspace = true, features = ["native-tls"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "0.26.1"
+core-foundation = "0.10.1"
+objc = "0.2.7"
+
+[build-dependencies]
+lazy-js-bundle = { workspace = true }
+
+[features]
+default = ["tokio_runtime", "transparent", "devtools"]
+tokio_runtime = ["dep:tokio"]
+fullscreen = ["wry/fullscreen"]
+devtools = ["wry/devtools", "dep:dioxus-devtools", "dioxus-signals"]
+transparent = ["wry/transparent"]
+gnu = []
+
+[package.metadata.docs.rs]
+features = ["tokio_runtime", "devtools"]
+cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
+default-features = false
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "x86_64-pc-windows-msvc",
+  "aarch64-apple-darwin",
+  "aarch64-apple-ios",
+  "aarch64-linux-android",
+  "armv7-linux-androideabi",
+]
+
+# These tests need to be run on the main thread, so they cannot use rust's test harness.
+[[test]]
+name = "check_events"
+path = "headless_tests/events.rs"
+harness = false
+
+[[test]]
+name = "check_rendering"
+path = "headless_tests/rendering.rs"
+harness = false
+
+[[test]]
+name = "check_forms"
+path = "headless_tests/forms.rs"
+harness = false
+
+[[test]]
+name = "check_eval"
+path = "headless_tests/eval.rs"
+harness = false

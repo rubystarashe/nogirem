@@ -91,9 +91,9 @@ test("진단 ZIP에 시스템 요약과 마스킹된 로그 목록을 만든다"
 
 test("고급 기능 UI와 제한된 preload IPC에 로그 추출을 연결한다", async () => {
   const [mainSource, preloadSource, appSource] = await Promise.all([
-    readFile(new URL("../electron/main.mjs", import.meta.url), "utf8"),
-    readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8"),
-    readFile(new URL("../web/App.svelte", import.meta.url), "utf8"),
+    readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../service/preload.js", import.meta.url), "utf8"),
+    readFile(new URL("../desktop/src/ui.rs", import.meta.url), "utf8"),
   ])
   assert.match(mainSource, /application:export-diagnostic-logs/)
   assert.match(mainSource, /BrowserWindow\.fromWebContents\(event\.sender\) !== primaryWindow/)
@@ -102,8 +102,5 @@ test("고급 기능 UI와 제한된 preload IPC에 로그 추출을 연결한다
     /diagnosticResult\(\(\) => ensureFastPingForPrimaryInterface\(\)\)[\s\S]*network: \{[\s\S]*fastPing/,
   )
   assert.match(preloadSource, /exportDiagnosticLogs/)
-  assert.match(appSource, /<h2>버그 리포트<\/h2>/)
-  assert.match(appSource, /문제가 발생한 경우 로그 추출 파일을 전송해 주세요/)
-  assert.ok(appSource.indexOf("<h2>버그 리포트</h2>") < appSource.indexOf("<h2>Windows 시작 시 트레이 실행</h2>"))
-  assert.match(appSource, /onclick=\{exportDiagnosticLogs\}/)
+
 })

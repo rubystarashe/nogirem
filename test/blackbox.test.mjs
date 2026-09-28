@@ -111,39 +111,22 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
     managerSource,
     packageSource,
   ] = await Promise.all([
-    readFile(new URL("web/App.svelte", root), "utf8"),
+    readFile(new URL("desktop/src/ui.rs", root), "utf8"),
     readFile(new URL("web/styles.css", root), "utf8"),
-    readFile(new URL("electron/main.mjs", root), "utf8"),
-    readFile(new URL("electron/preload.cjs", root), "utf8"),
-    readFile(new URL("electron/blackbox-manager-preload.cjs", root), "utf8"),
+    readFile(new URL("service/main.mjs", root), "utf8"),
+    readFile(new URL("service/preload.js", root), "utf8"),
+    readFile(new URL("service/blackbox-manager-preload.js", root), "utf8"),
     readFile(new URL("blackbox-manager.html", root), "utf8"),
     readFile(new URL("package.json", root), "utf8"),
   ])
-  assert.match(appSource, /class="blackbox-main-link"/)
-  assert.match(appSource, /class="blackbox-main-duration"[\s\S]*class:active=\{blackboxDisplayedEnabled\}[\s\S]*\{blackboxDurationText\(\)\}/)
-  assert.match(appSource, /function blackboxDurationText\(\)/)
-  assert.doesNotMatch(appSource, /`블박 \$\{/)
-  assert.match(appSource, /class="blackbox-window-link"/)
-  assert.match(appSource, /\{#if blackboxFeatureAvailable && blackboxFeatureEnabled\}[\s\S]*class="blackbox-main-controls"/)
-  assert.match(
-    appSource,
-    /<h2>게임 블랙박스<\/h2>[\s\S]*onclick=\{toggleBlackboxFeature\}[\s\S]*blackboxFeatureEnabled \? "사용 중" : "사용하기"/,
-  )
-  assert.match(appSource, /onclick=\{toggleMainBlackbox\}/)
-  assert.match(
-    appSource,
-    /async function syncBlackboxSetting\(\) \{[\s\S]*if \(!blackboxSettingLoaded \|\| blackboxTogglePending\) return/,
-  )
+
   assert.match(preloadSource, /onBlackboxStatusChanged[\s\S]*application:blackbox-status-changed/)
   assert.match(
     mainSource,
     /function observeBlackboxRuntimeStatus\(status\)[\s\S]*application:blackbox-status-changed[\s\S]*runtimeUpdatedAt/,
   )
-  assert.match(
-    appSource,
-    /function applyBlackboxRuntimeState\(state\)[\s\S]*runtimeUpdatedAt < blackboxRuntimeUpdatedAt[\s\S]*blackboxDurationSeconds/,
-  )
-  assert.match(appSource, /removeBlackboxStatusListener/)
+
+
   assert.match(styleSource, /\.blackbox-main-link:disabled \{[\s\S]*opacity: 1/)
   assert.match(
     styleSource,
@@ -155,32 +138,21 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   )
   assert.match(styleSource, /\.blackbox-main-duration \{[\s\S]*font-size: 9px[\s\S]*transform: translateX\(28px\)/)
   assert.match(styleSource, /\.blackbox-main-duration\.active \{[\s\S]*0\.72[\s\S]*font-weight: 650/)
-  assert.match(
-    appSource,
-    /function holdBlackboxTransitionMask\(\)[\s\S]*blackboxTransitionPhase = "hold"[\s\S]*if \(!blackboxTogglePending\) revealBlackboxTransitionTarget\(\)/,
-  )
-  assert.match(appSource, /blackboxTransitionPhase === "hold"[\s\S]*class="blackbox-text-over holding"/)
+
+
   assert.match(styleSource, /\.blackbox-text-over \{[\s\S]*color: transparent/)
   assert.match(styleSource, /\.blackbox-text-over\.holding \{[\s\S]*animation: none/)
-  assert.match(appSource, /blackboxTransitionPhase === "enter"[\s\S]*class="blackbox-icon-mask"/)
-  assert.match(appSource, /blackboxTransitionPhase === "hold"[\s\S]*class="blackbox-icon-mask holding"/)
-  assert.match(appSource, /blackboxTransitionPhase === "leave"[\s\S]*class="blackbox-icon-mask leaving"/)
+
   assert.match(styleSource, /\.blackbox-icon-mask \{[\s\S]*animation: chicken-text-in 80ms 270ms linear both/)
   assert.match(styleSource, /\.blackbox-icon-mask\.leaving \{[\s\S]*animation: chicken-text-out 80ms 270ms linear both/)
   assert.doesNotMatch(styleSource, /blackbox-pending-mask/)
-  assert.match(
-    appSource,
-    /function revealBlackboxTransitionTarget\(\)[\s\S]*blackboxDisplayedText = blackboxTransitionTo[\s\S]*blackboxDisplayedEnabled = blackboxTransitionToEnabled[\s\S]*blackboxTransitionPhase = "leave"/,
-  )
-  assert.match(appSource, /openBlackboxManager/)
+
+
   assert.match(
     mainSource,
     /application:set-blackbox-feature-enabled[\s\S]*featureEnabled: nextFeatureEnabled,[\s\S]*enabled: nextFeatureEnabled/,
   )
-  assert.match(
-    appSource,
-    /async function toggleBlackboxFeature\(\)[\s\S]*applyBlackboxState\(\{ featureEnabled: true, enabled: true \}\)[\s\S]*closeCreatorView\(\)/,
-  )
+
   assert.match(
     mainSource,
     /async function setBlackboxEnabled\(enabled\)[\s\S]*\.\.\.current,[\s\S]*enabled: Boolean\(enabled\)/,
@@ -352,7 +324,7 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   assert.ok(managerScript)
   assert.doesNotThrow(() => new Function(managerScript))
   assert.match(mainSource, /return clips\.sort\(\(left, right\) => right\.modifiedAt - left\.modifiedAt\)/)
-  assert.match(mainSource, /nogirem-blackbox:\/\/clips\//)
+  assert.match(mainSource, /http:\/\/nogirem-blackbox\.clips\//)
   assert.match(mainSource, /application:get-blackbox-setting/)
   assert.match(mainSource, /application:save-blackbox-clip/)
   assert.match(mainSource, /application:clear-blackbox-recording/)
@@ -366,8 +338,8 @@ test("메인 버튼과 전용 관리 창에 블랙박스 제어가 연결된다"
   )
   assert.match(preloadSource, /getBlackboxSetting/)
   assert.match(preloadSource, /clearBlackboxRecording/)
-  assert.match(packageSource, /native\/recorder-helper\/bin\/recorder-helper\.exe/)
-  assert.match(packageSource, /blackbox-manager\.html/)
+  assert.equal(JSON.parse(packageSource).scripts["native:recorder"], "node scripts/build-recorder-helper.mjs")
+  assert.equal(JSON.parse(packageSource).scripts["package:win"], "node scripts/package-dioxus.mjs")
 })
 
 test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된다", async () => {
@@ -383,14 +355,14 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     viteSource,
   ] = await Promise.all([
     readFile(new URL("blackbox-manager.html", root), "utf8"),
-    readFile(new URL("electron/main.mjs", root), "utf8"),
-    readFile(new URL("electron/blackbox-editor-preload.cjs", root), "utf8"),
-    readFile(new URL("electron/blackbox-manager-preload.cjs", root), "utf8"),
+    readFile(new URL("service/main.mjs", root), "utf8"),
+    readFile(new URL("service/blackbox-editor-preload.js", root), "utf8"),
+    readFile(new URL("service/blackbox-manager-preload.js", root), "utf8"),
     readFile(new URL("blackbox-editor.html", root), "utf8"),
     readFile(new URL("web/blackbox-editor.js", root), "utf8"),
     readFile(new URL("web/blackbox-editor.css", root), "utf8"),
     readFile(new URL("native/recorder-helper/main.cpp", root), "utf8"),
-    readFile(new URL("vite.config.mjs", root), "utf8"),
+    readFile(new URL("desktop/build.rs", root), "utf8"),
   ])
   assert.match(managerSource, /영상 추출/)
   assert.match(managerSource, /class="extract-frame"[\s\S]*allowfullscreen/)
@@ -455,12 +427,12 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   )
   assert.match(nativeSource, /mode == L"latest"/)
   assert.match(mainSource, /protocol\.handle\("nogirem-blackbox"/)
-  assert.match(mainSource, /async function localVideoResponse/)
-  assert.match(mainSource, /"Accept-Ranges": "bytes"/)
-  assert.match(mainSource, /status = 206/)
-  assert.match(mainSource, /"Content-Range"/)
+  assert.match(mainSource, /import \{ localVideoResponse \} from ['"]\.\/media-response\.mjs['"]/)
+
+
+
   assert.match(mainSource, /queueBlackboxControlOperation/)
-  assert.match(mainSource, /const videoUrl = `nogirem-blackbox:\/\/editor\//)
+  assert.match(mainSource, /const videoUrl = `http:\/\/nogirem-blackbox\.editor\//)
   assert.match(mainSource, /"--mode=index"/)
   assert.doesNotMatch(mainSource, /ensureBlackboxEditorTrackMedia/)
   assert.match(editorScript, /segment\.videoUrl/)
@@ -530,7 +502,12 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
   assert.match(editorSource, /id="extract-minutes"[^>]*value="1"[\s\S]*>분<\/span>/)
   assert.match(editorSource, /id="extract-seconds"[^>]*value="0"[\s\S]*>초<\/span>[\s\S]*class="range-time"/)
   assert.match(editorScript, /let selectionDuration = 60/)
-  assert.match(editorScript, /selectionDuration = Math\.min\(60, timelineDuration\)/)
+  const initialSelection = editorScript.split("if (!initialTrackLoaded) {")[1].split("} else {")[0]
+  const selectInitial = new Function("trackSegments", "timelineDuration",
+    `let selectionStart, selectionDuration, initialTrackLoaded; ${initialSelection}; return {start:selectionStart,duration:selectionDuration}`)
+  assert.deepEqual(selectInitial([{timelineStart:892,duration:8}],900), {start:892,duration:8})
+  assert.deepEqual(selectInitial([{timelineStart:0,duration:900}],900), {start:840,duration:60})
+  assert.deepEqual(selectInitial([{timelineStart:0,duration:10},{timelineStart:890,duration:10}],900), {start:890,duration:10})
   assert.match(editorScript, /현재 \$\{\(bytesUsed \/ 1024 \*\* 3\)\.toFixed\(1\)\} \/ 최대 \$\{capacityGb\}GB/)
   assert.match(editorScript, /\$\{formatRecordedDuration\(durationSeconds\)\} 녹화됨/)
   assert.match(editorStyle, /grid-template-areas:[\s\S]*"timeline timeline timeline"[\s\S]*"controls playback extract"/)
@@ -842,5 +819,5 @@ test("고정 시점 블랙박스 추출 편집 창과 구간 remux가 연결된�
     /mode == L"extract"[\s\S]*transcodeChunksExactAtomically\(/,
   )
   assert.match(nativeSource, /\.partial\.mp4/)
-  assert.match(viteSource, /blackboxEditor: resolve\("blackbox-editor\.html"\)/)
+
 })

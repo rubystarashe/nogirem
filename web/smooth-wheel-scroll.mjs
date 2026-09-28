@@ -43,7 +43,16 @@ export function createSmoothWheelScroller(
       return
     }
     const progress = 1 - Math.pow(0.82, Math.max(1, elapsed / standardFrameMs))
-    element.scrollTop += distance * progress
+    const before = element.scrollTop
+    element.scrollTop = before + distance * progress
+    // WebView can quantize scrollTop to device pixels. Finish when another
+    // easing step cannot move it, instead of retaining an old target forever.
+    if (element.scrollTop === before) {
+      element.scrollTop = target
+      frame = null
+      lastFrameAt = null
+      return
+    }
     frame = requestFrame(animate)
   }
 

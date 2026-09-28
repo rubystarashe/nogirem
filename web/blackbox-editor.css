@@ -658,3 +658,8 @@ body.embedded .preview:fullscreen {
     gap: 8px;
   }
 }
+
+.gap-preview { display: grid; place-content: center; justify-items: center; gap: 12px; color: #9aa1a5; font-size: 13px; }
+.gap-preview .seek-recorded { pointer-events: auto; padding: 8px 12px; border: 1px solid #41484c; border-radius: 5px; color: #f3f5f7; background: #222629; cursor: pointer; }
+
+.direct-length .all-recordings { width: 100%; margin-top: 8px; }
