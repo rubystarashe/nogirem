@@ -133,7 +133,7 @@ fn app() -> Element {
         let window = window.clone();
         let root = root.clone();
         move || {
-            Client::start(&root, native::displays(&window))
+            Client::start(&root, native::displays(&window), window.shutdown_signal())
                 .map(|(client, receiver)| (client, Rc::new(RefCell::new(Some(receiver)))))
         }
     });

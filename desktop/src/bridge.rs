@@ -34,6 +34,7 @@ impl Client {
     pub fn start(
         root: &Path,
         displays: Value,
+        shutdown: impl Fn() + Send + 'static,
     ) -> Result<(Self, mpsc::UnboundedReceiver<Value>), String> {
         let executable = std::env::current_exe().map_err(|e|e.to_string())?;
         let mut command = Command::new(executable);
@@ -91,6 +92,12 @@ impl Client {
                 let Ok(message) = serde_json::from_str::<Value>(&line) else {
                     continue;
                 };
+                // Backend emits this only after its workers have finished. Never
+                // queue it behind a hidden WebView's pending render or dialog.
+                if message["type"] == "event" && message["params"]["method"] == "application.exit" {
+                    shutdown();
+                    break;
+                }
                 if message["type"] == "response" {
                     if let Some(inner) = weak.upgrade() {
                         if let Some(id) = message["id"].as_u64() {

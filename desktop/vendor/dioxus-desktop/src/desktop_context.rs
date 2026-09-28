@@ -178,6 +178,13 @@ impl DesktopService {
         self.close_behaviour.set(behaviour);
     }
 
+    /// Signal application shutdown directly from a native IPC reader, without
+    /// depending on a WebView render acknowledgement or a component task.
+    pub fn shutdown_signal(&self) -> impl Fn() + Send + 'static {
+        let proxy = self.shared.proxy.clone();
+        move || { let _ = proxy.send_event(UserWindowEvent::Shutdown); }
+    }
+
     /// Close this window
     pub fn close(&self) {
         let _ = self

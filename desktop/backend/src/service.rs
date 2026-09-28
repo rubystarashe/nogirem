@@ -444,6 +444,7 @@ impl Service {
         Ok(json!(true))
     }
     pub fn finish_exit(&self, action: &str) -> Result<Value> {
+        log(format!("EXIT requested action={action}"));
         if action == "cancel" {
             self.boost.close_pending.store(false, Ordering::SeqCst);
             return Ok(json!({"closing":false}));
@@ -476,8 +477,7 @@ impl Service {
                 });
             });
         }
-        self.windows.destroy_aux();
-        self.windows.command(1, "hide", Value::Null);
+        log("EXIT workers stopped; requesting native host shutdown");
         self.rpc.native("application.exit", json!({"code":0}));
         Ok(json!({"closing":true}))
     }
