@@ -675,6 +675,7 @@ impl Service {
         let (_,envelope,file)=self.updater.prepared()?;
         let mut pids=vec![std::process::id()];
         if let Ok(pid)=std::env::var("NOGIREM_DESKTOP_PID").unwrap_or_default().parse::<u32>() {pids.push(pid);}
+        if let Some(pid)=std::env::args().find_map(|arg|arg.strip_prefix("--portable-launcher-pid=").and_then(|value|value.parse::<u32>().ok())){pids.push(pid);}
         let dir=crate::update_install::prepare(&self.env.exe,&self.env.user,&envelope,&file,pids,self.env.portable)?;
         self.updater.installing();
         drop(guard);

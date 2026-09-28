@@ -20,6 +20,14 @@ impl Environment {
     pub fn new(root: PathBuf, folders: &Value) -> Result<Self> {
         let home = PathBuf::from(std::env::var_os("USERPROFILE").ok_or("USERPROFILE unavailable")?);
         let portable = root.join("portable.marker").is_file();
+        let portable_source=std::env::args().find_map(|arg|arg.strip_prefix("--portable-source=").map(PathBuf::from));
+        let portable_launcher=std::env::args().find_map(|arg|arg.strip_prefix("--portable-launcher-pid=").and_then(|value|value.parse::<u32>().ok()));
+        if portable {
+            let source=portable_source.as_ref().ok_or("포터블 원본 실행 파일 경로 누락")?;
+            let pid=portable_launcher.ok_or("포터블 실행 프로세스 정보 누락")?;
+            let running=crate::process::path(pid)?;
+            if !running.replace('/',"\\").eq_ignore_ascii_case(&source.to_string_lossy().replace('/',"\\")){return Err("포터블 원본 실행 파일을 확인하지 못했습니다".into());}
+        }
         let folder = |key: &str, fallback: &str| {
             folders[key]
                 .as_str()
@@ -38,7 +46,7 @@ impl Environment {
                 }),
             documents: folder("documents", "Documents"),
             videos: folder("videos", "Videos"),
-            exe: std::env::current_exe().map_err(|e| e.to_string())?,
+            exe: portable_source.unwrap_or(std::env::current_exe().map_err(|e| e.to_string())?),
             packaged: !cfg!(debug_assertions),
             portable,
         })

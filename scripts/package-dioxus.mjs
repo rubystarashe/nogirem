@@ -1,10 +1,8 @@
 import { spawn } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { cp, copyFile, mkdir, readFile, writeFile, readdir, stat } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import AdmZip from 'adm-zip'
 import { turboKeyHelperAssetName } from '../src/turbo-key-installer.mjs'
 import { createTransport } from '../service/transport.mjs'
 
@@ -104,38 +102,15 @@ await writeFile(join(portableDirectory, 'portable.marker'), 'nogirem-portable-v1
 await writeFile(join(portableDirectory, '포터블 사용 안내.txt'), [
   '마비노기 렘 부스터 포터블',
   '',
-  '- nogirem.exe를 실행하면 시스템 설정 변경을 위해 관리자 권한을 요청합니다.',
+  '- 배포된 포터블 EXE 하나만 보관하고 실행하면 됩니다.',
+  '- 실행에 필요한 내부 파일은 실행 중 임시 공간에만 자동으로 준비됩니다.',
+  '- 시스템 설정 변경을 위해 실행 시 관리자 권한을 요청합니다.',
   '- Microsoft Edge WebView2 Runtime이 설치되어 있어야 합니다.',
   '- 설정은 설치형과 동일한 AppData 경로를 사용하므로 두 버전에서 공유됩니다.',
   '- 녹화 청크 저장 드라이브는 앱의 블랙박스 설정에서 선택할 수 있습니다.',
   '- 앱 폴더를 옮긴 뒤 실행하면 시작 프로그램 등록 경로가 현재 위치로 갱신됩니다.',
   '',
 ].join('\r\n'))
-async function portableFiles(directory, base = directory) {
-  const files = []
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name)
-    if (entry.isDirectory()) files.push(...await portableFiles(path, base))
-    else if (entry.isFile()) files.push(relative(base, path).replaceAll('\\', '/'))
-  }
-  return files
-}
-const portablePayload = (await portableFiles(portableDirectory)).sort()
-const portableManifest = {
-  schemaVersion: 1,
-  version,
-  files: Object.fromEntries(await Promise.all(portablePayload.map(async name => [
-    name,
-    createHash('sha256').update(await readFile(join(portableDirectory, name))).digest('hex'),
-  ]))),
-}
-await writeFile(join(portableDirectory, 'portable-manifest.json'), JSON.stringify(portableManifest, null, 2) + '\n')
-const portable = join(output, `nogirem-dioxus-portable-${version}.zip`)
-const archive = new AdmZip()
-archive.addLocalFolder(portableDirectory)
-archive.writeZip(portable)
-await run(process.execPath, [join(root, 'scripts/verify-portable-package.mjs'), portable, version])
-
 // Enumerate only the files shipped by this build. Never recursively delete the
 // install directory, which may also contain files created by the user.
 const uninstallLines = []
@@ -169,6 +144,8 @@ const nsis = candidates.find(existsSync)
 if (!nsis) throw new Error(`NSIS compiler not found. Set NSIS_MAKENSIS. Prepared app: ${appDirectory}`)
 const installer = join(output, `nogirem-dioxus-setup-${version}.exe`)
 await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${appDirectory}`, `/DWEBVIEW_BOOTSTRAPPER=${bootstrapper}`, `/DUNINSTALL_MANIFEST=${uninstallManifest}`, `/DSTOP_SCRIPT=${stopScript}`, `/DOUTPUT_FILE=${installer}`, `/DAPP_VERSION=${version}`, join(root, 'desktop/installer.nsi')])
+const portable = join(output, `nogirem-dioxus-portable-${version}.exe`)
+await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${portableDirectory}`, `/DOUTPUT_FILE=${portable}`, `/DAPP_VERSION=${version}`, join(root, 'desktop/portable.nsi')])
 const installerBytes = (await stat(installer)).size
 const installerLimitBytes = 10_000_000 // Conservative decimal MB limit for file sharing.
 if (installerBytes >= installerLimitBytes) throw new Error(`Installer exceeds 10 MB budget: ${installerBytes} bytes`)

@@ -1,18 +1,18 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-29 06:43 +09:00
+Last Updated: 2026-09-29 06:58 +09:00
 
 ## Current Objective
-Rust·Dioxus 0.4.1 변경으로 설치형과 포터블 ZIP을 함께 배포하고 두 형식의 안전한 자동 업데이트를 지원한다.
+Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배포하고 두 형식의 안전한 자동 업데이트를 지원한다.
 
 ## Active Runs
 - `20260929-portable`: 구현 완료, 실서명 종단간 QA 대기 (`docs/ai/runs/20260929-portable/handoff.md`)
 
 ## Current Status
-- 포터블 ZIP 생성, 소유 파일 SHA-256 매니페스트, 전용 서명 업데이트 경로를 구현했다.
-- 포터블 업데이트는 앱 종료 후 소유 파일만 교체하고 신규 앱 준비 확인 실패 시 이전 파일을 복원한다.
+- 단일 포터블 EXE 생성과 전용 서명 업데이트 경로를 구현했다.
+- 포터블 업데이트는 앱과 launcher 종료 후 원본 EXE를 원자 교체하고 신규 앱 준비 확인 실패 시 이전 EXE를 복원한다.
 - 설치형과 포터블은 AppData 설정과 녹화 드라이브 선택을 공유한다.
-- 실제 무서명 포터블 ZIP 생성과 52개 파일의 목록·해시 검증을 완료했다.
+- 실제 무서명 0.4.1 단일 포터블 EXE 생성을 완료했다.
 - 배포 서명키가 없어 실서명 매니페스트 생성과 버전 간 종단간 업데이트는 미검증이다.
 - 고급 기능에 개발 중인 오버레이의 용도와 동작 흐름을 보여주는 인터페이스를 추가했으며 실제 다운로드·캡처 기능은 아직 연결하지 않았다.
 - 앱·약관·공지의 중복 커스텀 휠 스크롤을 공통 모듈로 통합했다.
@@ -59,7 +59,7 @@ Rust·Dioxus 0.4.1 변경으로 설치형과 포터블 ZIP을 함께 배포하�
 
 ## Key Files
 - `scripts/package-dioxus.mjs`: 설치형과 포터블 산출물 생성
-- `scripts/verify-portable-package.mjs`: 포터블 ZIP 파일 목록·해시 검증
+- `desktop/portable.nsi`: 내부 앱을 보호된 임시 런타임에 풀어 실행하는 단일 EXE launcher
 - `desktop/backend/src/update_install.rs`: 설치형·포터블 업데이트 적용과 롤백
 - `docs/ai/runs/20260929-portable/`: 이번 작업 요구사항·QA·리뷰·보고
 - `docs/ai/wiki/portable-distribution.md`: 포터블 배포의 지속 문서
@@ -76,6 +76,7 @@ Rust·Dioxus 0.4.1 변경으로 설치형과 포터블 ZIP을 함께 배포하�
 - `VERSION_HISTORY_DETAIL.md`: 과거 구현과 배포의 상세 기록
 
 ## Recent Changes
+- 포터블 배포 형식을 ZIP에서 단일 자동 압축 해제 EXE로 교체하고 버전을 0.4.1로 올렸다.
 - 포터블 관련 변경 기록을 0.4.0에서 0.4.1로 이동했다.
 - 포터블 패키징과 자동 업데이트를 추가하고 설치형과 설정·녹화 드라이브 선택을 공유하도록 확정했다.
 - 세 화면의 고정 프레임 18% 보간 구현을 공통 시간 기반 스크롤 제어기로 교체했다.

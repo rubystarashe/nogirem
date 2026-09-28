@@ -16,3 +16,15 @@
   - round 5: `APPROVED`
     - 전용 캐시의 단계별 reparse 검사, High integrity 보호, canonical 경계 확인 후 릴리스 차단 결함 없음
   - 한계: 실서명 버전 간 업데이트와 강제 중단 롤백 종단간 QA는 별도 수행 필요
+
+- REVIEW-PORT-INDEPENDENT-02
+  - stage: single-exe correction
+  - mode: independent
+  - reviewer: `63321661-0afb-46f0-adfc-fe9b6c6a5f77`
+  - round 1: `CHANGES_REQUIRED`
+    - 사용자 쓰기 가능 임시 추출, 중단 복구 누락, 실패 범위, 원본 경로 검증 문제
+  - round 2: `CHANGES_REQUIRED`
+    - 임시 경로 보호 전 경쟁과 완료 기록 실패의 허위 롤백 문제
+  - round 3: `APPROVED`
+    - 관리자 전용 런타임, launcher 대기, 원본 PID 검증, 원자 완료 마커와 백업 복구 확인
+  - 한계: 실서명 패키지 강제 중단 복구 종단간 QA는 별도 수행 필요

@@ -59,6 +59,9 @@ impl Client {
             .stderr(Stdio::inherit());
         if root.join("portable.marker").is_file() {
             command.env("NOGIREM_PORTABLE_ROOT", root);
+            if let Some(source)=std::env::args().find_map(|arg|arg.strip_prefix("--portable-source=").map(str::to_owned)){
+                command.env("NOGIREM_PORTABLE_SOURCE",source);
+            }
         }
         #[cfg(windows)]
         {
