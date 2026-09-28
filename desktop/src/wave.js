@@ -30,6 +30,7 @@ window.createNogiremWave = function(canvas, onEvent) {
   const timelineCueSeconds = 17.5
   const startupPlaybackCueSeconds = 18.5
   const track = [1800, 2100, 2350, 2700, 2850, 3900, 4150, 4400, 4700, 4950]
+  const ambientStartupDelayMs = 2000
   
   let context
   let image
@@ -184,7 +185,7 @@ window.createNogiremWave = function(canvas, onEvent) {
     if (mode !== "background" || (darkBackground && !boostTransitionPending)) return
     const startupRemaining = Math.max(0, ambientBlockedUntil - performance.now())
     const scheduledDelay = startupRemaining > 0
-      ? startupRemaining + Math.max(delayMs, 4500)
+      ? startupRemaining + Math.max(delayMs, ambientStartupDelayMs)
       : delayMs
     ambientTimer = window.setTimeout(() => {
       ambientTimer = null
@@ -549,7 +550,7 @@ window.createNogiremWave = function(canvas, onEvent) {
           window.clearTimeout(drawWakeTimer)
           drawWakeTimer = null
         }
-        if (!ambientTimer) scheduleAmbientWaves(4500)
+        if (!ambientTimer) scheduleAmbientWaves(ambientStartupDelayMs)
         onstartupidle()
       }
       startupIdleTimer = window.setTimeout(finishStartupSequence, Math.max(0, Math.ceil(finalStartupWaveEnd - initialTimelineElapsed)))
@@ -647,7 +648,7 @@ window.createNogiremWave = function(canvas, onEvent) {
       active = true
       mode = "background"
       onstartuphidden()
-      scheduleAmbientWaves(4500)
+      scheduleAmbientWaves(ambientStartupDelayMs)
       requestDraw()
     }, 450)
   }

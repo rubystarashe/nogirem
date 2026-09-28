@@ -297,6 +297,30 @@ impl Service {
             json!({"graphics":graphics,"nvidia":graphics,"network":n.join().unwrap(),"affinity":a.join().unwrap(),"memory":m.join().unwrap()})
         })
     }
+    fn launch_context(self: &Arc<Self>) -> Result<Value> {
+        std::thread::scope(|scope| {
+            let preparation = {
+                let service = self.clone();
+                scope.spawn(move || service.prepare())
+            };
+            let music = scope.spawn(|| {
+                app_services::preference(
+                    &self.env.user,
+                    "get-startup-music-setting",
+                    &Value::Null,
+                )
+            });
+            let optimization = scope.spawn(|| self.optimization());
+            preparation.join().map_err(|_| "시작 준비 작업이 중단되었습니다")?;
+            let music = music
+                .join()
+                .map_err(|_| "시작 음악 설정 조회가 중단되었습니다")??;
+            let optimization = optimization
+                .join()
+                .map_err(|_| "최적화 상태 조회가 중단되었습니다")?;
+            Ok(json!({"startupTray":self.startup_tray,"startupMusicMuted":music["muted"],"optimizationStatus":optimization,"dxvk":self.dxvk_runtime.read().unwrap().clone(),"blackboxSetting":self.blackbox.lock().unwrap().status().ok()}))
+        })
+    }
     pub fn start(self: &Arc<Self>) -> Result<()> {
         self.windows.tray(true);
         self.windows.open_main(self.startup_tray)?;
@@ -634,7 +658,7 @@ impl Service {
         match channel{
    "application:begin-startup-reveal"=>{if !self.startup_tray{self.windows.reveal_main();}Ok(json!(true))},
    "application:complete-startup-animation"=>{crate::update_install::mark_healthy(&std::env::args().collect::<Vec<_>>())?;Ok(json!({"dxvk":self.dxvk_runtime.read().unwrap().clone()}))},
-   "application:get-launch-context"=>{self.prepare();let music=app_services::preference(&self.env.user,"get-startup-music-setting",&Value::Null)?;Ok(json!({"startupTray":self.startup_tray,"startupMusicMuted":music["muted"],"optimizationStatus":self.optimization(),"dxvk":self.dxvk_runtime.read().unwrap().clone(),"blackboxSetting":self.blackbox.lock().unwrap().status().ok()}))},
+   "application:get-launch-context"=>self.launch_context(),
    "optimization:get-status"=>Ok(self.optimization()),
    "optimization:refresh-graphics"|"optimization:refresh-nvidia"=>graphics::run(&self.env.root,&self.env.game(),false),
    "optimization:optimize-graphics"|"optimization:optimize-nvidia"=>graphics::run(&self.env.root,&self.env.game(),true),

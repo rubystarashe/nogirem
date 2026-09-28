@@ -46,6 +46,9 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     if before["stylesheetLoaded"] != true || before["images"] != true {
         return Err(format!("Assets did not load: {before}"));
     }
+    if before["width"] != 640 || before["height"] != 290 {
+        return Err(format!("WebView zoom changed the main viewport: {before}"));
+    }
     if !before["text"]
         .as_str()
         .unwrap_or("")

@@ -142,6 +142,10 @@ fn main() {
 fn app() -> Element {
     native::asset_handlers();
     let window = desktop::use_window();
+    use_hook({
+        let window = window.clone();
+        move || window.set_zoom_level(1.0)
+    });
     let root = root();
     let connection = use_hook({
         let window = window.clone();

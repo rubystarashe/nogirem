@@ -241,6 +241,10 @@ fn auxiliary() -> Element {
     asset_handlers();
     let ctx = use_context::<AuxiliaryContext>();
     let window = desktop::use_window();
+    use_hook({
+        let window = window.clone();
+        move || window.set_zoom_level(1.0)
+    });
     window_events(ctx.client.clone(), ctx.window_id);
     use_future({
         let ctx = ctx.clone();
