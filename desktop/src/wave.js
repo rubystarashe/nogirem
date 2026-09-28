@@ -158,12 +158,12 @@ window.createNogiremWave = function(canvas, onEvent) {
   function requestDraw() {
     window.clearTimeout(drawWakeTimer)
     drawWakeTimer = null
-    if (animationFrame || !context || !imageCache || (mode === "background" && !startupSequenceActive && !pageVisible)) return
+    if (animationFrame || !context || !imageCache || (mode === "background" && !startupSequenceActive && !pageVisible && forceStatic !== true)) return
     animationFrame = requestAnimationFrame(draw)
   }
 
   function scheduleDraw(delayMs) {
-    if (animationFrame || drawWakeTimer || (mode === "background" && !startupSequenceActive && !pageVisible)) return
+    if (animationFrame || drawWakeTimer || (mode === "background" && !startupSequenceActive && !pageVisible && forceStatic !== true)) return
     drawWakeTimer = window.setTimeout(() => {
       drawWakeTimer = null
       requestDraw()
@@ -237,9 +237,9 @@ window.createNogiremWave = function(canvas, onEvent) {
     }, scheduledDelay)
   }
 
-  function draw() {
+  function draw(forceStatic = false) {
     animationFrame = null
-    if (!context || !imageCache || (mode === "background" && !startupSequenceActive && !pageVisible)) return
+    if (!context || !imageCache || (mode === "background" && !startupSequenceActive && !pageVisible && forceStatic !== true)) return
     renderedFrames += 1
 
     const now = performance.now()
@@ -333,6 +333,7 @@ window.createNogiremWave = function(canvas, onEvent) {
       drawStartupLogoMask(startupFinaleWave)
     }
 
+    if (forceStatic === true) return
     const audioPlaying = Boolean(audio && !audio.paused)
     if (audioPlaying) {
       const fadeOut = track.at(-1) - timelineElapsed + 1000
@@ -462,6 +463,12 @@ window.createNogiremWave = function(canvas, onEvent) {
         animationFrame = null
         window.clearTimeout(drawWakeTimer)
         drawWakeTimer = null
+        circles = []
+        if (backgroundTransition) {
+          darkBackground = backgroundTransition.targetDark
+          backgroundTransition = null
+        }
+        draw(true)
       }
       return
     }

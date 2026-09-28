@@ -2335,12 +2335,12 @@ button.direct-donation-card:hover {
 }
 
 .boost-home .boost-text-area .boost-text-final.boosting.animation-paused {
-  animation-play-state: paused;
+  animation: none;
 }
 
 .boost-progress {
-  position: fixed;
-  top: 232px;
+  position: absolute;
+  top: 28px;
   left: 50%;
   width: 112px;
   height: 2px;

@@ -101,8 +101,8 @@ fn shortcuts(exe:&Path)->Result<()> {
     let path=quote(&exe.to_string_lossy());
     powershell::run(&format!(r#"$ErrorActionPreference='Stop'
 $s=New-Object -ComObject WScript.Shell
-foreach($base in @([Environment]::GetFolderPath('Desktop'),[Environment]::GetFolderPath('StartMenu')+'\Programs')){{
- $link=$s.CreateShortcut((Join-Path $base '마비노기 렘 부스터.lnk'));$link.TargetPath={path};$link.WorkingDirectory=Split-Path {path};$link.Save()
+foreach($base in @([Environment]::GetFolderPath('Desktop'),([Environment]::GetFolderPath('StartMenu')+'\Programs'))){{
+ $link=$s.CreateShortcut((Join-Path $base '마비노기 렘 부스터.lnk'));$link.TargetPath={path};$link.WorkingDirectory=Split-Path {path};$link.IconLocation={path}+',0';$link.Save()
 }}"#),15000,65536)?;Ok(())
 }
 fn legacy_uninstaller(exe:&Path)->Result<PathBuf> {
@@ -116,9 +116,17 @@ fn legacy_uninstaller(exe:&Path)->Result<PathBuf> {
     }Err("기존 Electron 제거 등록을 찾지 못했습니다".into())
 }
 fn remove_legacy(dir:&Path,exe:&Path)->Result<()> {
+    state(dir,"locating-legacy-uninstaller","")?;
     let uninstall=legacy_uninstaller(exe)?;
     let copy=dir.join("uninstall-electron.exe");fs::copy(uninstall,&copy).map_err(err)?;
-    let status=start(&copy,&["/S".into(),format!("_?={}",exe.parent().unwrap().display())])?.wait().map_err(err)?;
+    let mut child=start(&copy,&["/S".into(),format!("_?={}",exe.parent().unwrap().display())])?;
+    state(dir,"waiting-legacy-uninstaller",&child.id().to_string())?;
+    let deadline=Instant::now()+Duration::from_secs(60);
+    let status=loop {
+        if let Some(status)=child.try_wait().map_err(err)? {break status;}
+        if Instant::now()>=deadline {return Err(format!("기존 앱 제거 프로세스 종료 지연 (PID {}). 신규 앱은 설치되어 있습니다",child.id()));}
+        std::thread::sleep(Duration::from_millis(100));
+    };
     if !status.success() || exe.exists(){return Err("기존 Electron 제거가 완료되지 않았습니다. 신규 앱은 설치되어 있습니다".into());}Ok(())
 }
 fn settings_files(root:&Path)->Result<Vec<PathBuf>> {
@@ -184,9 +192,13 @@ pub fn apply(dir:&Path)->Result<()> {
         state(dir,"rolled-back",&error)?;return Err(error);
     }
     // A healthy Rust app is now running. Only now may the old Electron install be removed.
+    state(dir,"removing-legacy",&manifest.version)?;
     let cleanup=job.legacy_exe.as_ref().map(|old|remove_legacy(dir,old)).transpose();
     let new_exe=job.install_dir.join("nogirem.exe");
-    app_services::startup(&new_exe,true,Some(job.startup))?;shortcuts(&new_exe)?;
+    state(dir,"restoring-startup",&manifest.version)?;
+    app_services::startup(&new_exe,true,Some(job.startup))?;
+    state(dir,"restoring-shortcuts",&manifest.version)?;
+    shortcuts(&new_exe)?;
     if let Err(e)=cleanup {state(dir,"cleanup-needed",&e)?;return Err(e);}
     state(dir,"complete",&manifest.version)?;Ok(())
 }

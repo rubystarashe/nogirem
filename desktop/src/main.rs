@@ -51,6 +51,7 @@ fn main() {
         };
         if let Err(error) = result {
             if args[i]=="--apply-update" {if let Some(p)=args.get(i+1){nogirem_backend::update_install::recover_preinstall(std::path::Path::new(p));}}
+            if args[i]=="--apply-update" { if let Some(p)=args.get(i+1) { let _=std::fs::write(std::path::Path::new(p).join("failure.txt"), &error); } }
             eprintln!("Update failed: {error}");
             rfd::MessageDialog::new().set_title("업데이트를 완료하지 못했습니다").set_description(&error).show();
             std::process::exit(1);

@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use std::{ffi::OsStr, os::windows::ffi::OsStrExt, path::Path};
 use windows_sys::Win32::{
     Foundation::{CloseHandle, GetLastError, HANDLE, HWND},
-    System::Threading::CreateMutexW,
+    System::Threading::{CreateMutexExW, SYNCHRONIZATION_SYNCHRONIZE},
     UI::{
         Shell::ShellExecuteW,
         WindowsAndMessaging::{
@@ -112,7 +112,8 @@ pub fn acquire_instance() -> Result<Option<Instance>, String> {
         "Local\\nogirem-dioxus-{}",
         std::env::var("USERNAME").unwrap_or_default()
     ));
-    let handle = unsafe { CreateMutexW(std::ptr::null(), 0, name.as_ptr()) };
+    // Only retain a handle: ALL_ACCESS would reject a normal launch when the owner is elevated.
+    let handle = unsafe { CreateMutexExW(std::ptr::null(), name.as_ptr(), 0, SYNCHRONIZATION_SYNCHRONIZE) };
     if handle.is_null() {
         return Err(std::io::Error::last_os_error().to_string());
     }

@@ -1157,6 +1157,9 @@ fn StatusText(text: ReadSignal<String>) -> Element {
     });
     rsx! {
         span { class: format!("boost-text-final {} {} {}", if !state.read().visual_active || state.read().document_hidden { "animation-paused" } else { "" }, if phase() == "enter" { "concealed" } else { "" }, if shown() == "실시간 부스트중" && phase() == "done" { "boosting" } else { "" }), "{shown}" }
+        if shown() == "실시간 부스트중" && phase() == "done" && state.read().visual_active && !state.read().document_hidden {
+            span { class: "boost-progress", "aria-hidden": "true", span {} span {} span {} span {} }
+        }
         if phase() == "enter" { span { key: "base-{generation}", class: if from().contains("중단") { "boost-text-base transitioning paused-source" } else { "boost-text-base transitioning" }, "{from}" } }
         if phase() != "done" { span { key: "over-{generation}", class: if phase() == "leave" { "boost-text-over leaving" } else { "boost-text-over" }, onanimationend: move |_| { if phase() == "enter" { phase.set("leave"); } else { phase.set("done"); } }, "{shown}" } }
     }

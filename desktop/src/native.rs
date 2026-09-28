@@ -85,6 +85,12 @@ fn icon(path: &Path) -> Result<Icon, String> {
     Icon::from_rgba(rgba.into_raw(), width, height).map_err(|e| e.to_string())
 }
 
+fn window_icon() -> desktop::tao::window::Icon {
+    let rgba = image::load_from_memory(include_bytes!("../../icon.ico")).expect("embedded app icon").into_rgba8();
+    let (w, h) = rgba.dimensions();
+    desktop::tao::window::Icon::from_rgba(rgba.into_raw(), w, h).expect("valid app icon")
+}
+
 pub fn config(root: &Path, title: &str, width: f64, height: f64) -> Config {
     let builder = WindowBuilder::new()
         .with_title(title)
@@ -96,11 +102,8 @@ pub fn config(root: &Path, title: &str, width: f64, height: f64) -> Config {
         .with_always_on_top(false)
         .with_visible(false)
         .with_skip_taskbar(std::env::args().any(|arg| arg == "--startup-tray"))
-        .with_window_icon(image::open(root.join("icon.ico")).ok().and_then(|image| {
-            let rgba = image.into_rgba8();
-            let (w, h) = rgba.dimensions();
-            desktop::tao::window::Icon::from_rgba(rgba.into_raw(), w, h).ok()
-        }));
+        .with_window_icon(Some(window_icon()))
+        .with_taskbar_icon(Some(window_icon()));
     Config::new().with_window(builder).with_menu(None).with_resource_directory(root)
         .with_windows_browser_args("--autoplay-policy=no-user-gesture-required")
         .with_data_directory(std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir).join("Nogirem/WebView2"))
@@ -446,6 +449,8 @@ impl Host {
                 let width = options["width"].as_f64().unwrap_or(640.0);
                 let height = options["height"].as_f64().unwrap_or(430.0);
                 let mut builder = WindowBuilder::new()
+                    .with_window_icon(Some(window_icon()))
+                    .with_taskbar_icon(Some(window_icon()))
                     .with_title(options["title"].as_str().unwrap_or("마비노기 렘 부스터"))
                     .with_inner_size(LogicalSize::new(width, height))
                     .with_decorations(options["frame"].as_bool().unwrap_or(false))

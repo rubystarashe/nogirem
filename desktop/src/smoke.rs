@@ -1333,9 +1333,12 @@ async fn visual_activity_check(host:Host,mut state:Signal<State>)->Result<Value,
     let main=host.0.borrow().main.clone();
     {let mut s=state.write();s.visual_active=true;s.document_hidden=false;s.identity="done".into();s.tab.clear();s.modal.clear();s.services["affinity"]["running"]=json!(true);s.services["memory"]["running"]=json!(true);s.services["affinity"]["gameActive"]=json!(true);s.services["memory"]["gameActive"]=json!(true);}
     tokio::time::sleep(Duration::from_secs(3)).await;
-    let script="({playState:getComputedStyle(document.querySelector('.boost-text-final')).animationPlayState,wave:window.nogiremWave.inspect()})";
+    let script="({animation:getComputedStyle(document.querySelector('.boost-text-final')).animationName,spinner:!!document.querySelector('.boost-progress'),wave:window.nogiremWave.inspect()})";
     let active=inspect(&main,script).await?;
-    if active["playState"]!="running" || active["wave"]["pageVisible"]!=true{return Err(format!("Active visuals missing: {active}"));}
+    let bounds=inspect(&main,"JSON.parse(JSON.stringify(document.querySelector('.boost-progress').getBoundingClientRect()))").await?;
+    if (bounds["y"].as_f64().unwrap_or(0.)-232.).abs()>1. || bounds["height"]!=2 || bounds["width"]!=112 {return Err(format!("Spinner outside expected position: {bounds}"));}
+    if let Some(path)=std::env::args().find_map(|a|a.strip_prefix("--capture=").map(str::to_owned)){capture(&main,&path)?;}
+    if (active["animation"]=="none" || active["spinner"]!=true) || active["wave"]["pageVisible"]!=true{return Err(format!("Active visuals missing: {active}"));}
     for hidden in [false,true] {
         {let mut s=state.write();s.visual_active=hidden;s.document_hidden=hidden;}
         tokio::time::sleep(Duration::from_millis(250)).await;
@@ -1344,11 +1347,11 @@ async fn visual_activity_check(host:Host,mut state:Signal<State>)->Result<Value,
         inspect(&main,"(()=>{window.dispatchEvent(new MouseEvent('mousemove',{clientX:600,clientY:250}));window.nogiremApplyWave();return true})()").await?;
         tokio::time::sleep(Duration::from_millis(1800)).await;
         let after=inspect(&main,script).await?;
-        if after["playState"]!="paused" || after["wave"]["pageVisible"]!=false || before["wave"]["renderedFrames"]!=after["wave"]["renderedFrames"] || after["wave"]["framePending"]!=false || after["wave"]["ambientPending"]!=false{return Err(format!("Inactive visuals still running (hidden={hidden}): {before} -> {after}"));}
+        if (after["animation"]!="none" || after["spinner"]!=false || after["wave"]["circles"]!=0) || after["wave"]["pageVisible"]!=false || before["wave"]["renderedFrames"]!=after["wave"]["renderedFrames"] || after["wave"]["framePending"]!=false || after["wave"]["ambientPending"]!=false{return Err(format!("Inactive visuals still running (hidden={hidden}): {before} -> {after}"));}
         {let mut s=state.write();s.visual_active=true;s.document_hidden=false;}
         tokio::time::sleep(Duration::from_millis(1600)).await;
         let resumed=inspect(&main,script).await?;
-        if resumed["playState"]!="running" || resumed["wave"]["pageVisible"]!=true || resumed["wave"]["renderedFrames"].as_u64()<=after["wave"]["renderedFrames"].as_u64(){return Err(format!("Visuals failed to resume: {resumed}"));}
+        if (resumed["animation"]=="none" || resumed["spinner"]!=true) || resumed["wave"]["pageVisible"]!=true || resumed["wave"]["renderedFrames"].as_u64()<=after["wave"]["renderedFrames"].as_u64(){return Err(format!("Visuals failed to resume: {resumed}"));}
     }
     Ok(json!({"passed":true,"blurPausesPulseAndCanvas":true,"documentHiddenPauses":true,"backgroundUpdatesStayIdle":true,"focusResumes":true}))
 }

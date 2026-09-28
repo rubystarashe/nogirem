@@ -33,6 +33,17 @@ fn main() {
         root.join("blackbox-editor.html").display()
     );
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        let icon = root.join("icon.ico");
+        let rc = out_dir.join("app-icon.rc");
+        let res = out_dir.join("app-icon.res");
+        std::fs::write(&rc, format!("1 ICON \"{}\"\n", icon.display().to_string().replace('\\', "/"))).unwrap();
+        let kits = std::path::PathBuf::from(std::env::var_os("ProgramFiles(x86)").expect("Windows SDK location")).join("Windows Kits/10/bin");
+        let mut compilers: Vec<_> = std::fs::read_dir(&kits).expect("Windows SDK installed").filter_map(Result::ok).map(|e|e.path().join("x64/rc.exe")).filter(|p|p.is_file()).collect();
+        compilers.sort();
+        let compiler = compilers.last().expect("Windows resource compiler");
+        assert!(std::process::Command::new(compiler).arg("/nologo").arg("/fo").arg(&res).arg(&rc).status().unwrap().success(), "Icon resource compilation failed");
+        println!("cargo:rustc-link-arg={}",res.display());
+        println!("cargo:rerun-if-changed={}",icon.display());
         let source = manifest_dir.join("windows.manifest");
         let manifest = out_dir.join("windows.manifest");
         let contents = std::fs::read_to_string(source).unwrap();
