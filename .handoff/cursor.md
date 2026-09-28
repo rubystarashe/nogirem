@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-29 06:23 +09:00
+Last Updated: 2026-09-29 06:43 +09:00
 
 ## Current Objective
-Rust·Dioxus 0.4.0의 설치형과 포터블 ZIP을 함께 배포하고 두 형식의 안전한 자동 업데이트를 지원한다.
+Rust·Dioxus 0.4.1 변경으로 설치형과 포터블 ZIP을 함께 배포하고 두 형식의 안전한 자동 업데이트를 지원한다.
 
 ## Active Runs
 - `20260929-portable`: 구현 완료, 실서명 종단간 QA 대기 (`docs/ai/runs/20260929-portable/handoff.md`)
@@ -76,6 +76,7 @@ Rust·Dioxus 0.4.0의 설치형과 포터블 ZIP을 함께 배포하고 두 형�
 - `VERSION_HISTORY_DETAIL.md`: 과거 구현과 배포의 상세 기록
 
 ## Recent Changes
+- 포터블 관련 변경 기록을 0.4.0에서 0.4.1로 이동했다.
 - 포터블 패키징과 자동 업데이트를 추가하고 설치형과 설정·녹화 드라이브 선택을 공유하도록 확정했다.
 - 세 화면의 고정 프레임 18% 보간 구현을 공통 시간 기반 스크롤 제어기로 교체했다.
 - 386KB까지 누적된 handoff를 현재 목표와 미완료 작업 중심으로 축약했다. 과거 상세 내역은 Git 기록과 `VERSION_HISTORY_DETAIL.md`에 유지한다.
