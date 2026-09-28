@@ -57,6 +57,9 @@ impl Client {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
+        if root.join("portable.marker").is_file() {
+            command.env("NOGIREM_PORTABLE_ROOT", root);
+        }
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;

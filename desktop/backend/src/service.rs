@@ -114,7 +114,7 @@ impl Service {
             let clips = blackbox.clips();
             let updates = rpc.clone();
             let update_service=weak.clone();
-            let updater = crate::updater::Updater::new(Arc::new(move |value| {
+            let updater = crate::updater::Updater::new(env.portable,Arc::new(move |value| {
                 updates.event(1,"application:update-state-changed",json!([value]));
                 if value["phase"]=="available" {if let Some(service)=update_service.upgrade() {
                     let version=value["version"].as_str().unwrap_or("").to_owned();
@@ -202,6 +202,9 @@ impl Service {
     }
     fn prepare(self: &Arc<Self>) {
         self.preparation.get_or_init(|| {
+            if self.env.packaged {
+                if let Err(error)=app_services::startup(&self.env.exe,true,None){log(error);}
+            }
             {
                 let mut b = self.blackbox.lock().unwrap();
                 let enabled = settings::blackbox(&read(
@@ -672,7 +675,7 @@ impl Service {
         let (_,envelope,file)=self.updater.prepared()?;
         let mut pids=vec![std::process::id()];
         if let Ok(pid)=std::env::var("NOGIREM_DESKTOP_PID").unwrap_or_default().parse::<u32>() {pids.push(pid);}
-        let dir=crate::update_install::prepare(&self.env.exe,&self.env.user,&envelope,&file,pids)?;
+        let dir=crate::update_install::prepare(&self.env.exe,&self.env.user,&envelope,&file,pids,self.env.portable)?;
         self.updater.installing();
         drop(guard);
         if let Err(e)=std::fs::write(dir.join("commit"),b"install") {self.updater.failed(e.to_string());return Err(e.to_string());}

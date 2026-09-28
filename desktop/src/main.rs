@@ -39,13 +39,15 @@ fn root() -> PathBuf {
 fn main() {
     // Native workers have no WebView, Node runtime, or application instance lock.
     let args: Vec<String> = std::env::args().collect();
-    if let Some(i) = args.iter().position(|a| a == "--apply-update" || a == "--migrate-electron") {
+    if let Some(i) = args.iter().position(|a| a == "--apply-update" || a == "--migrate-electron" || a == "--recover-portable") {
         match platform::ensure_elevated() {
             Ok(true) => {}, Ok(false) => return,
             Err(error) => {rfd::MessageDialog::new().set_title("업데이트 권한 오류").set_description(error).show();return;}
         }
         let result = if args[i] == "--apply-update" {
             args.get(i+1).ok_or_else(|| "업데이트 작업 경로 누락".to_owned()).and_then(|p|nogirem_backend::update_install::apply(std::path::Path::new(p)))
+        } else if args[i] == "--recover-portable" {
+            (||{let dir=args.get(i+1).ok_or("복구 작업 경로 누락")?;let root=args.get(i+2).ok_or("포터블 경로 누락")?;let pid=args.get(i+3).ok_or("복구 대기 프로세스 누락")?.parse::<u32>().map_err(|e|e.to_string())?;nogirem_backend::update_install::recover_portable(std::path::Path::new(dir),std::path::Path::new(root),pid)})()
         } else {
             (|| { let exe=args.get(i+1).ok_or("기존 실행 경로 누락")?; let pid=args.get(i+2).ok_or("기존 프로세스 누락")?.parse::<u32>().map_err(|e|e.to_string())?;nogirem_backend::update_install::migrate(std::path::Path::new(exe),pid) })()
         };
@@ -121,7 +123,15 @@ fn main() {
             Err(error)=>{rfd::MessageDialog::new().set_title("마비노기 렘 부스터").set_description(format!("관리자 권한으로 시작하지 못했습니다: {error}")).show();return;}
         }
     }
-    let cfg = native::config(&root(), "마비노기 렘 부스터", 640.0, 290.0);
+    let app_root=root();
+    if app_root.join("portable.marker").is_file()&&!args.iter().any(|a|a.starts_with("--update-receipt=")){
+        match nogirem_backend::update_install::start_interrupted_portable_recovery(&app_root){
+            Ok(true)=>return,
+            Ok(false)=>{},
+            Err(error)=>{rfd::MessageDialog::new().set_title("포터블 업데이트 복구 오류").set_description(error).show();return;}
+        }
+    }
+    let cfg = native::config(&app_root, "마비노기 렘 부스터", 640.0, 290.0);
     LaunchBuilder::desktop().with_cfg(cfg).launch(app);
 }
 

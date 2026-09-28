@@ -1,16 +1,21 @@
 use crate::{Result, updater::{self,Manifest}, storage, process, app_services, powershell};
 use serde::{Serialize,Deserialize};
 use serde_json::{Value,json};
-use std::{fs, path::{Path,PathBuf}, process::{Command,Stdio}, time::{Duration,Instant}};
+use sha2::{Digest,Sha256};
+use std::{collections::BTreeMap,fs, io::{Read,Write}, path::{Path,PathBuf}, process::{Command,Stdio}, time::{Duration,Instant}};
 use std::os::windows::{fs::MetadataExt,process::CommandExt};
 
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
-pub struct Job { pub nonce:String,pub parent_pids:Vec<u32>,pub install_dir:PathBuf,pub user_dir:PathBuf,pub startup:bool,pub legacy_exe:Option<PathBuf> }
+pub struct Job { pub nonce:String,pub parent_pids:Vec<u32>,pub install_dir:PathBuf,pub user_dir:PathBuf,pub startup:bool,pub legacy_exe:Option<PathBuf>,#[serde(default)]pub portable:bool }
+#[derive(Deserialize)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+struct PortableManifest { schema_version:u32,version:String,files:BTreeMap<String,String> }
 fn err(e:impl std::fmt::Display)->String{e.to_string()}
 fn quote(s:&str)->String{format!("'{}'",s.replace('\'',"''"))}
 pub fn installation()->Result<PathBuf>{Ok(PathBuf::from(std::env::var_os("ProgramW6432").or_else(||std::env::var_os("ProgramFiles")).ok_or("Program Files 누락")?).join("Nogirem"))}
 fn user_dir()->Result<PathBuf>{Ok(PathBuf::from(std::env::var_os("APPDATA").ok_or("APPDATA 누락")?).join("마비노기 렘 부스터"))}
+fn expected_user(_job:&Job)->Result<PathBuf>{user_dir()}
 fn same(a:&Path,b:&Path)->bool{a.to_string_lossy().replace('/',"\\").eq_ignore_ascii_case(&b.to_string_lossy().replace('/',"\\"))}
 fn contained(path:&Path,root:&Path)->Result<()> {
     let p=path.canonicalize().map_err(err)?;let r=root.canonicalize().map_err(err)?;
@@ -32,6 +37,25 @@ fn copy_files(from:&Path,to:&Path,list:&[PathBuf])->Result<()> {
 }
 fn state(dir:&Path,phase:&str,message:&str)->Result<()> {storage::write_json(&dir.join("result.json"),&json!({"phase":phase,"message":message,"updatedAt":app_services::iso(),"pid":std::process::id()}))}
 fn start(exe:&Path,args:&[String])->Result<std::process::Child>{Command::new(exe).args(args).creation_flags(0x08000000).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(err)}
+pub fn protect_directory(path:&Path)->Result<()>{
+    let tool=PathBuf::from(std::env::var_os("SystemRoot").ok_or("SystemRoot 누락")?).join("System32/icacls.exe");
+    let status=Command::new(tool).arg(path).args(["/setintegritylevel","(OI)(CI)H","/C","/Q"]).creation_flags(0x08000000).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().map_err(err)?;
+    if !status.success(){return Err("업데이트 작업 폴더를 보호하지 못했습니다".into());}Ok(())
+}
+pub fn protected_cache_root()->Result<PathBuf>{
+    let base=PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA 누락")?);
+    let canonical_base=base.canonicalize().map_err(err)?;
+    let mut current=base;
+    for name in ["NogiremUpdater","updates"]{
+        current.push(name);
+        match fs::create_dir(&current){Ok(())=>{},Err(error)if error.kind()==std::io::ErrorKind::AlreadyExists=>{},Err(error)=>return Err(error.to_string())}
+        if fs::symlink_metadata(&current).map_err(err)?.file_attributes()&0x400!=0{return Err("업데이트 캐시 경로에 연결된 외부 폴더가 있습니다".into());}
+        protect_directory(&current)?;
+        if fs::symlink_metadata(&current).map_err(err)?.file_attributes()&0x400!=0||!current.canonicalize().map_err(err)?.starts_with(&canonical_base){return Err("업데이트 캐시 보호 경로가 변경되었습니다".into());}
+    }
+    if !same(&current,&updater::cache_root()?){return Err("업데이트 캐시 경로가 일치하지 않습니다".into());}
+    Ok(current)
+}
 fn wait_exit(pids:&[u32],timeout:u64)->Result<()> {let end=Instant::now()+Duration::from_secs(timeout);while pids.iter().any(|p|process::alive(*p)){if Instant::now()>end{return Err("앱 종료를 기다리는 시간이 초과되었습니다".into());}std::thread::sleep(Duration::from_millis(100));}Ok(())}
 fn stop_app(user:&Path,pid:u32)->Result<()> {
     if !process::alive(pid){return Ok(());}
@@ -56,7 +80,7 @@ pub fn mark_healthy(args:&[String])->Result<()> {
     let Some(path)=args.iter().find_map(|a|a.strip_prefix("--update-receipt=")) else{return Ok(());};
     let dir=Path::new(path);contained(dir,&updater::cache_root()?)?;
     let job:Job=serde_json::from_slice(&fs::read(dir.join("job.json")).map_err(err)?).map_err(err)?;
-    if job.nonce.len()!=36 || !same(&job.user_dir,&user_dir()?){return Err("잘못된 업데이트 시작 확인 요청".into());}
+    if job.nonce.len()!=36 || !same(&job.user_dir,&expected_user(&job)?){return Err("잘못된 업데이트 시작 확인 요청".into());}
     storage::write_json(&dir.join("healthy.json"),&json!({"ready":true,"nonce":job.nonce,"version":env!("CARGO_PKG_VERSION"),"pid":std::process::id()}))
 }
 pub fn cleanup_cache() -> Result<()> {
@@ -82,14 +106,22 @@ pub fn cleanup_cache() -> Result<()> {
     }
     Ok(())
 }
-pub fn prepare(exe:&Path,user:&Path,envelope:&[u8],installer:&Path,pids:Vec<u32>)->Result<PathBuf>{
-    let m=updater::verify_envelope(envelope,&updater::config())?;updater::verify_file(installer,&m)?;
-    if !same(exe,&installation()?.join("nogirem.exe")) {return Err("설치된 앱에서 업데이트를 실행해 주세요".into());}
-    let dir=updater::cache_root()?.join(format!("job-{}",uuid::Uuid::new_v4()));fs::create_dir_all(&dir).map_err(err)?;
+pub fn prepare(exe:&Path,user:&Path,envelope:&[u8],payload:&Path,pids:Vec<u32>,portable:bool)->Result<PathBuf>{
+    let m=updater::verify_envelope_for(envelope,&updater::config(),portable)?;updater::verify_file(payload,&m)?;
+    let install_dir=if portable {
+        let dir=exe.parent().ok_or("포터블 실행 경로 누락")?.to_owned();
+        if !dir.join("portable.marker").is_file(){return Err("포터블 앱 표시 파일을 확인하지 못했습니다".into());}
+        dir
+    } else {
+        let dir=installation()?;
+        if !same(exe,&dir.join("nogirem.exe")) {return Err("설치된 앱에서 업데이트를 실행해 주세요".into());}
+        dir
+    };
+    let dir=protected_cache_root()?.join(format!("job-{}",uuid::Uuid::new_v4()));fs::create_dir_all(&dir).map_err(err)?;protect_directory(&dir)?;
     let startup=app_services::startup(exe,true,None)?["enabled"]==true;
-    let job=Job{nonce:uuid::Uuid::new_v4().to_string(),parent_pids:pids,install_dir:installation()?,user_dir:user.into(),startup,legacy_exe:None};
+    let job=Job{nonce:uuid::Uuid::new_v4().to_string(),parent_pids:pids,install_dir,user_dir:user.into(),startup,legacy_exe:None,portable};
     fs::write(dir.join("update.json"),envelope).map_err(err)?;
-    fs::copy(installer,dir.join("installer.exe")).map_err(err)?;
+    fs::copy(payload,dir.join(if portable{"portable.zip"}else{"installer.exe"})).map_err(err)?;
     fs::copy(exe,dir.join("updater.exe")).map_err(err)?;
     storage::write_json(&dir.join("job.json"),&serde_json::to_value(job).map_err(err)?)?;
     start(&dir.join("updater.exe"),&["--apply-update".into(),dir.to_string_lossy().into()])?;
@@ -160,17 +192,183 @@ fn registry_restore(dir:&Path)->Result<()> {
         else{r"Remove-Item -LiteralPath 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\NogiremDioxus' -ErrorAction SilentlyContinue".into()};
     powershell::run(&script,15000,65536)?;Ok(())
 }
+fn safe_relative(name:&str)->Result<PathBuf>{
+    let path=PathBuf::from(name.replace('/',"\\"));
+    let special=path.components().filter_map(|c|if let std::path::Component::Normal(v)=c{Some(v.to_string_lossy())}else{None}).any(|v|{
+        let lower=v.to_ascii_lowercase();let stem=lower.split('.').next().unwrap_or("");
+        v.is_empty()||v.contains(':')||v.ends_with(' ')||v.ends_with('.')||matches!(stem,"con"|"prn"|"aux"|"nul"|"com1"|"com2"|"com3"|"com4"|"com5"|"com6"|"com7"|"com8"|"com9"|"lpt1"|"lpt2"|"lpt3"|"lpt4"|"lpt5"|"lpt6"|"lpt7"|"lpt8"|"lpt9")
+    });
+    if name.is_empty() || special || path.is_absolute() || path.components().any(|c|matches!(c,std::path::Component::ParentDir|std::path::Component::Prefix(_))) || path.components().next().is_some_and(|c|c.as_os_str().to_string_lossy().eq_ignore_ascii_case("data")) {
+        return Err("포터블 패키지에 허용되지 않은 경로가 있습니다".into());
+    }
+    Ok(path)
+}
+fn safe_destination(root:&Path,name:&Path)->Result<PathBuf>{
+    if name.is_absolute() || name.components().any(|c|matches!(c,std::path::Component::ParentDir|std::path::Component::Prefix(_))){return Err("잘못된 포터블 대상 경로".into());}
+    let metadata=fs::symlink_metadata(root).map_err(err)?;
+    if metadata.file_attributes()&0x400!=0{return Err("포터블 실행 폴더가 연결된 외부 경로입니다".into());}
+    let mut current=root.to_owned();
+    if let Some(parent)=name.parent(){for component in parent.components(){current.push(component);if current.exists()&&fs::symlink_metadata(&current).map_err(err)?.file_attributes()&0x400!=0{return Err("포터블 대상에 연결된 외부 폴더가 있습니다".into());}}}
+    Ok(root.join(name))
+}
+fn wide_path(path:&Path)->Vec<u16>{use std::os::windows::ffi::OsStrExt;path.as_os_str().encode_wide().chain(Some(0)).collect()}
+fn replace_file(source:&Path,target:&Path)->Result<()>{
+    let parent=target.parent().ok_or("포터블 대상 상위 경로 누락")?;fs::create_dir_all(parent).map_err(err)?;
+    let temporary=parent.join(format!(".nogirem-new-{}",uuid::Uuid::new_v4()));
+    fs::copy(source,&temporary).map_err(err)?;
+    let moved=unsafe{windows_sys::Win32::Storage::FileSystem::MoveFileExW(wide_path(&temporary).as_ptr(),wide_path(target).as_ptr(),0x1|0x8)};
+    if moved==0{let error=std::io::Error::last_os_error().to_string();let _=fs::remove_file(temporary);return Err(error);}
+    Ok(())
+}
+fn replace_files(from:&Path,to:&Path,list:&[PathBuf])->Result<()>{
+    for name in list{let target=safe_destination(to,name)?;replace_file(&from.join(name),&target)?;}Ok(())
+}
+fn digest(path:&Path)->Result<String>{
+    let mut file=fs::File::open(path).map_err(err)?;let mut hash=Sha256::new();let mut chunk=[0u8;65536];
+    loop{let n=file.read(&mut chunk).map_err(err)?;if n==0{break;}hash.update(&chunk[..n]);}
+    Ok(format!("{:x}",hash.finalize()))
+}
+fn verified_portable_manifest(root:&Path,version:Option<&str>)->Result<(PortableManifest,Vec<PathBuf>)>{
+    let bytes=fs::read(root.join("portable-manifest.json")).map_err(err)?;
+    updater::verify_portable_manifest(&bytes,&fs::read(root.join("portable-manifest.sig")).map_err(err)?)?;
+    let manifest:PortableManifest=serde_json::from_slice(&bytes).map_err(err)?;
+    if manifest.schema_version!=1 || version.is_some_and(|version|manifest.version!=version) || !root.join("portable.marker").is_file() || !root.join("nogirem.exe").is_file(){return Err("포터블 패키지 구성이 올바르지 않습니다".into());}
+    let mut paths=Vec::with_capacity(manifest.files.len()+1);
+    for(name,expected)in &manifest.files{
+        let path=safe_relative(name)?;
+        let target=safe_destination(root,&path)?;
+        if fs::symlink_metadata(&target).map_err(err)?.file_attributes()&0x400!=0{return Err(format!("포터블 패키지에 연결된 파일이 있습니다: {name}"));}
+        if expected.len()!=64 || !expected.bytes().all(|c|c.is_ascii_hexdigit()) || !digest(&target)?.eq_ignore_ascii_case(expected){return Err(format!("포터블 패키지 파일 검증 실패: {name}"));}
+        paths.push(path);
+    }
+    paths.push(PathBuf::from("portable-manifest.json"));
+    paths.push(PathBuf::from("portable-manifest.sig"));
+    Ok((manifest,paths))
+}
+fn portable_manifest(root:&Path,version:&str)->Result<(PortableManifest,Vec<PathBuf>)>{verified_portable_manifest(root,Some(version))}
+fn extract_portable(archive:&Path,target:&Path,version:&str)->Result<Vec<PathBuf>>{
+    fs::create_dir_all(target).map_err(err)?;
+    let file=fs::File::open(archive).map_err(err)?;
+    let mut zip=zip::ZipArchive::new(file).map_err(err)?;
+    let mut extracted=Vec::new();let mut total=0u64;
+    for index in 0..zip.len(){
+        let mut entry=zip.by_index(index).map_err(err)?;
+        let enclosed=entry.enclosed_name().ok_or("포터블 ZIP 경로가 올바르지 않습니다")?.to_owned();
+        let name=enclosed.to_string_lossy().replace('\\',"/");
+        if name.is_empty(){continue;}
+        let relative=safe_relative(name.trim_end_matches('/'))?;
+        if entry.unix_mode().is_some_and(|mode|mode&0o170000==0o120000){return Err("포터블 ZIP에 심볼릭 링크가 포함되어 있습니다".into());}
+        let destination=target.join(&relative);
+        if entry.is_dir(){fs::create_dir_all(&destination).map_err(err)?;continue;}
+        total=total.checked_add(entry.size()).ok_or("포터블 ZIP 크기 오류")?;
+        if total>2*1024*1024*1024{return Err("포터블 ZIP 압축 해제 크기가 너무 큽니다".into());}
+        if let Some(parent)=destination.parent(){fs::create_dir_all(parent).map_err(err)?;}
+        let mut output=fs::OpenOptions::new().create_new(true).write(true).open(&destination).map_err(err)?;
+        std::io::copy(&mut entry,&mut output).map_err(err)?;output.flush().map_err(err)?;
+        extracted.push(relative);
+    }
+    let(_,expected)=portable_manifest(target,version)?;
+    let mut actual=extracted;actual.sort();actual.dedup();
+    let mut expected_sorted=expected;expected_sorted.sort();expected_sorted.dedup();
+    if actual!=expected_sorted{return Err("포터블 ZIP 파일 목록이 매니페스트와 일치하지 않습니다".into());}
+    Ok(expected_sorted)
+}
+fn existing_manifest_paths(root:&Path)->Result<Vec<PathBuf>>{
+    Ok(verified_portable_manifest(root,None)?.1)
+}
+fn remove_files(root:&Path,list:&[PathBuf])->Result<()>{
+    for name in list{let path=safe_destination(root,name)?;if path.is_file(){fs::remove_file(path).map_err(err)?;}}
+    Ok(())
+}
+fn rollback_portable(dir:&Path,job:&Job,old_files:&[PathBuf],new_files:&[PathBuf])->Result<()>{
+    remove_files(&job.install_dir,new_files)?;
+    replace_files(&dir.join("previous-install"),&job.install_dir,old_files)
+}
+fn same_files(a:&[PathBuf],b:&[PathBuf])->bool{
+    let mut a=a.to_vec();let mut b=b.to_vec();a.sort();b.sort();a==b
+}
+fn apply_portable(dir:&Path,job:&Job,manifest:&Manifest)->Result<()>{
+    let archive=dir.join("portable.zip");updater::verify_file(&archive,manifest)?;
+    let staged=dir.join("new-install");let new_files=extract_portable(&archive,&staged,&manifest.version)?;
+    let old_files=existing_manifest_paths(&job.install_dir)?;
+    for name in old_files.iter().chain(new_files.iter()){let _=safe_destination(&job.install_dir,name)?;}
+    for name in &new_files{if !old_files.iter().any(|old|old==name)&&safe_destination(&job.install_dir,name)?.exists(){return Err(format!("새 포터블 파일 경로에 사용자 파일이 이미 있습니다: {}",name.display()));}}
+    let backup=dir.join("previous-install");copy_files(&job.install_dir,&backup,&old_files)?;
+    let(_,verified_old)=verified_portable_manifest(&backup,None)?;
+    if !same_files(&old_files,&verified_old){return Err("포터블 백업 파일 목록이 변경되었습니다".into());}
+    state(dir,"installing",&manifest.version)?;
+    let attempt=(||{
+        let(_,verified_new)=portable_manifest(&staged,&manifest.version)?;
+        if !same_files(&new_files,&verified_new){return Err("포터블 설치 파일 목록이 변경되었습니다".into());}
+        let mut ordered=new_files.clone();ordered.sort_by_key(|p|p.file_name().is_some_and(|n|n.eq_ignore_ascii_case("nogirem.exe")));
+        replace_files(&staged,&job.install_dir,&ordered)?;
+        let obsolete=old_files.iter().filter(|old|!new_files.contains(old)).cloned().collect::<Vec<_>>();
+        remove_files(&job.install_dir,&obsolete)?;
+        launch_healthy(dir,job,manifest)
+    })();
+    if let Err(error)=attempt{
+        let(_,verified_old)=verified_portable_manifest(&backup,None)?;
+        if !same_files(&old_files,&verified_old){return Err("포터블 롤백 백업이 변경되었습니다".into());}
+        rollback_portable(dir,job,&old_files,&new_files)?;
+        let fallback=job.install_dir.join("nogirem.exe");
+        if fallback.exists(){let _=app_services::startup(&fallback,true,Some(job.startup));let _=start(&fallback,&["--migration-retry-suppressed".into()]);}
+        state(dir,"rolled-back",&error)?;return Err(error);
+    }
+    app_services::startup(&job.install_dir.join("nogirem.exe"),true,Some(job.startup))?;
+    state(dir,"complete",&manifest.version)?;Ok(())
+}
+pub fn start_interrupted_portable_recovery(root:&Path)->Result<bool>{
+    let cache=updater::cache_root()?;
+    if !cache.exists(){return Ok(false);}
+    for entry in fs::read_dir(&cache).map_err(err)?{
+        let dir=entry.map_err(err)?.path();
+        if !dir.file_name().unwrap_or_default().to_string_lossy().starts_with("job-")||!dir.join("job.json").is_file(){continue;}
+        let job:Job=serde_json::from_slice(&fs::read(dir.join("job.json")).map_err(err)?).map_err(err)?;
+        if !job.portable||!same(&job.install_dir,root){continue;}
+        let status=storage::read_json(&dir.join("result.json")).map_err(err)?.unwrap_or(Value::Null);
+        if status["phase"]!="installing"{continue;}
+        if status["pid"].as_u64().is_some_and(|pid|process::alive(pid as u32)){return Ok(true);}
+        contained(&dir,&cache)?;
+        protect_directory(&dir)?;
+        let protected_job:Job=serde_json::from_slice(&fs::read(dir.join("job.json")).map_err(err)?).map_err(err)?;
+        let protected_status=storage::read_json(&dir.join("result.json")).map_err(err)?.unwrap_or(Value::Null);
+        if !protected_job.portable||!same(&protected_job.install_dir,root)||protected_status["phase"]!="installing"{return Err("업데이트 복구 정보가 변경되었습니다".into());}
+        let helper=dir.join(format!("recovery-{}.exe",uuid::Uuid::new_v4()));
+        fs::copy(std::env::current_exe().map_err(err)?,&helper).map_err(err)?;
+        start(&helper,&["--recover-portable".into(),dir.to_string_lossy().into(),root.to_string_lossy().into(),std::process::id().to_string()])?;
+        return Ok(true);
+    }
+    Ok(false)
+}
+pub fn recover_portable(dir:&Path,root:&Path,parent:u32)->Result<()>{
+    contained(dir,&updater::cache_root()?)?;
+    wait_exit(&[parent],120)?;
+    let job:Job=serde_json::from_slice(&fs::read(dir.join("job.json")).map_err(err)?).map_err(err)?;
+    if !job.portable||!same(&job.install_dir,root){return Err("포터블 복구 대상이 일치하지 않습니다".into());}
+    let status=storage::read_json(&dir.join("result.json")).map_err(err)?.unwrap_or(Value::Null);
+    if status["phase"]!="installing"||status["pid"].as_u64().is_some_and(|pid|process::alive(pid as u32)){return Err("복구할 중단 업데이트가 없습니다".into());}
+    let manifest=updater::verify_envelope_for(&fs::read(dir.join("update.json")).map_err(err)?,&updater::config(),true)?;
+    updater::verify_file(&dir.join("portable.zip"),&manifest)?;
+    let(_,new_files)=portable_manifest(&dir.join("new-install"),&manifest.version)?;
+    let(_,old_files)=verified_portable_manifest(&dir.join("previous-install"),None)?;
+    rollback_portable(dir,&job,&old_files,&new_files)?;
+    state(dir,"rolled-back","중단된 포터블 업데이트를 복구했습니다")?;
+    start(&root.join("nogirem.exe"),&["--migration-retry-suppressed".into()])?;
+    Ok(())
+}
 pub fn apply(dir:&Path)->Result<()> {
     contained(dir,&updater::cache_root()?)?;
     let job:Job=serde_json::from_slice(&fs::read(dir.join("job.json")).map_err(err)?).map_err(err)?;
-    if !same(&job.install_dir,&installation()?) || !same(&job.user_dir,&user_dir()?) || uuid::Uuid::parse_str(&job.nonce).is_err(){return Err("잘못된 설치 작업 경로".into());}
-    let manifest=updater::verify_envelope(&fs::read(dir.join("update.json")).map_err(err)?,&updater::config())?;
-    updater::verify_file(&dir.join("installer.exe"),&manifest)?;
+    let valid_install=if job.portable{job.install_dir.join("portable.marker").is_file()&&std::env::var_os("NOGIREM_PORTABLE_ROOT").is_some_and(|p|same(Path::new(&p),&job.install_dir))}else{same(&job.install_dir,&installation()?)};
+    if !valid_install || !same(&job.user_dir,&expected_user(&job)?) || uuid::Uuid::parse_str(&job.nonce).is_err(){return Err("잘못된 설치 작업 경로".into());}
+    let manifest=updater::verify_envelope_for(&fs::read(dir.join("update.json")).map_err(err)?,&updater::config(),job.portable)?;
+    updater::verify_file(&dir.join(if job.portable{"portable.zip"}else{"installer.exe"}),&manifest)?;
     state(dir,"preparing",&manifest.version)?;
     fs::write(dir.join("helper-ready"),b"ready").map_err(err)?;
     wait_exit(&job.parent_pids,120)?;
     // Require a commit marker: if the running app could not flush/stop safely, leave it alone.
     if job.legacy_exe.is_none() && !dir.join("commit").exists(){return Err("앱에서 업데이트 설치를 취소했습니다".into());}
+    if job.portable{return apply_portable(dir,&job,&manifest);}
     let installed=files(&job.install_dir)?;
     let backup=dir.join("previous-install");copy_files(&job.install_dir,&backup,&installed)?;
     // Back up user JSON only. Recordings live outside userData and are never copied/deleted.
@@ -208,7 +406,8 @@ pub fn recover_preinstall(dir:&Path) {
         let job:Job=serde_json::from_slice(&fs::read(dir.join("job.json")).map_err(err)?).map_err(err)?;
         let status=storage::read_json(&dir.join("result.json")).map_err(err)?.unwrap_or(Value::Null);
         if status["phase"]!="preparing" || job.parent_pids.iter().any(|p|process::alive(*p)) {return Ok(());}
-        if !same(&job.install_dir,&installation()?) || !same(&job.user_dir,&user_dir()?){return Err("작업 경로 불일치".into());}
+        let valid_install=if job.portable{job.install_dir.join("portable.marker").is_file()}else{same(&job.install_dir,&installation()?)};
+        if !valid_install || !same(&job.user_dir,&expected_user(&job)?){return Err("작업 경로 불일치".into());}
         let target=job.legacy_exe.as_ref().unwrap_or(&job.install_dir).to_owned();
         let exe=if job.legacy_exe.is_some(){legacy_uninstaller(&target)?;target}else{target.join("nogirem.exe")};
         start(&exe,&["--migration-retry-suppressed".into()])?;
@@ -220,10 +419,10 @@ pub fn migrate(legacy:&Path,pid:u32)->Result<()> {
     if !same(Path::new(&process::path(pid)?),legacy){return Err("기존 앱 프로세스가 일치하지 않습니다".into());}
     let (m,envelope)=updater::fetch_manifest()?;
     if !updater::newer(&m.version,"0.3.17")? {return Err("Rust 전환 릴리스가 아직 준비되지 않았습니다".into());}
-    let dir=updater::cache_root()?.join(format!("job-{}",uuid::Uuid::new_v4()));fs::create_dir_all(&dir).map_err(err)?;
+    let dir=protected_cache_root()?.join(format!("job-{}",uuid::Uuid::new_v4()));fs::create_dir_all(&dir).map_err(err)?;protect_directory(&dir)?;
     state(&dir,"downloading",&m.version)?;
     updater::download(&m,&dir.join("installer.exe"),&|_|{},&std::sync::atomic::AtomicBool::new(false))?;
-    let job=Job{nonce:uuid::Uuid::new_v4().to_string(),parent_pids:vec![pid],install_dir:installation()?,user_dir:user_dir()?,startup:app_services::startup(legacy,true,None)?["enabled"]==true,legacy_exe:Some(legacy.into())};
+    let job=Job{nonce:uuid::Uuid::new_v4().to_string(),parent_pids:vec![pid],install_dir:installation()?,user_dir:user_dir()?,startup:app_services::startup(legacy,true,None)?["enabled"]==true,legacy_exe:Some(legacy.into()),portable:false};
     fs::write(dir.join("update.json"),envelope).map_err(err)?;
     storage::write_json(&dir.join("job.json"),&serde_json::to_value(&job).map_err(err)?)?;
     // Run from a private staging copy; Electron's uninstaller can then remove its bundled migrator.
@@ -236,4 +435,19 @@ pub fn migrate(legacy:&Path,pid:u32)->Result<()> {
 mod tests{
     use super::*;
     #[test]fn backup_restore_preserves_unrelated_files(){let root=std::env::temp_dir().join(format!("nogirem-update-test-{}",uuid::Uuid::new_v4()));let old=root.join("old");let backup=root.join("backup");fs::create_dir_all(&old).unwrap();fs::write(old.join("app.exe"),b"old").unwrap();let list=files(&old).unwrap();copy_files(&old,&backup,&list).unwrap();fs::write(old.join("app.exe"),b"new").unwrap();fs::write(old.join("user.txt"),b"keep").unwrap();copy_files(&backup,&old,&list).unwrap();assert_eq!(fs::read(old.join("app.exe")).unwrap(),b"old");assert_eq!(fs::read(old.join("user.txt")).unwrap(),b"keep");assert!(copy_files(&old,&backup,&[PathBuf::from("../outside")]).is_err());for dir in [&old,&backup]{for p in files(dir).unwrap(){fs::remove_file(dir.join(p)).unwrap();}fs::remove_dir(dir).unwrap();}fs::remove_dir(root).unwrap();}
+    #[test]fn portable_paths_are_bounded_and_unsigned_manifests_are_rejected(){
+        let root=std::env::temp_dir().join(format!("nogirem-portable-test-{}",uuid::Uuid::new_v4()));
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("portable.marker"),b"nogirem-portable-v1\n").unwrap();
+        fs::write(root.join("nogirem.exe"),b"app").unwrap();
+        let files=BTreeMap::from([
+            ("nogirem.exe".to_owned(),crate::http::sha256(b"app")),
+            ("portable.marker".to_owned(),crate::http::sha256(b"nogirem-portable-v1\n")),
+        ]);
+        fs::write(root.join("portable-manifest.json"),serde_json::to_vec(&json!({"schemaVersion":1,"version":"0.4.1","files":files})).unwrap()).unwrap();
+        assert!(portable_manifest(&root,"0.4.1").is_err());
+        assert!(safe_relative("data/settings.json").is_err());
+        assert!(safe_relative("../outside").is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
 }

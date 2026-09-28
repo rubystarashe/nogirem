@@ -1,14 +1,17 @@
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { cp, copyFile, mkdir, readFile, writeFile, readdir, stat } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import AdmZip from 'adm-zip'
 import { turboKeyHelperAssetName } from '../src/turbo-key-installer.mjs'
 import { createTransport } from '../service/transport.mjs'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 if (process.platform !== 'win32' || process.arch !== 'x64') throw new Error('Windows x64 packaging is required')
 if (process.argv.includes('--publish')) throw new Error('Automatic publishing is disabled. Prepare and verify the signed release bundle before publishing.')
+const unsigned = process.argv.includes('--unsigned')
 const packageInfo = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
 const version = packageInfo.version
 const cargoVersion = /^version\s*=\s*"([^"]+)"/m.exec(await readFile(join(root, 'desktop/Cargo.toml'), 'utf8'))?.[1]
@@ -95,6 +98,44 @@ for (const file of await readdir(join(appDirectory, 'service'))) {
   if (!file.endsWith('-preload.js')) throw new Error(`Backend JavaScript in package: ${file}`)
 }
 
+const portableDirectory = join(output, 'portable')
+await cp(appDirectory, portableDirectory, { recursive: true })
+await writeFile(join(portableDirectory, 'portable.marker'), 'nogirem-portable-v1\n')
+await writeFile(join(portableDirectory, '포터블 사용 안내.txt'), [
+  '마비노기 렘 부스터 포터블',
+  '',
+  '- nogirem.exe를 실행하면 시스템 설정 변경을 위해 관리자 권한을 요청합니다.',
+  '- Microsoft Edge WebView2 Runtime이 설치되어 있어야 합니다.',
+  '- 설정은 설치형과 동일한 AppData 경로를 사용하므로 두 버전에서 공유됩니다.',
+  '- 녹화 청크 저장 드라이브는 앱의 블랙박스 설정에서 선택할 수 있습니다.',
+  '- 앱 폴더를 옮긴 뒤 실행하면 시작 프로그램 등록 경로가 현재 위치로 갱신됩니다.',
+  '',
+].join('\r\n'))
+async function portableFiles(directory, base = directory) {
+  const files = []
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name)
+    if (entry.isDirectory()) files.push(...await portableFiles(path, base))
+    else if (entry.isFile()) files.push(relative(base, path).replaceAll('\\', '/'))
+  }
+  return files
+}
+const portablePayload = (await portableFiles(portableDirectory)).sort()
+const portableManifest = {
+  schemaVersion: 1,
+  version,
+  files: Object.fromEntries(await Promise.all(portablePayload.map(async name => [
+    name,
+    createHash('sha256').update(await readFile(join(portableDirectory, name))).digest('hex'),
+  ]))),
+}
+await writeFile(join(portableDirectory, 'portable-manifest.json'), JSON.stringify(portableManifest, null, 2) + '\n')
+const portable = join(output, `nogirem-dioxus-portable-${version}.zip`)
+const archive = new AdmZip()
+archive.addLocalFolder(portableDirectory)
+archive.writeZip(portable)
+await run(process.execPath, [join(root, 'scripts/verify-portable-package.mjs'), portable, version])
+
 // Enumerate only the files shipped by this build. Never recursively delete the
 // install directory, which may also contain files created by the user.
 const uninstallLines = []
@@ -131,6 +172,9 @@ await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${appDirectory
 const installerBytes = (await stat(installer)).size
 const installerLimitBytes = 10_000_000 // Conservative decimal MB limit for file sharing.
 if (installerBytes >= installerLimitBytes) throw new Error(`Installer exceeds 10 MB budget: ${installerBytes} bytes`)
-await writeFile(join(output, 'build.json'), JSON.stringify({ version, backend: 'Rust', runtime: 'Dioxus Desktop / WebView2', installer, installerBytes, installerLimitBytes, appDirectory, runtimePackages }, null, 2))
-await run(process.execPath, [join(root, 'scripts/sign-update.mjs'), installer, version])
+const portableBytes = (await stat(portable)).size
+await writeFile(join(output, 'build.json'), JSON.stringify({ version, backend: 'Rust', runtime: 'Dioxus Desktop / WebView2', installer, installerBytes, installerLimitBytes, portable, portableBytes, appDirectory, portableDirectory, runtimePackages }, null, 2))
+if (!unsigned) await run(process.execPath, [join(root, 'scripts/sign-update.mjs'), installer, portable, version])
 console.log(`Installer: ${installer}`)
+console.log(`Portable: ${portable}`)
+if (unsigned) console.log('Unsigned package: update manifests were not generated')

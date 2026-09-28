@@ -14,10 +14,12 @@ pub struct Environment {
     pub videos: PathBuf,
     pub exe: PathBuf,
     pub packaged: bool,
+    pub portable: bool,
 }
 impl Environment {
     pub fn new(root: PathBuf, folders: &Value) -> Result<Self> {
         let home = PathBuf::from(std::env::var_os("USERPROFILE").ok_or("USERPROFILE unavailable")?);
+        let portable = root.join("portable.marker").is_file();
         let folder = |key: &str, fallback: &str| {
             folders[key]
                 .as_str()
@@ -38,6 +40,7 @@ impl Environment {
             videos: folder("videos", "Videos"),
             exe: std::env::current_exe().map_err(|e| e.to_string())?,
             packaged: !cfg!(debug_assertions),
+            portable,
         })
     }
     pub fn valid_game(&self, path: &str) -> bool {

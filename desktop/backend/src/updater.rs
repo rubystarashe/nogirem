@@ -27,7 +27,7 @@ pub struct Manifest {
     pub sha256: String,
     #[serde(default)] pub notes: String,
 }
-pub fn verify_envelope(bytes: &[u8], cfg: &Config) -> Result<Manifest> {
+pub fn verify_envelope_for(bytes: &[u8], cfg: &Config, portable: bool) -> Result<Manifest> {
     if bytes.len()>64*1024 {return Err("업데이트 정보 크기 초과".into());}
     let envelope: Value=serde_json::from_slice(bytes).map_err(|e|e.to_string())?;
     let payload=envelope["payload"].as_str().ok_or("서명된 업데이트 본문 누락")?;
@@ -37,18 +37,28 @@ pub fn verify_envelope(bytes: &[u8], cfg: &Config) -> Result<Manifest> {
     let m: Manifest=serde_json::from_str(payload).map_err(|e|e.to_string())?;
     let version=semver::Version::parse(&m.version).map_err(|_|"업데이트 버전 형식 오류")?;
     if m.schema_version!=1 || !version.pre.is_empty() || !version.build.is_empty() || m.size==0 || m.size>MAX_INSTALLER || m.sha256.len()!=64 || !m.sha256.bytes().all(|c|c.is_ascii_hexdigit()) {return Err("업데이트 정보 형식 오류".into());}
-    let expected=format!("https://github.com/{}/releases/download/v{}/nogirem-dioxus-setup-{}.exe",cfg.repository,m.version,m.version);
+    let asset=if portable {format!("nogirem-dioxus-portable-{}.zip",m.version)} else {format!("nogirem-dioxus-setup-{}.exe",m.version)};
+    let expected=format!("https://github.com/{}/releases/download/v{}/{}",cfg.repository,m.version,asset);
     if m.url!=expected {return Err("허용되지 않은 업데이트 다운로드 주소".into());}
     Ok(m)
+}
+pub fn verify_envelope(bytes: &[u8], cfg: &Config) -> Result<Manifest> {verify_envelope_for(bytes,cfg,false)}
+pub fn verify_portable_manifest(bytes:&[u8],signature:&[u8])->Result<()>{
+    let cfg=config();
+    let key:[u8;32]=STANDARD.decode(cfg.public_key).map_err(|e|e.to_string())?.try_into().map_err(|_|"공개키 길이 오류")?;
+    let signature=STANDARD.decode(String::from_utf8_lossy(signature).trim()).map_err(|e|e.to_string())?;
+    VerifyingKey::from_bytes(&key).map_err(|e|e.to_string())?.verify_strict(bytes,&Signature::from_slice(&signature).map_err(|e|e.to_string())?).map_err(|_|"포터블 파일 매니페스트 서명 검증 실패".into())
 }
 pub fn newer(candidate:&str,current:&str)->Result<bool>{
     Ok(semver::Version::parse(candidate).map_err(|e|e.to_string())?>semver::Version::parse(current).map_err(|e|e.to_string())?)
 }
-pub fn fetch_manifest()->Result<(Manifest,Vec<u8>)>{
+pub fn fetch_manifest_for(portable:bool)->Result<(Manifest,Vec<u8>)>{
     let cfg=config();
-    let bytes=http::bytes(&format!("https://github.com/{}/releases/latest/download/update.json",cfg.repository),64*1024,15000,&[("Cache-Control","no-cache")])?;
-    let m=verify_envelope(&bytes,&cfg)?; Ok((m,bytes))
+    let name=if portable{"portable-update.json"}else{"update.json"};
+    let bytes=http::bytes(&format!("https://github.com/{}/releases/latest/download/{name}",cfg.repository),64*1024,15000,&[("Cache-Control","no-cache")])?;
+    let m=verify_envelope_for(&bytes,&cfg,portable)?; Ok((m,bytes))
 }
+pub fn fetch_manifest()->Result<(Manifest,Vec<u8>)>{fetch_manifest_for(false)}
 pub fn verify_file(path:&Path,m:&Manifest)->Result<()> {
     let mut file=fs::File::open(path).map_err(|e|e.to_string())?;
     if file.metadata().map_err(|e|e.to_string())?.len()!=m.size {return Err("설치파일 크기가 일치하지 않습니다".into());}
@@ -77,11 +87,13 @@ pub fn download(m:&Manifest,path:&Path,progress:&dyn Fn(u64),cancel:&AtomicBool)
     if response.content_length().is_some_and(|n|n!=m.size){return Err("서버의 설치파일 크기가 일치하지 않습니다".into());}
     write_download(response,path,m,progress,cancel)
 }
-pub fn cache_root()->Result<PathBuf>{Ok(PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA 누락")?).join("Nogirem/updates"))}
+pub fn cache_root()->Result<PathBuf>{
+    Ok(PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA 누락")?).join("NogiremUpdater/updates"))
+}
 struct Data { state:Value, manifest:Option<Manifest>, envelope:Vec<u8>, file:Option<PathBuf> }
-pub struct Updater { data:Mutex<Data>, busy:AtomicBool, cancel:AtomicBool, notify:Arc<dyn Fn(Value)+Send+Sync> }
+pub struct Updater { data:Mutex<Data>, busy:AtomicBool, cancel:AtomicBool, portable:bool, notify:Arc<dyn Fn(Value)+Send+Sync> }
 impl Updater {
-    pub fn new(notify:Arc<dyn Fn(Value)+Send+Sync>)->Arc<Self>{Arc::new(Self{data:Mutex::new(Data{state:json!({"phase":"idle","version":null,"percent":0,"error":null}),manifest:None,envelope:vec![],file:None}),busy:AtomicBool::new(false),cancel:AtomicBool::new(false),notify})}
+    pub fn new(portable:bool,notify:Arc<dyn Fn(Value)+Send+Sync>)->Arc<Self>{Arc::new(Self{data:Mutex::new(Data{state:json!({"phase":"idle","version":null,"percent":0,"error":null}),manifest:None,envelope:vec![],file:None}),busy:AtomicBool::new(false),cancel:AtomicBool::new(false),portable,notify})}
     pub fn state(&self)->Value{self.data.lock().unwrap().state.clone()}
     fn set(&self,phase:&str,percent:f64,error:Option<String>){
         let state={let mut d=self.data.lock().unwrap();let version=d.manifest.as_ref().map(|m|m.version.clone());let notes=d.manifest.as_ref().map(|m|m.notes.clone()).unwrap_or_default();d.state=json!({"phase":phase,"version":version,"percent":percent,"error":error,"notes":notes});d.state.clone()};
@@ -99,7 +111,7 @@ impl Updater {
         if matches!(self.state()["phase"].as_str(),Some("available"|"downloading"|"downloaded"|"installing")) || self.busy.swap(true,Ordering::SeqCst){return self.state();}
         self.set("checking",0.,None);
         let this=self.clone();std::thread::spawn(move||{
-            let result=(||{let (manifest,envelope)=fetch_manifest()?;let update=newer(&manifest.version,env!("CARGO_PKG_VERSION"))?;
+            let result=(||{let (manifest,envelope)=fetch_manifest_for(this.portable)?;let update=newer(&manifest.version,env!("CARGO_PKG_VERSION"))?;
                 {let mut d=this.data.lock().unwrap();d.manifest=if update{Some(manifest)}else{None};d.envelope=envelope;d.file=None;}
                 this.set(if update{"available"}else{"idle"},0.,None);Ok::<_,String>(())})();
             if let Err(e)=result{this.set("error",0.,Some(e));}this.busy.store(false,Ordering::SeqCst);
@@ -114,9 +126,9 @@ impl Updater {
         let this=self.clone();std::thread::spawn(move||{
             let result=(||{
                 crate::update_install::cleanup_cache()?;
-                let dir=cache_root()?.join(format!("download-{}",uuid::Uuid::new_v4()));fs::create_dir_all(&dir).map_err(|e|e.to_string())?;
+                let dir=crate::update_install::protected_cache_root()?.join(format!("download-{}",uuid::Uuid::new_v4()));fs::create_dir_all(&dir).map_err(|e|e.to_string())?;crate::update_install::protect_directory(&dir)?;
                 fs::write(dir.join("owned-by-updater"),b"nogirem").map_err(|e|e.to_string())?;
-                let file=dir.join("installer.exe");
+                let file=dir.join(if this.portable{"portable.zip"}else{"installer.exe"});
                 // Callback is throttled with an independent mutex; never hold state during I/O.
                 let at=Mutex::new(std::time::Instant::now());
                 download(&m,&file,&|n|{let mut last=at.lock().unwrap();if last.elapsed()>Duration::from_millis(200)||n==m.size{*last=std::time::Instant::now();this.set("downloading",(n as f64*100./m.size as f64).min(99.9),None);}},&this.cancel)?;
@@ -136,7 +148,7 @@ mod tests {
     use super::*;use ed25519_dalek::{Signer,SigningKey};
     fn sample()->(Manifest,Config,SigningKey){let key=SigningKey::from_bytes(&[7;32]);let cfg=Config{repository:"test/repo".into(),public_key:STANDARD.encode(key.verifying_key().as_bytes())};let m=Manifest{schema_version:1,version:"0.4.1".into(),url:"https://github.com/test/repo/releases/download/v0.4.1/nogirem-dioxus-setup-0.4.1.exe".into(),size:3,sha256:http::sha256(b"abc"),notes:String::new()};(m,cfg,key)}
     fn signed(m:&Manifest,k:&SigningKey)->Vec<u8>{let payload=serde_json::to_string(m).unwrap();serde_json::to_vec(&json!({"signature":STANDARD.encode(k.sign(payload.as_bytes()).to_bytes()),"payload":payload})).unwrap()}
-    #[test] fn signatures_versions_and_addresses(){let(mut m,c,k)=sample();let good=signed(&m,&k);assert_eq!(verify_envelope(&good,&c).unwrap().version,"0.4.1");let mut bad:Value=serde_json::from_slice(&good).unwrap();bad["payload"]=json!(bad["payload"].as_str().unwrap().replace("0.4.1","0.9.0"));assert!(verify_envelope(&serde_json::to_vec(&bad).unwrap(),&c).is_err());m.url="https://evil.invalid/install.exe".into();assert!(verify_envelope(&signed(&m,&k),&c).is_err());assert!(newer("0.4.10","0.4.9").unwrap());assert!(!newer("0.4.0","0.4.0").unwrap());assert!(!newer("0.3.17","0.4.0").unwrap());}
+    #[test] fn signatures_versions_and_addresses(){let(mut m,c,k)=sample();let good=signed(&m,&k);assert_eq!(verify_envelope(&good,&c).unwrap().version,"0.4.1");let mut portable=m.clone();portable.url="https://github.com/test/repo/releases/download/v0.4.1/nogirem-dioxus-portable-0.4.1.zip".into();assert_eq!(verify_envelope_for(&signed(&portable,&k),&c,true).unwrap().version,"0.4.1");assert!(verify_envelope_for(&good,&c,true).is_err());let mut bad:Value=serde_json::from_slice(&good).unwrap();bad["payload"]=json!(bad["payload"].as_str().unwrap().replace("0.4.1","0.9.0"));assert!(verify_envelope(&serde_json::to_vec(&bad).unwrap(),&c).is_err());m.url="https://evil.invalid/install.exe".into();assert!(verify_envelope(&signed(&m,&k),&c).is_err());assert!(newer("0.4.10","0.4.9").unwrap());assert!(!newer("0.4.0","0.4.0").unwrap());assert!(!newer("0.3.17","0.4.0").unwrap());}
     #[test] fn partial_corrupt_oversized_and_cancelled_downloads_never_survive(){let(m,_,_)=sample();for (data,cancelled) in [(b"ab".as_slice(),false),(b"abd",false),(b"abcd",false),(b"abc",true)]{let p=std::env::temp_dir().join(format!("nogirem-download-test-{}",uuid::Uuid::new_v4()));assert!(write_download(data,&p,&m,&|_|{},&AtomicBool::new(cancelled)).is_err());assert!(!p.exists());}}
     #[test] fn valid_download_is_reverified_before_install(){let(m,_,_)=sample();let p=std::env::temp_dir().join(format!("nogirem-download-test-{}",uuid::Uuid::new_v4()));write_download(b"abc".as_slice(),&p,&m,&|_|{},&AtomicBool::new(false)).unwrap();verify_file(&p,&m).unwrap();fs::write(&p,b"abd").unwrap();assert!(verify_file(&p,&m).is_err());fs::remove_file(p).unwrap();}
 }

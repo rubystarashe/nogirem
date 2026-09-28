@@ -17,6 +17,7 @@
     "native:recorder": "node scripts/build-recorder-helper.mjs",
     "native:turbo-key": "node scripts/build-turbo-key.mjs",
     "package:win": "node scripts/package-dioxus.mjs",
+    "package:win:unsigned": "node scripts/package-dioxus.mjs --unsigned",
     "release:github": "node scripts/package-dioxus.mjs --publish",
     "report:prune": "node scripts/prune-report-responses.mjs",
     "start": "cargo run --quiet --manifest-path desktop/backend/Cargo.toml --bin nogirem-cli -- --apply",
