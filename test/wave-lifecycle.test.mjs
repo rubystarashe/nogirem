@@ -24,6 +24,12 @@ test('startup completion starts ambient waves without toggling boost',()=>{
   advance(1200);assert.equal(wave.inspect().circles,10)
   advance(6200);assert.equal(wave.inspect().ambientPending,true)
 })
+test('startup finale immediately hands off to ambient waves',()=>{
+  const {wave,advance}=fixture();wave.setStartupMuted(true);wave.allowStartup()
+  advance(1500);wave.finishStartup();advance(5949)
+  assert.equal(wave.inspect().ambientCircles,0)
+  advance(1);assert.equal(wave.inspect().ambientCircles,10)
+})
 test('skipping startup schedules waves and blur clears them without errors',()=>{
   const {wave,advance}=fixture();wave.skipStartup();advance(1200)
   assert.equal(wave.inspect().circles,10)

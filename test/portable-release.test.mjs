@@ -21,7 +21,8 @@ test('포터블 배포물은 내부 파일을 캐시에 준비하는 단일 EXE�
   assert.match(launcher, /ExecWait/)
   assert.match(launcher, /NogiremPortableRuntime\\\$\{APP_VERSION\}/)
   assert.match(launcher, /portable-ready\.marker/)
-  assert.doesNotMatch(launcher, /RMDir \/r/)
+  assert.match(launcher, /IfErrors extraction_failed/)
+  assert.match(launcher, /extraction_failed:[\s\S]*RMDir \/r/)
 })
 
 test('설치형과 포터블은 별도 서명 업데이트 매니페스트를 사용한다', () => {

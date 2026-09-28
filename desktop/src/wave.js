@@ -549,6 +549,7 @@ window.createNogiremWave = function(canvas, onEvent) {
           window.clearTimeout(drawWakeTimer)
           drawWakeTimer = null
         }
+        scheduleAmbientWaves(0)
         onstartupidle()
       }
       startupIdleTimer = window.setTimeout(finishStartupSequence, Math.max(0, Math.ceil(finalStartupWaveEnd - initialTimelineElapsed)))
@@ -702,5 +703,5 @@ window.createNogiremWave = function(canvas, onEvent) {
 
 window.addEventListener("mousemove", movePointer, { capture: true, passive: true });
 window.addEventListener("mousedown", addClickWave);
-return { setLogoVisible(value) { if (logoVisible !== value) { logoVisible = value; requestDraw(); } }, inspect: () => ({startupSequenceActive, renderedFrames, pageVisible, framePending: Boolean(animationFrame), ambientPending: Boolean(ambientTimer), darkBackground, logoMask: startupLogoMaskActive, pointerX, pointerY, offsetX: smoothX / 20, offsetY: smoothY / 10, mode, timeline: currentTimelineElapsed(), circles: circles.length, audioPaused: audio.paused, audioTime: audio.currentTime, audioVolume: audio.volume, audioError: audio.error?.message, transition: backgroundTransition}), makeActionWave, setPaused, setAmbientEnabled, setPageVisible, setStartupMuted, allowStartup, skipStartup, finishStartup, dispose() { cleanup(); window.removeEventListener("mousemove", movePointer, true); window.removeEventListener("mousedown", addClickWave); } };
+return { setLogoVisible(value) { if (logoVisible !== value) { logoVisible = value; requestDraw(); } }, inspect: () => ({startupSequenceActive, renderedFrames, pageVisible, framePending: Boolean(animationFrame), ambientPending: Boolean(ambientTimer), ambientCircles: circles.filter(circle => circle.kind === "ambient").length, darkBackground, logoMask: startupLogoMaskActive, pointerX, pointerY, offsetX: smoothX / 20, offsetY: smoothY / 10, mode, timeline: currentTimelineElapsed(), circles: circles.length, audioPaused: audio.paused, audioTime: audio.currentTime, audioVolume: audio.volume, audioError: audio.error?.message, transition: backgroundTransition}), makeActionWave, setPaused, setAmbientEnabled, setPageVisible, setStartupMuted, allowStartup, skipStartup, finishStartup, dispose() { cleanup(); window.removeEventListener("mousemove", movePointer, true); window.removeEventListener("mousedown", addClickWave); } };
 };
