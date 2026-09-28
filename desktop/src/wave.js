@@ -158,12 +158,12 @@ window.createNogiremWave = function(canvas, onEvent) {
   function requestDraw() {
     window.clearTimeout(drawWakeTimer)
     drawWakeTimer = null
-    if (animationFrame || !context || !imageCache || (mode === "background" && !startupSequenceActive && !pageVisible && forceStatic !== true)) return
+    if (animationFrame || !context || !imageCache || (mode === "background" && !startupSequenceActive && !pageVisible)) return
     animationFrame = requestAnimationFrame(draw)
   }
 
   function scheduleDraw(delayMs) {
-    if (animationFrame || drawWakeTimer || (mode === "background" && !startupSequenceActive && !pageVisible && forceStatic !== true)) return
+    if (animationFrame || drawWakeTimer || (mode === "background" && !startupSequenceActive && !pageVisible)) return
     drawWakeTimer = window.setTimeout(() => {
       drawWakeTimer = null
       requestDraw()
@@ -634,6 +634,7 @@ window.createNogiremWave = function(canvas, onEvent) {
     }
     onstartuphidden()
     onstartupidle()
+    scheduleAmbientWaves()
     requestDraw()
   }
 
@@ -645,6 +646,7 @@ window.createNogiremWave = function(canvas, onEvent) {
       active = true
       mode = "background"
       onstartuphidden()
+      scheduleAmbientWaves()
       requestDraw()
     }, 450)
   }

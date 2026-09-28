@@ -56,8 +56,11 @@ Section "Install"
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
   File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
-  ExecWait 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR"' $0
+  ${DisableX64FSRedirection}
+  ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR"' $0
+  ${EnableX64FSRedirection}
   ${If} $0 != 0
+    SetErrorLevel 1
     MessageBox MB_ICONSTOP "실행 중인 앱을 정상 종료한 뒤 다시 설치해 주세요."
     Abort
   ${EndIf}
@@ -83,8 +86,11 @@ Section "Uninstall"
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
   File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
-  ExecWait 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -Uninstall' $0
+  ${DisableX64FSRedirection}
+  ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -Uninstall' $0
+  ${EnableX64FSRedirection}
   ${If} $0 != 0
+    SetErrorLevel 1
     MessageBox MB_ICONSTOP "실행 중인 앱을 정상 종료한 뒤 다시 제거해 주세요."
     Abort
   ${EndIf}

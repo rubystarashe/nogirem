@@ -372,9 +372,16 @@ impl Service {
             }
             let modified = std::fs::metadata(&close).and_then(|m| m.modified()).ok();
             if modified.is_some() && modified > close_at {
-                let _ = remove(&close);
-                let _ = self.finish_exit("keep");
-                break;
+                // A clip export can defer shutdown. Keep the request and monitor alive
+                // until shutdown actually starts; otherwise the installer waits forever.
+                match self.finish_exit("keep") {
+                    Ok(value) if value["closing"] == true => {
+                        let _ = remove(&close);
+                        break;
+                    }
+                    Err(error) => log(error),
+                    _ => {}
+                }
             }
             let next_game = self.env.game();
             if !next_game.eq_ignore_ascii_case(&game) {
