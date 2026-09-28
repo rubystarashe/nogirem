@@ -14,12 +14,16 @@ Section
     Abort "Windows x64가 필요합니다."
   ${EndIf}
   System::Call 'kernel32::GetCurrentProcessId() i.r2'
-  StrCpy $0 "$PROGRAMFILES64\NogiremPortableRuntime\$2"
+  StrCpy $0 "$PROGRAMFILES64\NogiremPortableRuntime\${APP_VERSION}"
+  IfFileExists "$0\portable-ready.marker" launch
   SetOutPath "$0"
   File /r "${APP_DIRECTORY}\*"
+  FileOpen $4 "$0\portable-ready.marker" w
+  FileWrite $4 "${APP_VERSION}$\r$\n"
+  FileClose $4
+
+  launch:
   ${GetParameters} $1
   ExecWait '"$0\nogirem.exe" --portable-source="$EXEPATH" --portable-launcher-pid=$2 $1' $3
-  RMDir /r "$0"
-  RMDir "$PROGRAMFILES64\NogiremPortableRuntime"
   SetErrorLevel $3
 SectionEnd

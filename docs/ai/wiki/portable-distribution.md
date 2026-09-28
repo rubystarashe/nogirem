@@ -5,7 +5,7 @@
 - 설치형: `nogirem-dioxus-setup-<version>.exe`
 - 포터블: `nogirem-dioxus-portable-<version>.exe`
 - 사용자가 보관하고 이동하는 포터블 배포물은 EXE 한 개다.
-- launcher는 실행 중에만 내부 앱을 관리자 전용 Program Files 임시 런타임에 풀고 종료 후 정리한다.
+- launcher는 첫 실행에 내부 앱을 관리자 전용 Program Files 버전 캐시에 풀고 이후 실행에서 재사용한다.
 - 내부 앱은 `portable.marker`와 launcher가 전달한 원본 경로·PID로 포터블 모드를 검증한다.
 
 ## 데이터와 런타임
