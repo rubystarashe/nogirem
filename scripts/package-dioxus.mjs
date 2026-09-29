@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { cp, copyFile, mkdir, readFile, writeFile, readdir, stat } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
@@ -111,6 +112,17 @@ await writeFile(join(portableDirectory, '포터블 사용 안내.txt'), [
   '- 앱 폴더를 옮긴 뒤 실행하면 시작 프로그램 등록 경로가 현재 위치로 갱신됩니다.',
   '',
 ].join('\r\n'))
+async function hashDirectory(directory, base = directory, hash = createHash('sha256')) {
+  for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
+    const path = join(directory, entry.name)
+    const name = relative(base, path).replaceAll('\\', '/')
+    hash.update(entry.isDirectory() ? `D:${name}\n` : `F:${name}:${(await stat(path)).size}\n`)
+    if (entry.isDirectory()) await hashDirectory(path, base, hash)
+    else if (entry.isFile()) hash.update(await readFile(path))
+  }
+  return hash
+}
+const portableCacheId = (await hashDirectory(portableDirectory)).digest('hex')
 // Enumerate only the files shipped by this build. Never recursively delete the
 // install directory, which may also contain files created by the user.
 const uninstallLines = []
@@ -145,12 +157,12 @@ if (!nsis) throw new Error(`NSIS compiler not found. Set NSIS_MAKENSIS. Prepared
 const installer = join(output, `nogirem-dioxus-setup-${version}.exe`)
 await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${appDirectory}`, `/DWEBVIEW_BOOTSTRAPPER=${bootstrapper}`, `/DUNINSTALL_MANIFEST=${uninstallManifest}`, `/DSTOP_SCRIPT=${stopScript}`, `/DOUTPUT_FILE=${installer}`, `/DAPP_VERSION=${version}`, join(root, 'desktop/installer.nsi')])
 const portable = join(output, `nogirem-dioxus-portable-${version}.exe`)
-await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${portableDirectory}`, `/DOUTPUT_FILE=${portable}`, `/DAPP_VERSION=${version}`, join(root, 'desktop/portable.nsi')])
+await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${portableDirectory}`, `/DOUTPUT_FILE=${portable}`, `/DAPP_VERSION=${version}`, `/DPORTABLE_CACHE_ID=${portableCacheId}`, join(root, 'desktop/portable.nsi')])
 const installerBytes = (await stat(installer)).size
 const installerLimitBytes = 10_000_000 // Conservative decimal MB limit for file sharing.
 if (installerBytes >= installerLimitBytes) throw new Error(`Installer exceeds 10 MB budget: ${installerBytes} bytes`)
 const portableBytes = (await stat(portable)).size
-await writeFile(join(output, 'build.json'), JSON.stringify({ version, backend: 'Rust', runtime: 'Dioxus Desktop / WebView2', installer, installerBytes, installerLimitBytes, portable, portableBytes, appDirectory, portableDirectory, runtimePackages }, null, 2))
+await writeFile(join(output, 'build.json'), JSON.stringify({ version, backend: 'Rust', runtime: 'Dioxus Desktop / WebView2', installer, installerBytes, installerLimitBytes, portable, portableBytes, portableCacheId, appDirectory, portableDirectory, runtimePackages }, null, 2))
 if (!unsigned) await run(process.execPath, [join(root, 'scripts/sign-update.mjs'), installer, portable, version])
 console.log(`Installer: ${installer}`)
 console.log(`Portable: ${portable}`)

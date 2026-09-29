@@ -1,12 +1,12 @@
 # 실행 인계
 
-- updated_at: `2026-09-29T14:18:00+09:00`
+- updated_at: `2026-09-29T15:52:00+09:00`
 - run_id: `20260929-update-hotfix`
 - goal: Rust 0.4.1 대체 산출물과 Electron 0.3.19 전환본으로 업데이트·제거 실패 복구
-- progress: 실제 사용자 진단으로 Rust 다운로드 패닉을 확정하고 blocking client, 양쪽 오류 화면 숨김·재시도, helper timeout 경쟁 방지와 중복 전환 mutex를 구현했다. Rust 0.4.1과 Electron 0.3.19 재배포, 공개 해시·실다운로드, 0.3.16/0.3.18 라우팅 검증 완료
-- blocker: 없음
-- next_action: 실패한 0.3.18에는 0.3.19, 0.4.0에는 수정된 0.4.1 설치본을 1회 수동 설치하도록 안내하고 성공 여부와 신규 helper stderr를 확인
-- final_rust: `release/dioxus-0.4.1-2026-09-29T05-00-21-440Z`
+- progress: 기존 핫픽스 배포 뒤 포터블 동일 버전 캐시 미갱신, 복구 helper 신뢰 경계, 사용자 경로 파일 교체 경쟁, 실패 캐시 누적을 추가 보강했다. 빌드 digest marker, High 무결성 작업 검증, 보호 staging·handle 잠금·교체 후 해시 확인, 관리자 자동 재실행 제거, 24시간 제한 정리를 구현했고 Node·Rust 테스트와 최종 실서명 패키징을 통과했다.
+- blocker: 최종 독립 리뷰와 GitHub v0.4.1 Rust 자산 대체 전
+- next_action: 최종 커밋 스냅샷 독립 리뷰 후 Rust 설치형·포터블·서명 매니페스트 4개를 대체하고 공개 해시·실다운로드를 검증
+- final_rust: `release/dioxus-0.4.1-2026-09-29T06-50-56-324Z`
 - final_bridge: `release/electron-bridge-0.3.19-2026-09-29T05-12-43-737Z`
 - final_bundle: `release/ready-v0.4.1-2026-09-29T05-14-01-062Z`
 - release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.1`

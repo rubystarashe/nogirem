@@ -2,15 +2,19 @@ use crate::{Result, updater::{self,Manifest}, storage, process, app_services, po
 use serde::{Serialize,Deserialize};
 use serde_json::{Value,json};
 use sha2::{Digest,Sha256};
-use std::{fs, io::Read, path::{Path,PathBuf}, process::{Command,Stdio}, time::{Duration,Instant}};
-use std::os::windows::{fs::MetadataExt,process::CommandExt};
-use windows_sys::Win32::{Foundation::{CloseHandle,ERROR_ALREADY_EXISTS,GetLastError,HANDLE},System::Threading::CreateMutexW};
+use std::{fs::{self,File,OpenOptions}, io::{Read,Write}, path::{Path,PathBuf}, process::{Command,Stdio}, time::{Duration,Instant,SystemTime}};
+use std::os::windows::{ffi::OsStrExt,fs::{MetadataExt,OpenOptionsExt},process::CommandExt};
+use windows_sys::Win32::{Foundation::{CloseHandle,ERROR_ALREADY_EXISTS,GetLastError,HANDLE,INVALID_HANDLE_VALUE},Storage::FileSystem::{CreateFileW,FILE_FLAG_BACKUP_SEMANTICS,FILE_READ_ATTRIBUTES,FILE_SHARE_READ,FILE_SHARE_WRITE,OPEN_EXISTING},System::Threading::CreateMutexW};
 
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
 pub struct Job { pub nonce:String,pub parent_pids:Vec<u32>,pub install_dir:PathBuf,pub user_dir:PathBuf,pub startup:bool,pub legacy_exe:Option<PathBuf>,#[serde(default)]pub portable:bool,#[serde(default)]pub portable_exe:Option<PathBuf> }
 struct MigrationGuard(HANDLE);
 impl Drop for MigrationGuard {fn drop(&mut self){unsafe{CloseHandle(self.0);}}}
+struct PathGuard(HANDLE);
+impl Drop for PathGuard {fn drop(&mut self){unsafe{CloseHandle(self.0);}}}
+struct RemoveDirectory(PathBuf);
+impl Drop for RemoveDirectory {fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
 fn migration_guard()->Result<MigrationGuard>{let name="Local\\NogiremRustMigration\0".encode_utf16().collect::<Vec<_>>();let handle=unsafe{CreateMutexW(std::ptr::null(),0,name.as_ptr())};if handle.is_null(){return Err(std::io::Error::last_os_error().to_string());}if unsafe{GetLastError()}==ERROR_ALREADY_EXISTS{unsafe{CloseHandle(handle);}return Err("다른 Rust 전환 작업이 이미 진행 중입니다".into());}Ok(MigrationGuard(handle))}
 fn err(e:impl std::fmt::Display)->String{e.to_string()}
 fn quote(s:&str)->String{format!("'{}'",s.replace('\'',"''"))}
@@ -43,6 +47,46 @@ pub fn protect_directory(path:&Path)->Result<()>{
     let tool=PathBuf::from(std::env::var_os("SystemRoot").ok_or("SystemRoot 누락")?).join("System32/icacls.exe");
     let status=Command::new(tool).arg(path).args(["/setintegritylevel","(OI)(CI)H","/C","/Q"]).creation_flags(0x08000000).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().map_err(err)?;
     if !status.success(){return Err("업데이트 작업 폴더를 보호하지 못했습니다".into());}Ok(())
+}
+fn set_file_integrity(path:&Path,level:&str)->Result<()>{
+    let tool=PathBuf::from(std::env::var_os("SystemRoot").ok_or("SystemRoot 누락")?).join("System32/icacls.exe");
+    let status=Command::new(tool).arg(path).args(["/setintegritylevel",level,"/C","/Q"]).creation_flags(0x08000000).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().map_err(err)?;
+    if !status.success(){return Err(format!("파일 무결성 수준 설정 실패: {status}"));}Ok(())
+}
+fn require_high_integrity(path:&Path)->Result<()>{
+    let script=format!("$ErrorActionPreference='Stop';(Get-Acl -LiteralPath {}).Sddl",quote(&path.to_string_lossy()));
+    let sddl=powershell::run(&script,10000,32768)?;
+    if !sddl.contains("(ML;")||!sddl.contains(";;;HI)"){return Err("신뢰할 수 없는 업데이트 작업 파일입니다".into());}Ok(())
+}
+fn reject_reparse(path:&Path)->Result<()>{
+    let mut current=Some(path);
+    while let Some(item)=current {
+        if item.exists()&&fs::symlink_metadata(item).map_err(err)?.file_attributes()&0x400!=0{return Err("재분석 지점을 통한 업데이트 경로는 지원하지 않습니다".into());}
+        current=item.parent();
+    }
+    Ok(())
+}
+fn trusted_job(dir:&Path,files:&[&str])->Result<()>{
+    let root=protected_cache_root()?;
+    contained(dir,&root)?;
+    let name=dir.file_name().and_then(|name|name.to_str()).ok_or("업데이트 작업 이름 누락")?;
+    let id=name.strip_prefix("job-").ok_or("잘못된 업데이트 작업 이름")?;
+    uuid::Uuid::parse_str(id).map_err(|_|"잘못된 업데이트 작업 식별자".to_string())?;
+    reject_reparse(dir)?;
+    require_high_integrity(dir)?;
+    for name in files {
+        let path=dir.join(name);
+        if !path.exists(){return Err(format!("업데이트 작업 파일 누락: {name}"));}
+        reject_reparse(&path)?;
+        require_high_integrity(&path)?;
+    }
+    Ok(())
+}
+fn wide_path(path:&Path)->Vec<u16>{path.as_os_str().encode_wide().chain(Some(0)).collect()}
+fn lock_directory(path:&Path)->Result<PathGuard>{
+    let handle=unsafe{CreateFileW(wide_path(path).as_ptr(),FILE_READ_ATTRIBUTES,FILE_SHARE_READ|FILE_SHARE_WRITE,std::ptr::null(),OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,std::ptr::null_mut())};
+    if handle==INVALID_HANDLE_VALUE{return Err(std::io::Error::last_os_error().to_string());}
+    Ok(PathGuard(handle))
 }
 pub fn protected_cache_root()->Result<PathBuf>{
     let base=PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA 누락")?);
@@ -100,8 +144,9 @@ pub fn mark_healthy(args:&[String])->Result<()> {
     if job.nonce.len()!=36 || !same(&job.user_dir,&expected_user(&job)?){return Err("잘못된 업데이트 시작 확인 요청".into());}
     storage::write_json(&dir.join("healthy.json"),&json!({"ready":true,"nonce":job.nonce,"version":env!("CARGO_PKG_VERSION"),"pid":std::process::id()}))
 }
+fn abandoned_job(phase:&str,alive:bool,stale:bool,recovery:bool)->bool{stale&&!alive&&!recovery&&matches!(phase,"preparing"|"rolled-back")}
 pub fn cleanup_cache() -> Result<()> {
-    let root=updater::cache_root()?;
+    let root=protected_cache_root()?;
     if !root.exists(){return Ok(());}
     for entry in fs::read_dir(&root).map_err(err)? {
         let dir=entry.map_err(err)?.path();let name=dir.file_name().unwrap_or_default().to_string_lossy();
@@ -110,8 +155,13 @@ pub fn cleanup_cache() -> Result<()> {
         if fs::symlink_metadata(&dir).map_err(err)?.file_attributes()&0x400!=0 {continue;}
         let completed=storage::read_json(&dir.join("result.json")).ok().flatten().unwrap_or(Value::Null);
         let download=name.starts_with("download-") && dir.join("owned-by-updater").is_file();
-        let finished=completed["phase"]=="complete" && !completed["pid"].as_u64().is_some_and(|p|process::alive(p as u32));
-        if !download && !finished {continue;}
+        let alive=completed["pid"].as_u64().is_some_and(|p|process::alive(p as u32));
+        let modified=fs::metadata(dir.join("result.json")).or_else(|_|fs::metadata(&dir)).and_then(|metadata|metadata.modified()).unwrap_or(SystemTime::now());
+        let stale=SystemTime::now().duration_since(modified).unwrap_or_default()>=Duration::from_secs(24*60*60);
+        let phase=completed["phase"].as_str().unwrap_or("");
+        let finished=phase=="complete"&&!alive;
+        let abandoned=abandoned_job(phase,alive,stale,dir.join("portable-recovery.json").exists());
+        if !download && !finished && !abandoned {continue;}
         contained(&dir,&root)?;
         let Ok(entries)=files(&dir) else {continue;};
         for file in entries {let path=dir.join(file);contained(&path,&root)?;fs::remove_file(path).map_err(err)?;}
@@ -209,30 +259,64 @@ fn registry_restore(dir:&Path)->Result<()> {
         else{r"Remove-Item -LiteralPath 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\NogiremDioxus' -ErrorAction SilentlyContinue".into()};
     powershell::run(&script,15000,65536)?;Ok(())
 }
-fn wide_path(path:&Path)->Vec<u16>{use std::os::windows::ffi::OsStrExt;path.as_os_str().encode_wide().chain(Some(0)).collect()}
-fn file_sha256(path:&Path)->Result<String>{let mut file=fs::File::open(path).map_err(err)?;let mut hash=Sha256::new();let mut chunk=[0u8;65536];loop{let n=file.read(&mut chunk).map_err(err)?;if n==0{break;}hash.update(&chunk[..n]);}Ok(format!("{:x}",hash.finalize()))}
-fn replace_file(source:&Path,target:&Path)->Result<()>{
-    let parent=target.parent().ok_or("포터블 대상 상위 경로 누락")?;fs::create_dir_all(parent).map_err(err)?;
-    let temporary=parent.join(format!(".nogirem-new-{}",uuid::Uuid::new_v4()));
-    fs::copy(source,&temporary).map_err(err)?;
+fn reader_sha256(reader:&mut impl Read)->Result<String>{let mut hash=Sha256::new();let mut chunk=[0u8;65536];loop{let n=reader.read(&mut chunk).map_err(err)?;if n==0{break;}hash.update(&chunk[..n]);}Ok(format!("{:x}",hash.finalize()))}
+fn file_sha256(path:&Path)->Result<String>{reader_sha256(&mut File::open(path).map_err(err)?)}
+fn replace_file(source:&Path,target:&Path,expected_hash:&str)->Result<File>{
+    if !file_sha256(source)?.eq_ignore_ascii_case(expected_hash){return Err("교체 원본 파일 무결성 확인 실패".into());}
+    let parent=target.parent().ok_or("포터블 대상 상위 경로 누락")?;
+    reject_reparse(parent)?;
+    if target.exists(){reject_reparse(target)?;}
+    let canonical_parent=parent.canonicalize().map_err(err)?;
+    let _parent_guard=lock_directory(parent)?;
+    let staging=parent.join(format!(".nogirem-stage-{}",uuid::Uuid::new_v4()));
+    fs::create_dir(&staging).map_err(err)?;
+    let _staging_cleanup=RemoveDirectory(staging.clone());
+    let stage_guard=lock_directory(&staging)?;
+    reject_reparse(&staging)?;
+    protect_directory(&staging)?;
+    require_high_integrity(&staging)?;
+    let temporary=staging.join("payload.exe");
+    let mut output=OpenOptions::new().write(true).create_new(true).share_mode(FILE_SHARE_READ).open(&temporary).map_err(err)?;
+    let copied=(||->Result<()> {
+        set_file_integrity(&temporary,"H")?;
+        require_high_integrity(&temporary)?;
+        let mut input=File::open(source).map_err(err)?;
+        std::io::copy(&mut input,&mut output).map_err(err)?;
+        output.flush().map_err(err)?;
+        output.sync_all().map_err(err)?;
+        Ok(())
+    })();
+    drop(output);
+    if let Err(error)=copied{return Err(error);}
+    if !file_sha256(&temporary)?.eq_ignore_ascii_case(expected_hash){return Err("교체 임시 파일 무결성 확인 실패".into());}
     let moved=unsafe{windows_sys::Win32::Storage::FileSystem::MoveFileExW(wide_path(&temporary).as_ptr(),wide_path(target).as_ptr(),0x1|0x8)};
-    if moved==0{let error=std::io::Error::last_os_error().to_string();let _=fs::remove_file(temporary);return Err(error);}
-    Ok(())
+    drop(stage_guard);
+    if moved==0{return Err(std::io::Error::last_os_error().to_string());}
+    if parent.canonicalize().map_err(err)?!=canonical_parent{return Err("포터블 대상 경로가 교체 중 변경되었습니다".into());}
+    reject_reparse(target)?;
+    require_high_integrity(target)?;
+    let mut guard=OpenOptions::new().read(true).share_mode(FILE_SHARE_READ).open(target).map_err(err)?;
+    if !reader_sha256(&mut guard)?.eq_ignore_ascii_case(expected_hash){return Err("교체된 포터블 파일 무결성 확인 실패".into());}
+    Ok(guard)
 }
 fn apply_portable(dir:&Path,job:&Job,manifest:&Manifest)->Result<()>{
     let payload=dir.join("portable.exe");updater::verify_file(&payload,manifest)?;
     let target=job.portable_exe.as_ref().ok_or("포터블 실행 파일 경로 누락")?;
     if !target.is_file()||target.parent().is_none_or(|parent|!same(parent,&job.install_dir)){return Err("포터블 업데이트 대상이 올바르지 않습니다".into());}
     let backup=dir.join("previous-portable.exe");fs::copy(target,&backup).map_err(err)?;
-    storage::write_json(&dir.join("portable-recovery.json"),&json!({"source":target,"sha256":file_sha256(&backup)?}))?;
+    let backup_hash=file_sha256(&backup)?;
+    storage::write_json(&dir.join("portable-recovery.json"),&json!({"source":target,"sha256":backup_hash}))?;
     state(dir,"installing",&manifest.version)?;
-    replace_file(&payload,target)?;
+    let target_guard=replace_file(&payload,target,&manifest.sha256)?;
     if let Err(error)=launch_healthy(dir,job,manifest){
-        replace_file(&backup,target)?;
-        let _=app_services::startup(target,true,Some(job.startup));
-        let _=start(target,&["--migration-retry-suppressed".into()]);
+        drop(target_guard);
+        let rollback_guard=replace_file(&backup,target,&backup_hash)?;
+        let _=set_file_integrity(target,"M");
+        drop(rollback_guard);
         state(dir,"rolled-back",&error)?;return Err(error);
     }
+    let _=set_file_integrity(target,"M");
+    drop(target_guard);
     fs::rename(dir.join("portable-recovery.json"),dir.join("portable-complete.json")).map_err(err)?;
     let _=app_services::startup(target,true,Some(job.startup));
     let _=state(dir,"complete",&manifest.version);Ok(())
@@ -243,30 +327,41 @@ pub fn start_interrupted_portable_recovery(source:&Path,launcher_pid:u32)->Resul
     for entry in fs::read_dir(&root).map_err(err)?{
         let dir=entry.map_err(err)?.path();
         if !dir.file_name().unwrap_or_default().to_string_lossy().starts_with("job-")||!dir.join("portable-recovery.json").is_file(){continue;}
+        if trusted_job(&dir,&["job.json","result.json","update.json","portable-recovery.json","previous-portable.exe"]).is_err(){continue;}
         let job:Job=serde_json::from_slice(&fs::read(dir.join("job.json")).map_err(err)?).map_err(err)?;
         let status=storage::read_json(&dir.join("result.json")).map_err(err)?.unwrap_or(Value::Null);
         if !job.portable||job.portable_exe.as_ref().is_none_or(|path|!same(path,source))||status["phase"]!="installing"{continue;}
         if status["pid"].as_u64().is_some_and(|pid|process::alive(pid as u32)){return Ok(true);}
-        contained(&dir,&root)?;protect_directory(&dir)?;
         let helper=dir.join(format!("recovery-{}.exe",uuid::Uuid::new_v4()));fs::copy(std::env::current_exe().map_err(err)?,&helper).map_err(err)?;
+        require_high_integrity(&helper)?;
         start(&helper,&["--recover-portable-exe".into(),dir.to_string_lossy().into(),source.to_string_lossy().into(),launcher_pid.to_string()])?;
         return Ok(true);
     }
     Ok(false)
 }
 pub fn recover_portable_exe(dir:&Path,source:&Path,launcher_pid:u32)->Result<()>{
-    contained(dir,&updater::cache_root()?)?;wait_exit(&[launcher_pid],120)?;
+    trusted_job(dir,&["job.json","result.json","update.json","portable-recovery.json","previous-portable.exe"])?;
+    if launcher_pid==0||!same(Path::new(&process::path(launcher_pid)?),source){return Err("포터블 런처 프로세스를 확인하지 못했습니다".into());}
+    wait_exit(&[launcher_pid],120)?;
+    let _guard=migration_guard()?;
     let job:Job=serde_json::from_slice(&fs::read(dir.join("job.json")).map_err(err)?).map_err(err)?;
+    let status=storage::read_json(&dir.join("result.json")).map_err(err)?.ok_or("포터블 업데이트 상태 누락")?;
+    if status["phase"]!="installing"||status["pid"].as_u64().is_some_and(|pid|process::alive(pid as u32)){return Err("복구 가능한 포터블 업데이트 상태가 아닙니다".into());}
     let recovery=storage::read_json(&dir.join("portable-recovery.json")).map_err(err)?.ok_or("포터블 복구 정보 누락")?;
     let backup=dir.join("previous-portable.exe");
-    if !job.portable||job.portable_exe.as_ref().is_none_or(|path|!same(path,source))||recovery["source"].as_str().is_none_or(|path|!same(Path::new(path),source))||recovery["sha256"].as_str().is_none_or(|hash|!file_sha256(&backup).is_ok_and(|actual|actual.eq_ignore_ascii_case(hash))){return Err("포터블 복구 정보를 확인하지 못했습니다".into());}
-    replace_file(&backup,source)?;
+    let backup_hash=recovery["sha256"].as_str().ok_or("포터블 복구 해시 누락")?;
+    if !job.portable||job.portable_exe.as_ref().is_none_or(|path|!same(path,source))||recovery["source"].as_str().is_none_or(|path|!same(Path::new(path),source))||!file_sha256(&backup)?.eq_ignore_ascii_case(backup_hash){return Err("포터블 복구 정보를 확인하지 못했습니다".into());}
+    let guard=replace_file(&backup,source,backup_hash)?;
+    set_file_integrity(source,"M")?;
+    drop(guard);
+    fs::rename(dir.join("portable-recovery.json"),dir.join("portable-complete.json")).map_err(err)?;
     state(dir,"rolled-back","중단된 포터블 업데이트를 복구했습니다")?;
-    start(source,&["--migration-retry-suppressed".into()])?;Ok(())
+    Ok(())
 }
 pub fn apply(dir:&Path)->Result<()> {
-    contained(dir,&updater::cache_root()?)?;
+    trusted_job(dir,&["job.json","result.json","update.json"])?;
     let job:Job=serde_json::from_slice(&fs::read(dir.join("job.json")).map_err(err)?).map_err(err)?;
+    trusted_job(dir,&[if job.portable{"portable.exe"}else{"installer.exe"}])?;
     let valid_install=if job.portable{job.portable_exe.as_ref().is_some_and(|exe|exe.is_file()&&std::env::var_os("NOGIREM_PORTABLE_SOURCE").is_some_and(|source|same(Path::new(&source),exe)))}else{same(&job.install_dir,&installation()?)};
     if !valid_install || !same(&job.user_dir,&expected_user(&job)?) || uuid::Uuid::parse_str(&job.nonce).is_err(){return Err("잘못된 설치 작업 경로".into());}
     let manifest=updater::verify_envelope_for(&fs::read(dir.join("update.json")).map_err(err)?,&updater::config(),job.portable)?;
@@ -274,8 +369,14 @@ pub fn apply(dir:&Path)->Result<()> {
     state(dir,"preparing",&manifest.version)?;
     fs::write(dir.join("helper-ready"),b"ready").map_err(err)?;
     wait_exit(&job.parent_pids,120)?;
+    let _guard=migration_guard()?;
     // Require a commit marker: if the running app could not flush/stop safely, leave it alone.
-    if job.legacy_exe.is_none() && !dir.join("commit").exists(){return Err("앱에서 업데이트 설치를 취소했습니다".into());}
+    if job.legacy_exe.is_none() {
+        let commit=dir.join("commit");
+        if !commit.exists(){return Err("앱에서 업데이트 설치를 취소했습니다".into());}
+        reject_reparse(&commit)?;
+        require_high_integrity(&commit)?;
+    }
     if job.portable{return apply_portable(dir,&job,&manifest);}
     let installed=files(&job.install_dir)?;
     let backup=dir.join("previous-install");copy_files(&job.install_dir,&backup,&installed)?;
@@ -316,8 +417,9 @@ pub fn recover_preinstall(dir:&Path) {
         if status["phase"]!="preparing" || job.parent_pids.iter().any(|p|process::alive(*p)) {return Ok(());}
         let valid_install=if job.portable{job.portable_exe.as_ref().is_some_and(|path|path.is_file())}else{same(&job.install_dir,&installation()?)};
         if !valid_install || !same(&job.user_dir,&expected_user(&job)?){return Err("작업 경로 불일치".into());}
+        if job.portable{return Ok(());}
         let target=job.legacy_exe.as_ref().unwrap_or(&job.install_dir).to_owned();
-        let exe=if job.portable{job.portable_exe.ok_or("포터블 실행 파일 경로 누락")?}else if job.legacy_exe.is_some(){legacy_uninstaller(&target)?;target}else{target.join("nogirem.exe")};
+        let exe=if job.legacy_exe.is_some(){legacy_uninstaller(&target)?;target}else{target.join("nogirem.exe")};
         start(&exe,&["--migration-retry-suppressed".into()])?;
         Ok(())
     })();let _=recover;
@@ -376,4 +478,5 @@ mod tests{
     #[test]fn migration_rejects_versions_before_0_4_1(){assert!(!supported_migration("0.4.0").unwrap());assert!(supported_migration("0.4.1").unwrap());assert!(supported_migration("0.5.0").unwrap());}
     #[test]fn backup_restore_preserves_unrelated_files(){let root=std::env::temp_dir().join(format!("nogirem-update-test-{}",uuid::Uuid::new_v4()));let old=root.join("old");let backup=root.join("backup");fs::create_dir_all(&old).unwrap();fs::write(old.join("app.exe"),b"old").unwrap();let list=files(&old).unwrap();copy_files(&old,&backup,&list).unwrap();fs::write(old.join("app.exe"),b"new").unwrap();fs::write(old.join("user.txt"),b"keep").unwrap();copy_files(&backup,&old,&list).unwrap();assert_eq!(fs::read(old.join("app.exe")).unwrap(),b"old");assert_eq!(fs::read(old.join("user.txt")).unwrap(),b"keep");assert!(copy_files(&old,&backup,&[PathBuf::from("../outside")]).is_err());for dir in [&old,&backup]{for p in files(dir).unwrap(){fs::remove_file(dir.join(p)).unwrap();}fs::remove_dir(dir).unwrap();}fs::remove_dir(root).unwrap();}
     #[test]fn migration_guard_prevents_concurrent_helpers(){let first=migration_guard().unwrap();assert!(migration_guard().is_err());drop(first);assert!(migration_guard().is_ok());}
+    #[test]fn abandoned_cache_requires_age_and_preserves_recovery(){assert!(abandoned_job("preparing",false,true,false));assert!(abandoned_job("rolled-back",false,true,false));assert!(!abandoned_job("preparing",false,false,false));assert!(!abandoned_job("preparing",true,true,false));assert!(!abandoned_job("installing",false,true,false));assert!(!abandoned_job("rolled-back",false,true,true));}
 }
