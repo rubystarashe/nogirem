@@ -50,13 +50,22 @@ Section "Install"
     MessageBox MB_ICONSTOP "Windows x64가 필요합니다."
     Abort
   ${EndIf}
+  StrCpy $8 ""
+  ${GetParameters} $1
+  ClearErrors
+  ${GetOptions} "$1" "/NOGIREMUPDATE=" $2
+  IfErrors update_flag_done
+  StrCpy $8 "-UpdaterPid $2"
+  update_flag_done:
   Call EnsureWebView
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
   File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
   System::Call 'kernel32::GetCurrentProcessId() i.r9'
   ${DisableX64FSRedirection}
-  ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9' $0
+  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 $8'
+  Pop $0
+  Pop $1
   ${EnableX64FSRedirection}
   ${If} $0 != 0
     SetErrorLevel 1
@@ -97,7 +106,9 @@ Section "Uninstall"
   File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
   System::Call 'kernel32::GetCurrentProcessId() i.r9'
   ${DisableX64FSRedirection}
-  ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 -Uninstall' $0
+  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 -Uninstall'
+  Pop $0
+  Pop $1
   ${EnableX64FSRedirection}
   ${If} $0 != 0
     SetErrorLevel 1

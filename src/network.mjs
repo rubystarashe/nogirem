@@ -14,7 +14,7 @@ Get-NetIPInterface -AddressFamily IPv4 |
   Where-Object ConnectionState -eq "Connected" |
   ForEach-Object { $interfaces[$_.InterfaceIndex] = $_ }
 
-$route = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "0.0.0.0/0" |
+$route = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue |
   Where-Object { $interfaces.ContainsKey($_.InterfaceIndex) } |
   Sort-Object @{ Expression = {
     $_.RouteMetric + $interfaces[$_.InterfaceIndex].InterfaceMetric
@@ -22,7 +22,12 @@ $route = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "0.0.0.0/0" |
   Select-Object -First 1
 
 if ($null -eq $route) {
-  throw "연결된 IPv4 기본 경로를 찾지 못했습니다"
+  [pscustomobject]@{
+    supported = $false
+    disconnected = $true
+    reason = "활성 IPv4 기본 경로가 없습니다. 인터넷 연결을 확인한 뒤 다시 시도하세요"
+  } | ConvertTo-Json -Compress
+  return
 }
 
 $adapter = Get-NetAdapter -IncludeHidden -ErrorAction SilentlyContinue |
@@ -154,7 +159,7 @@ $interfaces = @{}
 Get-NetIPInterface -AddressFamily IPv4 |
   Where-Object ConnectionState -eq "Connected" |
   ForEach-Object { $interfaces[$_.InterfaceIndex] = $_ }
-$route = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "0.0.0.0/0" |
+$route = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue |
   Where-Object { $interfaces.ContainsKey($_.InterfaceIndex) } |
   Sort-Object @{ Expression = {
     $_.RouteMetric + $interfaces[$_.InterfaceIndex].InterfaceMetric

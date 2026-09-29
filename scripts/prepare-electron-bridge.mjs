@@ -167,9 +167,14 @@ const probeCount=installerSource.split(processProbe).length-1
 if(probeCount!==3) throw new Error(`Unexpected Electron bridge process probe count: ${probeCount}`)
 const pathProbe=`!macro findBridgeProcess
   System::Call 'Kernel32::SetEnvironmentVariable(t "NOGIREM_BRIDGE_TARGET", t "$INSTDIR\\\\\${APP_EXECUTABLE_FILENAME}")'
-  nsExec::ExecToStack '"$SYSDIR\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$target=$$env:NOGIREM_BRIDGE_TARGET; $$found=@([Diagnostics.Process]::GetProcesses() | Where-Object { try { $$_.MainModule.FileName -eq $$target } catch { $$false } }); if ($$found.Count -gt 0) { exit 0 }; exit 1"'
+  nsExec::ExecToStack '"$SYSDIR\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$target=$$env:NOGIREM_BRIDGE_TARGET; $$found=@([Diagnostics.Process]::GetProcesses() | Where-Object { try { $$_.MainModule.FileName -eq $$target } catch { $$false } }); if ($$found.Count -gt 0) { exit 2 }"'
   Pop $R0
   Pop $R2
+  \${If} $R0 == 2
+    StrCpy $R0 0
+  \${ElseIf} $R0 == 0
+    StrCpy $R0 1
+  \${EndIf}
 !macroend
 
 `

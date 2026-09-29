@@ -324,6 +324,7 @@ impl Service {
     pub fn start(self: &Arc<Self>) -> Result<()> {
         self.windows.tray(true);
         self.windows.open_main(self.startup_tray)?;
+        crate::update_install::mark_healthy(&std::env::args().collect::<Vec<_>>())?;
         if self.fixture {
             return Ok(());
         }
@@ -658,7 +659,7 @@ impl Service {
         }
         match channel{
    "application:begin-startup-reveal"=>{if !self.startup_tray{self.windows.reveal_main();}Ok(json!(true))},
-   "application:complete-startup-animation"=>{crate::update_install::mark_healthy(&std::env::args().collect::<Vec<_>>())?;Ok(json!({"dxvk":self.dxvk_runtime.read().unwrap().clone()}))},
+   "application:complete-startup-animation"=>Ok(json!({"dxvk":self.dxvk_runtime.read().unwrap().clone()})),
    "application:get-launch-context"=>self.launch_context(),
    "optimization:get-status"=>Ok(self.optimization()),
    "optimization:refresh-graphics"|"optimization:refresh-nvidia"=>graphics::run(&self.env.root,&self.env.game(),false),

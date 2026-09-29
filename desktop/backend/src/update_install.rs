@@ -433,7 +433,7 @@ pub fn apply(dir:&Path)->Result<()> {
     copy_files(&job.user_dir,&dir.join("previous-settings"),&settings)?;
     state(dir,"installing",&manifest.version)?;
     let attempt=(||{
-        let status=start(&dir.join("installer.exe"),&["/S".into()])?.wait().map_err(err)?;
+        let status=start(&dir.join("installer.exe"),&["/S".into(),format!("/NOGIREMUPDATE={}",std::process::id())])?.wait().map_err(err)?;
         if !status.success(){return Err(format!("설치 프로그램 실패: {status}"));}
         launch_healthy(dir,&job,&manifest)
     })();

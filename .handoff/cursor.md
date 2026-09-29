@@ -1,17 +1,23 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-29 22:25 +09:00
+Last Updated: 2026-09-29 22:50 +09:00
 
 ## Current Objective
-Rust·Dioxus 0.4.2에서 게임 커서 크기의 최소 선택 범위를 25%로 확장한다.
+Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거 수명주기를 보강하고 서명 배포한다.
 
 ## Active Runs
+- `20260929-release-042`: 패스트핑 기본 경로 부재, backend 건강 확인, updater/installer/uninstaller 경쟁 수정과 회귀 검증 완료, 서명 패키징·배포 진행 중 (`docs/ai/runs/20260929-release-042/`)
 - `20260929-cursor-minimum-042`: 25%·50% 커서 선택, 0.4.2 버전 갱신, helper 재빌드와 자동 검증 완료 (`docs/ai/runs/20260929-cursor-minimum-042/task.md`)
 - `20260929-project-explain-refresh`: Rust/Dioxus 신규 개발자용 HTML 구조 보고서 생성·브라우저 검증 완료 (`docs/ai/runs/20260929-project-explain-refresh/handoff.md`)
 - `20260929-portable`: v0.4.1 배포 완료, 버전 간 종단간 QA 대기 (`docs/ai/runs/20260929-portable/handoff.md`)
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- 진단 `55d16a69-0d32-4bfd-a118-51b03b89fab3`은 보고 시점 패스트핑 DWORD가 이미 1이었으나 인터넷 단절 중 `Get-NetRoute` 예외가 그대로 노출되는 Electron/Rust 공통 결함을 확인했다.
+- 기본 IPv4 경로 부재를 구조화된 연결 없음 상태로 바꾸고, 건강 확인을 main UI 열기 성공 직후로 이동해 UI 애니메이션과 worker·PowerShell 조회에서 분리했다.
+- 설치·제거 PowerShell을 숨김 실행하고, 포터블의 정상 무프로세스 `exit 1`을 제거했으며, stale updater 종료와 설치 폴더 프로세스 반복 재탐색을 구현했다.
+- 이전 0.4.1 updater가 인자 없이 새 installer를 실행하는 경로도 검증된 부모 helper 하나를 보존하도록 회귀를 추가했다.
+- 전체 Node 198개, Rust backend 56개 실행 중 1개 선언된 live-network ignore, Rust desktop compile을 통과했고 독립 재검토가 승인됐다.
 - 커서 크기 범위를 25%~800%로 확장해 직접 선택·저장·게임 중 휠 조절이 같은 하한을 사용하며, 앱 버전을 0.4.2로 올렸다.
 - 입력 helper 재빌드, 전체 Node 194개, Rust backend 56개 실행, Rust desktop 컴파일과 변경 파일 lint를 통과했다. 실제 게임에서 25% 가시성 수동 확인은 남아 있다.
 - Rust/Dioxus 현재 구조를 신규 개발자 관점의 개요·ELI5·기술 구조·inline SVG 보고서로 생성했다.
@@ -55,6 +61,10 @@ Rust·Dioxus 0.4.2에서 게임 커서 크기의 최소 선택 범위를 25%로 
 - 0.3.16 전체 Node 테스트 178개와 네이티브 helper·Vite·NSIS 패키징을 통과하고 GitHub Latest Release로 배포했다.
 
 ## Architecture / Important Decisions
+- 정본 기능 지도: `docs/ai/wiki/feature-map.md`
+- 정본 architecture contract: `docs/ai/wiki/agent-friendly-architecture.md`
+- updater가 시작한 installer는 검증된 명시 PID 또는 보호 작업 경로의 실제 부모 `updater.exe` 하나만 보존한다. 직접 설치·제거는 나머지 updater helper를 종료한다.
+- `healthy.json`은 backend RPC와 main UI open 성공을 의미하며 UI 시작 애니메이션 완료를 의미하지 않는다.
 - 실행 파일 옆 `portable.marker`로 포터블 모드를 감지한다.
 - 기존 설치형 클라이언트 호환성을 위해 설치형 `update.json`과 포터블 `portable-update.json`을 분리한다.
 - 포터블도 시스템 WebView2와 관리자 권한을 사용하며 설정은 `%APPDATA%\마비노기 렘 부스터`에서 설치형과 공유한다.

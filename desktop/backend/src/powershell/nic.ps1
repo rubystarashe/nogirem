@@ -12,7 +12,7 @@ Get-NetIPInterface -AddressFamily IPv4 |
   Where-Object ConnectionState -eq "Connected" |
   ForEach-Object { $interfaces[$_.InterfaceIndex] = $_ }
 
-$route = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "0.0.0.0/0" |
+$route = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue |
   Where-Object { $interfaces.ContainsKey($_.InterfaceIndex) } |
   Sort-Object @{ Expression = {
     $_.RouteMetric + $interfaces[$_.InterfaceIndex].InterfaceMetric

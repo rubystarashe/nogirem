@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 
-const [packager, signer, bridge, workers, updater, launcher, installer, installerScript] = await Promise.all([
+const [packager, signer, bridge, workers, updater, launcher, installer, installerScript, electronBridgeBuilder] = await Promise.all([
   readFile(new URL('../scripts/package-dioxus.mjs', import.meta.url), 'utf8'),
   readFile(new URL('../scripts/sign-update.mjs', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/src/bridge.rs', import.meta.url), 'utf8'),
@@ -11,6 +11,7 @@ const [packager, signer, bridge, workers, updater, launcher, installer, installe
   readFile(new URL('../desktop/portable.nsi', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/backend/src/update_install.rs', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/installer.nsi', import.meta.url), 'utf8'),
+  readFile(new URL('../scripts/prepare-electron-bridge.mjs', import.meta.url), 'utf8'),
 ])
 
 test('포터블 배포물은 내부 파일을 캐시에 준비하는 단일 EXE다', () => {
@@ -26,6 +27,10 @@ test('포터블 배포물은 내부 파일을 캐시에 준비하는 단일 EXE�
   assert.match(packager, /\/DPORTABLE_CACHE_ID=\$\{portableCacheId\}/)
   assert.match(launcher, /StrCmp \$7 "\$\{PORTABLE_CACHE_ID\}" cache_ready/)
   assert.match(launcher, /cache_in_use:/)
+  assert.match(launcher, /\$\$found\.Count -gt 0\) \{ exit 2 \}/)
+  assert.match(launcher, /StrCmp \$8 2 cache_in_use/)
+  assert.doesNotMatch(launcher, /exit 1/)
+  assert.doesNotMatch(electronBridgeBuilder, /exit 1/)
   assert.match(launcher, /IfErrors extraction_failed/)
   assert.match(launcher, /extraction_failed:[\s\S]*RMDir \/r/)
 })

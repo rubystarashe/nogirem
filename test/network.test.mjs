@@ -28,13 +28,26 @@ const normalAutoTuning = {
   effective: "Normal",
 }
 
-const [networkSource, serviceMain, servicePreload, applicationView, applicationStyles] = await Promise.all([
+const [networkSource, rustNetworkScript, serviceMain, servicePreload, applicationView, applicationStyles] = await Promise.all([
   readFile(new URL("../src/network.mjs", import.meta.url), "utf8"),
+  readFile(new URL("../desktop/backend/src/powershell/network-query.ps1", import.meta.url), "utf8"),
   readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
   readFile(new URL("../service/preload.js", import.meta.url), "utf8"),
   readFile(new URL("../desktop/src/ui.rs", import.meta.url), "utf8"),
   readFile(new URL("../web/styles.css", import.meta.url), "utf8"),
 ])
+
+test("IPv4 기본 경로가 없으면 Electron과 Rust가 구조화된 연결 없음 상태를 반환한다", () => {
+  for (const source of [networkSource, rustNetworkScript]) {
+    assert.match(
+      source,
+      /Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "0\.0\.0\.0\/0" -ErrorAction SilentlyContinue/,
+    )
+    assert.match(source, /disconnected = \$true/)
+    assert.match(source, /활성 IPv4 기본 경로가 없습니다/)
+    assert.doesNotMatch(source, /throw "연결된 IPv4 기본 경로를 찾지 못했습니다"/)
+  }
+})
 
 test("두 레지스트리 값이 1이면 패스트핑 적용 상태로 판정한다", () => {
   assert.equal(isFastPingConfigured({
