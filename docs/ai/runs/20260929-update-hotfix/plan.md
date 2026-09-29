@@ -11,7 +11,7 @@
   - files: `scripts/prepare-release.mjs`, `scripts/test-release-routing.mjs`, 배포 문서
 - DEV-HOTFIX-04 (`VERIFIED`): 테스트·실서명 패키징·독립 리뷰
   - links: 전체 요구사항
-- DEV-HOTFIX-05 (`IN_PROGRESS`): v0.4.1 자산 원자적 대체와 공개 검증
+- DEV-HOTFIX-05 (`VERIFIED`): v0.4.1 자산 순차 대체와 공개 검증
   - links: REQ-HOTFIX-03
 
 ## 검증 시나리오

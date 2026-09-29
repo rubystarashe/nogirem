@@ -34,3 +34,11 @@
 - 0.3.17 → 0.3.18 → Rust 0.4.1 실제 설치 전환
 - 실제 UAC 승인·거부와 오류 후 재시도
 - 실제 0.4.0 고착 환경에서 대체 0.4.1 수동 설치 후 제거
+
+## QA-HOTFIX-04
+
+- links: REQ-HOTFIX-01, REQ-HOTFIX-03
+- environment: GitHub Latest Release `v0.4.1`
+- expected: 대체 자산 해시와 서명, Electron 라우팅이 최종 로컬 산출물과 일치
+- actual: 대체한 7개 자산의 GitHub SHA-256 digest가 로컬과 일치했다. 공개 `update.json`·`portable-update.json` 서명과 0.4.1 URL, `latest.yml`의 0.3.18 라우팅을 확인했다.
+- status: PASS
