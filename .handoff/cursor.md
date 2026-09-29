@@ -1,16 +1,19 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-29 20:25 +09:00
+Last Updated: 2026-09-29 22:25 +09:00
 
 ## Current Objective
-Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배포하고 두 형식의 안전한 자동 업데이트를 지원한다.
+Rust·Dioxus 0.4.2에서 게임 커서 크기의 최소 선택 범위를 25%로 확장한다.
 
 ## Active Runs
+- `20260929-cursor-minimum-042`: 25%·50% 커서 선택, 0.4.2 버전 갱신, helper 재빌드와 자동 검증 완료 (`docs/ai/runs/20260929-cursor-minimum-042/task.md`)
 - `20260929-project-explain-refresh`: Rust/Dioxus 신규 개발자용 HTML 구조 보고서 생성·브라우저 검증 완료 (`docs/ai/runs/20260929-project-explain-refresh/handoff.md`)
 - `20260929-portable`: v0.4.1 배포 완료, 버전 간 종단간 QA 대기 (`docs/ai/runs/20260929-portable/handoff.md`)
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- 커서 크기 범위를 25%~800%로 확장해 직접 선택·저장·게임 중 휠 조절이 같은 하한을 사용하며, 앱 버전을 0.4.2로 올렸다.
+- 입력 helper 재빌드, 전체 Node 194개, Rust backend 56개 실행, Rust desktop 컴파일과 변경 파일 lint를 통과했다. 실제 게임에서 25% 가시성 수동 확인은 남아 있다.
 - Rust/Dioxus 현재 구조를 신규 개발자 관점의 개요·ELI5·기술 구조·inline SVG 보고서로 생성했다.
 - 보고서의 로컬 링크, offline 동작, SVG 접근성, 모바일·인쇄, 실제 브라우저 렌더링을 검증했다.
 - `DIOXUS_MIGRATION.md`의 역사적 중간 상태 문구와 `README.md` 설치 자산명 불일치를 보고서에 기록했으며 정본은 변경하지 않았다.

@@ -2095,7 +2095,7 @@ async function waitForInputGuardStatus(predicate, timeoutMs = 3000) {
 }
 
 const inputGuardCursorScalePercentages = new Set(
-  Array.from({ length: 30 }, (_, index) => 75 + index * 25),
+  Array.from({ length: 32 }, (_, index) => 25 + index * 25),
 )
 const inputGuardCursorWheelModifiers = new Set(["disabled", "control", "alt"])
 

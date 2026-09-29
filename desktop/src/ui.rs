@@ -610,10 +610,10 @@ fn Advanced() -> Element {
             Action { label: if s.input["enabled"] == true { if s.input["running"] == true { "사용 중" } else { "실행 오류" } } else { "사용하기" }, channel: "application:set-input-guard-setting", args: setting_patch(&s.input, "enabled", json!(s.input["enabled"] != true)), disabled: !input_loaded, class: if s.input["enabled"] == true && s.input["running"] == true { "active" } else { "" } }
         }
         div { class: "developer-tool-row developer-tool-row-nested",
-            div { h2 { "게임 마우스 커서 크기" } p { "마비노기 플레이 중에만 최대 800%까지 Windows 마우스 커서 크기를 변경합니다" } }
+            div { h2 { "게임 마우스 커서 크기" } p { "마비노기 플레이 중에만 25%부터 800%까지 Windows 마우스 커서 크기를 변경합니다" } }
             select { class: "developer-tool-select", aria_label: "게임 마우스 커서 크기", value: s.input["cursorScalePercent"].to_string(), disabled: !input_loaded || s.busy,
                 onchange: {let client=client.clone(); move |e: Event<FormData>| command(client.clone(), state, "application:set-input-guard-setting", setting_patch(&state.peek().input, "cursorScalePercent", json!(e.value().parse::<u32>().unwrap_or(100)))) },
-                for percent in (75..=800).step_by(25) { option { value: "{percent}", "{percent}%" } }
+                for percent in (25..=800).step_by(25) { option { value: "{percent}", "{percent}%" } }
             }
             label { class: "developer-tool-subsetting", span { "게임 중 휠로 25%씩 조절" }
                 select { class: "developer-tool-select", aria_label: "커서 크기 휠 조절", value: s.input["cursorWheelModifier"].as_str().unwrap_or("disabled"), disabled: !input_loaded || s.busy,
@@ -910,7 +910,7 @@ fn InputSettings() -> Element {
         label { input { r#type: "checkbox", checked: draft.read()["enabled"] == true, onchange: move |e| draft.write()["enabled"] = json!(e.checked()) } "Alt+Enter 방지" }
         p { "마비노기 플레이 중 전체 화면 전환 단축키 Alt+Enter 입력을 차단합니다" }
         label { "커서 크기" select { value: draft.read()["cursorScalePercent"].to_string(), onchange: move |e| draft.write()["cursorScalePercent"] = json!(e.value().parse::<u32>().unwrap_or(100)),
-            for percent in (75..=800).step_by(25) { option { value: "{percent}", "{percent}%" } }
+            for percent in (25..=800).step_by(25) { option { value: "{percent}", "{percent}%" } }
         } }
         label { "휠로 크기 변경" select { value: draft.read()["cursorWheelModifier"].as_str().unwrap_or("disabled").to_owned(), onchange: move |e| draft.write()["cursorWheelModifier"] = json!(e.value()),
             option { value: "disabled", "사용 안 함" }

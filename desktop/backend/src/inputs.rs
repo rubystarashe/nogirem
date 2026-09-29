@@ -13,7 +13,7 @@ fn input_normalize(v: &Value) -> Value {
                 .as_str()
                 .and_then(|s| s.parse().ok())
         })
-        .filter(|n| (75..=800).contains(n) && n % 25 == 0)
+        .filter(|n| (25..=800).contains(n) && n % 25 == 0)
         .unwrap_or(100);
     let modifier = v["cursorWheelModifier"]
         .as_str()
@@ -54,7 +54,7 @@ impl Inputs {
         let running = self.input.running() && status["running"] == true;
         let runtime_scale = status["cursorScalePercent"]
             .as_i64()
-            .filter(|n| (75..=800).contains(n) && n % 25 == 0);
+            .filter(|n| (25..=800).contains(n) && n % 25 == 0);
         if running && runtime_scale.is_some_and(|n| setting["cursorScalePercent"] != n) {
             setting["cursorScalePercent"] = json!(runtime_scale.unwrap());
             self.save(&file, &setting)?
@@ -126,7 +126,7 @@ impl Inputs {
                     && !v
                         .as_i64()
                         .or_else(|| v.as_str().and_then(|s| s.parse::<i64>().ok()))
-                        .is_some_and(|n| (75..=800).contains(&n) && n % 25 == 0)
+                        .is_some_and(|n| (25..=800).contains(&n) && n % 25 == 0)
                 {
                     return Err("커서 크기 값 오류".into());
                 }
@@ -436,6 +436,14 @@ mod tests {
     #[test]
     fn input_defaults_and_bounds() {
         assert_eq!(input_normalize(&Value::Null)["cursorScalePercent"], 100);
+        assert_eq!(
+            input_normalize(&json!({"cursorScalePercent":25}))["cursorScalePercent"],
+            25
+        );
+        assert_eq!(
+            input_normalize(&json!({"cursorScalePercent":24}))["cursorScalePercent"],
+            100
+        );
         assert_eq!(
             input_normalize(&json!({"cursorScalePercent":801}))["cursorScalePercent"],
             100

@@ -221,9 +221,9 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     if advanced["scrollable"] != true || advanced["icons"] != 4 {
         return Err(format!("Advanced structure failed: {advanced}"));
     }
-    inspect(&main, "(()=>{const e=document.querySelector('[aria-label=\"게임 마우스 커서 크기\"]');e.scrollIntoView({block:'center'});e.value='200';e.dispatchEvent(new Event('change',{bubbles:true}));})();true").await?;
+    inspect(&main, "(()=>{const e=document.querySelector('[aria-label=\"게임 마우스 커서 크기\"]');e.scrollIntoView({block:'center'});e.value='25';e.dispatchEvent(new Event('change',{bubbles:true}));})();true").await?;
     tokio::time::sleep(Duration::from_millis(300)).await;
-    if state.peek().input["cursorScalePercent"] != 200 {
+    if state.peek().input["cursorScalePercent"] != 25 {
         return Err("Inline cursor setting did not reach service".into());
     }
     inspect(&main, "[...document.querySelectorAll('.game-cpu-core-option')].find(e=>e.textContent==='3').click();true").await?;

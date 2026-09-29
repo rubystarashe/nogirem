@@ -68,7 +68,7 @@ Options parseOptions(int count, wchar_t** values) {
     }
   }
   const bool validCursorScale =
-    options.cursorScalePercent >= 75
+    options.cursorScalePercent >= 25
     && options.cursorScalePercent <= 800
     && options.cursorScalePercent % 25 == 0;
   if (!validCursorScale) {
@@ -309,7 +309,7 @@ public:
     if (steps == 0) return false;
     const int nextScalePercent = std::clamp(
       scalePercent_ + steps * 25,
-      75,
+      25,
       800
     );
     if (nextScalePercent == scalePercent_) return false;
