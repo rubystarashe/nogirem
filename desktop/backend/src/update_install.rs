@@ -261,6 +261,7 @@ fn registry_restore(dir:&Path)->Result<()> {
 }
 fn reader_sha256(reader:&mut impl Read)->Result<String>{let mut hash=Sha256::new();let mut chunk=[0u8;65536];loop{let n=reader.read(&mut chunk).map_err(err)?;if n==0{break;}hash.update(&chunk[..n]);}Ok(format!("{:x}",hash.finalize()))}
 fn file_sha256(path:&Path)->Result<String>{reader_sha256(&mut File::open(path).map_err(err)?)}
+fn complete_portable_recovery(dir:&Path)->Result<()>{fs::rename(dir.join("portable-recovery.json"),dir.join("portable-complete.json")).map_err(err)}
 fn replace_file(source:&Path,target:&Path,expected_hash:&str)->Result<File>{
     if !file_sha256(source)?.eq_ignore_ascii_case(expected_hash){return Err("교체 원본 파일 무결성 확인 실패".into());}
     let parent=target.parent().ok_or("포터블 대상 상위 경로 누락")?;
@@ -313,11 +314,12 @@ fn apply_portable(dir:&Path,job:&Job,manifest:&Manifest)->Result<()>{
         let rollback_guard=replace_file(&backup,target,&backup_hash)?;
         let _=set_file_integrity(target,"M");
         drop(rollback_guard);
+        complete_portable_recovery(dir)?;
         state(dir,"rolled-back",&error)?;return Err(error);
     }
     let _=set_file_integrity(target,"M");
     drop(target_guard);
-    fs::rename(dir.join("portable-recovery.json"),dir.join("portable-complete.json")).map_err(err)?;
+    complete_portable_recovery(dir)?;
     let _=app_services::startup(target,true,Some(job.startup));
     let _=state(dir,"complete",&manifest.version);Ok(())
 }
@@ -354,7 +356,7 @@ pub fn recover_portable_exe(dir:&Path,source:&Path,launcher_pid:u32)->Result<()>
     let guard=replace_file(&backup,source,backup_hash)?;
     set_file_integrity(source,"M")?;
     drop(guard);
-    fs::rename(dir.join("portable-recovery.json"),dir.join("portable-complete.json")).map_err(err)?;
+    complete_portable_recovery(dir)?;
     state(dir,"rolled-back","중단된 포터블 업데이트를 복구했습니다")?;
     Ok(())
 }
@@ -479,4 +481,5 @@ mod tests{
     #[test]fn backup_restore_preserves_unrelated_files(){let root=std::env::temp_dir().join(format!("nogirem-update-test-{}",uuid::Uuid::new_v4()));let old=root.join("old");let backup=root.join("backup");fs::create_dir_all(&old).unwrap();fs::write(old.join("app.exe"),b"old").unwrap();let list=files(&old).unwrap();copy_files(&old,&backup,&list).unwrap();fs::write(old.join("app.exe"),b"new").unwrap();fs::write(old.join("user.txt"),b"keep").unwrap();copy_files(&backup,&old,&list).unwrap();assert_eq!(fs::read(old.join("app.exe")).unwrap(),b"old");assert_eq!(fs::read(old.join("user.txt")).unwrap(),b"keep");assert!(copy_files(&old,&backup,&[PathBuf::from("../outside")]).is_err());for dir in [&old,&backup]{for p in files(dir).unwrap(){fs::remove_file(dir.join(p)).unwrap();}fs::remove_dir(dir).unwrap();}fs::remove_dir(root).unwrap();}
     #[test]fn migration_guard_prevents_concurrent_helpers(){let first=migration_guard().unwrap();assert!(migration_guard().is_err());drop(first);assert!(migration_guard().is_ok());}
     #[test]fn abandoned_cache_requires_age_and_preserves_recovery(){assert!(abandoned_job("preparing",false,true,false));assert!(abandoned_job("rolled-back",false,true,false));assert!(!abandoned_job("preparing",false,false,false));assert!(!abandoned_job("preparing",true,true,false));assert!(!abandoned_job("installing",false,true,false));assert!(!abandoned_job("rolled-back",false,true,true));}
+    #[test]fn completed_portable_rollback_releases_recovery_cache(){let dir=std::env::temp_dir().join(format!("nogirem-recovery-test-{}",uuid::Uuid::new_v4()));fs::create_dir(&dir).unwrap();fs::write(dir.join("portable-recovery.json"),b"{}").unwrap();complete_portable_recovery(&dir).unwrap();assert!(!dir.join("portable-recovery.json").exists());assert!(dir.join("portable-complete.json").is_file());fs::remove_dir_all(dir).unwrap();}
 }
