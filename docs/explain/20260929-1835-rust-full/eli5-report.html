@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ELI5 — Nogirem Rust/Dioxus</title>
+  <style>
+    :root{--ink:#182129;--muted:#5d6871;--line:#cbd3da;--soft:#f4f6f7;--accent:#0c6655;--warn:#9a5b00;--unknown:#743e7c;--link:#075ea8}
+    *{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:17px/1.75 system-ui,-apple-system,"Segoe UI",sans-serif}header,main,footer{width:min(900px,calc(100% - 32px));margin:auto}header{padding:48px 0 24px;border-bottom:2px solid var(--ink)}h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.12;letter-spacing:-.035em;margin:8px 0 14px}h2{margin:44px 0 12px;font-size:1.55rem}h3{font-size:1.1rem;margin:26px 0 6px}p{margin:8px 0 16px}a{color:var(--link);text-underline-offset:3px}nav{display:flex;gap:18px;flex-wrap:wrap;margin:20px 0}nav a{font-weight:700}.lead{font-size:1.18rem;max-width:760px}.map{margin:20px 0;border-block:1px solid var(--line)}.map>div{display:grid;grid-template-columns:150px 1fr;gap:18px;padding:16px 0;border-bottom:1px solid var(--line)}.map>div:last-child{border:0}.map strong{color:var(--accent)}.steps{counter-reset:flow;list-style:none;padding:0}.steps li{position:relative;padding:0 0 26px 52px}.steps li:before{counter-increment:flow;content:counter(flow);position:absolute;left:0;top:1px;width:34px;height:34px;border:2px solid var(--accent);border-radius:50%;display:grid;place-items:center;font-weight:800;color:var(--accent)}.steps li:not(:last-child):after{content:"";position:absolute;left:16px;top:38px;height:calc(100% - 38px);border-left:2px solid var(--line)}.note{padding:12px 15px;border-left:4px solid;margin:16px 0}.fact{border-color:var(--accent);background:#eef8f4}.warn{border-color:var(--warn);background:#fff7e8}.unknown{border-color:var(--unknown);background:#f8eff9}code{font:0.9em ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--soft);padding:2px 5px;border-radius:3px}footer{margin-top:50px;padding:20px 0 44px;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem}
+    @media(max-width:620px){header{padding-top:30px}.map>div{grid-template-columns:1fr;gap:2px}.steps li{padding-left:46px}}
+    @media print{body{font-size:11pt}header,main,footer{width:100%}nav{display:none}.map>div,.steps li{break-inside:avoid}a{color:inherit;text-decoration:none}}
+  </style>
+</head>
+<body>
+  <header>
+    <p>쉬운 설명 · 신규 개발자용</p>
+    <h1>컴퓨터 안의 작은 호텔 운영팀</h1>
+    <p class="lead"><strong>한 문장 요약:</strong> Nogirem은 손님이 버튼을 누르면 관제실이 Windows와 여러 전문 기술자에게 안전한 작업만 맡기고, 결과를 다시 화면에 보여주는 관리자 권한 앱이다.</p>
+    <nav aria-label="보고서 이동"><a href="index.html">개요</a><a href="understanding-report.html">기술 구조</a><a href="visual-report.html">시각화</a></nav>
+  </header>
+  <main>
+    <section aria-labelledby="analogy">
+      <h2 id="analogy">호텔 비유</h2>
+      <p>호텔 로비에 있는 안내판이 앱 화면이라고 생각해 보자. 안내판이 직접 객실 전기나 엘리베이터를 고치지는 않는다. 손님의 요청을 관제실에 전달하고, 관제실은 알맞은 기술자를 부른다.</p>
+      <div class="map">
+        <div><strong>로비 안내판</strong><span>Dioxus UI와 WebView2 창. 버튼·상태·안내를 보여준다. 근거: <a href="../../../desktop/src/ui.rs"><code>desktop/src/ui.rs</code></a>, <a href="../../../desktop/src/native.rs"><code>desktop/src/native.rs</code></a></span></div>
+        <div><strong>인터폰</strong><span>한 줄씩 JSON을 주고받는 stdin/stdout RPC. 외부 TCP 명령 서버를 열지 않는다. 근거: <a href="../../../desktop/src/bridge.rs"><code>desktop/src/bridge.rs</code></a>, <a href="../../../desktop/backend/src/rpc.rs"><code>desktop/backend/src/rpc.rs</code></a></span></div>
+        <div><strong>관제실</strong><span>Rust native service. 창, 설정, 최적화, 녹화, 업데이트 요청을 알맞은 모듈로 보낸다. 근거: <a href="../../../desktop/backend/src/service.rs"><code>desktop/backend/src/service.rs</code></a></span></div>
+        <div><strong>전문 기술자</strong><span>CPU·메모리 worker와 입력·Radeon·녹화 helper. 오래 걸리거나 반복되는 작업을 별도 프로세스로 수행한다. 근거: <a href="../../../desktop/backend/src/workers.rs"><code>desktop/backend/src/workers.rs</code></a>, <a href="../../../native/recorder-helper/main.cpp"><code>native/recorder-helper/main.cpp</code></a></span></div>
+        <div><strong>운영 장부</strong><span><code>%APPDATA%\마비노기 렘 부스터</code> 아래 JSON 설정·상태·복구 기록. 원자적으로 써서 중간 파일을 정상 상태로 오인하지 않게 한다. 근거: <a href="../../../desktop/backend/src/storage.rs"><code>desktop/backend/src/storage.rs</code></a>, <a href="../../../desktop/backend/src/workers.rs"><code>desktop/backend/src/workers.rs</code></a></span></div>
+        <div><strong>봉인된 교체 부품</strong><span>Ed25519 서명, 정확한 GitHub 주소, 크기와 SHA-256을 확인한 업데이트 파일. 근거: <a href="../../../desktop/backend/src/updater.rs"><code>desktop/backend/src/updater.rs</code></a></span></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="flow">
+      <h2 id="flow">사용자가 앱을 켜면</h2>
+      <ol class="steps">
+        <li><strong>같은 앱이 이미 있는지 확인한다.</strong><br>한 사용자에게 대화형 인스턴스 하나만 남기고, 두 번째 실행은 기존 창에 포커스 요청을 보낸다. <a href="../../../desktop/src/platform.rs"><code>desktop/src/platform.rs</code></a></li>
+        <li><strong>관리자 권한이 아니면 UAC로 다시 시작한다.</strong><br>CPU 선호도, 네트워크, 설치 캐시처럼 시스템 경계를 다루기 때문이다. 계약 검사와 격리 스모크는 예외다. <a href="../../../desktop/src/main.rs"><code>desktop/src/main.rs</code></a></li>
+        <li><strong>보이지 않는 창과 관제실을 준비한다.</strong><br>GUI 프로세스가 같은 EXE를 <code>--native-service</code> 모드로 다시 실행하고, 두 프로세스가 표준 입출력으로 연결된다. <a href="../../../desktop/src/bridge.rs"><code>desktop/src/bridge.rs</code></a></li>
+        <li><strong>관제실이 트레이와 메인 창을 연다.</strong><br>설정 조회와 최적화 상태 확인을 병렬로 진행하고 준비가 끝나면 시작 화면을 드러낸다. <a href="../../../desktop/backend/src/service.rs"><code>desktop/backend/src/service.rs</code></a>, <a href="../../../desktop/backend/src/service_windows.rs"><code>desktop/backend/src/service_windows.rs</code></a></li>
+        <li><strong>버튼 요청을 해당 전문가에게 보낸다.</strong><br>예를 들어 실시간 부스트는 CPU worker와 메모리 worker를 관리하고, 블랙박스는 녹화 helper와 미디어 창을 관리한다.</li>
+        <li><strong>닫을 때 복구 여부를 묻는다.</strong><br>CPU 제한이 남아 있다면 복구 후 종료, 유지 후 종료, 취소 중 사용자가 결정한다. helper를 멈춘 뒤 관제실이 GUI 종료를 요청한다. <a href="../../../desktop/backend/src/service.rs"><code>desktop/backend/src/service.rs</code></a></li>
+      </ol>
+    </section>
+
+    <section aria-labelledby="feature">
+      <h2 id="feature">각 기술자가 하는 일</h2>
+      <h3>CPU와 메모리</h3>
+      <p>마비노기와 일반 프로그램이 같은 CPU 영역을 두고 다투지 않도록 선호도를 나누고, 메모리가 실제로 부족할 때만 Windows 대기 목록 정리를 시도한다. 게임 메모리를 직접 수정하지 않는다. <a href="../../../desktop/backend/src/boost.rs"><code>boost.rs</code></a>, <a href="../../../desktop/backend/src/affinity_worker.rs"><code>affinity_worker.rs</code></a>, <a href="../../../desktop/backend/src/memory.rs"><code>memory.rs</code></a></p>
+      <h3>네트워크와 그래픽</h3>
+      <p>Windows 네트워크 설정과 드라이버가 제공하는 기능을 사용한다. NVIDIA는 게임 프로필 중심이고, Radeon은 ADLX 제약 때문에 전역 설정이 될 수 있다. <a href="../../../desktop/backend/src/network_manager.rs"><code>network_manager.rs</code></a>, <a href="../../../desktop/backend/src/graphics.rs"><code>graphics.rs</code></a>, <a href="../../../desktop/backend/src/dxvk_manager.rs"><code>dxvk_manager.rs</code></a></p>
+      <h3>블랙박스와 입력</h3>
+      <p>녹화와 입력 주입은 별도 native helper가 담당한다. Rust 서비스는 설정·상태·제어 파일과 제한된 채널을 통해 helper를 시작하고 멈춘다. <a href="../../../desktop/backend/src/blackbox.rs"><code>blackbox.rs</code></a>, <a href="../../../desktop/backend/src/inputs.rs"><code>inputs.rs</code></a></p>
+    </section>
+
+    <section aria-labelledby="update">
+      <h2 id="update">업데이트는 “봉인 확인 후 교체”</h2>
+      <p>앱은 GitHub에서 작은 서명 manifest를 먼저 받는다. 공개키로 서명을 검증하고, 허용된 파일명·주소·버전·크기인지 확인한 다음 큰 EXE를 내려받아 SHA-256을 다시 계산한다. 검증된 파일만 보호된 작업 폴더로 복사한다.</p>
+      <p>설치형은 NSIS 설치기를 실행한다. 포터블은 사용자가 보관한 단일 EXE를 같은 볼륨의 보호 staging을 거쳐 바꾼다. 새 앱이 UI와 백엔드 준비 신호를 보내지 못하면 이전 파일로 되돌린다. <a href="../../../desktop/backend/src/update_install.rs"><code>update_install.rs</code></a>, <a href="../../../desktop/portable.nsi"><code>portable.nsi</code></a></p>
+    </section>
+
+    <section aria-labelledby="limits">
+      <h2 id="limits">이 비유가 맞지 않는 지점</h2>
+      <div class="note warn"><strong>별도 프로세스가 곧 보안 sandbox라는 뜻은 아니다.</strong> GUI, native service, worker는 같은 배포 EXE의 여러 실행 모드이며 대화형 앱은 관리자 권한으로 동작한다. 프로세스 분리는 책임·장애·수명 관리를 위한 경계다.</div>
+      <div class="note warn"><strong>“장부”는 중앙 데이터베이스가 아니다.</strong> 기능별 JSON 파일과 상태 파일의 묶음이며, 각 모듈이 정해진 경로를 읽고 쓴다.</div>
+      <div class="note fact"><strong>확인된 안전 경계:</strong> 업데이트는 서명·크기·해시·경로·reparse·integrity·열린 handle을 조합해 검증한다. 단순히 “관리자라서 안전하다”에 의존하지 않는다.</div>
+      <div class="note unknown"><strong>미검증:</strong> 자동 테스트는 실제 게임, 모든 GPU 드라이버, 전원 중단, 다양한 Windows/DPI 환경을 전부 재현하지 않는다. <a href="../../../DIOXUS_MIGRATION.md"><code>DIOXUS_MIGRATION.md</code></a>의 QA 공백을 함께 봐야 한다.</div>
+    </section>
+
+    <section aria-labelledby="facts">
+      <h2 id="facts">문서 간 주의할 점</h2>
+      <p><a href="../../../DIOXUS_MIGRATION.md"><code>DIOXUS_MIGRATION.md</code></a> 뒤쪽의 “Rust backend migration in progress” 절은 당시 이행 중 기록이다. 같은 문서 앞부분과 현재 <a href="../../../desktop/backend/src/lib.rs"><code>desktop/backend/src/lib.rs</code></a>·<a href="../../../desktop/src/bridge.rs"><code>desktop/src/bridge.rs</code></a>는 현재 native service가 Rust임을 보여준다. 역사 기록을 현재 구조 설명으로 읽으면 안 된다.</p>
+    </section>
+  </main>
+  <footer>대상 commit <code>abb9c8c0122dff3355776454aa58201f4cedb055</code> · 생성 시각 2026-09-29T18:55:03+09:00 · 분석 시작 시 dirty scope 없음</footer>
+</body>
+</html>

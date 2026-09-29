@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>기술 구조 — Nogirem Rust/Dioxus</title>
+  <style>
+    :root{--ink:#16202a;--muted:#596571;--line:#c8d0d7;--soft:#f3f5f6;--fact:#0b6b53;--warn:#945600;--unknown:#704079;--link:#075ea8}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#fff;color:var(--ink);font:16px/1.68 system-ui,-apple-system,"Segoe UI",sans-serif}header,main,footer{width:min(1040px,calc(100% - 32px));margin:auto}header{padding:48px 0 24px;border-bottom:2px solid var(--ink)}h1{font-size:clamp(2rem,5vw,3.3rem);line-height:1.08;letter-spacing:-.04em;margin:7px 0 14px}h2{margin:48px 0 14px;font-size:1.65rem;border-bottom:1px solid var(--line);padding-bottom:7px}h3{font-size:1.15rem;margin:28px 0 7px}p{margin:7px 0 14px}a{color:var(--link);text-underline-offset:3px}nav{display:flex;gap:10px 20px;flex-wrap:wrap;margin:20px 0}nav a{font-weight:700}.toc{columns:2;column-gap:42px;margin:24px 0}.toc li{margin:5px 0;break-inside:avoid}.meta{display:flex;gap:10px 28px;flex-wrap:wrap;color:var(--muted);font-size:.92rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 34px}.item{padding:16px 0;border-top:1px solid var(--line)}.item h3{margin:0 0 5px}.flow{list-style:none;padding:0;counter-reset:f}.flow li{counter-increment:f;padding:14px 0 14px 48px;border-top:1px solid var(--line);position:relative}.flow li:before{content:counter(f);position:absolute;left:0;top:15px;width:30px;height:30px;border:2px solid var(--fact);border-radius:50%;display:grid;place-items:center;color:var(--fact);font-weight:800}.path-list{padding-left:20px}.path-list li{margin:7px 0}.status{padding:11px 14px;margin:14px 0;border-left:4px solid}.fact{background:#eef8f4;border-color:var(--fact)}.warn{background:#fff7e7;border-color:var(--warn)}.unknown{background:#f8eff9;border-color:var(--unknown)}.matrix{width:100%;border-collapse:collapse;margin:14px 0 24px}.matrix th,.matrix td{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid var(--line)}.matrix th{background:var(--soft)}code{font:0.9em ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--soft);padding:2px 5px;border-radius:3px}.callout{font-size:1.12rem;border-block:1px solid var(--line);padding:18px 0;margin:24px 0}footer{margin-top:54px;padding:20px 0 44px;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem}
+    @media(max-width:720px){header{padding-top:30px}.grid{grid-template-columns:1fr}.toc{columns:1}.matrix{display:block;overflow-x:auto}.matrix th,.matrix td{min-width:150px}}
+    @media print{body{font-size:10.5pt}header,main,footer{width:100%}nav,.toc{display:none}h2{break-after:avoid}.item,.status,.flow li{break-inside:avoid}a{color:inherit;text-decoration:none}}
+  </style>
+</head>
+<body>
+  <header>
+    <p>구조 이해 보고서 · 현재 Rust/Dioxus 버전</p>
+    <h1>책임 경계, 호출 흐름,<br>권한과 복구</h1>
+    <p class="callout">Nogirem은 <strong>Dioxus GUI 호스트</strong>, <strong>Rust native service</strong>, <strong>도메인 모듈·worker</strong>, <strong>native helper</strong>, <strong>서명 업데이트 계층</strong>으로 나뉜 Windows 전용 관리자 권한 앱이다.</p>
+    <nav aria-label="보고서 이동"><a href="index.html">개요</a><a href="eli5-report.html">쉬운 설명</a><a href="visual-report.html">시각화</a></nav>
+    <div class="meta"><span>대상 <code>abb9c8c0122dff3355776454aa58201f4cedb055</code></span><span>2026-09-29T18:55:03+09:00</span><span>신규 개발자</span><span>dirty scope 없음</span></div>
+  </header>
+  <main>
+    <ol class="toc" aria-label="목차">
+      <li><a href="#purpose">목적과 경계</a></li>
+      <li><a href="#components">주요 구성요소</a></li>
+      <li><a href="#startup">시작·종료 흐름</a></li>
+      <li><a href="#requests">요청·데이터 흐름</a></li>
+      <li><a href="#data">저장 데이터</a></li>
+      <li><a href="#privilege">권한·신뢰 경계</a></li>
+      <li><a href="#updates">설치·포터블 업데이트</a></li>
+      <li><a href="#entrypoints">진입점과 핵심 파일</a></li>
+      <li><a href="#tests">테스트와 미검증</a></li>
+      <li><a href="#impact">변경 영향과 위험</a></li>
+    </ol>
+
+    <section id="purpose">
+      <h2>1. 시스템 목적과 책임 경계</h2>
+      <p>Nogirem은 Windows와 그래픽 드라이버의 공개 기능을 조정해 마비노기의 CPU 배치, 메모리 압력 대응, 네트워크 응답, GPU 설정, 선택형 입력·녹화를 관리한다. 게임 실행 파일·게임 메모리·통신 데이터를 직접 패치하는 구조는 아니다. 근거: <a href="../../../README.md"><code>README.md</code></a>, <a href="../../../OPERATION.md"><code>OPERATION.md</code></a>.</p>
+      <div class="grid">
+        <div class="item"><h3>앱이 소유한다</h3><p>UI·창·트레이, 설정 검증과 저장, helper 수명, Windows 설정 적용·복구, 업데이트 다운로드·검증·교체 orchestration.</p></div>
+        <div class="item"><h3>앱 밖의 경계</h3><p>Windows 프로세스·레지스트리·PowerShell, NVIDIA/AMD 드라이버, WebView2 Runtime, GitHub Releases, 게임·녹화 파일 시스템.</p></div>
+        <div class="item"><h3>설치물의 실행 언어</h3><p>GUI와 서비스는 Rust다. JavaScript는 보조 WebView 페이지와 preload에 남으며 Node.js는 개발·테스트·패키징 도구다. <a href="../../../DIOXUS_MIGRATION.md"><code>DIOXUS_MIGRATION.md</code></a></p></div>
+        <div class="item"><h3>플랫폼</h3><p>Windows 10/11 x64, WebView2, 관리자 권한을 전제로 한다. <a href="../../../desktop/windows.manifest"><code>desktop/windows.manifest</code></a>, <a href="../../../desktop/Cargo.toml"><code>desktop/Cargo.toml</code></a></p></div>
+      </div>
+    </section>
+
+    <section id="components">
+      <h2>2. 주요 구성요소와 의존 관계</h2>
+      <table class="matrix">
+        <thead><tr><th>계층</th><th>책임</th><th>대표 근거</th></tr></thead>
+        <tbody>
+          <tr><td>GUI 호스트</td><td>Dioxus 상태·렌더링, WebView2 창, 트레이, native 명령 수행, 단일 인스턴스와 UAC</td><td><a href="../../../desktop/src/main.rs"><code>desktop/src/main.rs</code></a>, <a href="../../../desktop/src/ui.rs"><code>ui.rs</code></a>, <a href="../../../desktop/src/native.rs"><code>native.rs</code></a>, <a href="../../../desktop/src/platform.rs"><code>platform.rs</code></a></td></tr>
+          <tr><td>GUI ↔ service bridge</td><td>같은 EXE의 <code>--native-service</code> 자식을 시작하고 newline-delimited JSON 요청·응답·event 전달</td><td><a href="../../../desktop/src/bridge.rs"><code>desktop/src/bridge.rs</code></a>, <a href="../../../desktop/backend/src/rpc.rs"><code>desktop/backend/src/rpc.rs</code></a></td></tr>
+          <tr><td>Native service</td><td>계약 기반 invoke 라우팅, 상태 수집, 창·설정·helper·업데이트 orchestration, 종료 정책</td><td><a href="../../../desktop/backend/src/service.rs"><code>service.rs</code></a>, <a href="../../../desktop/backend/src/service-contract.json"><code>service-contract.json</code></a>, <a href="../../../desktop/backend/src/service_windows.rs"><code>service_windows.rs</code></a></td></tr>
+          <tr><td>도메인 모듈</td><td>CPU topology/affinity, memory, network/NIC, graphics/DXVK, blackbox, input, diagnostics</td><td><a href="../../../desktop/backend/src/lib.rs"><code>desktop/backend/src/lib.rs</code></a></td></tr>
+          <tr><td>Worker·helper</td><td>주기 감시 또는 native API 호출을 별도 프로세스로 수행하고 status/control JSON으로 수명 관리</td><td><a href="../../../desktop/backend/src/workers.rs"><code>workers.rs</code></a>, <a href="../../../native/input-guard-helper/main.cpp"><code>input-guard-helper/main.cpp</code></a>, <a href="../../../native/recorder-helper/main.cpp"><code>recorder-helper/main.cpp</code></a></td></tr>
+          <tr><td>배포·업데이트</td><td>서명 manifest, 보호 캐시, 설치형/포터블 교체, health 확인, rollback</td><td><a href="../../../desktop/backend/src/updater.rs"><code>updater.rs</code></a>, <a href="../../../desktop/backend/src/update_install.rs"><code>update_install.rs</code></a>, <a href="../../../scripts/package-dioxus.mjs"><code>package-dioxus.mjs</code></a></td></tr>
+        </tbody>
+      </table>
+      <div class="status fact"><strong>확인:</strong> 외부 네트워크 명령 서버는 없다. GUI와 service의 명령 면은 자식 프로세스 stdin/stdout에 묶여 있으며 각 요청은 최대 240초 후 timeout된다.</div>
+    </section>
+
+    <section id="startup">
+      <h2>3. 시작·종료 흐름</h2>
+      <h3>시작</h3>
+      <ol class="flow">
+        <li><code>main.rs</code>가 명령행 mode를 판별한다. updater/helper/service mode는 GUI를 열지 않고 해당 backend 함수로 분기한다.</li>
+        <li>일반 GUI 실행은 단일 인스턴스와 관리자 권한을 확인한다. 두 번째 실행은 기존 인스턴스에 focus request를 남긴다.</li>
+        <li>Dioxus/WebView2 호스트가 main window와 native event loop를 준비한다. <code>bridge::Client::start</code>가 현재 EXE를 <code>--native-service</code>로 실행한다.</li>
+        <li>service는 <code>Environment</code>, <code>Windows</code>, 도메인 manager, <code>Updater</code>를 구성하고 main window·tray를 요청한다.</li>
+        <li>초기 설정·상태 snapshot과 event가 GUI로 전달되고, 준비된 UI를 reveal한다. 3초 후 업데이트 확인, 이후 4시간 주기를 사용한다.</li>
+      </ol>
+      <h3>종료</h3>
+      <p>닫기 요청은 service의 상태를 기준으로 즉시 종료 또는 확인 dialog로 이어진다. 적용된 boost가 있으면 복구·유지·취소를 선택하며, 녹화·update 같은 busy 상태는 종료를 제한할 수 있다. worker를 정상 정지한 뒤 service가 <code>application.exit</code> event를 보내고 GUI bridge는 renderer queue를 거치지 않고 native shutdown callback을 실행한다. 근거: <a href="../../../desktop/src/bridge.rs"><code>bridge.rs</code></a>, <a href="../../../desktop/backend/src/service.rs"><code>service.rs</code></a>.</p>
+    </section>
+
+    <section id="requests">
+      <h2>4. 요청·데이터·기능 흐름</h2>
+      <h3>UI 요청 공통 경로</h3>
+      <p><code>Dioxus signal/event → Client::invoke(windowId, channel, args) → service request "invoke" → 계약·window kind 검사 → domain manager → response/event → UI state</code></p>
+      <p>보조 창은 창 종류별 preload와 허용 channel을 사용한다. service는 <code>windowId</code>로 창 종류를 찾아 채널 접근을 제한하며, 임의 URL이나 임의 창 종류를 열지 않는다. 근거: <a href="../../../desktop/backend/src/service-contract.json"><code>service-contract.json</code></a>, <a href="../../../desktop/backend/src/service_windows.rs"><code>service_windows.rs</code></a>.</p>
+      <div class="grid">
+        <div class="item"><h3>실시간 부스트</h3><p><code>boost.rs</code>가 affinity·memory worker를 시작하고 합성 상태를 보낸다. affinity worker는 약 5초 간격으로 프로세스를 분류하고 원래 mask를 기록하며, keep/reset 명령으로 종료 정책을 적용한다. <a href="../../../desktop/backend/src/affinity_worker.rs"><code>affinity_worker.rs</code></a></p></div>
+        <div class="item"><h3>메모리</h3><p><code>memory.rs</code>가 available/standby 임계값, rearm, 10분 cooldown을 적용한다. pressure 조건과 game 실행 여부를 만족할 때만 purge를 호출한다. <a href="../../../config.json"><code>config.json</code></a></p></div>
+        <div class="item"><h3>네트워크</h3><p><code>network_manager.rs</code>가 상태 조회·적용·복구를 조정하고 <code>network.rs</code>/<code>nic.rs</code>가 Windows 설정을 다룬다. PowerShell은 compile-time asset으로 포함되며 timeout·출력 상한을 둔다.</p></div>
+        <div class="item"><h3>그래픽·DXVK</h3><p><code>graphics.rs</code>는 NVIDIA/Radeon 상태와 적용을 조정하고 Radeon helper를 호출한다. <code>dxvk_manager.rs</code>는 호환성·설치·제거와 guide window 상태를 연결한다.</p></div>
+        <div class="item"><h3>블랙박스</h3><p><code>blackbox.rs</code>가 recorder helper 수명·저장소·index·clip 작업을 관리한다. <code>video_response</code>는 Range를 지원하되 한 응답을 4 MiB로 제한한다. <a href="../../../desktop/backend/src/blackbox.rs"><code>blackbox.rs</code></a></p></div>
+        <div class="item"><h3>입력·터보 키</h3><p><code>inputs.rs</code>가 helper 설치·선택 키·간격·수명을 관리한다. 선택 helper는 공식 release URL과 해시/형식을 확인한 뒤에만 설치한다.</p></div>
+      </div>
+    </section>
+
+    <section id="data">
+      <h2>5. 저장 데이터와 소유자</h2>
+      <table class="matrix">
+        <thead><tr><th>위치</th><th>내용</th><th>주의점</th></tr></thead>
+        <tbody>
+          <tr><td><code>%APPDATA%\마비노기 렘 부스터</code></td><td>사용자 설정, game path, affinity·memory status/control, graphics, blackbox, instance coordination</td><td>설치형·포터블이 공유하며 제거 시 보존한다.</td></tr>
+          <tr><td><code>%LOCALAPPDATA%\Nogirem</code></td><td>WebView2 프로필·런타임 캐시</td><td>사용자 설정 정본과 분리된다.</td></tr>
+          <tr><td><code>%LOCALAPPDATA%\NogiremUpdater\updates</code></td><td>다운로드, job, backup, result, health, bootstrap log</td><td>High integrity와 reparse 검사 대상이다.</td></tr>
+          <tr><td>선택한 녹화 드라이브</td><td>블랙박스 chunk·index·clip</td><td>업데이트·제거 대상이 아니다.</td></tr>
+        </tbody>
+      </table>
+      <p><a href="../../../desktop/backend/src/storage.rs"><code>storage.rs</code></a>는 임시 파일 쓰기·flush/sync·rename 방식의 JSON 저장을 제공한다. <a href="../../../desktop/backend/src/workers.rs"><code>workers.rs</code></a>의 <code>ManagedProcess</code>는 기능별 <code>status.json</code>과 <code>control.json</code>으로 worker를 제어한다.</p>
+    </section>
+
+    <section id="privilege">
+      <h2>6. 권한과 신뢰 경계</h2>
+      <ul class="path-list">
+        <li><strong>UAC:</strong> 일반 GUI는 관리자 권한으로 다시 시작한다. 서비스와 자식 worker는 그 권한을 상속한다.</li>
+        <li><strong>RPC:</strong> 외부 socket 대신 부모-자식 pipe를 사용한다. 그러나 JSON message 자체는 각 handler에서 schema·window kind·경로를 계속 검증해야 한다.</li>
+        <li><strong>경로:</strong> user input 경로는 canonicalization, 허용 root 포함 여부, 파일명/확장자, process path identity로 제한한다.</li>
+        <li><strong>다운로드:</strong> Ed25519 서명, semver, 고정 GitHub URL, 최대 크기, 정확한 size와 SHA-256을 검증한다.</li>
+        <li><strong>업데이트 캐시:</strong> reparse point 거부, High integrity label, directory handle 고정, final handle path 비교로 경로 치환을 방어한다.</li>
+        <li><strong>helper:</strong> parent PID, duplicate lock, status/control files, 제한된 args로 lifecycle을 묶는다. 별도 프로세스지만 관리자 trust domain 밖의 sandbox는 아니다.</li>
+      </ul>
+      <div class="status warn"><strong>고위험 경계:</strong> 관리자 프로세스가 user-writable 경로, helper binary, PowerShell, driver API, update staging을 다룬다. 경로 검증이나 hash 검증을 단순화하는 변경은 파일 한두 개라도 security-sensitive로 취급해야 한다.</div>
+    </section>
+
+    <section id="updates">
+      <h2>7. 설치형·포터블 업데이트</h2>
+      <h3>공통 검증</h3>
+      <ol class="flow">
+        <li><code>update.json</code> 또는 <code>portable-update.json</code>을 64 KiB 제한과 HTTPS로 받는다.</li>
+        <li>embedded 공개키로 payload 서명을 검증하고 schema 1, release semver, 고정 자산 URL, 크기·SHA-256 형식을 확인한다.</li>
+        <li>새 파일을 <code>create_new</code>로 만들고 streaming hash·크기·취소를 검사한 뒤 <code>sync_all</code>한다.</li>
+        <li>설치 직전 파일을 다시 검증하고 보호된 job directory에 updater·payload·job metadata를 준비한다.</li>
+      </ol>
+      <h3>설치형</h3>
+      <p>기존 앱에 정상 종료를 요청하고 설치 파일·설정 백업을 만든 뒤 NSIS 설치기를 실행한다. 새 <code>nogirem.exe</code>가 job nonce·version을 담은 <code>healthy.json</code>을 120초 안에 쓰면 완료로 간주한다. 실패하면 백업을 복원한다. <a href="../../../desktop/installer.nsi"><code>desktop/installer.nsi</code></a>, <a href="../../../scripts/stop-installed-app.ps1"><code>stop-installed-app.ps1</code></a>.</p>
+      <h3>포터블</h3>
+      <p>배포물은 단일 launcher EXE이며 내부 앱을 관리자 전용 version cache에 푼다. marker는 버전이 아니라 package digest라 동일 버전 교체본도 재전개한다. 업데이트 helper는 원본 EXE와 같은 volume의 High-integrity staging에서 교체하고 열린 handle과 SHA-256으로 교체 후 실행 전 변경을 막는다. 실패하면 backup을 검증해 복원하지만 이전 EXE를 자동 실행하지 않는다. <a href="../../../docs/ai/wiki/portable-distribution.md"><code>portable-distribution.md</code></a>, <a href="../../../desktop/portable.nsi"><code>desktop/portable.nsi</code></a>.</p>
+    </section>
+
+    <section id="entrypoints">
+      <h2>8. 진입점과 핵심 파일</h2>
+      <ul class="path-list">
+        <li><a href="../../../desktop/src/main.rs"><code>desktop/src/main.rs</code></a> — GUI·service·worker·updater mode 분기</li>
+        <li><a href="../../../desktop/src/ui.rs"><code>desktop/src/ui.rs</code></a> — Dioxus component와 application state</li>
+        <li><a href="../../../desktop/src/native.rs"><code>desktop/src/native.rs</code></a> — WebView2 window/tray/native command 실행</li>
+        <li><a href="../../../desktop/src/bridge.rs"><code>desktop/src/bridge.rs</code></a> — GUI에서 service child와 RPC</li>
+        <li><a href="../../../desktop/backend/src/service.rs"><code>desktop/backend/src/service.rs</code></a> — 중앙 orchestration과 invoke router</li>
+        <li><a href="../../../desktop/backend/src/service-contract.json"><code>service-contract.json</code></a> — 노출 channel 계약</li>
+        <li><a href="../../../desktop/backend/src/workers.rs"><code>workers.rs</code></a> — environment·managed helper lifecycle</li>
+        <li><a href="../../../desktop/backend/src/update_install.rs"><code>update_install.rs</code></a> — 설치·포터블 교체·rollback</li>
+        <li><a href="../../../scripts/package-dioxus.mjs"><code>scripts/package-dioxus.mjs</code></a> — release layout와 NSIS packaging</li>
+      </ul>
+    </section>
+
+    <section id="tests">
+      <h2>9. 테스트와 실제 검증 경계</h2>
+      <table class="matrix">
+        <thead><tr><th>검증</th><th>보장하는 범위</th><th>보장하지 않는 범위</th></tr></thead>
+        <tbody>
+          <tr><td><code>npm run test:desktop</code></td><td>Rust unit/integration, update 검증, 구조·상태 계산</td><td>실제 driver/게임/UI 전 구간</td></tr>
+          <tr><td><code>npm run test:backend-integration</code></td><td>격리 user data에서 service IPC, worker 시작·종료, 임시 파일 작업</td><td>실제 사용자 설정·게임·관리 도구 충돌</td></tr>
+          <tr><td><code>npm run app:smoke</code></td><td>실제 Dioxus/WebView2 창, DOM 상태, 보조 창, tray, key routing</td><td>OS 최적화 적용은 fixture로 대체</td></tr>
+          <tr><td>Node 회귀 테스트</td><td>패키징, 설치기 문구, 공유 web/helper 계약 및 이전 동작 대조</td><td>현재 Rust call path 전체 실행 증명</td></tr>
+          <tr><td>수동 Windows QA</td><td>기록된 설치 전환·복구·일부 실제 미디어 사례</td><td>모든 GPU, Windows 10, 전원 중단, 재부팅 자동 시작의 전체 matrix</td></tr>
+        </tbody>
+      </table>
+      <div class="status unknown"><strong>이번 보고서 생성에서 실행하지 않음:</strong> 실제 최적화, 설치, 업데이트, 녹화, 드라이버 변경. 기존 테스트·문서·소스 근거를 분석했으며 HTML 자체 검증만 새로 수행한다.</div>
+    </section>
+
+    <section id="impact">
+      <h2>10. 위험, 불일치, 변경 영향</h2>
+      <h3>변경 시 함께 봐야 하는 묶음</h3>
+      <ul class="path-list">
+        <li><strong>RPC channel:</strong> UI 호출, <code>service-contract.json</code>, service router, fixture/smoke를 함께 변경한다.</li>
+        <li><strong>worker status:</strong> worker writer, <code>ManagedProcess</code>, service 상태 합성, UI event 소비를 함께 변경한다.</li>
+        <li><strong>설정 schema:</strong> 기본값, validation/normalization, 기존 JSON migration, 화면 form, 회귀 데이터를 함께 검토한다.</li>
+        <li><strong>업데이트:</strong> signer, manifest schema, client verifier, installer/portable NSIS, rollback QA를 하나의 보안 경계로 본다.</li>
+        <li><strong>보조 창:</strong> Rust window allowlist, preload channel, HTML/JS, media protocol, Escape/smoke matrix를 함께 본다.</li>
+      </ul>
+      <div class="status warn"><strong>정본 불일치 1:</strong> <a href="../../../DIOXUS_MIGRATION.md"><code>DIOXUS_MIGRATION.md</code></a> 뒤쪽 “Rust backend migration in progress”는 역사적 중간 상태를 현재형으로 적고 있어, 같은 문서 앞부분과 현재 Rust service 코드에 모순된다.</div>
+      <div class="status warn"><strong>정본 불일치 2:</strong> <a href="../../../README.md"><code>README.md</code></a> 설치 절의 자산명 <code>nogirem-setup-&lt;version&gt;.exe</code>는 현재 verifier·packager가 요구하는 <code>nogirem-dioxus-setup-&lt;version&gt;.exe</code>와 다르다.</div>
+      <div class="status unknown"><strong>추정:</strong> 레거시 비교용 Node 테스트 다수가 남아 있어 테스트 수만 보면 현재 Rust 경로 검증량을 과대평가할 수 있다. 각 테스트가 어떤 실행 경로를 실제 호출하는지 구분해야 한다.</div>
+    </section>
+  </main>
+  <footer>저장소 nogirem · full/Rust-only · base/target <code>abb9c8c0122dff3355776454aa58201f4cedb055</code> · 생성 전 작업 트리 깨끗함</footer>
+</body>
+</html>

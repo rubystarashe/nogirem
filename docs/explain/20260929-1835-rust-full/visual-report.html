@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>시각화 — Nogirem Rust/Dioxus</title>
+  <style>
+    :root{--ink:#17212a;--muted:#596571;--line:#c7d0d8;--soft:#f3f5f6;--ui:#dcecff;--service:#e9e1f8;--worker:#dcf1e4;--system:#fff0d2;--data:#dff2f2;--danger:#f8dddd;--link:#075ea8;--fact:#0b6b53;--warn:#955700}
+    *{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}header,main,footer{width:min(1180px,calc(100% - 32px));margin:auto}header{padding:48px 0 24px;border-bottom:2px solid var(--ink)}h1{font-size:clamp(2rem,5vw,3.3rem);line-height:1.08;letter-spacing:-.04em;margin:7px 0 14px}h2{font-size:1.65rem;margin:48px 0 8px}h3{font-size:1.12rem;margin:24px 0 7px}p{margin:7px 0 14px}a{color:var(--link);text-underline-offset:3px}nav{display:flex;gap:10px 20px;flex-wrap:wrap;margin:20px 0}nav a{font-weight:700}.meta{color:var(--muted);font-size:.92rem}.diagram{margin:18px 0 26px;border-block:1px solid var(--line);padding:20px 0;overflow-x:auto}.diagram svg{display:block;width:100%;min-width:780px;height:auto}.legend{display:flex;flex-wrap:wrap;gap:9px 20px;padding:0;list-style:none}.legend li{display:flex;align-items:center;gap:7px}.swatch{width:20px;height:14px;border:1px solid #52606c}.ui{background:var(--ui)}.service{background:var(--service)}.worker{background:var(--worker)}.system{background:var(--system)}.data{background:var(--data)}.danger{background:var(--danger)}.connections{columns:2;column-gap:40px}.connections li{break-inside:avoid;margin-bottom:8px}.source-list{columns:2;column-gap:40px}.source-list li{break-inside:avoid;margin:6px 0}.status{padding:11px 14px;border-left:4px solid var(--fact);background:#eef8f4;margin:14px 0}code{font:0.9em ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--soft);padding:2px 5px;border-radius:3px}footer{margin-top:54px;padding:20px 0 44px;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem}
+    svg text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;fill:#17212a}.box{stroke:#52606c;stroke-width:1.5}.arrow{fill:none;stroke:#34495e;stroke-width:2;marker-end:url(#arrow)}.dashed{stroke-dasharray:7 5}.edge-label{font-size:14px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:5px;stroke-linejoin:round}.node-title{font-size:18px;font-weight:800}.node-sub{font-size:13px}.step-title{font-size:17px;font-weight:800}.step-sub{font-size:12.5px}.stop{stroke:#9d3c3c;stroke-width:2}
+    @media(max-width:700px){header{padding-top:30px}.connections,.source-list{columns:1}.diagram{margin-inline:-16px;padding-inline:16px}}
+    @media print{body{font-size:10.5pt}header,main,footer{width:100%}nav{display:none}.diagram{overflow:visible;break-inside:avoid}.diagram svg{min-width:0}.connections,.source-list{columns:2}a{color:inherit;text-decoration:none}}
+  </style>
+</head>
+<body>
+  <header>
+    <p>시각화 보고서 · inline SVG</p>
+    <h1>Nogirem 실행 구조와<br>안전한 교체 흐름</h1>
+    <p>색상만이 아니라 노드 제목, 화살표 방향, 관계 이름으로도 구분한다. 그림은 외부 라이브러리나 네트워크 없이 열린다.</p>
+    <nav aria-label="보고서 이동"><a href="index.html">개요</a><a href="eli5-report.html">쉬운 설명</a><a href="understanding-report.html">기술 구조</a></nav>
+    <p class="meta">대상 <code>abb9c8c0122dff3355776454aa58201f4cedb055</code> · 2026-09-29T18:55:03+09:00 · 분석 시작 시 dirty scope 없음</p>
+  </header>
+  <main>
+    <section aria-labelledby="architecture">
+      <h2 id="architecture">1. 런타임 아키텍처</h2>
+      <p>하나의 배포 EXE가 명령행 mode에 따라 GUI, native service, CPU/memory worker, update helper 역할로 다시 실행된다. 별도 C++/Rust helper는 드라이버·입력·녹화 경계를 담당한다.</p>
+      <div class="diagram">
+        <svg viewBox="0 0 1120 720" role="img" aria-labelledby="arch-title arch-desc">
+          <title id="arch-title">Nogirem Rust/Dioxus 런타임 아키텍처</title>
+          <desc id="arch-desc">사용자에서 Dioxus GUI, Rust native service, worker와 native helper, Windows와 저장소로 이어지는 양방향 호출 및 데이터 흐름</desc>
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#34495e"/></marker>
+          </defs>
+          <rect x="30" y="42" width="170" height="82" rx="4" fill="#fff0d2" class="box"/>
+          <text x="115" y="75" text-anchor="middle" class="node-title">사용자</text>
+          <text x="115" y="101" text-anchor="middle" class="node-sub">버튼 · 창 · 트레이 · UAC</text>
+
+          <rect x="270" y="28" width="260" height="110" rx="4" fill="#dcecff" class="box"/>
+          <text x="400" y="62" text-anchor="middle" class="node-title">Dioxus GUI 호스트</text>
+          <text x="400" y="88" text-anchor="middle" class="node-sub">ui.rs · native.rs · platform.rs</text>
+          <text x="400" y="112" text-anchor="middle" class="node-sub">WebView2 · 창 · tray · native command</text>
+
+          <rect x="620" y="28" width="260" height="110" rx="4" fill="#e9e1f8" class="box"/>
+          <text x="750" y="62" text-anchor="middle" class="node-title">Rust native service</text>
+          <text x="750" y="88" text-anchor="middle" class="node-sub">service.rs · rpc.rs · service_windows.rs</text>
+          <text x="750" y="112" text-anchor="middle" class="node-sub">계약 검사 · 상태 합성 · orchestration</text>
+
+          <rect x="930" y="42" width="160" height="82" rx="4" fill="#dff2f2" class="box"/>
+          <text x="1010" y="75" text-anchor="middle" class="node-title">사용자 데이터</text>
+          <text x="1010" y="101" text-anchor="middle" class="node-sub">%APPDATA% JSON</text>
+
+          <rect x="85" y="250" width="240" height="105" rx="4" fill="#dcf1e4" class="box"/>
+          <text x="205" y="283" text-anchor="middle" class="node-title">CPU · Memory worker</text>
+          <text x="205" y="309" text-anchor="middle" class="node-sub">같은 EXE의 helper mode</text>
+          <text x="205" y="333" text-anchor="middle" class="node-sub">status/control JSON · parent PID</text>
+
+          <rect x="440" y="230" width="280" height="145" rx="4" fill="#e9e1f8" class="box"/>
+          <text x="580" y="263" text-anchor="middle" class="node-title">도메인 manager</text>
+          <text x="580" y="291" text-anchor="middle" class="node-sub">boost · network · graphics · DXVK</text>
+          <text x="580" y="316" text-anchor="middle" class="node-sub">blackbox · inputs · diagnostics</text>
+          <text x="580" y="341" text-anchor="middle" class="node-sub">설정 검증 · 적용 · 복구</text>
+
+          <rect x="835" y="250" width="240" height="105" rx="4" fill="#dcf1e4" class="box"/>
+          <text x="955" y="283" text-anchor="middle" class="node-title">Native helper</text>
+          <text x="955" y="309" text-anchor="middle" class="node-sub">input · Radeon · recorder · turbo</text>
+          <text x="955" y="333" text-anchor="middle" class="node-sub">별도 EXE · 제한된 인자</text>
+
+          <rect x="90" y="505" width="235" height="105" rx="4" fill="#fff0d2" class="box"/>
+          <text x="207" y="538" text-anchor="middle" class="node-title">Windows</text>
+          <text x="207" y="564" text-anchor="middle" class="node-sub">process · affinity · memory</text>
+          <text x="207" y="588" text-anchor="middle" class="node-sub">registry · PowerShell · scheduled task</text>
+
+          <rect x="440" y="505" width="280" height="105" rx="4" fill="#fff0d2" class="box"/>
+          <text x="580" y="538" text-anchor="middle" class="node-title">GPU · WebView2 · 파일 시스템</text>
+          <text x="580" y="564" text-anchor="middle" class="node-sub">NVIDIA · AMD ADLX · DXVK</text>
+          <text x="580" y="588" text-anchor="middle" class="node-sub">창 runtime · 녹화 drive</text>
+
+          <rect x="835" y="505" width="240" height="105" rx="4" fill="#dff2f2" class="box"/>
+          <text x="955" y="538" text-anchor="middle" class="node-title">GitHub Releases</text>
+          <text x="955" y="564" text-anchor="middle" class="node-sub">서명 manifest · 설치/포터블 EXE</text>
+          <text x="955" y="588" text-anchor="middle" class="node-sub">고정 repository와 asset 이름</text>
+
+          <path d="M200 83 H266" class="arrow"/><text x="233" y="72" text-anchor="middle" class="edge-label">조작</text>
+          <path d="M530 71 H616" class="arrow"/><text x="573" y="61" text-anchor="middle" class="edge-label">stdio JSON 요청</text>
+          <path d="M620 105 H534" class="arrow dashed"/><text x="577" y="126" text-anchor="middle" class="edge-label">응답 · event</text>
+          <path d="M880 83 H926" class="arrow"/><text x="903" y="72" text-anchor="middle" class="edge-label">읽기/쓰기</text>
+          <path d="M721 138 L625 226" class="arrow"/><text x="674" y="178" text-anchor="middle" class="edge-label">channel route</text>
+          <path d="M440 300 H329" class="arrow"/><text x="384" y="290" text-anchor="middle" class="edge-label">시작 · control</text>
+          <path d="M720 300 H831" class="arrow"/><text x="776" y="290" text-anchor="middle" class="edge-label">실행 · 상태</text>
+          <path d="M205 355 V501" class="arrow"/><text x="217" y="430" class="edge-label">Win32 적용</text>
+          <path d="M540 375 L265 501" class="arrow"/><text x="391" y="431" text-anchor="middle" class="edge-label">OS 설정</text>
+          <path d="M620 375 L620 501" class="arrow"/><text x="632" y="439" class="edge-label">driver · 파일</text>
+          <path d="M955 355 L660 501" class="arrow"/><text x="814" y="430" text-anchor="middle" class="edge-label">native API · media</text>
+          <path d="M690 230 L905 128" class="arrow dashed"/><text x="803" y="176" text-anchor="middle" class="edge-label">상태 저장</text>
+          <path d="M720 331 L925 501" class="arrow dashed"/><text x="824" y="414" text-anchor="middle" class="edge-label">HTTPS · 서명 검증</text>
+        </svg>
+      </div>
+      <ul class="legend" aria-label="색상 범례">
+        <li><span class="swatch ui"></span>GUI/표현</li>
+        <li><span class="swatch service"></span>Rust 조정·도메인</li>
+        <li><span class="swatch worker"></span>Worker/helper</li>
+        <li><span class="swatch system"></span>외부 시스템</li>
+        <li><span class="swatch data"></span>데이터·배포 원본</li>
+        <li>실선 화살표: 명령/호출</li>
+        <li>점선 화살표: event/저장/비동기 데이터</li>
+      </ul>
+      <h3>연결의 의미</h3>
+      <ul class="connections">
+        <li><strong>GUI → service:</strong> window ID, channel, args를 JSON 요청으로 전송한다.</li>
+        <li><strong>service → GUI:</strong> 응답과 상태 event, native window/tray 명령을 보낸다.</li>
+        <li><strong>manager → worker/helper:</strong> validated 설정으로 시작하고 status/control 파일로 관리한다.</li>
+        <li><strong>worker/helper → Windows:</strong> Win32·driver·파일 API를 실제로 호출한다.</li>
+        <li><strong>service ↔ user data:</strong> 설정·원상복구 정보·helper 상태를 원자 JSON으로 저장한다.</li>
+        <li><strong>updater → GitHub:</strong> 서명된 고정 자산만 받아 보호 cache로 이동한다.</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="update-flow">
+      <h2 id="update-flow">2. 서명 업데이트와 rollback 흐름</h2>
+      <p>설치형과 포터블은 manifest 이름과 교체 대상은 다르지만, 다운로드 전후 검증과 새 앱 health 확인 원칙은 같다.</p>
+      <div class="diagram">
+        <svg viewBox="0 0 1120 560" role="img" aria-labelledby="update-title update-desc">
+          <title id="update-title">Nogirem 업데이트 검증과 롤백 흐름</title>
+          <desc id="update-desc">서명 manifest 확인부터 다운로드, 보호 작업 폴더, 기존 앱 종료와 백업, 설치형 또는 포터블 교체, 새 앱 health 확인, 성공 또는 rollback까지의 방향성 흐름</desc>
+          <defs>
+            <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#34495e"/></marker>
+          </defs>
+          <style>.uarr{fill:none;stroke:#34495e;stroke-width:2;marker-end:url(#arrow2)}.ufail{fill:none;stroke:#9d3c3c;stroke-width:2;stroke-dasharray:7 5;marker-end:url(#arrow2)}</style>
+
+          <rect x="35" y="70" width="185" height="92" rx="4" fill="#dff2f2" class="box"/>
+          <text x="127" y="103" text-anchor="middle" class="step-title">1. Manifest</text>
+          <text x="127" y="128" text-anchor="middle" class="step-sub">update.json / portable-update.json</text>
+          <text x="127" y="147" text-anchor="middle" class="step-sub">64 KiB · HTTPS</text>
+
+          <rect x="260" y="70" width="185" height="92" rx="4" fill="#e9e1f8" class="box"/>
+          <text x="352" y="103" text-anchor="middle" class="step-title">2. 봉인 검증</text>
+          <text x="352" y="128" text-anchor="middle" class="step-sub">Ed25519 · schema · semver</text>
+          <text x="352" y="147" text-anchor="middle" class="step-sub">고정 URL · size · SHA-256</text>
+
+          <rect x="485" y="70" width="185" height="92" rx="4" fill="#dcecff" class="box"/>
+          <text x="577" y="103" text-anchor="middle" class="step-title">3. 다운로드</text>
+          <text x="577" y="128" text-anchor="middle" class="step-sub">create_new · streaming hash</text>
+          <text x="577" y="147" text-anchor="middle" class="step-sub">cancel · sync_all · 재검증</text>
+
+          <rect x="710" y="70" width="185" height="92" rx="4" fill="#fff0d2" class="box"/>
+          <text x="802" y="103" text-anchor="middle" class="step-title">4. 보호된 Job</text>
+          <text x="802" y="128" text-anchor="middle" class="step-sub">High integrity · reparse 거부</text>
+          <text x="802" y="147" text-anchor="middle" class="step-sub">job · updater · payload</text>
+
+          <rect x="935" y="70" width="150" height="92" rx="4" fill="#fff0d2" class="box"/>
+          <text x="1010" y="103" text-anchor="middle" class="step-title">5. 종료·백업</text>
+          <text x="1010" y="128" text-anchor="middle" class="step-sub">정상 종료 요청</text>
+          <text x="1010" y="147" text-anchor="middle" class="step-sub">기존 파일 보존</text>
+
+          <rect x="205" y="280" width="260" height="104" rx="4" fill="#dcf1e4" class="box"/>
+          <text x="335" y="313" text-anchor="middle" class="step-title">6A. 설치형</text>
+          <text x="335" y="339" text-anchor="middle" class="step-sub">NSIS installer → Program Files\Nogirem</text>
+          <text x="335" y="361" text-anchor="middle" class="step-sub">설정·녹화 보존</text>
+
+          <rect x="655" y="280" width="260" height="104" rx="4" fill="#dcf1e4" class="box"/>
+          <text x="785" y="313" text-anchor="middle" class="step-title">6B. 포터블</text>
+          <text x="785" y="339" text-anchor="middle" class="step-sub">same-volume staging → 원본 EXE 교체</text>
+          <text x="785" y="361" text-anchor="middle" class="step-sub">handle 고정 · 이동 전후 hash</text>
+
+          <rect x="430" y="450" width="260" height="82" rx="4" fill="#dcecff" class="box"/>
+          <text x="560" y="482" text-anchor="middle" class="step-title">7. 새 앱 health 확인</text>
+          <text x="560" y="508" text-anchor="middle" class="step-sub">nonce · version · UI/backend ready · 120초</text>
+
+          <rect x="35" y="445" width="190" height="92" rx="4" fill="#f8dddd" class="box stop"/>
+          <text x="130" y="478" text-anchor="middle" class="step-title">실패: 중단</text>
+          <text x="130" y="503" text-anchor="middle" class="step-sub">검증 전 기존 앱 유지</text>
+          <text x="130" y="522" text-anchor="middle" class="step-sub">교체 후면 rollback</text>
+
+          <rect x="900" y="445" width="185" height="92" rx="4" fill="#dcf1e4" class="box"/>
+          <text x="992" y="478" text-anchor="middle" class="step-title">성공: 완료</text>
+          <text x="992" y="503" text-anchor="middle" class="step-sub">result 기록 · backup 정리</text>
+          <text x="992" y="522" text-anchor="middle" class="step-sub">설정·녹화 유지</text>
+
+          <path d="M220 116 H256" class="uarr"/><path d="M445 116 H481" class="uarr"/><path d="M670 116 H706" class="uarr"/><path d="M895 116 H931" class="uarr"/>
+          <path d="M1010 162 V215 H335 V276" class="uarr"/><text x="544" y="207" text-anchor="middle" class="edge-label">설치 mode</text>
+          <path d="M1010 162 V225 H785 V276" class="uarr"/><text x="885" y="247" text-anchor="middle" class="edge-label">포터블 mode</text>
+          <path d="M335 384 V421 H560 V446" class="uarr"/><path d="M785 384 V421 H560 V446" class="uarr"/>
+          <path d="M690 491 H896" class="uarr"/><text x="793" y="480" text-anchor="middle" class="edge-label">ready=true</text>
+          <path d="M260 116 H130 V441" class="ufail"/><text x="142" y="262" class="edge-label">서명/형식 실패</text>
+          <path d="M485 145 H175 V441" class="ufail"/><text x="318" y="171" text-anchor="middle" class="edge-label">다운로드/hash 실패</text>
+          <path d="M430 491 H229" class="ufail"/><text x="330" y="480" text-anchor="middle" class="edge-label">timeout/실행 실패 → 복원</text>
+        </svg>
+      </div>
+      <div class="status"><strong>핵심:</strong> 보안 검증 실패는 설치 전 중단이고, 교체 이후 health 실패는 백업 복원이다. 포터블 rollback 후 이전 EXE는 사용자가 결과를 확인하도록 자동 재실행하지 않는다.</div>
+    </section>
+
+    <section aria-labelledby="evidence">
+      <h2 id="evidence">시각화 근거 파일</h2>
+      <ul class="source-list">
+        <li><a href="../../../desktop/src/main.rs"><code>desktop/src/main.rs</code></a></li>
+        <li><a href="../../../desktop/src/bridge.rs"><code>desktop/src/bridge.rs</code></a></li>
+        <li><a href="../../../desktop/src/native.rs"><code>desktop/src/native.rs</code></a></li>
+        <li><a href="../../../desktop/backend/src/rpc.rs"><code>desktop/backend/src/rpc.rs</code></a></li>
+        <li><a href="../../../desktop/backend/src/service.rs"><code>desktop/backend/src/service.rs</code></a></li>
+        <li><a href="../../../desktop/backend/src/service_windows.rs"><code>service_windows.rs</code></a></li>
+        <li><a href="../../../desktop/backend/src/workers.rs"><code>workers.rs</code></a></li>
+        <li><a href="../../../desktop/backend/src/updater.rs"><code>updater.rs</code></a></li>
+        <li><a href="../../../desktop/backend/src/update_install.rs"><code>update_install.rs</code></a></li>
+        <li><a href="../../../desktop/installer.nsi"><code>desktop/installer.nsi</code></a></li>
+        <li><a href="../../../desktop/portable.nsi"><code>desktop/portable.nsi</code></a></li>
+        <li><a href="../../../docs/ai/wiki/portable-distribution.md"><code>portable-distribution.md</code></a></li>
+      </ul>
+    </section>
+  </main>
+  <footer>각 그림은 현재 Rust/Dioxus 경로만 나타낸다. Electron 애플리케이션 내부 구조와 외부 SDK 구현은 생략했다.</footer>
+</body>
+</html>

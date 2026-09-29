@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "runId": "20260929-1835-rust-full",
+  "repository": "C:\\Users\\User\\Documents\\GitHub\\nogirem",
+  "scope": "현재 Rust/Dioxus 버전 전체 구조. Electron 애플리케이션, vendored Dioxus, 외부 SDK, 빌드·릴리스 생성물과 과거 AI run 제외",
+  "audience": "신규 개발자",
+  "language": "ko",
+  "mode": "full",
+  "generatedAt": "2026-09-29T18:55:03+09:00",
+  "baseCommit": "abb9c8c0122dff3355776454aa58201f4cedb055",
+  "targetCommit": "abb9c8c0122dff3355776454aa58201f4cedb055",
+  "dirtyFiles": [],
+  "reports": {
+    "index": "index.html",
+    "eli5": "eli5-report.html",
+    "understanding": "understanding-report.html",
+    "visual": "visual-report.html"
+  },
+  "sourceFiles": [
+    "README.md",
+    "DIOXUS_MIGRATION.md",
+    "OPERATION.md",
+    "RELEASE_PREPARATION.md",
+    "config.json",
+    "package.json",
+    "docs/ai/wiki/index.md",
+    "docs/ai/wiki/portable-distribution.md",
+    "desktop/Cargo.toml",
+    "desktop/src/main.rs",
+    "desktop/src/ui.rs",
+    "desktop/src/native.rs",
+    "desktop/src/platform.rs",
+    "desktop/src/bridge.rs",
+    "desktop/backend/Cargo.toml",
+    "desktop/backend/src/lib.rs",
+    "desktop/backend/src/rpc.rs",
+    "desktop/backend/src/service.rs",
+    "desktop/backend/src/service_windows.rs",
+    "desktop/backend/src/workers.rs",
+    "desktop/backend/src/storage.rs",
+    "desktop/backend/src/boost.rs",
+    "desktop/backend/src/affinity_worker.rs",
+    "desktop/backend/src/memory.rs",
+    "desktop/backend/src/network_manager.rs",
+    "desktop/backend/src/graphics.rs",
+    "desktop/backend/src/dxvk_manager.rs",
+    "desktop/backend/src/blackbox.rs",
+    "desktop/backend/src/inputs.rs",
+    "desktop/backend/src/updater.rs",
+    "desktop/backend/src/update_install.rs",
+    "desktop/backend/src/service-contract.json",
+    "desktop/installer.nsi",
+    "desktop/portable.nsi",
+    "scripts/package-dioxus.mjs",
+    "scripts/stop-installed-app.ps1",
+    "native/input-guard-helper/main.cpp",
+    "native/radeon-helper/main.cpp",
+    "native/recorder-helper/main.cpp"
+  ],
+  "canonicalDiscrepancies": [
+    {
+      "file": "DIOXUS_MIGRATION.md",
+      "finding": "뒤쪽의 'Rust backend migration in progress' 절이 역사적 중간 상태를 현재형으로 기술해 같은 문서 앞부분과 현재 Rust native service 코드에 모순된다",
+      "action": "이 보고서에는 현재 코드 기준으로 표시했으며 --sync-wiki가 없어 정본은 변경하지 않았다"
+    },
+    {
+      "file": "README.md",
+      "finding": "설치 절의 nogirem-setup-<version>.exe 이름이 현재 verifier와 packager의 nogirem-dioxus-setup-<version>.exe 계약과 다르다",
+      "action": "불일치만 기록하고 README는 변경하지 않았다"
+    }
+  ],
+  "verification": {
+    "links": "PASS",
+    "offline": "PASS",
+    "browser": "PASS",
+    "responsive": "PASS"
+  },
+  "warnings": [
+    "범위는 사용자 요청에 따라 Rust/Dioxus 현재 버전으로 한정했다",
+    "실제 최적화, 설치, 업데이트, 드라이버 변경, 녹화 QA는 이번 보고서 생성에서 실행하지 않았다",
+    "외부 SDK와 vendored framework 내부 동작은 저장소 경계 밖으로 취급했다"
+  ]
+}

@@ -1,15 +1,19 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-29 16:43 +09:00
+Last Updated: 2026-09-29 18:55 +09:00
 
 ## Current Objective
 Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배포하고 두 형식의 안전한 자동 업데이트를 지원한다.
 
 ## Active Runs
+- `20260929-project-explain-refresh`: Rust/Dioxus 신규 개발자용 HTML 구조 보고서 생성·브라우저 검증 완료 (`docs/ai/runs/20260929-project-explain-refresh/handoff.md`)
 - `20260929-portable`: v0.4.1 배포 완료, 버전 간 종단간 QA 대기 (`docs/ai/runs/20260929-portable/handoff.md`)
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- Rust/Dioxus 현재 구조를 신규 개발자 관점의 개요·ELI5·기술 구조·inline SVG 보고서로 생성했다.
+- 보고서의 로컬 링크, offline 동작, SVG 접근성, 모바일·인쇄, 실제 브라우저 렌더링을 검증했다.
+- `DIOXUS_MIGRATION.md`의 역사적 중간 상태 문구와 `README.md` 설치 자산명 불일치를 보고서에 기록했으며 정본은 변경하지 않았다.
 - 단일 포터블 EXE 생성과 전용 서명 업데이트 경로를 구현했다.
 - 포터블 내부 앱은 관리자 전용 버전 캐시에 한 번 준비하고 다음 실행부터 재사용한다.
 - 배포 EXE는 변경하지 않아 다른 위치로 복사·이동해도 독립 실행된다.
