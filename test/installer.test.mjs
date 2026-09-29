@@ -5,11 +5,13 @@ import { copyFile, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-const [installer, cleanup, service, rustService] = await Promise.all([
+const [installer, cleanup, service, rustService, desktopMain, updateInstall] = await Promise.all([
   readFile(new URL('../desktop/installer.nsi', import.meta.url), 'utf8'),
   readFile(new URL('../scripts/stop-installed-app.ps1', import.meta.url), 'utf8'),
   readFile(new URL('../service/main.mjs', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/backend/src/service.rs', import.meta.url), 'utf8'),
+  readFile(new URL('../desktop/src/main.rs', import.meta.url), 'utf8'),
+  readFile(new URL('../desktop/backend/src/update_install.rs', import.meta.url), 'utf8'),
 ])
 test('설치기는 WebView2를 확인하고 설치 EXE를 직접 실행한다', () => {
   assert.match(installer, /SilentInstall silent/)
@@ -17,6 +19,13 @@ test('설치기는 WebView2를 확인하고 설치 EXE를 직접 실행한다', 
   assert.match(installer, /\$\{GetOptions\} "\$1" "\/S"/)
   assert.match(installer, /F3017226-FE2A-4295-8BDF-00C3A9A7E4C5/)
   assert.match(installer, /\/silent \/install/)
+})
+test('UI 이전 로그는 보호된 캐시와 고정 panic 단계만 사용한다', () => {
+  assert.match(desktopMain, /update_install::open_bootstrap_log/)
+  assert.match(desktopMain, /set_hook\(Box::new\(\|_\|bootstrap_log\("PANIC"\)\)\)/)
+  assert.doesNotMatch(desktopMain, /PANIC \{info\}/)
+  assert.match(updateInstall, /protected_cache_root\(\)\?\.join\("bootstrap\.log"\)/)
+  assert.match(updateInstall, /require_high_integrity\(&path\)/)
 })
 test('설치기는 정상 종료를 기다리고 해당 설치의 예약 작업만 제거한다', () => {
   assert.match(cleanup, /installer-close-request/)

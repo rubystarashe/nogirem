@@ -125,6 +125,13 @@ pub fn protected_cache_root()->Result<PathBuf>{
     if !same(&current,&updater::cache_root()?){return Err("업데이트 캐시 경로가 일치하지 않습니다".into());}
     Ok(current)
 }
+pub fn open_bootstrap_log()->Result<File>{
+    let path=protected_cache_root()?.join("bootstrap.log");
+    if path.exists(){reject_reparse(&path)?;require_high_integrity(&path)?;}
+    let file=OpenOptions::new().create(true).append(true).share_mode(FILE_SHARE_READ).open(&path).map_err(err)?;
+    require_high_integrity(&path)?;
+    Ok(file)
+}
 fn write_migration_status(path:&Path,attempt:&str,phase:&str,percent:f64,error:Option<&str>)->Result<()>{
     uuid::Uuid::parse_str(attempt).map_err(|_|"잘못된 전환 시도 식별자")?;
     storage::write_json(path,&json!({"attempt":attempt,"phase":phase,"percent":percent,"error":error,"updatedAt":app_services::iso(),"pid":std::process::id()}))

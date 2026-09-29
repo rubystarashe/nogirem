@@ -18,16 +18,17 @@ use dioxus::{
 use serde_json::json;
 use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc};
 
+static BOOTSTRAP_LOG: std::sync::Mutex<Option<std::fs::File>>=std::sync::Mutex::new(None);
 fn bootstrap_log(message: impl AsRef<str>) {
     use std::io::Write;
-    let Some(app_data)=std::env::var_os("APPDATA") else{return;};
-    let directory=PathBuf::from(app_data).join("마비노기 렘 부스터/logs");
-    if std::fs::create_dir_all(&directory).is_err(){return;}
-    if let Ok(mut file)=std::fs::OpenOptions::new().create(true).append(true).open(directory.join("bootstrap.log")){
+    let Ok(mut slot)=BOOTSTRAP_LOG.lock() else{return;};
+    if slot.is_none(){*slot=nogirem_backend::update_install::open_bootstrap_log().ok();}
+    if let Some(file)=slot.as_mut(){
         let now=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis();
         let _=writeln!(file,"{now} pid={} {}",std::process::id(),message.as_ref());
     }
 }
+fn enable_bootstrap_log(mode:&str){bootstrap_log(format!("START version={} mode={mode}",env!("CARGO_PKG_VERSION")));std::panic::set_hook(Box::new(|_|bootstrap_log("PANIC")));}
 
 fn root() -> PathBuf {
     std::env::var_os("NOGIREM_ROOT")
@@ -51,11 +52,9 @@ fn main() {
     // Native workers have no WebView, Node runtime, or application instance lock.
     let args: Vec<String> = std::env::args().collect();
     let mode=if args.iter().any(|arg|arg=="--apply-update"){"apply-update"}else if args.iter().any(|arg|arg=="--migrate-electron"){"migrate-electron"}else if args.iter().any(|arg|arg=="--recover-portable-exe"){"recover-portable"}else if args.iter().any(|arg|arg=="--native-service"){"native-service"}else{"interactive"};
-    bootstrap_log(format!("START version={} mode={mode}",env!("CARGO_PKG_VERSION")));
-    std::panic::set_hook(Box::new(|info|bootstrap_log(format!("PANIC {info}"))));
     if let Some(i) = args.iter().position(|a| a == "--apply-update" || a == "--migrate-electron" || a == "--recover-portable-exe") {
         match platform::ensure_elevated() {
-            Ok(true) => bootstrap_log("ELEVATED helper"), Ok(false) => {bootstrap_log("ELEVATION handoff helper");return;},
+            Ok(true) => enable_bootstrap_log(mode), Ok(false) => return,
             Err(error) => {rfd::MessageDialog::new().set_title("업데이트 권한 오류").set_description(error).show();std::process::exit(1);}
         }
         let result = if args[i] == "--apply-update" {
@@ -125,7 +124,7 @@ fn main() {
 
     let instance = match platform::acquire_instance() {
         Ok(Some(instance)) => instance,
-        Ok(None) => {bootstrap_log("INSTANCE existing");return;},
+        Ok(None) => return,
         Err(error) => {
             eprintln!("{error}");
             return;
@@ -134,7 +133,7 @@ fn main() {
     platform::retain_instance(instance);
     if !args.iter().any(|a|a=="--smoke-test") {
         match platform::ensure_elevated() {
-            Ok(true)=>bootstrap_log("ELEVATED interactive"), Ok(false)=>{bootstrap_log("ELEVATION handoff interactive");return;},
+            Ok(true)=>enable_bootstrap_log(mode), Ok(false)=>return,
             Err(error)=>{rfd::MessageDialog::new().set_title("마비노기 렘 부스터").set_description(format!("관리자 권한으로 시작하지 못했습니다: {error}")).show();return;}
         }
     }
