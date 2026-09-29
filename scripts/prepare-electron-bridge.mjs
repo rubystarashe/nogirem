@@ -4,7 +4,7 @@ import {join,dirname,basename} from 'node:path'
 import {fileURLToPath} from 'node:url'
 const root=dirname(dirname(fileURLToPath(import.meta.url)))
 const legacyRef='3ca3521fe734c94d4485b33e099dc0071c4ba76c' // 마지막 Electron 소스
-const bridgeVersion='0.3.18'
+const bridgeVersion='0.3.19'
 const rustVersion=JSON.parse(await readFile(join(root,'package.json'),'utf8')).version
 const helper=process.argv[2]
 if(!helper) throw new Error('Provide the built Rust nogirem.exe to bundle as the migration helper.')

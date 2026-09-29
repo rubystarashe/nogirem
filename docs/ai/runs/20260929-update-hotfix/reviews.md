@@ -32,4 +32,6 @@
   - 1: `CHANGES_REQUIRED` — 이전 helper가 새 시도 상태를 오염시키는 경쟁
   - 2: `CHANGES_REQUIRED` — timeout 뒤 기존 attempt 무효화 누락
   - 3: `APPROVED`
+  - 4: `CHANGES_REQUIRED` — 0.3.18 클라이언트의 0.3.19 라우팅 직접 검사와 최종 경로 기록 누락
+  - 5: `APPROVED`
 - final_status: `APPROVED`

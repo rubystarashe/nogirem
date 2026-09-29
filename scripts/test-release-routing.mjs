@@ -8,6 +8,7 @@ const {GitHubProvider}=require('electron-updater/out/providers/GitHubProvider.js
 const semver=require('semver')
 const yml=await readFile(join(stage,'artifacts/latest.yml'),'utf8')
 for(const tag of ['v0.4.0','v0.4.1']){
+ for(const currentVersion of ['0.3.16','0.3.18']){
  const requests=[]
  const executor={request:async options=>{
   const path=options.path;requests.push(path)
@@ -16,12 +17,13 @@ for(const tag of ['v0.4.0','v0.4.1']){
   if(path===`/rubystarashe/nogirem/releases/download/${tag}/latest.yml`) return yml
   throw new Error(`Unexpected request ${path}`)
  }}
- const provider=new GitHubProvider({owner:'rubystarashe',repo:'nogirem'},{currentVersion:new semver.SemVer('0.3.16'),allowPrerelease:false,fullChangelog:false},{platform:'win32',executor})
+ const provider=new GitHubProvider({owner:'rubystarashe',repo:'nogirem'},{currentVersion:new semver.SemVer(currentVersion),allowPrerelease:false,fullChangelog:false},{platform:'win32',executor})
  const info=await provider.getLatestVersion()
- assert.equal(info.version,'0.3.18')
- assert(semver.gt(info.version,'0.3.17'))
- assert(!semver.gt(info.version,'0.3.18'))
+ assert.equal(info.version,'0.3.19')
+ assert(semver.gt(info.version,currentVersion))
+ assert(!semver.gt(info.version,'0.3.19'))
  const files=provider.resolveFiles(info)
- assert.equal(files[0].url.href,`https://github.com/rubystarashe/nogirem/releases/download/${tag}/nogirem-setup-0.3.18.exe`)
- console.log(JSON.stringify({tag,delivers:info.version,url:files[0].url.href,passed:true}))
+ assert.equal(files[0].url.href,`https://github.com/rubystarashe/nogirem/releases/download/${tag}/nogirem-setup-0.3.19.exe`)
+ console.log(JSON.stringify({tag,currentVersion,delivers:info.version,url:files[0].url.href,passed:true}))
+ }
 }

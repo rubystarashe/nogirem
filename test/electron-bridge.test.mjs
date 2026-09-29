@@ -9,8 +9,8 @@ const [bridge,release,routing,installer]=await Promise.all([
   readFile(new URL('../desktop/backend/src/update_install.rs',import.meta.url),'utf8'),
 ])
 
-test('0.3.18 전환본은 기존 업데이트 UI에 Rust 상태와 재시도를 연결한다',()=>{
-  assert.match(bridge,/bridgeVersion='0\.3\.18'/)
+test('0.3.19 전환본은 기존 업데이트 UI에 Rust 상태와 재시도를 연결한다',()=>{
+  assert.match(bridge,/bridgeVersion='0\.3\.19'/)
   assert.match(bridge,/registerMigration\(setApplicationUpdateState\)/)
   assert.match(bridge,/requestMigration\(\)/)
   assert.match(bridge,/--migration-attempt=/)
@@ -34,9 +34,9 @@ test('0.3.18 전환본은 기존 업데이트 UI에 Rust 상태와 재시도를 
   assert.match(installer,/terminate\(&mut apply\)/)
 })
 
-test('릴리스 조립과 라우팅 계약은 0.3.18 전환본을 요구한다',()=>{
-  assert.match(release,/nogirem-setup-0\.3\.18\.exe/)
-  assert.match(release,/version:\\s\*0\\\.3\\\.18/)
-  assert.match(routing,/info\.version,'0\.3\.18'/)
-  assert.match(routing,/nogirem-setup-0\.3\.18\.exe/)
+test('릴리스 조립과 라우팅 계약은 0.3.19 전환본을 요구한다',()=>{
+  assert.match(release,/nogirem-setup-0\.3\.19\.exe/)
+  assert.match(release,/version:\\s\*0\\\.3\\\.19/)
+  assert.match(routing,/info\.version,'0\.3\.19'/)
+  assert.match(routing,/nogirem-setup-0\.3\.19\.exe/)
 })

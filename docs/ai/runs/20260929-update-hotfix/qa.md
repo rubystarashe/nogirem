@@ -3,9 +3,9 @@
 ## QA-HOTFIX-01
 
 - links: REQ-HOTFIX-01, REQ-HOTFIX-02
-- environment: Windows 10, 생성된 Electron 0.3.18 소스·패키지
-- expected: 0.3.17이 0.3.18을 선택하고 전환 상태·오류·재시도를 표시
-- actual: 라우팅 계약에서 v0.4.0·v0.4.1 모두 0.3.18 설치본을 선택했다. 생성 소스의 Node 문법, 오류 패널, 재시도 버튼, 60초 무응답 제한을 확인했다.
+- environment: Windows 10, 생성된 Electron 0.3.19 소스·패키지
+- expected: 0.3.18 이하가 0.3.19를 선택하고 전환 상태·오류·재시도를 표시
+- actual: 라우팅 계약에서 v0.4.0·v0.4.1 모두 0.3.19 설치본을 선택했다. 생성 소스의 Node 문법, 오류 패널, 재시도·숨기기 버튼, 60초 무응답 제한을 확인했다.
 - status: PASS
 
 ## QA-HOTFIX-02
@@ -31,7 +31,7 @@
 
 ## 남은 실제 QA
 
-- 0.3.17 → 0.3.18 → Rust 0.4.1 실제 설치 전환
+- 0.3.17·0.3.18 → 0.3.19 → Rust 0.4.1 실제 설치 전환
 - 실제 UAC 승인·거부와 오류 후 재시도
 - 실제 0.4.0 고착 환경에서 대체 0.4.1 수동 설치 후 제거
 
@@ -40,7 +40,7 @@
 - links: REQ-HOTFIX-01, REQ-HOTFIX-03
 - environment: GitHub Latest Release `v0.4.1`
 - expected: 대체 자산 해시와 서명, Electron 라우팅이 최종 로컬 산출물과 일치
-- actual: 대체한 7개 자산의 GitHub SHA-256 digest가 로컬과 일치했다. 공개 `update.json`·`portable-update.json` 서명과 0.4.1 URL, `latest.yml`의 0.3.18 라우팅을 확인했다.
+- actual: 대체한 자산의 GitHub SHA-256 digest가 로컬과 일치했다. 공개 `update.json`·`portable-update.json` 서명과 0.4.1 URL, `latest.yml`의 0.3.19 라우팅을 확인했다.
 - status: PASS
 
 ## QA-HOTFIX-05
@@ -48,7 +48,7 @@
 - links: REQ-HOTFIX-06
 - environment: 실제 0.4.0 사용자 진단 ZIP, reqwest 0.12.28, 공개 GitHub `v0.4.1` 서명 자산
 - expected: blocking 다운로드가 Tokio runtime 없이 완료되고 오류 시 원인과 재시도를 표시
-- actual: 사용자 로그에서 다운로드 시작마다 `there is no reactor running` 패닉을 확인했다. async client 변환을 제거한 뒤 로컬 HTTP 기본 회귀 검사와 공개 매니페스트·설치 자산 다운로드 및 SHA-256 검증이 통과했다. Rust 오류 표시→숨김→배지 재시도 UI 스모크도 통과했다. 0.3.18 생성 소스는 실패 화면 숨김·업데이트 버튼 재표시, helper stderr 진단 기록, timeout 시 이전 helper 종료·attempt 무효화를 포함하며 Svelte 빌드를 통과했다. Rust named mutex의 중복 전환 차단 테스트와 독립 리뷰 2건도 승인됐다.
+- actual: 사용자 로그에서 다운로드 시작마다 `there is no reactor running` 패닉을 확인했다. async client 변환을 제거한 뒤 로컬 HTTP 기본 회귀 검사와 공개 매니페스트·설치 자산 다운로드 및 SHA-256 검증이 통과했다. Rust 오류 표시→숨김→배지 재시도 UI 스모크도 통과했다. 0.3.19 생성 소스는 실패 화면 숨김·업데이트 버튼 재표시, helper stderr 진단 기록, timeout 시 이전 helper 종료·attempt 무효화를 포함하며 Svelte 빌드를 통과했다. Rust named mutex의 중복 전환 차단 테스트와 독립 리뷰 2건도 승인됐다.
 - status: PASS
 
 ## QA-HOTFIX-06

@@ -7,7 +7,7 @@ Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배�
 
 ## Active Runs
 - `20260929-portable`: v0.4.1 배포 완료, 버전 간 종단간 QA 대기 (`docs/ai/runs/20260929-portable/handoff.md`)
-- `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 v0.4.1·0.3.18 재배포 완료 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
+- `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정 완료, 기존 0.3.18 사용자 복구용 0.3.19 전환본 패키징 완료·배포 대기 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
 - 단일 포터블 EXE 생성과 전용 서명 업데이트 경로를 구현했다.
@@ -17,10 +17,10 @@ Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배�
 - 설치형과 포터블은 AppData 설정과 녹화 드라이브 선택을 공유한다.
 - 설치형·포터블 0.4.1 매니페스트를 기존 Ed25519 키로 서명하고 GitHub Latest Release로 배포했다.
 - 공개된 `update.json`과 `portable-update.json`의 서명·버전·다운로드 URL을 다시 검증했다.
-- Electron 0.3.18 전환본이 기존 업데이트 UI에 Rust 진행률·오류·재시도를 표시하도록 구현했다.
+- Electron 0.3.19 전환본이 기존 업데이트 UI에 Rust 진행률·오류·재시도·화면 숨기기를 표시하도록 구현했다.
 - 설치·제거 종료 요청을 고유 토큰으로 반복하고 30초 뒤 현재 제거기 외 설치 폴더 내부 프로세스만 제한 종료하도록 수정했다.
-- 수정된 Rust 0.4.1 설치형·포터블과 Electron 0.3.18 실서명 산출물을 생성하고 독립 코드 리뷰 승인을 받았다.
-- GitHub v0.4.1의 7개 자산을 순차 대체하고 원격 SHA-256·Ed25519 서명·0.3.18 라우팅을 검증했다.
+- 수정된 Rust 0.4.1 설치형·포터블 실서명 산출물을 생성하고 독립 코드 리뷰 승인을 받았다.
+- GitHub v0.4.1의 Rust 자산을 순차 대체하고 원격 SHA-256·Ed25519 서명·실다운로드를 검증했다.
 - 실제 0.4.0 진단에서 async reqwest body가 Tokio runtime 없이 생성돼 발생한 다운로드 시작 패닉을 확정하고 순수 blocking client로 교체했다.
 - Rust와 Electron 업데이트 오류 화면을 숨긴 뒤 버전 배지로 다시 열 수 있게 하고, timeout helper 종료·시도 무효화와 named mutex로 중복 전환을 차단했다.
 - 승인된 설치형·포터블·전환본 7개 자산을 GitHub v0.4.1에 재배포하고 원격 해시와 공개 실다운로드를 검증했다.
