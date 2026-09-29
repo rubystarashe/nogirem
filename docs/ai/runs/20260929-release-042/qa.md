@@ -65,3 +65,25 @@
 - feature_map: `updated — docs/ai/wiki/feature-map.md에 시나리오와 evidence 반영`
 - architecture_impact: `네트워크 writer와 updater/installer/helper 수명주기`
 - architecture_contract: `updated — docs/ai/wiki/agent-friendly-architecture.md에 경계와 enforcement 반영`
+
+## CP-RELEASE-042-02 대치 QA
+
+- source_target: `3cb35d86bf8967a86303b9440754445d9d338443`
+- execution_target: `Windows 10.0.26200 x64, Node 23.11.1, Rust locked dependencies, signed update manifests, GitHub public v0.4.2 assets`
+- QA_state: `COMPLETE_PASS for mandatory automated replacement scope`
+- `UPD-007` native mandatory-label policy: `PASS`
+  - expected: valid ACL, mandatory authority, NO_WRITE_UP와 High/System RID만 허용.
+  - actual: High/System 허용과 Medium, missing policy, wrong authority, protected RID 거부.
+- 실제 NTFS High label path query: `BLOCKED`
+  - Cursor sandbox token에서 `icacls`가 오류 1299를 반환해 High label을 만들 수 없었다. 제품 코드의 설정 실패 검출은 확인했으나 외부 관리자 토큰에서의 종단간 실행은 `NOT_RUN`.
+- Node: `PASS`, 198/198.
+- Rust backend: `PASS`, 57 executed, 2 declared ignored.
+- Rust desktop check: `PASS`.
+- independent review: `APPROVED`, two mandatory findings resolved.
+- package: `PASS`, installer `8ed390dbcc809fbaf3fbe84a591b1bda6ebb7974f7079f503030d39d2caa95c0`, portable `128d4a3d0a381cbf2ad4bee183fb4d4a64dc0ae80635a9cfed2e4f37277d2b0c`.
+- public manifests: `PASS`, Ed25519 signatures and full payload downloads matched.
+- Authenticode: `NOT_APPLICABLE to current release policy — 기존과 동일하게 두 EXE는 NotSigned이며 update authenticity는 Ed25519 manifest로 제공`.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — native label QA와 외부 장치 gap 반영`
+- architecture_impact: `mandatory integrity ACL parsing and setting failure boundary`
+- architecture_contract: `updated — native verification requirements recorded`

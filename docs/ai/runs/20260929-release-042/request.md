@@ -40,3 +40,17 @@
 - feature_map: `blocked — 정본 feature map이 없으므로 이번 실행에서 생성·연결해야 함; owner cursor-coordinator-92251f36`
 - architecture_impact: `업데이트 실행 권한 경계, updater 단일 작업 경로, installer/helper 프로세스 수명주기, 네트워크 설정 writer 경계`
 - architecture_contract: `blocked — 정본 architecture contract가 없으므로 검증된 현재 경계와 이번 보강을 기록해야 함; owner cursor-coordinator-92251f36`
+
+## CP-RELEASE-042-02 대치 요청
+
+- received_at: `2026-09-29T17:51:00Z`
+- original_request: `수정하고 대치재배포해`
+- objective: 정상 High integrity 작업 파일을 PowerShell SDDL 문자열 누락으로 거부하는 0.4.2 updater를 수정하고 동일 GitHub v0.4.2 자산을 대치한다.
+- acceptance: native label 검증 회귀, 전체 Node/Rust 검증, 독립 리뷰, Ed25519 패키징, 설치형·포터블·매니페스트 대치와 공개 실다운로드 검증.
+- constraint: 이미 실패 중인 0.4.1 helper는 새 payload 실행 전에 종료되므로 서버 자산만으로 self-heal할 수 없다. 해당 사용자는 대치 0.4.2를 한 번 수동 설치해야 한다.
+- authorization: 기존 v0.4.2 release asset 대치 허용. 기존 tag 재작성, main push, 사용자 장치 설치는 제외.
+- risk: `HIGH — 업데이트 신뢰 경계와 공개 실행 파일 대치`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 작업 파일 신뢰 오판 제거`
+- feature_map: `updated — native label 시나리오와 배포 한계를 반영`
+- architecture_impact: `mandatory integrity label 조회·정책 검증 경계`
+- architecture_contract: `updated — PowerShell 문자열 대신 Win32 ACL 검증을 정본화`

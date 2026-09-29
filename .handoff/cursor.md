@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-29 23:06 +09:00
+Last Updated: 2026-09-30 03:16 +09:00
 
 ## Current Objective
 Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거 수명주기를 보강하고 서명 배포한다.
@@ -13,6 +13,9 @@ Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- 0.4.2 updater의 PowerShell SDDL 문자열 검사를 Win32 mandatory-label ACL 검증으로 교체하고 label authority·NO_WRITE_UP·High/System RID를 강제했다.
+- Node 198개, Rust backend 57개 실행, desktop compile과 독립 재리뷰를 통과했으며 source commit은 `3cb35d86bf8967a86303b9440754445d9d338443`이다.
+- GitHub v0.4.2 설치형·포터블·두 서명 manifest를 대치하고 공개 실다운로드 SHA-256과 Ed25519 연결을 검증했다.
 - 진단 `55d16a69-0d32-4bfd-a118-51b03b89fab3`은 보고 시점 패스트핑 DWORD가 이미 1이었으나 인터넷 단절 중 `Get-NetRoute` 예외가 그대로 노출되는 Electron/Rust 공통 결함을 확인했다.
 - 기본 IPv4 경로 부재를 구조화된 연결 없음 상태로 바꾸고, 건강 확인을 main UI 열기 성공 직후로 이동해 UI 애니메이션과 worker·PowerShell 조회에서 분리했다.
 - 설치·제거 PowerShell을 숨김 실행하고, 포터블의 정상 무프로세스 `exit 1`을 제거했으며, stale updater 종료와 설치 폴더 프로세스 반복 재탐색을 구현했다.
@@ -94,6 +97,8 @@ Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거
 6. 오버레이 모듈 배포 자산·무결성 manifest·동의 화면과 독립 다운로드/제거 IPC를 설계한다.
 
 ## Known Issues
+- 이미 `신뢰할 수 없는 업데이트 작업 파일입니다`에서 막힌 0.4.1 helper는 새 payload 실행 전 실패하므로 대치 0.4.2 설치형을 한 번 수동 설치해야 한다.
+- 실제 관리자 토큰의 High label 종단간 QA는 Cursor sandbox의 `icacls` 오류 1299 때문에 실행하지 못했다.
 - affinity reset은 프로세스별 저장 mask 대신 현재 세션에 전체 mask를 적용하며 worker 시작 시 이전 runtime state를 삭제해 비정상 종료 전 custom affinity의 정확한 복원을 보장하지 않는다.
 - 네트워크 되돌리기는 패스트핑과 RSS 원본을 다루지만 TCP receive autotuning의 이전 값은 저장·복원하지 않는다.
 - NVIDIA/Radeon/VSync 최적화는 이전 설정 snapshot과 restore 경로가 없고 Radeon은 전역 설정이다.

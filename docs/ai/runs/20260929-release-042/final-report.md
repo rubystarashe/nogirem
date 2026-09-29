@@ -74,3 +74,26 @@
 - architecture_contract: `updated — docs/ai/wiki/agent-friendly-architecture.md`
 - known risks: 기존 advanced structure smoke harness gap, 실제 외부 장치 update·인터넷 복구 수동 확인 부재.
 - exceptions: 없음
+
+## CP-RELEASE-042-02 대치 배포 최종 보고
+
+- completed_at: `2026-09-29T18:16:00Z`
+- disposition: `COMPLETED — 공개 자산 대치`, 실제 외부 관리자 토큰 종단간은 `NOT_RUN`
+- request: `신뢰할 수 없는 업데이트 작업 파일입니다` 오판 수정과 v0.4.2 대치 재배포.
+- source_target: `3cb35d86bf8967a86303b9440754445d9d338443`
+- delivered: PowerShell SDDL 문자열 비교를 Win32 label ACL 조회로 교체하고 ACL·ACE·SID 경계, authority, NO_WRITE_UP와 High/System RID를 검증한다. `icacls /C`가 실제 설정 실패를 성공처럼 숨기던 경로도 제거했다.
+- automated-test-passing: Node 198/198, Rust backend 57 executed with 2 declared ignores, desktop cargo check, release package checks.
+- manually exercised: GitHub 공개 설치형·포터블·두 manifest 전체 다운로드, SHA-256과 Ed25519 payload 연결 검증.
+- review: `INDEPENDENT_REVIEW APPROVED`; `ISSUE-INTEGRITY-001/002 RESOLVED`; approval fresh.
+- feature_gate: `PASS for source and automated scenarios`; 실제 0.4.1→대치 0.4.2 외부 장치 update는 `NOT_RUN`.
+- architecture_gate: `PASS`; native mandatory-label contract revision 2.
+- target_authorization_gate: `PASS`; assets만 대치했고 tag history와 main branch를 변경하지 않았다.
+- release: [v0.4.2](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.2)
+- installer: `8ed390dbcc809fbaf3fbe84a591b1bda6ebb7974f7079f503030d39d2caa95c0`
+- portable: `128d4a3d0a381cbf2ad4bee183fb4d4a64dc0ae80635a9cfed2e4f37277d2b0c`
+- limitation: 기존 0.4.1 helper는 대치 payload 실행 전에 실패하므로 영향 사용자는 0.4.2를 한 번 수동 설치해야 한다. Cursor sandbox의 `icacls` 오류 1299로 실제 High label path query는 실행하지 못했다.
+- commit: `3cb35d86bf8967a86303b9440754445d9d338443`; push `none`; tag rewrite `none`; 사용자 장치 activation `none`.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 작업 파일 신뢰 오판 수정`
+- feature_map: `updated — docs/ai/wiki/feature-map.md revision 2`
+- architecture_impact: `mandatory integrity ACL parsing and setting failure boundary`
+- architecture_contract: `updated — docs/ai/wiki/agent-friendly-architecture.md revision 2`

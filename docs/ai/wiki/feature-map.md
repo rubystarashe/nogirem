@@ -2,21 +2,21 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `1`
-- updated_at: `2026-09-29T13:48:00Z`
+- revision: `2`
+- updated_at: `2026-09-29T18:16:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-09-29T13:48:00Z`
+- source_reviewed_at: `2026-09-29T18:09:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `86ca9261ab763e57477c7655d3f303b256d29bd8, remote tag v0.4.2`
+- source_review_target: `3cb35d86bf8967a86303b9440754445d9d338443, v0.4.2 replacement assets`
 - source_review_evidence: `desktop/backend/src/network.rs`, `network_manager.rs`, `update_install.rs`, `service.rs`, NSIS와 PowerShell 종료 경로
-- behavior_verified_at: `2026-09-29T13:47:00Z`
+- behavior_verified_at: `2026-09-29T18:15:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `v0.4.2 signed local and public GitHub assets`
+- behavior_verification_target: `3cb35d86bf8967a86303b9440754445d9d338443 기반 v0.4.2 replacement assets`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Node 테스트와 Rust test/check`
-- behavior_verification_evidence: `npm test 198/198, backend Rust 56 executed with 1 declared live-network ignore, cargo check, focused startup/updater smokes, independent review, public manifest signature and asset download hashes`
+- behavior_verification_evidence: `npm test 198/198, backend Rust 57 executed with 2 declared ignores, cargo check, independent review APPROVED, public manifest Ed25519 and full asset download hashes`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.2 배포 후보의 관련 소스와 자동 실행 결과를 함께 검토함`
-- known_gaps: `실제 인터넷 단절·복구와 사용자 설치본 간 업데이트는 공개 전 자동 계약으로 검증했으며 외부 사용자 장치 수동 확인은 없음`
+- freshness_reason: `0.4.2 대치 자산의 updater 무결성 소스와 공개 자산을 다시 검증함`
+- known_gaps: `실제 외부 장치의 High label 종단간 update는 미실행이며 이미 실패 중인 0.4.1 helper는 새 payload 실행 전에 중단돼 0.4.2 수동 설치가 한 번 필요함`
 - feature_impact: `FEAT-NOGIREM-NETWORK-FASTPING`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
 - feature_map: `updated — 두 기능의 정본 identity와 동작·증거를 신규 지정함`
 - architecture_impact: `네트워크 설정 writer와 updater·installer·helper 수명주기 경계`
@@ -72,10 +72,10 @@
 - state_and_side_effects: `%LOCALAPPDATA%\NogiremUpdater\updates\job-*` 작업 상태, 설치 파일, registry uninstall 항목, 바로가기, 시작 예약 작업을 관리한다.
 - dependencies_and_contracts: Rust updater가 유일한 update 작업 writer이며 NSIS는 설치 파일 writer, stop script는 경로 제한 process terminator다. Electron 0.3.19는 Rust 전환 manifest로 연결된다.
 - durable_data: 작업 `job.json/result.json/healthy.json`은 updater가 쓰고 service는 검증된 작업의 건강 확인만 쓴다. 사용자 설정과 녹화 파일은 제거·업데이트 대상이 아니다.
-- security_privacy: manifest 서명·digest, reparse 방지, High integrity, exact executable path와 parent PID 검증을 사용한다. 개인 데이터나 signing key를 자산에 포함하지 않는다.
+- security_privacy: manifest 서명·digest, reparse 방지, Win32 mandatory-label authority·NO_WRITE_UP·High/System RID, exact executable path와 parent PID 검증을 사용한다. 개인 데이터나 signing key를 자산에 포함하지 않는다.
 - compatibility: 0.4.1 updater는 별도 installer 인자 없이도 검증된 부모 `updater.exe`로 인식한다. 새 updater는 `/NOGIREMUPDATE=<pid>`를 추가 전달한다.
 - limits_exclusions: OS 종료·전원 손실 전체를 transaction으로 만들지는 않는다. 관련 backup이 없는 오래된 설치는 수동 복구가 필요할 수 있다.
-- scenarios: `UPD-001 설치형 성공`, `UPD-002 건강 확인 실패 rollback`, `UPD-003 포터블 원자 교체`, `UPD-004 직접 제거 중 stale helper`, `UPD-005 늦게 생성된 프로세스`, `UPD-006 0.4.1 부모 updater 호환`
+- scenarios: `UPD-001 설치형 성공`, `UPD-002 건강 확인 실패 rollback`, `UPD-003 포터블 원자 교체`, `UPD-004 직접 제거 중 stale helper`, `UPD-005 늦게 생성된 프로세스`, `UPD-006 0.4.1 부모 updater 호환`, `UPD-007 native mandatory-label 검증`
 - evidence: `test/installer.test.mjs`, `test/portable-release.test.mjs`, Rust updater/update_install tests, `docs/ai/runs/20260929-release-042`
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).

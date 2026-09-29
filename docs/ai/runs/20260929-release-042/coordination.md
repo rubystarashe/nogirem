@@ -37,3 +37,19 @@
 - feature_map: `updated — docs/ai/wiki/feature-map.md`
 - architecture_impact: `updater·installer·helper 신뢰 경계와 single update writer, NIC GUID writer 경계`
 - architecture_contract: `updated — docs/ai/wiki/agent-friendly-architecture.md`
+
+## CP-RELEASE-042-02
+
+- updated_at: `2026-09-29T18:16:00Z`
+- active_checkpoint: `completed`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS for executable automated scope`
+- review: `APPROVED`, `ISSUE-INTEGRITY-001/002 RESOLVED`
+- source: `3cb35d86bf8967a86303b9440754445d9d338443`
+- release: `PUBLISHED_REPLACEMENT`, GitHub v0.4.2 assets
+- compatibility: 0.4.2 대치본은 이후 updater 검증을 수정한다. 이미 오류에 진입한 0.4.1은 0.4.2 수동 설치가 필요하다.
+- target decision: 기존 remote tag는 재작성하지 않고 assets만 명시 승인에 따라 대치했다. main branch는 push하지 않았다.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — revision 2`
+- architecture_impact: `native mandatory-label trust boundary`
+- architecture_contract: `updated — revision 2`

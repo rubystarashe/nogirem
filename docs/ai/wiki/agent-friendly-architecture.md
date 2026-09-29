@@ -2,20 +2,20 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `1`
-- updated_at: `2026-09-29T13:49:00Z`
+- revision: `2`
+- updated_at: `2026-09-29T18:16:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-09-29T13:49:00Z`
+- source_reviewed_at: `2026-09-29T18:09:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `86ca9261ab763e57477c7655d3f303b256d29bd8, remote tag v0.4.2`
+- source_review_target: `3cb35d86bf8967a86303b9440754445d9d338443, v0.4.2 replacement assets`
 - source_review_evidence: `desktop/src`, `desktop/backend/src`, `desktop/*.nsi`, `scripts/package-dioxus.mjs`, release·installer tests
-- behavior_verified_at: `2026-09-29T13:47:00Z`
+- behavior_verified_at: `2026-09-29T18:15:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `v0.4.2 signed local and public GitHub assets`
+- behavior_verification_target: `3cb35d86bf8967a86303b9440754445d9d338443 기반 v0.4.2 replacement assets`
 - behavior_verification_environment: `Windows 10.0.26200 x64`
-- behavior_verification_evidence: `npm test 198/198, backend Rust 56 executed with 1 declared live-network ignore, cargo check, focused startup/updater smokes, independent review APPROVED, public signature and asset hash verification`
+- behavior_verification_evidence: `npm test 198/198, backend Rust 57 executed with 2 declared ignores, cargo check, independent review APPROVED, public Ed25519 signature and asset hash verification`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.2의 네트워크와 update 경계를 실제 소스·테스트에서 확인함`
+- freshness_reason: `0.4.2 대치 자산의 native mandatory-label 경계와 공개 payload를 다시 확인함`
 - known_gaps: `아래 enforcement는 테스트와 Rust compiler 중심이며 별도 dependency graph lint는 없음`
 - feature_impact: `FEAT-NOGIREM-NETWORK-FASTPING`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
 - feature_map: `updated — feature-map.md의 두 기능과 연결됨`
@@ -56,7 +56,7 @@
 ## update·설치 transaction과 호환성
 
 - manifest 서명과 payload SHA-256 검증 전에 설치를 시작하지 않는다.
-- updater 작업은 migration mutex로 직렬화하고 보호 cache의 reparse·무결성 수준을 검증한다.
+- updater 작업은 migration mutex로 직렬화하고 보호 cache의 reparse와 Win32 mandatory-label ACL을 검증한다. PowerShell SDDL 문자열 표현은 신뢰 판정에 사용하지 않으며 label authority, NO_WRITE_UP 정책과 High/System RID를 모두 요구한다.
 - 설치형은 파일·설정 backup 후 설치하고 건강 확인 실패 시 복원한다. 포터블은 동일 볼륨 원자 교체와 backup digest를 사용한다.
 - 새 updater는 installer에 자신의 PID를 전달한다. 이전 0.4.1 updater는 인자가 없으므로 installer 종료 script가 검증된 parent `updater.exe` 하나를 자동 보존한다.
 - 직접 설치·제거는 보호 updater 경로의 stale helper를 종료한다. 설치 폴더 프로세스가 정상 종료 중 다시 생길 수 있으므로 안정 구간까지 반복 조회한다.

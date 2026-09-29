@@ -42,3 +42,16 @@
 - feature_map: `blocked — 구현과 검증 결과를 반영해 신규 정본을 생성할 예정`
 - architecture_impact: `네트워크 adapter 선택, updater→installer 인자 계약, installer→PowerShell 프로세스 종료 경계, backend 건강 확인 경계`
 - architecture_contract: `blocked — 검증된 경계와 금지된 전역 process kill을 신규 정본에 기록할 예정`
+
+## CP-RELEASE-042-02 실행 결과
+
+1. `COMPLETED` — `(Get-Acl).Sddl` substring 검사를 `GetNamedSecurityInfoW(LABEL_SECURITY_INFORMATION)`로 교체.
+2. `COMPLETED` — ACL·ACE·SID 경계, mandatory authority, NO_WRITE_UP, High/System RID 회귀 추가.
+3. `COMPLETED` — Node 198, Rust backend 57, desktop check와 독립 review 재승인.
+4. `COMPLETED` — source `3cb35d86bf8967a86303b9440754445d9d338443`에서 0.4.2 설치형·포터블과 Ed25519 manifest 생성.
+5. `COMPLETED` — GitHub v0.4.2 네 자산 대치와 공개 실다운로드·서명·payload digest 검증.
+- rollback constraint: 기존 자산 digest는 run 기록에 보존하며 문제가 생기면 새 자산을 삭제하거나 임의 tag를 재작성하지 않고 별도 승인된 복구 자산을 사용한다.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — docs/ai/wiki/feature-map.md revision 2`
+- architecture_impact: `updater mandatory-label 신뢰 경계`
+- architecture_contract: `updated — docs/ai/wiki/agent-friendly-architecture.md revision 2`

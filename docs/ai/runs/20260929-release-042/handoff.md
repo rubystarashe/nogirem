@@ -74,3 +74,23 @@
 - feature_map: `no_change — 구현 checkpoint 진행 중이며 배포 증거 뒤 갱신 예정`
 - architecture_impact: `updater 작업 파일 mandatory-integrity 검증 경계`
 - architecture_contract: `no_change — 배포 증거 뒤 정본 freshness 갱신 예정`
+
+## CP-RELEASE-042-02 완료
+
+- updated_at: `2026-09-29T18:16:00Z`
+- status: `COMPLETED`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS for mandatory automated replacement scope`
+- review: `APPROVED`, fresh for source `3cb35d86bf8967a86303b9440754445d9d338443`
+- release: [GitHub v0.4.2](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.2) 네 자산 대치 완료.
+- installer: `9460244 bytes`, SHA-256 `8ed390dbcc809fbaf3fbe84a591b1bda6ebb7974f7079f503030d39d2caa95c0`
+- portable: `7693818 bytes`, SHA-256 `128d4a3d0a381cbf2ad4bee183fb4d4a64dc0ae80635a9cfed2e4f37277d2b0c`
+- public `update.json`: `5c08dbbe0d9111b486ce98a5a46e862608c59edb579f9365769fcfe8afeba889`
+- public `portable-update.json`: `1e33a650c51fcbf9d39f1c1186e895ba1b93edbf8abe6cb6e47e942eaa6583f7`
+- external limitation: 실제 관리자 토큰의 High label 종단간 QA와 이미 막힌 0.4.1 사용자의 수동 설치 성공 확인이 남아 있다.
+- safe resume: 위 사용자는 v0.4.2 설치형을 한 번 직접 실행하고, 성공 후 다음 업데이트에서 앱 내 경로를 확인한다.
+- commit: `3cb35d86bf8967a86303b9440754445d9d338443`; push/tag rewrite/deployment activation은 수행하지 않았다.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — revision 2`
+- architecture_impact: `native mandatory-label trust boundary`
+- architecture_contract: `updated — revision 2`
