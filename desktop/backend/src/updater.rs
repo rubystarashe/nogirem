@@ -9,7 +9,6 @@ use std::{fs, io::{Read, Write}, path::{Path, PathBuf}, sync::{Arc, Mutex, atomi
 pub const STARTUP_CHECK_DELAY_MS:u64=3_000;
 pub const CHECK_INTERVAL_MS:u64=4*60*60*1_000;
 pub const COMPLETION_DELAY_MS:u64=350;
-pub const DOWNLOAD_STALL_MS:u64=45_000;
 const MAX_INSTALLER: u64 = 512 * 1024 * 1024;
 #[derive(Clone, Deserialize)]
 pub struct Config { pub repository: String, pub public_key: String }
@@ -75,11 +74,16 @@ fn write_download(mut input:impl Read,path:&Path,m:&Manifest,progress:&dyn Fn(u6
     })();
     drop(file);if result.is_err(){let _=fs::remove_file(path);}result
 }
-pub fn download(m:&Manifest,path:&Path,progress:&dyn Fn(u64),cancel:&AtomicBool)->Result<()> {
-    let client=reqwest::blocking::ClientBuilder::from(reqwest::Client::builder().read_timeout(Duration::from_millis(DOWNLOAD_STALL_MS))).https_only(true).connect_timeout(Duration::from_secs(15)).timeout(Duration::from_secs(15*60)).user_agent("nogirem-updater").build().map_err(|e|e.to_string())?;
+fn download_client(https_only:bool)->Result<reqwest::blocking::Client> {
+    reqwest::blocking::Client::builder().https_only(https_only).connect_timeout(Duration::from_secs(15)).timeout(Duration::from_secs(5*60)).user_agent("nogirem-updater").build().map_err(|e|e.to_string())
+}
+fn download_with_client(client:&reqwest::blocking::Client,m:&Manifest,path:&Path,progress:&dyn Fn(u64),cancel:&AtomicBool)->Result<()> {
     let response=client.get(&m.url).send().map_err(|e|e.to_string())?.error_for_status().map_err(|e|e.to_string())?;
     if response.content_length().is_some_and(|n|n!=m.size){return Err("서버의 설치파일 크기가 일치하지 않습니다".into());}
     write_download(response,path,m,progress,cancel)
+}
+pub fn download(m:&Manifest,path:&Path,progress:&dyn Fn(u64),cancel:&AtomicBool)->Result<()> {
+    download_with_client(&download_client(true)?,m,path,progress,cancel)
 }
 pub fn cache_root()->Result<PathBuf>{
     Ok(PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA 누락")?).join("NogiremUpdater/updates"))
@@ -146,4 +150,8 @@ mod tests {
     #[test] fn signatures_versions_and_addresses(){let(mut m,c,k)=sample();let good=signed(&m,&k);assert_eq!(verify_envelope(&good,&c).unwrap().version,"0.4.1");let mut portable=m.clone();portable.url="https://github.com/test/repo/releases/download/v0.4.1/nogirem-dioxus-portable-0.4.1.exe".into();assert_eq!(verify_envelope_for(&signed(&portable,&k),&c,true).unwrap().version,"0.4.1");assert!(verify_envelope_for(&good,&c,true).is_err());let mut bad:Value=serde_json::from_slice(&good).unwrap();bad["payload"]=json!(bad["payload"].as_str().unwrap().replace("0.4.1","0.9.0"));assert!(verify_envelope(&serde_json::to_vec(&bad).unwrap(),&c).is_err());m.url="https://evil.invalid/install.exe".into();assert!(verify_envelope(&signed(&m,&k),&c).is_err());assert!(newer("0.4.10","0.4.9").unwrap());assert!(!newer("0.4.0","0.4.0").unwrap());assert!(!newer("0.3.17","0.4.0").unwrap());}
     #[test] fn partial_corrupt_oversized_and_cancelled_downloads_never_survive(){let(m,_,_)=sample();for (data,cancelled) in [(b"ab".as_slice(),false),(b"abd",false),(b"abcd",false),(b"abc",true)]{let p=std::env::temp_dir().join(format!("nogirem-download-test-{}",uuid::Uuid::new_v4()));assert!(write_download(data,&p,&m,&|_|{},&AtomicBool::new(cancelled)).is_err());assert!(!p.exists());}}
     #[test] fn valid_download_is_reverified_before_install(){let(m,_,_)=sample();let p=std::env::temp_dir().join(format!("nogirem-download-test-{}",uuid::Uuid::new_v4()));write_download(b"abc".as_slice(),&p,&m,&|_|{},&AtomicBool::new(false)).unwrap();verify_file(&p,&m).unwrap();fs::write(&p,b"abd").unwrap();assert!(verify_file(&p,&m).is_err());fs::remove_file(p).unwrap();}
+    #[test] fn local_blocking_download_works_without_runtime(){let listener=std::net::TcpListener::bind("127.0.0.1:0").unwrap();let address=listener.local_addr().unwrap();let server=std::thread::spawn(move||{let(mut stream,_)=listener.accept().unwrap();let mut request=[0u8;4096];let _=stream.read(&mut request).unwrap();stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\nConnection: close\r\n\r\nabc").unwrap();});let(m,_,_)=sample();let m=Manifest{url:format!("http://{address}/installer.exe"),..m};let p=std::env::temp_dir().join(format!("nogirem-local-download-test-{}",uuid::Uuid::new_v4()));download_with_client(&download_client(false).unwrap(),&m,&p,&|_|{},&AtomicBool::new(false)).unwrap();verify_file(&p,&m).unwrap();fs::remove_file(p).unwrap();server.join().unwrap();}
+    #[test]
+    #[ignore="공개 GitHub 자산을 실제로 다운로드하는 배포 전 검사"]
+    fn live_signed_update_download_uses_blocking_client_without_runtime(){let(m,_)=fetch_manifest().unwrap();let p=std::env::temp_dir().join(format!("nogirem-live-download-test-{}",uuid::Uuid::new_v4()));download(&m,&p,&|_|{},&AtomicBool::new(false)).unwrap();verify_file(&p,&m).unwrap();fs::remove_file(p).unwrap();}
 }

@@ -32,6 +32,7 @@ pub struct State {
     pub notice: Value,
     pub reports: Value,
     pub update: Value,
+    pub update_dismissed: bool,
     pub seen_report_ids: std::collections::BTreeSet<String>,
     pub include_nic: bool,
     pub creator_profile: Value,
@@ -441,7 +442,7 @@ pub fn Main() -> Element {
             button { class: "window-control window-minimize", aria_label: "트레이로 최소화", onclick: {let client=client.clone(); move |_| command(client.clone(), state, "application:minimize-to-tray", json!([])) }, svg { width: "25", height: "25", "aria-hidden": "true", class: "control-icon-bg",line { x1: "0", y1: "24", x2: "25", y2: "24", stroke_width: "2", class: "" }}svg { width: "25", height: "25", "aria-hidden": "true", line { x1: "0", y1: "24", x2: "25", y2: "24", stroke_width: "2", class: "control-line-one" }} }
             button { class: "window-control window-close", aria_label: "프로그램 닫기", onclick: {let client=client.clone(); move |_| command(client.clone(), state, "application:request-close", json!([])) }, svg { width: "25", height: "25", "aria-hidden": "true", class: "control-icon-bg",line { x1: "0", y1: "0", x2: "25", y2: "25", stroke_width: "2", class: "" }line { x1: "25", y1: "0", x2: "0", y2: "25", stroke_width: "2", class: "" }}svg { width: "25", height: "25", "aria-hidden": "true", line { x1: "0", y1: "0", x2: "25", y2: "25", stroke_width: "2", class: "control-line-one" }line { x1: "25", y1: "0", x2: "0", y2: "25", stroke_width: "2", class: "control-line-two" }} }
         }
-        button { class: format!("app-version{}{}", if visual_running { "" } else { " paused" }, if update_available(&snapshot.update) { " update-available" } else { "" }), aria_label: if update_available(&snapshot.update) { "새 버전 업데이트" } else { "최신 업데이트 확인" }, onclick: {let client=client.clone();move |_| command(client.clone(),state,"application:check-update",json!([]))}, if update_available(&snapshot.update) { "새 버전 출시됨" } else { {env!("CARGO_PKG_VERSION")} } }
+        button { class: format!("app-version{}{}", if visual_running { "" } else { " paused" }, if update_available(&snapshot.update) { " update-available" } else { "" }), aria_label: if update_available(&snapshot.update) { "새 버전 업데이트" } else { "최신 업데이트 확인" }, onclick: {let client=client.clone();move |_| {state.write().update_dismissed=false;command(client.clone(),state,"application:check-update",json!([]))}}, if update_available(&snapshot.update) { "새 버전 출시됨" } else { {env!("CARGO_PKG_VERSION")} } }
 
         CreatorPrompt { visible: creator_prompt_visible(&snapshot) }
         button { class: format!("creator-credit {} {} {}",if snapshot.navigation_ready {"entered"}else{""},if visual_running {""}else{"paused"},if !snapshot.modal.is_empty() {"hidden"}else{""}),
@@ -496,7 +497,7 @@ pub fn Main() -> Element {
                 }
             }
         }
-        if snapshot.modal != "close" && matches!(snapshot.update["phase"].as_str(),Some("downloading"|"downloaded"|"installing")) { UpdatePreview {} }
+        if snapshot.modal != "close" && !snapshot.update_dismissed && matches!(snapshot.update["phase"].as_str(),Some("downloading"|"downloaded"|"installing"|"error")) { UpdatePreview {} }
         if !snapshot.modal.is_empty() { Modal {} }
         if !snapshot.error.is_empty() {
             div { class: "native-error", role: "alert",
@@ -1381,18 +1382,22 @@ fn VersionHistory() -> Element {
 }
 
 fn update_available(update:&Value)->bool {
-    matches!(update["phase"].as_str(),Some("available"|"downloading"|"downloaded"|"installing")) && update["version"].as_str().is_some_and(|v|!v.is_empty())
+    matches!(update["phase"].as_str(),Some("available"|"downloading"|"downloaded"|"installing"|"error")) && update["version"].as_str().is_some_and(|v|!v.is_empty())
 }
 #[component]
 fn UpdatePreview()->Element {
-    let state=use_context::<Signal<State>>();let client=use_context::<Client>();let s=state.read();
+    let mut state=use_context::<Signal<State>>();let client=use_context::<Client>();let s=state.read();
     let downloaded=matches!(s.update["phase"].as_str(),Some("downloaded"|"installing"));
+    let failed=s.update["phase"]=="error";
     let installing=s.update["phase"]=="installing" || s.busy;
     let percent=s.update["percent"].as_f64().unwrap_or(0.).clamp(0.,100.);
+    let error=s.update["error"].as_str().unwrap_or("업데이트 다운로드에 실패했습니다");
     rsx! {div {class:"update-preview-overlay",role:"dialog",aria_modal:"true",aria_label:"업데이트",
         section {class:"update-preview-panel",
-            h2 {if downloaded {"새 버전 다운로드 완료됨"} else {"새 버전을 가져오고 있습니다"}}
-            if downloaded {button {r#type:"button",disabled:installing,onclick:move |_| command(client.clone(),state,"application:install-update",json!([])),if installing {"설치 준비 중"} else {"새 버전 설치"}}}
+            button {class:"update-dismiss",r#type:"button",onclick:move |_| state.write().update_dismissed=true,"숨기기"}
+            h2 {if failed {"업데이트를 완료하지 못했습니다"} else if downloaded {"새 버전 다운로드 완료됨"} else {"새 버전을 가져오고 있습니다"}}
+            if failed {p {"{error}"} button {r#type:"button",disabled:s.busy,onclick:move |_| command(client.clone(),state,"application:check-update",json!([])),"다시 시도"}}
+            else if downloaded {button {class:"update-install",r#type:"button",disabled:installing,onclick:move |_| command(client.clone(),state,"application:install-update",json!([])),if installing {"설치 준비 중"} else {"새 버전 설치"}}}
             else {div {class:"update-progress",aria_live:"polite",span {"{percent.floor()}%"} div {class:"update-progress-track",div {class:"update-progress-value",style:"width: {percent}%"}}}}
         }
     }}

@@ -13,6 +13,9 @@
   - links: 전체 요구사항
 - DEV-HOTFIX-05 (`VERIFIED`): v0.4.1 자산 순차 대체와 공개 검증
   - links: REQ-HOTFIX-03
+- DEV-HOTFIX-06 (`IN_PROGRESS`): 실제 0.4.0 사용자 패닉에 따른 blocking 다운로드·오류 재시도 수정과 0.4.1 재대체
+  - links: REQ-HOTFIX-03, REQ-HOTFIX-06
+  - files: `desktop/backend/src/updater.rs`, `desktop/backend/src/update_install.rs`, `desktop/src/ui.rs`, `desktop/src/smoke.rs`, `web/update-preview.css`, `src/migration-attempt.mjs`, `scripts/prepare-electron-bridge.mjs`, 관련 테스트·배포 문서
 
 ## 검증 시나리오
 
@@ -22,3 +25,4 @@
 - 정상 종료 요청이 성공하면 강제 종료를 사용하지 않는다.
 - 정상 종료 제한 시간을 넘기면 설치 폴더 내부 프로세스만 종료한다.
 - 앱 종료 시 다운로드 취소 플래그를 설정한다.
+- 공개 서명 매니페스트와 설치 자산을 Tokio runtime 없이 실제 다운로드하고 해시를 검증한다.

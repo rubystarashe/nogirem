@@ -30,11 +30,13 @@ pkg.build.directories.output=output
 await writeFile(join(source,'package.json'),JSON.stringify(pkg,null,2)+'\n')
 const lock=JSON.parse(await readFile(join(source,'package-lock.json'),'utf8'));lock.version=bridgeVersion;lock.packages[''].version=bridgeVersion;await writeFile(join(source,'package-lock.json'),JSON.stringify(lock,null,2)+'\n')
 await mkdir(join(source,'migration'),{recursive:true});await copyFile(helper,join(source,'migration/nogirem-migrator.exe'))
+await copyFile(join(root,'src/migration-attempt.mjs'),join(source,'electron/migration-attempt.mjs'))
 const module=`import {app} from 'electron'
 import {spawn} from 'node:child_process'
 import {readFile} from 'node:fs/promises'
 import {join} from 'node:path'
 import {randomUUID} from 'node:crypto'
+import {createMigrationAttemptGate} from './migration-attempt.mjs'
 
 const targetVersion=${JSON.stringify(rustVersion)}
 const statusPath=join(process.env.LOCALAPPDATA ?? app.getPath('userData'),'NogiremUpdater','updates','migration-status.json')
@@ -44,6 +46,7 @@ let state={phase:'available',percent:0,version:targetVersion,error:null}
 let lastStatusKey=''
 let lastStatusAt=0
 let handedOff=false
+const attempts=createMigrationAttemptGate()
 
 function update(next){
  state={...state,...next}
@@ -51,15 +54,18 @@ function update(next){
  return state
 }
 
-function failure(message){
+function failure(message,attempt=attempts.current()){
+ if(!attempts.isCurrent(attempt)) return state
  clearInterval(monitor)
  monitor=null
  return update({phase:'error',percent:0,error:{name:'RustMigrationError',message}})
 }
 
 async function refresh(attempt){
+ if(!attempts.isCurrent(attempt)) return
  try{
   const status=JSON.parse(await readFile(statusPath,'utf8'))
+  if(!attempts.isCurrent(attempt)) return
   if(status.attempt!==attempt) return
   const statusKey=\`\${status.updatedAt}:\${status.phase}:\${status.percent}\`
   if(statusKey!==lastStatusKey){
@@ -67,7 +73,7 @@ async function refresh(attempt){
    lastStatusAt=Date.now()
   }
   if(status.phase==='error'){
-   failure(status.error || 'Rust 버전 전환에 실패했습니다')
+   failure(status.error || 'Rust 버전 전환에 실패했습니다',attempt)
    return
   }
   if(status.phase==='downloading'){
@@ -96,19 +102,27 @@ export async function requestMigration(){
  if(state.phase==='downloading') return state
  const executable=join(process.resourcesPath,'app.asar.unpacked','migration','nogirem-migrator.exe')
  const attempt=randomUUID()
+ attempts.replace(attempt)
  lastStatusKey=''
  lastStatusAt=Date.now()
  handedOff=false
  update({phase:'downloading',percent:0,version:targetVersion,error:null})
- const child=spawn(executable,['--migrate-electron',app.getPath('exe'),String(process.pid),\`--migration-attempt=\${attempt}\`],{windowsHide:true,stdio:'ignore'})
- child.once('error',error=>failure(\`Rust 전환 helper를 시작하지 못했습니다: \${error.message}\`))
- child.once('exit',code=>{
-  if(code && state.phase==='downloading') failure('관리자 권한을 허용하지 않았거나 Rust 전환 helper가 중단되었습니다')
+ const child=spawn(executable,['--migrate-electron',app.getPath('exe'),String(process.pid),\`--migration-attempt=\${attempt}\`],{windowsHide:true,stdio:['ignore','ignore','pipe']})
+ attempts.attach(attempt,child)
+ child.stderr.on('data',data=>console.error(\`Rust 전환 helper 오류: \${data.toString().trim()}\`))
+ child.once('error',error=>failure(\`Rust 전환 helper를 시작하지 못했습니다: \${error.message}\`,attempt))
+ child.once('exit',async code=>{
+  await refresh(attempt)
+  if(!attempts.isCurrent(attempt)) return
+  attempts.clear(attempt)
+  if(code && state.phase==='downloading') failure('관리자 권한을 허용하지 않았거나 Rust 전환 helper가 중단되었습니다',attempt)
  })
  clearInterval(monitor)
  monitor=setInterval(()=>{
+  if(!attempts.isCurrent(attempt)) return
   if(!handedOff && Date.now()-lastStatusAt>60_000){
-   failure('관리자 권한 확인 또는 업데이트 응답이 없어 중단했습니다. 다시 시도해 주세요')
+   failure('관리자 권한 확인 또는 업데이트 응답이 없어 중단했습니다. 다시 시도해 주세요',attempt)
+   attempts.stop(attempt)
    return
   }
   void refresh(attempt)
@@ -169,18 +183,26 @@ let appSource=await readFile(appPath,'utf8')
 const availableNeedle='["available", "downloading", "downloaded"].includes(applicationUpdateState.phase)'
 const modalNeedle='  || applicationUpdateState.phase === "downloaded"'
 const modalProps='    onInstall={installApplicationUpdate}'
-for(const needle of [availableNeedle,modalNeedle,modalProps]) if(!appSource.includes(needle)) throw new Error(`Electron renderer migration insertion point is missing: ${needle}`)
+const installingNeedle='  let applicationUpdateInstalling = false'
+const checkUpdateNeedle=/  function checkApplicationUpdate\(\) \{\r?\n    void window\.nogirem\.checkUpdate\(\)\.catch\(\(\) => \{\}\)\r?\n  \}/
+for(const needle of [availableNeedle,modalNeedle,modalProps,installingNeedle]) if(!appSource.includes(needle)) throw new Error(`Electron renderer migration insertion point is missing: ${needle}`)
+if(!checkUpdateNeedle.test(appSource)) throw new Error('Electron renderer update retry insertion point is missing')
 appSource=appSource.replace(availableNeedle,'["available", "downloading", "downloaded", "error"].includes(applicationUpdateState.phase)')
 appSource=appSource.replace(modalNeedle,modalNeedle+'\n  || applicationUpdateState.phase === "error"')
-appSource=appSource.replace(modalProps,modalProps+'\n    error={applicationUpdateState.phase === "error" ? applicationUpdateState.error?.message : ""}\n    onRetry={checkApplicationUpdate}')
+appSource=appSource.replace(installingNeedle,installingNeedle+'\n  let applicationUpdateDismissed = false')
+appSource=appSource.replace(checkUpdateNeedle,'  function checkApplicationUpdate() {\n    applicationUpdateDismissed = false\n    void window.nogirem.checkUpdate().catch(() => {})\n  }')
+appSource=appSource.replace('{#if !closeModalVisible && (','{#if !closeModalVisible && !applicationUpdateDismissed && (')
+appSource=appSource.replace(modalProps,modalProps+'\n    error={applicationUpdateState.phase === "error" ? applicationUpdateState.error?.message : ""}\n    onRetry={checkApplicationUpdate}\n    onDismiss={() => applicationUpdateDismissed = true}')
 await writeFile(appPath,appSource)
 const modalPath=join(source,'web/UpdatePreviewModal.svelte')
 let modalSource=await readFile(modalPath,'utf8')
-modalSource=modalSource.replace('  export let onInstall = () => {}','  export let onInstall = () => {}\n  export let error = ""\n  export let onRetry = () => {}')
+modalSource=modalSource.replace('  export let onInstall = () => {}','  export let onInstall = () => {}\n  export let error = ""\n  export let onRetry = () => {}\n  export let onDismiss = () => {}')
 modalSource=modalSource.replace('{downloaded ? "새 버전 다운로드 완료됨" : "새 버전을 가져오고 있습니다"}','{error ? "업데이트를 완료하지 못했습니다" : downloaded ? "새 버전 다운로드 완료됨" : "새 버전을 가져오고 있습니다"}')
+modalSource=modalSource.replace('  <section class="update-preview-panel">','  <section class="update-preview-panel">\n    <button class="update-dismiss" type="button" onclick={onDismiss}>숨기기</button>')
 modalSource=modalSource.replace('    {#if !downloaded}', '    {#if error}\n      <p>{error}</p>\n      <button type="button" onclick={onRetry}>다시 시도</button>\n    {:else if !downloaded}')
 modalSource=modalSource.replace('  button {', '  p {\n    max-width: 380px;\n    margin: 10px 190px 0 0;\n    font-size: 15px;\n    line-height: 1.45;\n  }\n\n  button {')
-if(!modalSource.includes('다시 시도')||!modalSource.includes('export let error')) throw new Error('Electron migration retry UI generation failed')
+modalSource=modalSource.replace('  button:hover {','  button.update-dismiss {\n    top: 10px;\n    right: 14px;\n    bottom: auto;\n    min-width: 68px;\n    height: 32px;\n    padding: 0 10px;\n    font-size: 14px;\n  }\n\n  button:hover {')
+if(!modalSource.includes('다시 시도')||!modalSource.includes('export let error')||!appSource.includes('applicationUpdateDismissed')||!modalSource.includes('class="update-dismiss"')) throw new Error('Electron migration retry UI generation failed')
 await writeFile(modalPath,modalSource)
 await writeFile(join(stage,'bridge-build.json'),JSON.stringify({source,output,version:bridgeVersion,rustVersion,baseCommit:execFileSync('git',['rev-parse',legacyRef],{cwd:root,encoding:'utf8'}).trim(),migrationHelper:helper},null,2))
 console.log(`Bridge source prepared: ${source}`)

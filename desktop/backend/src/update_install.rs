@@ -4,10 +4,14 @@ use serde_json::{Value,json};
 use sha2::{Digest,Sha256};
 use std::{fs, io::Read, path::{Path,PathBuf}, process::{Command,Stdio}, time::{Duration,Instant}};
 use std::os::windows::{fs::MetadataExt,process::CommandExt};
+use windows_sys::Win32::{Foundation::{CloseHandle,ERROR_ALREADY_EXISTS,GetLastError,HANDLE},System::Threading::CreateMutexW};
 
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
 pub struct Job { pub nonce:String,pub parent_pids:Vec<u32>,pub install_dir:PathBuf,pub user_dir:PathBuf,pub startup:bool,pub legacy_exe:Option<PathBuf>,#[serde(default)]pub portable:bool,#[serde(default)]pub portable_exe:Option<PathBuf> }
+struct MigrationGuard(HANDLE);
+impl Drop for MigrationGuard {fn drop(&mut self){unsafe{CloseHandle(self.0);}}}
+fn migration_guard()->Result<MigrationGuard>{let name="Local\\NogiremRustMigration\0".encode_utf16().collect::<Vec<_>>();let handle=unsafe{CreateMutexW(std::ptr::null(),0,name.as_ptr())};if handle.is_null(){return Err(std::io::Error::last_os_error().to_string());}if unsafe{GetLastError()}==ERROR_ALREADY_EXISTS{unsafe{CloseHandle(handle);}return Err("다른 Rust 전환 작업이 이미 진행 중입니다".into());}Ok(MigrationGuard(handle))}
 fn err(e:impl std::fmt::Display)->String{e.to_string()}
 fn quote(s:&str)->String{format!("'{}'",s.replace('\'',"''"))}
 pub fn installation()->Result<PathBuf>{Ok(PathBuf::from(std::env::var_os("ProgramW6432").or_else(||std::env::var_os("ProgramFiles")).ok_or("Program Files 누락")?).join("Nogirem"))}
@@ -319,6 +323,7 @@ pub fn recover_preinstall(dir:&Path) {
     })();let _=recover;
 }
 pub fn migrate(legacy:&Path,pid:u32,attempt:Option<&str>)->Result<()> {
+    let _guard=migration_guard()?;
     let status_path=if attempt.is_some(){Some(protected_cache_root()?.join("migration-status.json"))}else{None};
     if let (Some(attempt),Some(path))=(attempt,status_path.as_ref()){write_migration_status(path,attempt,"checking",0.,None)?;}
     legacy_uninstaller(legacy)?;
@@ -370,4 +375,5 @@ mod tests{
     use super::*;
     #[test]fn migration_rejects_versions_before_0_4_1(){assert!(!supported_migration("0.4.0").unwrap());assert!(supported_migration("0.4.1").unwrap());assert!(supported_migration("0.5.0").unwrap());}
     #[test]fn backup_restore_preserves_unrelated_files(){let root=std::env::temp_dir().join(format!("nogirem-update-test-{}",uuid::Uuid::new_v4()));let old=root.join("old");let backup=root.join("backup");fs::create_dir_all(&old).unwrap();fs::write(old.join("app.exe"),b"old").unwrap();let list=files(&old).unwrap();copy_files(&old,&backup,&list).unwrap();fs::write(old.join("app.exe"),b"new").unwrap();fs::write(old.join("user.txt"),b"keep").unwrap();copy_files(&backup,&old,&list).unwrap();assert_eq!(fs::read(old.join("app.exe")).unwrap(),b"old");assert_eq!(fs::read(old.join("user.txt")).unwrap(),b"keep");assert!(copy_files(&old,&backup,&[PathBuf::from("../outside")]).is_err());for dir in [&old,&backup]{for p in files(dir).unwrap(){fs::remove_file(dir.join(p)).unwrap();}fs::remove_dir(dir).unwrap();}fs::remove_dir(root).unwrap();}
+    #[test]fn migration_guard_prevents_concurrent_helpers(){let first=migration_guard().unwrap();assert!(migration_guard().is_err());drop(first);assert!(migration_guard().is_ok());}
 }

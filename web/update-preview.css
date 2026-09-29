@@ -1,4 +1,4 @@
-/* Ported from Electron UpdatePreviewModal.svelte; keep visual parity. */
+/* Electron UpdatePreviewModal.svelte와 동일한 화면 구성을 유지한다. */
 
 
   .update-preview-overlay {
@@ -29,6 +29,13 @@
     letter-spacing: -0.025em;
   }
 
+  .update-preview-panel p {
+    max-width: 380px;
+    margin: 10px 190px 0 0;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
   .update-preview-panel button {
     position: absolute;
     right: 20px;
@@ -53,6 +60,16 @@
   .update-preview-panel button:hover {
     color: #ff9d00;
     background-color: #000;
+  }
+
+  .update-preview-panel button.update-dismiss {
+    top: 10px;
+    right: 14px;
+    bottom: auto;
+    min-width: 68px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 14px;
   }
 
   .update-preview-panel button:disabled {

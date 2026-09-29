@@ -1277,12 +1277,20 @@ async fn updater_check(client:Client,host:Host,mut state:Signal<State>)->Result<
     tokio::time::sleep(Duration::from_millis(250)).await;
     let downloaded=inspect(&main,"document.querySelector('.update-preview-panel').innerText").await?;
     if !downloaded.as_str().unwrap_or("").contains("새 버전 설치") {return Err(format!("Install button parity: {downloaded}"));}
-    inspect(&main,"(()=>{document.querySelector('.update-preview-panel button').click();return true})()").await?;
+    inspect(&main,"(()=>{document.querySelector('.update-install').click();return true})()").await?;
     tokio::time::sleep(Duration::from_millis(150)).await;
-    if inspect(&main,"document.querySelector('.update-preview-panel button').disabled").await?!=true {return Err("Repeated install must be disabled".into());}
-    client.invoke(1,"smoke:update-state",json!([{"phase":"error","error":"서명 검증 실패"}])).await?;
+    if inspect(&main,"document.querySelector('.update-install').disabled").await?!=true {return Err("Repeated install must be disabled".into());}
+    client.invoke(1,"smoke:update-state",json!([{"phase":"error","version":"0.4.1","error":"서명 검증 실패"}])).await?;
     tokio::time::sleep(Duration::from_millis(150)).await;
-    if inspect(&main,"!!document.querySelector('.update-preview-overlay')").await?!=false{return Err("Failed download left a blocking panel".into());}
+    let failed=inspect(&main,"document.querySelector('.update-preview-panel')?.innerText").await?;
+    if !failed.as_str().unwrap_or("").contains("서명 검증 실패"){return Err(format!("Update error was not visible: {failed}"));}
+    inspect(&main,"(()=>{document.querySelector('.update-dismiss').click();return true})()").await?;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let dismissed=inspect(&main,"({panel:!!document.querySelector('.update-preview-overlay'),badge:document.querySelector('.app-version').classList.contains('update-available')})").await?;
+    if dismissed["panel"]!=false || dismissed["badge"]!=true{return Err(format!("Failed update could not be hidden: {dismissed}"));}
+    inspect(&main,"(()=>{document.querySelector('.app-version').click();return true})()").await?;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    if inspect(&main,"!!document.querySelector('.update-preview-overlay')").await?!=true{return Err("Hidden update could not be retried".into());}
     tokio::time::sleep(Duration::from_secs(5)).await;
     if host.0.borrow().windows.contains_key(&toast_id){return Err("Notification did not close after 4.8 seconds".into());}
     client.invoke(1,"smoke:update-state",json!([{"phase":"available","version":"0.4.1","percent":0}])).await?;
