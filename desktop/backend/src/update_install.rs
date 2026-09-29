@@ -3,8 +3,8 @@ use serde::{Serialize,Deserialize};
 use serde_json::{Value,json};
 use sha2::{Digest,Sha256};
 use std::{fs::{self,File,OpenOptions}, io::{Read,Write}, path::{Path,PathBuf}, process::{Command,Stdio}, time::{Duration,Instant,SystemTime}};
-use std::os::windows::{ffi::OsStrExt,fs::{MetadataExt,OpenOptionsExt},process::CommandExt};
-use windows_sys::Win32::{Foundation::{CloseHandle,ERROR_ALREADY_EXISTS,GetLastError,HANDLE,INVALID_HANDLE_VALUE},Storage::FileSystem::{CreateFileW,GetFileInformationByHandle,GetFinalPathNameByHandleW,BY_HANDLE_FILE_INFORMATION,FILE_ATTRIBUTE_REPARSE_POINT,FILE_FLAG_BACKUP_SEMANTICS,FILE_FLAG_OPEN_REPARSE_POINT,FILE_READ_ATTRIBUTES,FILE_SHARE_READ,FILE_SHARE_WRITE,OPEN_EXISTING},System::Threading::CreateMutexW};
+use std::os::windows::{ffi::OsStrExt,fs::{MetadataExt,OpenOptionsExt},io::FromRawHandle,process::CommandExt};
+use windows_sys::Win32::{Foundation::{CloseHandle,ERROR_ALREADY_EXISTS,GetLastError,HANDLE,INVALID_HANDLE_VALUE},Storage::FileSystem::{CreateFileW,GetFileInformationByHandle,GetFinalPathNameByHandleW,BY_HANDLE_FILE_INFORMATION,FILE_APPEND_DATA,FILE_ATTRIBUTE_NORMAL,FILE_ATTRIBUTE_REPARSE_POINT,FILE_FLAG_BACKUP_SEMANTICS,FILE_FLAG_OPEN_REPARSE_POINT,FILE_READ_ATTRIBUTES,FILE_SHARE_READ,FILE_SHARE_WRITE,OPEN_ALWAYS,OPEN_EXISTING},System::Threading::CreateMutexW};
 
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
@@ -126,10 +126,21 @@ pub fn protected_cache_root()->Result<PathBuf>{
     Ok(current)
 }
 pub fn open_bootstrap_log()->Result<File>{
-    let path=protected_cache_root()?.join("bootstrap.log");
-    if path.exists(){reject_reparse(&path)?;require_high_integrity(&path)?;}
-    let file=OpenOptions::new().create(true).append(true).share_mode(FILE_SHARE_READ).open(&path).map_err(err)?;
+    let root=protected_cache_root()?;
+    let _guards=lock_safe_directory(&root)?;
+    let path=root.join("bootstrap.log");
+    let existed=path.exists();
+    let handle=unsafe{CreateFileW(wide_path(&path).as_ptr(),FILE_APPEND_DATA|FILE_READ_ATTRIBUTES,FILE_SHARE_READ,std::ptr::null(),OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL|FILE_FLAG_OPEN_REPARSE_POINT,std::ptr::null_mut())};
+    if handle==INVALID_HANDLE_VALUE{return Err(std::io::Error::last_os_error().to_string());}
+    let guard=PathGuard(handle);
+    let mut info=BY_HANDLE_FILE_INFORMATION::default();
+    if unsafe{GetFileInformationByHandle(guard.0,&mut info)}==0{return Err(std::io::Error::last_os_error().to_string());}
+    if info.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT!=0{return Err("bootstrap 로그가 재분석 지점을 가리킵니다".into());}
+    if !same(&handle_path(guard.0)?,&std::path::absolute(&path).map_err(err)?){return Err("bootstrap 로그 경로가 변경되었습니다".into());}
+    if !existed{set_file_integrity(&path,"H")?;}
     require_high_integrity(&path)?;
+    let file=unsafe{File::from_raw_handle(guard.0 as _)};
+    std::mem::forget(guard);
     Ok(file)
 }
 fn write_migration_status(path:&Path,attempt:&str,phase:&str,percent:f64,error:Option<&str>)->Result<()>{

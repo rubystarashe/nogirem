@@ -24,7 +24,10 @@ test('UI 이전 로그는 보호된 캐시와 고정 panic 단계만 사용한�
   assert.match(desktopMain, /update_install::open_bootstrap_log/)
   assert.match(desktopMain, /set_hook\(Box::new\(\|_\|bootstrap_log\("PANIC"\)\)\)/)
   assert.doesNotMatch(desktopMain, /PANIC \{info\}/)
-  assert.match(updateInstall, /protected_cache_root\(\)\?\.join\("bootstrap\.log"\)/)
+  assert.match(updateInstall, /let root=protected_cache_root\(\)\?/)
+  assert.match(updateInstall, /lock_safe_directory\(&root\)/)
+  assert.match(updateInstall, /FILE_FLAG_OPEN_REPARSE_POINT/)
+  assert.match(updateInstall, /GetFileInformationByHandle\(guard\.0/)
   assert.match(updateInstall, /require_high_integrity\(&path\)/)
 })
 test('설치기는 정상 종료를 기다리고 해당 설치의 예약 작업만 제거한다', () => {
