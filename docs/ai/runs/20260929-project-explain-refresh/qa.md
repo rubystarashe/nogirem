@@ -53,6 +53,15 @@
 - 측정값: `evidence/browser-verification.md`
 - 상태: `PASS`
 
+### QA-EXPLAIN-06 · 후속 사실·반응형 재검증
+
+- 연결: REQ-02, REQ-03, REQ-04
+- 절차: 완료된 기능 분석의 복구 관련 주장을 실제 Rust source와 대조하고, 보강한 ELI5·기술 보고서의 링크·offline 계약·접근성 snapshot·390×844 CSS viewport를 다시 검사했다.
+- 기대: 복구 범위를 과장하지 않고 모든 source link가 존재하며 페이지 전체 가로 넘침이 없다.
+- 실제: CPU affinity, TCP autotuning, GPU 설정, 설치형 rollback의 제한을 source에서 확인했다. HTML 4개와 sourceFiles 46개 검사가 통과했다. ELI5의 긴 code link가 만드는 435px 넘침을 발견해 wrapping CSS를 추가했고 viewport 390, document/body 폭 375로 재검증했다. 기술 보고서는 document/body 폭 390, 시각화는 page 폭 375와 diagram 내부 스크롤만 확인했다. 독립 검토에서 Dioxus 요구값과 lock resolution의 구분 누락을 발견해 각각 `^0.7.3`과 `0.7.10`으로 바로잡았다.
+- 증거: `evidence/browser-verification.md`
+- 상태: `PASS`
+
 ## 실행하지 않은 검증
 
 - 앱 build/test, 실제 최적화, 설치, 업데이트, driver, 녹화 QA는 보고서 생성 변경과 직접 관련이 없어 실행하지 않았다.

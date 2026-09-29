@@ -40,7 +40,7 @@
         <div class="item"><h3>앱이 소유한다</h3><p>UI·창·트레이, 설정 검증과 저장, helper 수명, Windows 설정 적용·복구, 업데이트 다운로드·검증·교체 orchestration.</p></div>
         <div class="item"><h3>앱 밖의 경계</h3><p>Windows 프로세스·레지스트리·PowerShell, NVIDIA/AMD 드라이버, WebView2 Runtime, GitHub Releases, 게임·녹화 파일 시스템.</p></div>
         <div class="item"><h3>설치물의 실행 언어</h3><p>GUI와 서비스는 Rust다. JavaScript는 보조 WebView 페이지와 preload에 남으며 Node.js는 개발·테스트·패키징 도구다. <a href="../../../DIOXUS_MIGRATION.md"><code>DIOXUS_MIGRATION.md</code></a></p></div>
-        <div class="item"><h3>플랫폼</h3><p>Windows 10/11 x64, WebView2, 관리자 권한을 전제로 한다. <a href="../../../desktop/windows.manifest"><code>desktop/windows.manifest</code></a>, <a href="../../../desktop/Cargo.toml"><code>desktop/Cargo.toml</code></a></p></div>
+        <div class="item"><h3>플랫폼과 버전</h3><p>Windows 10/11 x64, WebView2, 관리자 권한을 전제로 한다. 앱 버전은 <code>0.4.1</code>이다. <code>Cargo.toml</code>은 Dioxus 호환 요구값 <code>^0.7.3</code>을 선언하고 현재 <code>Cargo.lock</code>은 <code>0.7.10</code>으로 고정하므로 앱 버전·요구 범위·실제 resolution을 구분해야 한다. <a href="../../../desktop/windows.manifest"><code>desktop/windows.manifest</code></a>, <a href="../../../desktop/Cargo.toml"><code>desktop/Cargo.toml</code></a>, <a href="../../../desktop/Cargo.lock"><code>desktop/Cargo.lock</code></a></p></div>
       </div>
     </section>
 
@@ -95,7 +95,7 @@
         <thead><tr><th>위치</th><th>내용</th><th>주의점</th></tr></thead>
         <tbody>
           <tr><td><code>%APPDATA%\마비노기 렘 부스터</code></td><td>사용자 설정, game path, affinity·memory status/control, graphics, blackbox, instance coordination</td><td>설치형·포터블이 공유하며 제거 시 보존한다.</td></tr>
-          <tr><td><code>%LOCALAPPDATA%\Nogirem</code></td><td>WebView2 프로필·런타임 캐시</td><td>사용자 설정 정본과 분리된다.</td></tr>
+          <tr><td><code>%LOCALAPPDATA%\Nogirem\WebView2</code></td><td>WebView2 프로필·런타임 캐시</td><td>사용자 설정 정본과 분리된다. 경로는 GUI host 설정이 직접 지정한다.</td></tr>
           <tr><td><code>%LOCALAPPDATA%\NogiremUpdater\updates</code></td><td>다운로드, job, backup, result, health, bootstrap log</td><td>High integrity와 reparse 검사 대상이다.</td></tr>
           <tr><td>선택한 녹화 드라이브</td><td>블랙박스 chunk·index·clip</td><td>업데이트·제거 대상이 아니다.</td></tr>
         </tbody>
@@ -111,7 +111,7 @@
         <li><strong>경로:</strong> user input 경로는 canonicalization, 허용 root 포함 여부, 파일명/확장자, process path identity로 제한한다.</li>
         <li><strong>다운로드:</strong> Ed25519 서명, semver, 고정 GitHub URL, 최대 크기, 정확한 size와 SHA-256을 검증한다.</li>
         <li><strong>업데이트 캐시:</strong> reparse point 거부, High integrity label, directory handle 고정, final handle path 비교로 경로 치환을 방어한다.</li>
-        <li><strong>helper:</strong> parent PID, duplicate lock, status/control files, 제한된 args로 lifecycle을 묶는다. 별도 프로세스지만 관리자 trust domain 밖의 sandbox는 아니다.</li>
+        <li><strong>helper:</strong> managed helper와 memory worker는 parent PID, duplicate lock, status/control files, 제한된 args로 lifecycle을 묶는다. affinity worker는 parent PID 없이 독립 지속할 수 있어 lock·control·상태 기록으로 관리한다. 별도 프로세스지만 관리자 trust domain 밖의 sandbox는 아니다.</li>
       </ul>
       <div class="status warn"><strong>고위험 경계:</strong> 관리자 프로세스가 user-writable 경로, helper binary, PowerShell, driver API, update staging을 다룬다. 경로 검증이나 hash 검증을 단순화하는 변경은 파일 한두 개라도 security-sensitive로 취급해야 한다.</div>
     </section>
@@ -170,6 +170,13 @@
         <li><strong>설정 schema:</strong> 기본값, validation/normalization, 기존 JSON migration, 화면 form, 회귀 데이터를 함께 검토한다.</li>
         <li><strong>업데이트:</strong> signer, manifest schema, client verifier, installer/portable NSIS, rollback QA를 하나의 보안 경계로 본다.</li>
         <li><strong>보조 창:</strong> Rust window allowlist, preload channel, HTML/JS, media protocol, Escape/smoke matrix를 함께 본다.</li>
+      </ul>
+      <h3>확인된 복구 한계</h3>
+      <ul class="path-list">
+        <li><strong>CPU affinity:</strong> worker는 프로세스별 원래 mask를 기록하지만 정상 <code>reset</code>은 현재 세션 프로세스에 전체 CPU mask를 적용한다. worker 시작 시 이전 runtime state도 삭제하므로 비정상 종료 전 사용자가 지정한 custom affinity를 정확히 재현한다고 볼 수 없다. <a href="../../../desktop/backend/src/affinity.rs"><code>affinity.rs</code></a>, <a href="../../../desktop/backend/src/affinity_worker.rs"><code>affinity_worker.rs</code></a></li>
+        <li><strong>네트워크:</strong> 패스트핑 레지스트리 값과 NIC RSS는 원본 복구 경로가 있지만 TCP receive autotuning은 <code>normal</code>로 맞춘 뒤 이전 값을 저장·복원하지 않는다. <a href="../../../desktop/backend/src/network.rs"><code>network.rs</code></a>, <a href="../../../desktop/backend/src/network_manager.rs"><code>network_manager.rs</code></a></li>
+        <li><strong>그래픽:</strong> NVIDIA profile, Radeon 전역 설정, 게임 VSync는 목표값을 적용하지만 이전 상태 snapshot과 되돌리기 동작이 없다. 특히 Radeon 변경은 game profile이 아니라 GPU 전역 설정이다. <a href="../../../desktop/backend/src/graphics.rs"><code>graphics.rs</code></a></li>
+        <li><strong>설치형 rollback:</strong> 실패 시 기존 파일 목록과 설정·등록 정보를 다시 복사하지만 새 설치기가 추가한 파일을 제거하지 않는다. 따라서 “백업 복원”은 설치 디렉터리를 이전 byte-for-byte 상태로 만드는 보장이 아니다. 포터블 단일 EXE 교체는 별도 backup 검증 경로를 사용한다. <a href="../../../desktop/backend/src/update_install.rs"><code>update_install.rs</code></a></li>
       </ul>
       <div class="status warn"><strong>정본 불일치 1:</strong> <a href="../../../DIOXUS_MIGRATION.md"><code>DIOXUS_MIGRATION.md</code></a> 뒤쪽 “Rust backend migration in progress”는 역사적 중간 상태를 현재형으로 적고 있어, 같은 문서 앞부분과 현재 Rust service 코드에 모순된다.</div>
       <div class="status warn"><strong>정본 불일치 2:</strong> <a href="../../../README.md"><code>README.md</code></a> 설치 절의 자산명 <code>nogirem-setup-&lt;version&gt;.exe</code>는 현재 verifier·packager가 요구하는 <code>nogirem-dioxus-setup-&lt;version&gt;.exe</code>와 다르다.</div>

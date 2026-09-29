@@ -8,6 +8,7 @@
 | `DEV-EXPLAIN-04` | REQ-03, REQ-04 | 링크·offline·SVG 접근성·반응형·인쇄·브라우저 검증 | VERIFIED | `qa.md` |
 | `DEV-EXPLAIN-05` | REQ-06 | 정본 불일치 기록, wiki 미변경 | VERIFIED | `report-manifest.json` |
 | `DEV-EXPLAIN-06` | 전체 | self-review, handoff, final report와 local commit | VERIFIED | `qa.md`, `handoff.md`, `final-report.md` |
+| `DEV-EXPLAIN-07` | REQ-02~04 | 후속 기능 분석의 복구 한계 반영, 390px 반응형 재검증, 독립 재검토 | VERIFIED | `REV-EXPLAIN-FOLLOWUP/review-02.md`, `qa.md` |
 
 ## 소유와 검토
 

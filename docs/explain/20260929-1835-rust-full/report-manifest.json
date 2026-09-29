@@ -26,6 +26,8 @@
     "docs/ai/wiki/index.md",
     "docs/ai/wiki/portable-distribution.md",
     "desktop/Cargo.toml",
+    "desktop/Cargo.lock",
+    "desktop/windows.manifest",
     "desktop/src/main.rs",
     "desktop/src/ui.rs",
     "desktop/src/native.rs",
@@ -39,10 +41,15 @@
     "desktop/backend/src/workers.rs",
     "desktop/backend/src/storage.rs",
     "desktop/backend/src/boost.rs",
+    "desktop/backend/src/affinity.rs",
     "desktop/backend/src/affinity_worker.rs",
+    "desktop/backend/src/topology.rs",
     "desktop/backend/src/memory.rs",
+    "desktop/backend/src/network.rs",
     "desktop/backend/src/network_manager.rs",
+    "desktop/backend/src/nic.rs",
     "desktop/backend/src/graphics.rs",
+    "desktop/backend/src/dxvk.rs",
     "desktop/backend/src/dxvk_manager.rs",
     "desktop/backend/src/blackbox.rs",
     "desktop/backend/src/inputs.rs",
@@ -78,6 +85,7 @@
   "warnings": [
     "범위는 사용자 요청에 따라 Rust/Dioxus 현재 버전으로 한정했다",
     "실제 최적화, 설치, 업데이트, 드라이버 변경, 녹화 QA는 이번 보고서 생성에서 실행하지 않았다",
+    "CPU affinity, TCP autotuning, GPU 설정, 설치형 rollback은 완전한 이전 상태 복원을 보장하지 않으며 상세 한계를 기술 보고서에 기록했다",
     "외부 SDK와 vendored framework 내부 동작은 저장소 경계 밖으로 취급했다"
   ]
 }

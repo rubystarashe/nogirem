@@ -119,3 +119,15 @@ PowerShell로 HTML 4개를 읽어 다음 조건을 검사했다.
 - `nogirem-explain-visual-mobile.png`
 
 Screenshot binary는 Cursor browser artifact에 남고 저장소에는 복사하지 않았다. 첫 visual screenshot에서 body 배경 누락을 발견했으며 세 보고서에 `background:#fff`를 추가한 뒤 재캡처와 CDP 측정을 통과했다.
+
+## 후속 사실·반응형 재검증
+
+- 실행 시각: 2026-09-29 19:13~19:20 +09:00
+- 목적: 기능 분석 완료 뒤 복구 한계 보강과 실제 390px CSS viewport 재검증
+- 정적 결과: HTML 4개, sourceFiles 46개, 로컬 링크, offline asset, SVG 접근성 모두 PASS
+- 접근성 snapshot: 기술 보고서의 `확인된 복구 한계` heading과 네 항목, ELI5의 완전한 원상복구 제한 문구와 source link를 확인
+- 기술 보고서: 390×844에서 document/body 폭 390, 흰 배경, 표 세 개만 내부 가로 스크롤
+- 개요: 390×844에서 viewport 390, document/body 폭 375, 흰 배경
+- 시각화: 390×844에서 document/body 폭 375, SVG diagram 두 개만 `overflow-x:auto`로 812px 내부 스크롤
+- ELI5: 첫 390px CSS viewport 검사에서 긴 inline code link가 document 폭을 435px로 넓히는 문제를 발견했다. <code>에 `overflow-wrap:anywhere`와 `word-break:break-word`를 추가한 뒤 viewport 390, document/body 폭 375로 재검증했다.
+- 독립 검토 후 정정: 앱 버전 `0.4.1`, Dioxus 선언 요구값 `^0.7.3`, `Cargo.lock` resolution `0.7.10`을 구분하고 sourceFiles에 `desktop/Cargo.lock`을 추가했다.

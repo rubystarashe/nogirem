@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-29 18:55 +09:00
+Last Updated: 2026-09-29 19:29 +09:00
 
 ## Current Objective
 Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배포하고 두 형식의 안전한 자동 업데이트를 지원한다.
@@ -14,6 +14,8 @@ Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배�
 - Rust/Dioxus 현재 구조를 신규 개발자 관점의 개요·ELI5·기술 구조·inline SVG 보고서로 생성했다.
 - 보고서의 로컬 링크, offline 동작, SVG 접근성, 모바일·인쇄, 실제 브라우저 렌더링을 검증했다.
 - `DIOXUS_MIGRATION.md`의 역사적 중간 상태 문구와 `README.md` 설치 자산명 불일치를 보고서에 기록했으며 정본은 변경하지 않았다.
+- 기능 분석 후 CPU affinity·TCP autotuning·GPU 설정·설치형 rollback의 복구 한계를 보고서에 보강하고 독립 재검토 승인을 받았다.
+- 앱 `0.4.1`, Dioxus 요구값 `^0.7.3`, lock resolution `0.7.10`을 구분했으며 실제 390px viewport에서 발견한 ELI5 code link 넘침을 수정했다.
 - 단일 포터블 EXE 생성과 전용 서명 업데이트 경로를 구현했다.
 - 포터블 내부 앱은 관리자 전용 버전 캐시에 한 번 준비하고 다음 실행부터 재사용한다.
 - 배포 EXE는 변경하지 않아 다른 위치로 복사·이동해도 독립 실행된다.
@@ -74,6 +76,10 @@ Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배�
 6. 오버레이 모듈 배포 자산·무결성 manifest·동의 화면과 독립 다운로드/제거 IPC를 설계한다.
 
 ## Known Issues
+- affinity reset은 프로세스별 저장 mask 대신 현재 세션에 전체 mask를 적용하며 worker 시작 시 이전 runtime state를 삭제해 비정상 종료 전 custom affinity의 정확한 복원을 보장하지 않는다.
+- 네트워크 되돌리기는 패스트핑과 RSS 원본을 다루지만 TCP receive autotuning의 이전 값은 저장·복원하지 않는다.
+- NVIDIA/Radeon/VSync 최적화는 이전 설정 snapshot과 restore 경로가 없고 Radeon은 전역 설정이다.
+- 설치형 업데이트 rollback은 기존 파일을 다시 복사하지만 새 설치기가 추가한 파일 제거를 보장하지 않는다.
 - 이미 배포된 0.4.1 포터블은 같은 버전의 대체 자산을 자동 업데이트로 선택하지 않으므로 수정본을 한 번 직접 내려받아야 한다.
 - 전체 데스크톱 스모크는 메인 viewport 640×290 검증을 통과한 뒤 기존 고급 기능 화면 진입 단계에서 `Advanced structure failed: null`로 두 번 실패했으며 시작 애니메이션 단독 스모크는 통과했다.
 - 새 스크롤 보정은 자동 테스트와 빌드만 검증됐으며 실제 장치별 휠 감각 확인이 필요하다.
