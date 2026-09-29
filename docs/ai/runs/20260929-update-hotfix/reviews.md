@@ -14,6 +14,17 @@
 - final_target: 최종 미커밋 코드 스냅샷, 승인 후 동일 코드로 실서명 산출물 재생성
 - remaining_review_limit: 실제 Windows 설치 전환과 공개 자산 교체는 코드 리뷰 범위 밖
 
+- review_id: `REV-HOTFIX-PORTABLE`
+- mode: `independent`
+- reviewer: Cursor general-purpose agent `686b4860-47f7-44f4-8aab-6063ba1f658e`
+- scope: 포터블 동일 버전 캐시, 복구 권한 경계, 파일 교체 경쟁, 실패 캐시 정리
+- rounds:
+  - 1: `CHANGES_REQUIRED` — 동기 롤백 뒤 복구 marker가 남아 캐시 정리에서 영구 제외
+  - 2: `APPROVED`
+- final_status: `APPROVED`
+- final_target: `11dc9c671a919edb5826c69239a468148cf3bba2`
+- remaining_review_limit: 실제 UAC·강제 종료·전원 중단·24시간 경과 종단간 QA는 코드 리뷰 범위 밖
+
 - review_id: `REV-HOTFIX-3474`
 - mode: `independent`
 - reviewer: Cursor general-purpose agent `3474f0da-d6b0-455d-a213-dff16e746c69`

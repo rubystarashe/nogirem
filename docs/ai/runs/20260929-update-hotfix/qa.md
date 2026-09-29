@@ -75,7 +75,10 @@
 - actual:
   - 포터블 계약 테스트 5개와 전체 Node 테스트 192개 통과
   - Rust backend 테스트 53개 통과, 공개 자산 실다운로드 검사 1개는 기본 실행에서 제외
-  - NSIS 설치형·포터블 실제 실서명 패키징과 매니페스트 파일 크기·SHA-256 검증 통과, 최종 `portableCacheId=859bd7014968b5022c6d7e516c78bf41418966bcbfaa6fe921d66cdc53cf0843`
-  - 직전 0.4.1 빌드 digest `8fe8118bd561fd7b9d471b9934ee9e038244ae30922489dac7bdabe1a9695329`와 달라 동일 버전의 다른 내부 런타임 감지 확인
+  - NSIS 설치형·포터블 실제 실서명 패키징과 매니페스트 파일 크기·SHA-256 검증 통과, 최종 `portableCacheId=d4d7aff2a8674936289b5c13d76cd519927f228282a9ecb70ad658091863b38c`
+  - 직전 0.4.1 빌드 digest `859bd7014968b5022c6d7e516c78bf41418966bcbfaa6fe921d66cdc53cf0843`와 달라 동일 버전의 다른 내부 런타임 감지 확인
+  - 독립 리뷰 1차에서 동기 롤백 marker 잔존을 수정하고 2차에서 `APPROVED`
+  - GitHub v0.4.1의 Rust 자산 4개를 대체하고 원격 digest와 로컬 SHA-256 일치 확인
+  - 공개 설치형 blocking 다운로드와 공개 포터블 실다운로드의 크기·SHA-256 확인
   - 전체 desktop 테스트는 기존 Markdown fixture의 `342.0MiB` 기대값 1건만 실패하고 나머지 7건 통과
 - status: PASS
