@@ -4,8 +4,8 @@
 - run_id: `20260929-release-042`
 - checkpoint_id: `CP-RELEASE-042-01`
 - owner: `cursor-agent-92251f36 as QA`
-- updated_at: `2026-09-29T14:01:00Z`
-- source_target: `main@caf15cd3bca07cd106a5688118bc2bd163b07540 + release-042 working tree`
+- updated_at: `2026-09-29T14:06:00Z`
+- source_target: `86ca9261ab763e57477c7655d3f303b256d29bd8`, remote annotated tag `v0.4.2`
 - execution_target: `Windows 10.0.26200 x64, Node 23.11.1, Rust locked dependencies, local debug/release build`
 - QA_state: `COMPLETE_PASS for mandatory release scope`
 
@@ -54,10 +54,12 @@
 - `update.json`: `6689bd276e4face6dc0a2f4793536a91dce9cecf3fc924b102c45c56226c7aac`
 - `portable-update.json`: `b651cc1dc9cf6091da776701447930b4099b4b90ae1c629f398f1f52978cae61`
 - Electron bridge와 turbo helper는 v0.4.1 공개 자산 digest와 일치한다.
+- public release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.2`
+- remote verification: 두 공개 manifest의 Ed25519 signature를 embedded public key로 검증하고 설치형 9,459,721 bytes와 포터블 7,696,108 bytes를 실제 다운로드해 SHA-256 일치를 확인했다.
 
 ## 한계와 영향
 
-- 외부 사용자 장치의 실제 0.4.1→0.4.2 GitHub update는 자산 공개 전 실행할 수 없어 `NOT_RUN`. 서명·URL·하위 호환 process 경로를 로컬에서 검증했다.
+- 외부 사용자 장치의 실제 0.4.1→0.4.2 앱 내 update는 `NOT_RUN`. 공개 서명·URL·실다운로드와 하위 호환 process 경로를 검증했다.
 - 실제 인터넷 단절·복구 중 UI 수동 확인은 `NOT_RUN`.
 - feature_impact: `FEAT-NOGIREM-NETWORK-FASTPING`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
 - feature_map: `updated — docs/ai/wiki/feature-map.md에 시나리오와 evidence 반영`

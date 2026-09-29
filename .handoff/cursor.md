@@ -1,12 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-29 22:50 +09:00
+Last Updated: 2026-09-29 23:06 +09:00
 
 ## Current Objective
 Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거 수명주기를 보강하고 서명 배포한다.
 
 ## Active Runs
-- `20260929-release-042`: 패스트핑 기본 경로 부재, backend 건강 확인, updater/installer/uninstaller 경쟁 수정과 회귀 검증 완료, 서명 패키징·배포 진행 중 (`docs/ai/runs/20260929-release-042/`)
+- `20260929-release-042`: 패스트핑 기본 경로 부재, backend 건강 확인, updater/installer/uninstaller 경쟁 수정과 실서명 0.4.2 배포 완료 (`docs/ai/runs/20260929-release-042/final-report.md`)
 - `20260929-cursor-minimum-042`: 25%·50% 커서 선택, 0.4.2 버전 갱신, helper 재빌드와 자동 검증 완료 (`docs/ai/runs/20260929-cursor-minimum-042/task.md`)
 - `20260929-project-explain-refresh`: Rust/Dioxus 신규 개발자용 HTML 구조 보고서 생성·브라우저 검증 완료 (`docs/ai/runs/20260929-project-explain-refresh/handoff.md`)
 - `20260929-portable`: v0.4.1 배포 완료, 버전 간 종단간 QA 대기 (`docs/ai/runs/20260929-portable/handoff.md`)
@@ -18,6 +18,7 @@ Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거
 - 설치·제거 PowerShell을 숨김 실행하고, 포터블의 정상 무프로세스 `exit 1`을 제거했으며, stale updater 종료와 설치 폴더 프로세스 반복 재탐색을 구현했다.
 - 이전 0.4.1 updater가 인자 없이 새 installer를 실행하는 경로도 검증된 부모 helper 하나를 보존하도록 회귀를 추가했다.
 - 전체 Node 198개, Rust backend 56개 실행 중 1개 선언된 live-network ignore, Rust desktop compile을 통과했고 독립 재검토가 승인됐다.
+- 실서명 설치형·포터블과 0.3.19 전환 자산을 GitHub v0.4.2 Latest Release로 공개하고 공개 manifest 서명·실다운로드 SHA-256을 검증했다.
 - 커서 크기 범위를 25%~800%로 확장해 직접 선택·저장·게임 중 휠 조절이 같은 하한을 사용하며, 앱 버전을 0.4.2로 올렸다.
 - 입력 helper 재빌드, 전체 Node 194개, Rust backend 56개 실행, Rust desktop 컴파일과 변경 파일 lint를 통과했다. 실제 게임에서 25% 가시성 수동 확인은 남아 있다.
 - Rust/Dioxus 현재 구조를 신규 개발자 관점의 개요·ELI5·기술 구조·inline SVG 보고서로 생성했다.

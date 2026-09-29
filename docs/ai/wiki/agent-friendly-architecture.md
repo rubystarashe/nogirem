@@ -7,13 +7,13 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-09-29T13:49:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `main@caf15cd3bca07cd106a5688118bc2bd163b07540 + 20260929-release-042 working tree`
+- source_review_target: `86ca9261ab763e57477c7655d3f303b256d29bd8, remote tag v0.4.2`
 - source_review_evidence: `desktop/src`, `desktop/backend/src`, `desktop/*.nsi`, `scripts/package-dioxus.mjs`, release·installer tests
 - behavior_verified_at: `2026-09-29T13:47:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `20260929-release-042 pre-release working tree`
+- behavior_verification_target: `v0.4.2 signed local and public GitHub assets`
 - behavior_verification_environment: `Windows 10.0.26200 x64`
-- behavior_verification_evidence: `npm test 198/198, backend Rust 56 executed with 1 declared live-network ignore, cargo check, independent review APPROVED`
+- behavior_verification_evidence: `npm test 198/198, backend Rust 56 executed with 1 declared live-network ignore, cargo check, focused startup/updater smokes, independent review APPROVED, public signature and asset hash verification`
 - freshness_status: `CURRENT`
 - freshness_reason: `0.4.2의 네트워크와 update 경계를 실제 소스·테스트에서 확인함`
 - known_gaps: `아래 enforcement는 테스트와 Rust compiler 중심이며 별도 dependency graph lint는 없음`
