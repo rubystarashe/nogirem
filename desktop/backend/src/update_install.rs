@@ -4,7 +4,7 @@ use serde_json::{Value,json};
 use sha2::{Digest,Sha256};
 use std::{fs::{self,File,OpenOptions}, io::{Read,Write}, path::{Path,PathBuf}, process::{Command,Stdio}, time::{Duration,Instant,SystemTime}};
 use std::os::windows::{ffi::OsStrExt,fs::{MetadataExt,OpenOptionsExt},io::FromRawHandle,process::CommandExt};
-use windows_sys::Win32::{Foundation::{CloseHandle,ERROR_ALREADY_EXISTS,GetLastError,HANDLE,INVALID_HANDLE_VALUE},Storage::FileSystem::{CreateFileW,GetFileInformationByHandle,GetFinalPathNameByHandleW,BY_HANDLE_FILE_INFORMATION,FILE_APPEND_DATA,FILE_ATTRIBUTE_NORMAL,FILE_ATTRIBUTE_REPARSE_POINT,FILE_FLAG_BACKUP_SEMANTICS,FILE_FLAG_OPEN_REPARSE_POINT,FILE_READ_ATTRIBUTES,FILE_SHARE_READ,FILE_SHARE_WRITE,OPEN_ALWAYS,OPEN_EXISTING},System::Threading::CreateMutexW};
+use windows_sys::Win32::{Foundation::{CloseHandle,ERROR_ALREADY_EXISTS,GetLastError,HANDLE,INVALID_HANDLE_VALUE,SetLastError},Storage::FileSystem::{CreateFileW,GetFileInformationByHandle,GetFinalPathNameByHandleW,BY_HANDLE_FILE_INFORMATION,FILE_APPEND_DATA,FILE_ATTRIBUTE_NORMAL,FILE_ATTRIBUTE_REPARSE_POINT,FILE_FLAG_BACKUP_SEMANTICS,FILE_FLAG_OPEN_REPARSE_POINT,FILE_READ_ATTRIBUTES,FILE_SHARE_READ,FILE_SHARE_WRITE,OPEN_ALWAYS,OPEN_EXISTING},System::Threading::CreateMutexW};
 
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
@@ -129,8 +129,9 @@ pub fn open_bootstrap_log()->Result<File>{
     let root=protected_cache_root()?;
     let _guards=lock_safe_directory(&root)?;
     let path=root.join("bootstrap.log");
-    let existed=path.exists();
+    unsafe{SetLastError(0);}
     let handle=unsafe{CreateFileW(wide_path(&path).as_ptr(),FILE_APPEND_DATA|FILE_READ_ATTRIBUTES,FILE_SHARE_READ,std::ptr::null(),OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL|FILE_FLAG_OPEN_REPARSE_POINT,std::ptr::null_mut())};
+    let existed=unsafe{GetLastError()}==ERROR_ALREADY_EXISTS;
     if handle==INVALID_HANDLE_VALUE{return Err(std::io::Error::last_os_error().to_string());}
     let guard=PathGuard(handle);
     let mut info=BY_HANDLE_FILE_INFORMATION::default();

@@ -27,6 +27,7 @@ test('UI 이전 로그는 보호된 캐시와 고정 panic 단계만 사용한�
   assert.match(updateInstall, /let root=protected_cache_root\(\)\?/)
   assert.match(updateInstall, /lock_safe_directory\(&root\)/)
   assert.match(updateInstall, /FILE_FLAG_OPEN_REPARSE_POINT/)
+  assert.match(updateInstall, /GetLastError\(\)\}==ERROR_ALREADY_EXISTS/)
   assert.match(updateInstall, /GetFileInformationByHandle\(guard\.0/)
   assert.match(updateInstall, /require_high_integrity\(&path\)/)
 })
