@@ -14,6 +14,19 @@
 - final_target: 최종 미커밋 코드 스냅샷, 승인 후 동일 코드로 실서명 산출물 재생성
 - remaining_review_limit: 실제 Windows 설치 전환과 공개 자산 교체는 코드 리뷰 범위 밖
 
+- review_id: `REV-HOTFIX-LATE`
+- mode: `independent`
+- reviewer: Cursor general-purpose agent `eb7f76a8-3041-4e2a-b59f-a25e589c46fb`
+- scope: 일반 업데이트 신뢰 입력, 포터블 상위 경로 TOCTOU, 제거기 자기 종료, bootstrap 로그 보안
+- rounds:
+  - 1: `CHANGES_REQUIRED` — 상승된 `%APPDATA%` 로그와 raw panic 정보
+  - 2: `CHANGES_REQUIRED` — 보호 root 검증 뒤 최종 파일 open 경쟁
+  - 3: `CHANGES_REQUIRED` — open 전 존재 판정으로 기존 Medium 파일 승격 가능
+  - 4: `APPROVED`
+- final_status: `APPROVED`
+- final_target: `0b5683eee69396f41b56c367c03ae425ab37ce27`
+- remaining_review_limit: 실제 UAC·integrity 전환·선취 handle 경쟁 종단간 QA는 코드 리뷰 범위 밖
+
 - review_id: `REV-HOTFIX-PORTABLE`
 - mode: `independent`
 - reviewer: Cursor general-purpose agent `686b4860-47f7-44f4-8aab-6063ba1f658e`

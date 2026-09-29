@@ -105,5 +105,21 @@
   - 예약 작업 action의 `Execute`가 null인 항목을 건너뛰어 제거 스크립트 중단 방지
   - 전체 Node 테스트 193개 통과
   - Rust desktop은 8개 중 관련 7개 통과, 기존 Markdown fixture 1개 실패
-  - WebView 생성 전 `bootstrap.log`에 시작·권한 전환·instance·launch·panic 단계를 기록하도록 컴파일 검증
+  - WebView 생성 전 보호된 updater 캐시의 검증된 파일 handle에 시작·launch·고정 panic 단계를 기록하도록 컴파일 검증
+  - 독립 리뷰 3차 수정 뒤 4차에서 `APPROVED`
+- status: PASS
+
+## QA-HOTFIX-11
+
+- links: REQ-HOTFIX-04, REQ-HOTFIX-09, REQ-HOTFIX-11, REQ-HOTFIX-12, DEV-HOTFIX-08, DEV-HOTFIX-09
+- environment: 승인 target `0b5683eee69396f41b56c367c03ae425ab37ce27`, 실서명 패키지 `release/dioxus-0.4.1-2026-09-29T07-35-29-161Z`
+- expected: 최종 승인 코드가 서명·패키징되고 GitHub v0.4.1 공개 자산과 서명 매니페스트가 일치함
+- actual:
+  - 전체 Node 테스트 194개 통과
+  - Rust backend 56개 통과, desktop `cargo check` 통과
+  - 설치형 SHA-256 `4a6a870aeed2bdfa71208bcddb9c2cc89633491d6de9b086b711d3375ca2127b`
+  - 포터블 SHA-256 `074d57b0a885428b4a584ec75d45e67963fe88ba7bf4826b42263a459ecf9ce8`
+  - 원격 자산 4개 digest가 로컬 산출물과 일치
+  - 포터블 공개 실다운로드 크기·해시 일치
+  - 설치형은 GitHub CDN 전파 중 3회 크기 불일치로 안전하게 거부됐고 60초 안정화 뒤 공개 실다운로드 통과
 - status: PASS

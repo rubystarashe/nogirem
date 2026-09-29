@@ -19,10 +19,10 @@
 - DEV-HOTFIX-07 (`VERIFIED`): 포터블 동일 버전 캐시·복구 권한 경계·파일 교체 경쟁·중단 캐시 정리 보강
   - links: REQ-HOTFIX-08, REQ-HOTFIX-09, REQ-HOTFIX-10
   - files: `desktop/portable.nsi`, `scripts/package-dioxus.mjs`, `desktop/backend/src/update_install.rs`, `test/portable-release.test.mjs`
-- DEV-HOTFIX-08 (`IMPLEMENTED`): 일반 업데이트 작업 상태 누락과 상위 디렉터리 junction 교체 경쟁 수정
+- DEV-HOTFIX-08 (`VERIFIED`): 일반 업데이트 작업 상태 누락과 상위 디렉터리 junction 교체 경쟁 수정
   - links: REQ-HOTFIX-09
   - files: `desktop/backend/src/update_install.rs`
-- DEV-HOTFIX-09 (`IMPLEMENTED`): 제거기 자기 종료·예약 작업 열거 실패 수정과 UI 이전 bootstrap 진단 추가
+- DEV-HOTFIX-09 (`VERIFIED`): 제거기 자기 종료·예약 작업 열거 실패 수정과 UI 이전 bootstrap 진단 추가
   - links: REQ-HOTFIX-04, REQ-HOTFIX-11, REQ-HOTFIX-12
   - files: `desktop/installer.nsi`, `scripts/stop-installed-app.ps1`, `desktop/src/main.rs`, `test/installer.test.mjs`
 
