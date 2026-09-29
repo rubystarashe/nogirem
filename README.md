@@ -76,7 +76,7 @@ ADLX의 공개 기능 제약 때문에 Radeon 설정은 마비노기 전용이 �
 ### Dioxus 전환 브랜치
 
 이 브랜치는 Dioxus Desktop / WebView2를 사용합니다. Rust 자동 업데이트는 같은 GitHub 저장소의 서명된 `update.json`을 사용합니다.
-기존 Electron은 `latest.yml`로 0.3.19 전환 버전을 받은 뒤 기존 업데이트 UI에서 Rust 전환을 진행합니다. 배포 준비는 [RELEASE_PREPARATION.md](./RELEASE_PREPARATION.md)를 확인하세요. 구조와 검증 범위는 [DIOXUS_MIGRATION.md](./DIOXUS_MIGRATION.md)를 확인하세요.
+Electron 0.3.17 이하는 `latest.yml`로 0.3.19 전환 버전을 받은 뒤 기존 업데이트 UI에서 Rust 전환을 진행합니다. 이미 0.3.18에서 전환에 실패한 사용자는 0.3.19 설치본을 한 번 수동 설치해야 합니다. 배포 준비는 [RELEASE_PREPARATION.md](./RELEASE_PREPARATION.md)를 확인하세요. 구조와 검증 범위는 [DIOXUS_MIGRATION.md](./DIOXUS_MIGRATION.md)를 확인하세요.
 
 ## 안전한 작동 방식
 

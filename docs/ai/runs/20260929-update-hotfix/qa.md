@@ -61,8 +61,8 @@
 
 ## QA-HOTFIX-07
 
-- links: REQ-HOTFIX-01, REQ-HOTFIX-02
+- links: REQ-HOTFIX-01, REQ-HOTFIX-02, REQ-HOTFIX-07
 - environment: GitHub Latest Release `v0.4.1`, Electron 0.3.16·0.3.18 provider 계약
-- expected: 기존 0.3.18 사용자가 수정 helper를 포함한 0.3.19를 새 업데이트로 선택
-- actual: v0.4.0·v0.4.1 태그와 0.3.16·0.3.18 클라이언트의 4개 조합이 모두 0.3.19 URL을 선택했다. 공개 0.3.19 설치본·blockmap·latest.yml SHA-256이 최종 bundle과 일치했고 실패 helper가 포함된 0.3.18 자산은 제거했다.
+- expected: 0.3.17 이하는 0.3.19를 자동 선택하고, 이미 실패한 0.3.18은 공개 0.3.19 설치본으로 수동 복구 가능
+- actual: provider 계약의 v0.4.0·v0.4.1 태그와 0.3.16·0.3.18 버전 4개 조합은 모두 0.3.19 URL을 선택했다. 다만 배포된 0.3.18 앱은 Electron 확인 경로를 Rust 전환으로 가로채므로 자동 복구할 수 없어 수동 설치가 필요하다. 공개 0.3.19 설치본·blockmap·latest.yml SHA-256이 최종 bundle과 일치했고 실패 helper가 포함된 0.3.18 자산은 제거했다.
 - status: PASS
