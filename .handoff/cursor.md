@@ -1,13 +1,13 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-29 14:07 +09:00
+Last Updated: 2026-09-29 14:18 +09:00
 
 ## Current Objective
 Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배포하고 두 형식의 안전한 자동 업데이트를 지원한다.
 
 ## Active Runs
 - `20260929-portable`: v0.4.1 배포 완료, 버전 간 종단간 QA 대기 (`docs/ai/runs/20260929-portable/handoff.md`)
-- `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정 완료, 기존 0.3.18 사용자 복구용 0.3.19 전환본 패키징 완료·배포 대기 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
+- `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 기존 0.3.18 복구용 0.3.19 전환본 배포 완료 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
 - 단일 포터블 EXE 생성과 전용 서명 업데이트 경로를 구현했다.
@@ -24,6 +24,7 @@ Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배�
 - 실제 0.4.0 진단에서 async reqwest body가 Tokio runtime 없이 생성돼 발생한 다운로드 시작 패닉을 확정하고 순수 blocking client로 교체했다.
 - Rust와 Electron 업데이트 오류 화면을 숨긴 뒤 버전 배지로 다시 열 수 있게 하고, timeout helper 종료·시도 무효화와 named mutex로 중복 전환을 차단했다.
 - 승인된 설치형·포터블·전환본 7개 자산을 GitHub v0.4.1에 재배포하고 원격 해시와 공개 실다운로드를 검증했다.
+- 이미 실패한 0.3.18도 수정 helper를 받을 수 있도록 Electron 전환본을 0.3.19로 올리고 0.3.16·0.3.18 라우팅과 공개 자산 해시를 검증했다.
 - 고급 기능에 개발 중인 오버레이의 용도와 동작 흐름을 보여주는 인터페이스를 추가했으며 실제 다운로드·캡처 기능은 아직 연결하지 않았다.
 - 앱·약관·공지의 중복 커스텀 휠 스크롤을 공통 모듈로 통합했다.
 - 연속 휠 입력의 미처리 목표 거리를 화면 높이의 65%로 제한해 과도한 후속 이동을 막았다.

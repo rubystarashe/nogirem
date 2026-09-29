@@ -58,3 +58,11 @@
 - expected: 승인 산출물 7개가 공개되고 0.4.0 클라이언트 방식의 blocking 다운로드·서명 검증이 완료
 - actual: 공개 7개 자산의 GitHub SHA-256 digest가 최종 bundle과 모두 일치했다. 공개 `update.json`을 조회해 새 설치 자산을 실제 다운로드하고 서명 매니페스트·크기·SHA-256 검증을 완료했다.
 - status: PASS
+
+## QA-HOTFIX-07
+
+- links: REQ-HOTFIX-01, REQ-HOTFIX-02
+- environment: GitHub Latest Release `v0.4.1`, Electron 0.3.16·0.3.18 provider 계약
+- expected: 기존 0.3.18 사용자가 수정 helper를 포함한 0.3.19를 새 업데이트로 선택
+- actual: v0.4.0·v0.4.1 태그와 0.3.16·0.3.18 클라이언트의 4개 조합이 모두 0.3.19 URL을 선택했다. 공개 0.3.19 설치본·blockmap·latest.yml SHA-256이 최종 bundle과 일치했고 실패 helper가 포함된 0.3.18 자산은 제거했다.
+- status: PASS
