@@ -4,7 +4,7 @@ use serde_json::{Value,json};
 use sha2::{Digest,Sha256};
 use std::{fs::{self,File,OpenOptions}, io::{Read,Write}, path::{Path,PathBuf}, process::{Command,Stdio}, time::{Duration,Instant,SystemTime}};
 use std::os::windows::{ffi::OsStrExt,fs::{MetadataExt,OpenOptionsExt},io::FromRawHandle,process::CommandExt};
-use windows_sys::Win32::{Foundation::{CloseHandle,ERROR_ALREADY_EXISTS,GetLastError,HANDLE,INVALID_HANDLE_VALUE,SetLastError},Storage::FileSystem::{CreateFileW,GetFileInformationByHandle,GetFinalPathNameByHandleW,BY_HANDLE_FILE_INFORMATION,FILE_APPEND_DATA,FILE_ATTRIBUTE_NORMAL,FILE_ATTRIBUTE_REPARSE_POINT,FILE_FLAG_BACKUP_SEMANTICS,FILE_FLAG_OPEN_REPARSE_POINT,FILE_READ_ATTRIBUTES,FILE_SHARE_READ,FILE_SHARE_WRITE,OPEN_ALWAYS,OPEN_EXISTING},System::Threading::CreateMutexW};
+use windows_sys::Win32::{Foundation::{CloseHandle,ERROR_ALREADY_EXISTS,ERROR_SUCCESS,GetLastError,HANDLE,INVALID_HANDLE_VALUE,LocalFree,SetLastError},Security::{Authorization::{GetNamedSecurityInfoW,SE_FILE_OBJECT},GetAce,GetAclInformation,IsValidAcl,IsValidSid,ACE_HEADER,ACL,ACL_SIZE_INFORMATION,AclSizeInformation,LABEL_SECURITY_INFORMATION,PSECURITY_DESCRIPTOR,SECURITY_MANDATORY_LABEL_AUTHORITY,SYSTEM_MANDATORY_LABEL_ACE},Storage::FileSystem::{CreateFileW,GetFileInformationByHandle,GetFinalPathNameByHandleW,BY_HANDLE_FILE_INFORMATION,FILE_APPEND_DATA,FILE_ATTRIBUTE_NORMAL,FILE_ATTRIBUTE_REPARSE_POINT,FILE_FLAG_BACKUP_SEMANTICS,FILE_FLAG_OPEN_REPARSE_POINT,FILE_READ_ATTRIBUTES,FILE_SHARE_READ,FILE_SHARE_WRITE,OPEN_ALWAYS,OPEN_EXISTING},System::{SystemServices::{SECURITY_MANDATORY_HIGH_RID,SECURITY_MANDATORY_SYSTEM_RID,SYSTEM_MANDATORY_LABEL_ACE_TYPE,SYSTEM_MANDATORY_LABEL_NO_WRITE_UP},Threading::CreateMutexW}};
 
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
@@ -15,6 +15,8 @@ struct PathGuard(HANDLE);
 impl Drop for PathGuard {fn drop(&mut self){unsafe{CloseHandle(self.0);}}}
 struct RemoveDirectory(PathBuf);
 impl Drop for RemoveDirectory {fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
+struct SecurityDescriptor(PSECURITY_DESCRIPTOR);
+impl Drop for SecurityDescriptor {fn drop(&mut self){unsafe{LocalFree(self.0);}}}
 fn migration_guard()->Result<MigrationGuard>{let name="Local\\NogiremRustMigration\0".encode_utf16().collect::<Vec<_>>();let handle=unsafe{CreateMutexW(std::ptr::null(),0,name.as_ptr())};if handle.is_null(){return Err(std::io::Error::last_os_error().to_string());}if unsafe{GetLastError()}==ERROR_ALREADY_EXISTS{unsafe{CloseHandle(handle);}return Err("다른 Rust 전환 작업이 이미 진행 중입니다".into());}Ok(MigrationGuard(handle))}
 fn err(e:impl std::fmt::Display)->String{e.to_string()}
 fn quote(s:&str)->String{format!("'{}'",s.replace('\'',"''"))}
@@ -45,18 +47,46 @@ fn start(exe:&Path,args:&[String])->Result<std::process::Child>{Command::new(exe
 fn terminate(child:&mut std::process::Child){let _=child.kill();let _=child.wait();}
 pub fn protect_directory(path:&Path)->Result<()>{
     let tool=PathBuf::from(std::env::var_os("SystemRoot").ok_or("SystemRoot 누락")?).join("System32/icacls.exe");
-    let status=Command::new(tool).arg(path).args(["/setintegritylevel","(OI)(CI)H","/C","/Q"]).creation_flags(0x08000000).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().map_err(err)?;
-    if !status.success(){return Err("업데이트 작업 폴더를 보호하지 못했습니다".into());}Ok(())
+    let status=Command::new(tool).arg(path).args(["/setintegritylevel","(OI)(CI)H","/Q"]).creation_flags(0x08000000).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().map_err(err)?;
+    if !status.success()||require_high_integrity(path).is_err(){return Err("업데이트 작업 폴더를 보호하지 못했습니다".into());}Ok(())
 }
 fn set_file_integrity(path:&Path,level:&str)->Result<()>{
     let tool=PathBuf::from(std::env::var_os("SystemRoot").ok_or("SystemRoot 누락")?).join("System32/icacls.exe");
-    let status=Command::new(tool).arg(path).args(["/setintegritylevel",level,"/C","/Q"]).creation_flags(0x08000000).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().map_err(err)?;
+    let status=Command::new(tool).arg(path).args(["/setintegritylevel",level,"/Q"]).creation_flags(0x08000000).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().map_err(err)?;
     if !status.success(){return Err(format!("파일 무결성 수준 설정 실패: {status}"));}Ok(())
 }
+fn sacl_has_high_integrity(sacl:*mut ACL)->Result<bool>{
+    if unsafe{IsValidAcl(sacl)}==0{return Err("잘못된 무결성 ACL입니다".into());}
+    let mut information=ACL_SIZE_INFORMATION::default();
+    if unsafe{GetAclInformation(sacl,&mut information as *mut _ as _,std::mem::size_of::<ACL_SIZE_INFORMATION>() as u32,AclSizeInformation)}==0{return Err(std::io::Error::last_os_error().to_string());}
+    for index in 0..information.AceCount {
+        let mut raw=std::ptr::null_mut();
+        if unsafe{GetAce(sacl,index,&mut raw)}==0{return Err(std::io::Error::last_os_error().to_string());}
+        let header=unsafe{&*(raw as *const ACE_HEADER)};
+        if header.AceType as u32!=SYSTEM_MANDATORY_LABEL_ACE_TYPE{continue;}
+        if (header.AceSize as usize)<std::mem::size_of::<SYSTEM_MANDATORY_LABEL_ACE>(){return Ok(false);}
+        let ace=unsafe{&*(raw as *const SYSTEM_MANDATORY_LABEL_ACE)};
+        if ace.Mask&SYSTEM_MANDATORY_LABEL_NO_WRITE_UP==0{return Ok(false);}
+        let sid_offset=std::mem::offset_of!(SYSTEM_MANDATORY_LABEL_ACE,SidStart);
+        let bytes=unsafe{std::slice::from_raw_parts(raw as *const u8,header.AceSize as usize)};
+        let sid=&bytes[sid_offset..];
+        if sid.len()<12||sid[0]!=1||sid[1]!=1||sid[2..8]!=SECURITY_MANDATORY_LABEL_AUTHORITY.Value{return Ok(false);}
+        let sid_pointer=unsafe{(raw as *const u8).add(sid_offset)} as _;
+        if unsafe{IsValidSid(sid_pointer)}==0{return Ok(false);}
+        let rid=u32::from_ne_bytes(sid[8..12].try_into().unwrap());
+        return Ok(rid==SECURITY_MANDATORY_HIGH_RID as u32||rid==SECURITY_MANDATORY_SYSTEM_RID as u32);
+    }
+    Ok(false)
+}
 fn require_high_integrity(path:&Path)->Result<()>{
-    let script=format!("$ErrorActionPreference='Stop';(Get-Acl -LiteralPath {}).Sddl",quote(&path.to_string_lossy()));
-    let sddl=powershell::run(&script,10000,32768)?;
-    if !sddl.contains("(ML;")||!sddl.contains(";;;HI)"){return Err("신뢰할 수 없는 업데이트 작업 파일입니다".into());}Ok(())
+    let mut sacl=std::ptr::null_mut();
+    let mut descriptor=std::ptr::null_mut();
+    let status=unsafe{GetNamedSecurityInfoW(wide_path(path).as_ptr(),SE_FILE_OBJECT,LABEL_SECURITY_INFORMATION,std::ptr::null_mut(),std::ptr::null_mut(),std::ptr::null_mut(),&mut sacl,&mut descriptor)};
+    if status!=ERROR_SUCCESS{return Err(std::io::Error::from_raw_os_error(status as i32).to_string());}
+    let _descriptor=SecurityDescriptor(descriptor);
+    if sacl.is_null(){return Err("신뢰할 수 없는 업데이트 작업 파일입니다".into());}
+    if !sacl_has_high_integrity(sacl)?{return Err("신뢰할 수 없는 업데이트 작업 파일입니다".into());}
+    Ok(())
 }
 fn reject_reparse(path:&Path)->Result<()>{
     let mut current=Some(path);
@@ -522,6 +552,33 @@ pub fn migrate(legacy:&Path,pid:u32,attempt:Option<&str>)->Result<()> {
 #[cfg(test)]
 mod tests{
     use super::*;
+    fn label_acl(rid:u32,mask:u32,authority:u8)->Vec<u32>{
+        let mut storage=vec![0u32;7];
+        let acl=unsafe{std::slice::from_raw_parts_mut(storage.as_mut_ptr() as *mut u8,28)};
+        acl[0]=2;
+        acl[2..4].copy_from_slice(&28u16.to_le_bytes());
+        acl[4..6].copy_from_slice(&1u16.to_le_bytes());
+        acl[8]=SYSTEM_MANDATORY_LABEL_ACE_TYPE as u8;
+        acl[10..12].copy_from_slice(&20u16.to_le_bytes());
+        acl[12..16].copy_from_slice(&mask.to_le_bytes());
+        acl[16]=1;
+        acl[17]=1;
+        acl[23]=authority;
+        acl[24..28].copy_from_slice(&rid.to_le_bytes());
+        storage
+    }
+    #[test]fn native_integrity_parser_requires_trusted_label_policy(){let mut high=label_acl(0x3000,1,16);let mut system=label_acl(0x4000,1,16);let mut medium=label_acl(0x2000,1,16);let mut no_write_policy=label_acl(0x3000,0,16);let mut wrong_authority=label_acl(0x3000,1,5);let mut protected=label_acl(0x5000,1,16);assert!(sacl_has_high_integrity(high.as_mut_ptr() as _).unwrap());assert!(sacl_has_high_integrity(system.as_mut_ptr() as _).unwrap());for acl in [&mut medium,&mut no_write_policy,&mut wrong_authority,&mut protected]{assert!(!sacl_has_high_integrity(acl.as_mut_ptr() as _).unwrap());}}
+    #[test]
+    #[ignore="관리자 토큰과 NTFS 무결성 레이블이 필요합니다"]
+    fn native_integrity_query_reads_high_label(){
+        let dir=std::env::temp_dir().join(format!("nogirem-integrity-test-{}",uuid::Uuid::new_v4()));
+        fs::create_dir(&dir).unwrap();
+        protect_directory(&dir).unwrap();
+        require_high_integrity(&dir).unwrap();
+        set_file_integrity(&dir,"(OI)(CI)M").unwrap();
+        assert!(require_high_integrity(&dir).is_err());
+        fs::remove_dir(dir).unwrap();
+    }
     #[test]fn migration_rejects_versions_before_0_4_1(){assert!(!supported_migration("0.4.0").unwrap());assert!(supported_migration("0.4.1").unwrap());assert!(supported_migration("0.5.0").unwrap());}
     #[test]fn backup_restore_preserves_unrelated_files(){let root=std::env::temp_dir().join(format!("nogirem-update-test-{}",uuid::Uuid::new_v4()));let old=root.join("old");let backup=root.join("backup");fs::create_dir_all(&old).unwrap();fs::write(old.join("app.exe"),b"old").unwrap();let list=files(&old).unwrap();copy_files(&old,&backup,&list).unwrap();fs::write(old.join("app.exe"),b"new").unwrap();fs::write(old.join("user.txt"),b"keep").unwrap();copy_files(&backup,&old,&list).unwrap();assert_eq!(fs::read(old.join("app.exe")).unwrap(),b"old");assert_eq!(fs::read(old.join("user.txt")).unwrap(),b"keep");assert!(copy_files(&old,&backup,&[PathBuf::from("../outside")]).is_err());for dir in [&old,&backup]{for p in files(dir).unwrap(){fs::remove_file(dir.join(p)).unwrap();}fs::remove_dir(dir).unwrap();}fs::remove_dir(root).unwrap();}
     #[test]fn migration_guard_prevents_concurrent_helpers(){let first=migration_guard().unwrap();assert!(migration_guard().is_err());drop(first);assert!(migration_guard().is_ok());}

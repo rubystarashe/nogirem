@@ -56,3 +56,21 @@
 - feature_map: `updated — docs/ai/wiki/feature-map.md`
 - architecture_impact: `네트워크 writer, backend 준비 신호, updater/installer/helper process 경계`
 - architecture_contract: `updated — docs/ai/wiki/agent-friendly-architecture.md`
+
+## CP-RELEASE-042-02 대치 배포 인계
+
+- updated_at: `2026-09-29T18:10:00Z`
+- status: `IN_PROGRESS`
+- DEV: `READY_FOR_QA`
+- QA: `IN_PROGRESS`
+- review: `APPROVED`, independent, `ISSUE-INTEGRITY-001/002 RESOLVED`
+- source target: base `3902f13bf9a7b110df6a516150e466b470b78e4a`, `Cargo.toml a5bc58de...4593d`, `update_install.rs 9f69d01e...c8a42`
+- completed: PowerShell SDDL substring 검사를 `GetNamedSecurityInfoW(LABEL_SECURITY_INFORMATION)`와 검증된 mandatory ACE 정책으로 교체하고 `icacls /C`가 실패를 숨기지 않게 했다.
+- checks: Node 198/198 `PASS`; Rust backend 55/55 실행, 2개 명시 ignore `PASS`; desktop check `PASS`; independent rereview `APPROVED`.
+- limitation: 실제 High label 경로는 Cursor sandbox의 `icacls` 오류 1299로 `BLOCKED`; 합성 High/System/Medium/policy/authority/RID 회귀와 API 계약을 검증했다.
+- blocker: 없음. 남은 작업은 실서명 패키징, 공개 자산 대치, 실다운로드 검증과 최종 문서화다.
+- next authorized action: 현재 target을 로컬 커밋한 뒤 `npm run package:win`으로 0.4.2 자산을 만들고 GitHub v0.4.2 자산을 대치한다.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 정상 High integrity 작업 오거부 제거`
+- feature_map: `no_change — 구현 checkpoint 진행 중이며 배포 증거 뒤 갱신 예정`
+- architecture_impact: `updater 작업 파일 mandatory-integrity 검증 경계`
+- architecture_contract: `no_change — 배포 증거 뒤 정본 freshness 갱신 예정`
