@@ -13,7 +13,7 @@
   - links: 전체 요구사항
 - DEV-HOTFIX-05 (`VERIFIED`): v0.4.1 자산 순차 대체와 공개 검증
   - links: REQ-HOTFIX-03
-- DEV-HOTFIX-06 (`IN_PROGRESS`): 실제 0.4.0 사용자 패닉에 따른 blocking 다운로드·오류 재시도 수정과 0.4.1 재대체
+- DEV-HOTFIX-06 (`VERIFIED`): 실제 0.4.0 사용자 패닉에 따른 blocking 다운로드·오류 재시도 수정과 0.4.1 재대체
   - links: REQ-HOTFIX-03, REQ-HOTFIX-06
   - files: `desktop/backend/src/updater.rs`, `desktop/backend/src/update_install.rs`, `desktop/src/ui.rs`, `desktop/src/smoke.rs`, `web/update-preview.css`, `src/migration-attempt.mjs`, `scripts/prepare-electron-bridge.mjs`, 관련 테스트·배포 문서
 

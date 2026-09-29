@@ -50,3 +50,11 @@
 - expected: blocking 다운로드가 Tokio runtime 없이 완료되고 오류 시 원인과 재시도를 표시
 - actual: 사용자 로그에서 다운로드 시작마다 `there is no reactor running` 패닉을 확인했다. async client 변환을 제거한 뒤 로컬 HTTP 기본 회귀 검사와 공개 매니페스트·설치 자산 다운로드 및 SHA-256 검증이 통과했다. Rust 오류 표시→숨김→배지 재시도 UI 스모크도 통과했다. 0.3.18 생성 소스는 실패 화면 숨김·업데이트 버튼 재표시, helper stderr 진단 기록, timeout 시 이전 helper 종료·attempt 무효화를 포함하며 Svelte 빌드를 통과했다. Rust named mutex의 중복 전환 차단 테스트와 독립 리뷰 2건도 승인됐다.
 - status: PASS
+
+## QA-HOTFIX-06
+
+- links: REQ-HOTFIX-03, REQ-HOTFIX-06
+- environment: GitHub Latest Release `v0.4.1`
+- expected: 승인 산출물 7개가 공개되고 0.4.0 클라이언트 방식의 blocking 다운로드·서명 검증이 완료
+- actual: 공개 7개 자산의 GitHub SHA-256 digest가 최종 bundle과 모두 일치했다. 공개 `update.json`을 조회해 새 설치 자산을 실제 다운로드하고 서명 매니페스트·크기·SHA-256 검증을 완료했다.
+- status: PASS
