@@ -39,7 +39,7 @@ WebView2 캐시는 `%LOCALAPPDATA%/Nogirem/WebView2`에 저장한다.
 녹화 파일은 삭제하지 않는다. WebView2 런타임은 공유 런타임이므로 제거하지 않는다.
 
 Rust 자동 업데이트는 같은 GitHub 저장소의 서명된 `update.json`을 사용한다.
-Electron은 `latest.yml`의 0.3.17 전환 설치본을 거쳐 Rust로 이전한다. 공개 전 실제 설치·복구 검증은 별도로 필요하며 배포 절차는 `RELEASE_PREPARATION.md`를 따른다.
+Electron은 `latest.yml`의 0.3.18 전환 설치본을 거쳐 기존 업데이트 UI에서 Rust로 이전한다. 공개 전 실제 설치·복구 검증은 별도로 필요하며 배포 절차는 `RELEASE_PREPARATION.md`를 따른다.
 
 ## 검증 명령과 범위
 

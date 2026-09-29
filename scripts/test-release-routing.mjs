@@ -18,10 +18,10 @@ for(const tag of ['v0.4.0','v0.4.1']){
  }}
  const provider=new GitHubProvider({owner:'rubystarashe',repo:'nogirem'},{currentVersion:new semver.SemVer('0.3.16'),allowPrerelease:false,fullChangelog:false},{platform:'win32',executor})
  const info=await provider.getLatestVersion()
- assert.equal(info.version,'0.3.17')
- assert(semver.gt(info.version,'0.3.16'))
- assert(!semver.gt(info.version,'0.3.17'))
+ assert.equal(info.version,'0.3.18')
+ assert(semver.gt(info.version,'0.3.17'))
+ assert(!semver.gt(info.version,'0.3.18'))
  const files=provider.resolveFiles(info)
- assert.equal(files[0].url.href,`https://github.com/rubystarashe/nogirem/releases/download/${tag}/nogirem-setup-0.3.17.exe`)
+ assert.equal(files[0].url.href,`https://github.com/rubystarashe/nogirem/releases/download/${tag}/nogirem-setup-0.3.18.exe`)
  console.log(JSON.stringify({tag,delivers:info.version,url:files[0].url.href,passed:true}))
 }

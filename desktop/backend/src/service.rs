@@ -376,7 +376,7 @@ impl Service {
         let focus = directory.join("focus-request.json");
         let close = directory.join("installer-close-request");
         let mut request_at = read(&focus)["requestedAt"].as_u64().unwrap_or(0);
-        let close_at = std::fs::metadata(&close).and_then(|m| m.modified()).ok();
+        let mut close_request = std::fs::read_to_string(&close).ok();
         let mut game = self.env.game();
         let mut dxvk_at = crate::now_ms();
         let mut announcements_at = crate::now_ms();
@@ -397,10 +397,10 @@ impl Service {
                     &json!({"requestId":request["requestId"],"acknowledgedAt":crate::now_ms(),"primaryPid":std::process::id()}),
                 );
             }
-            let modified = std::fs::metadata(&close).and_then(|m| m.modified()).ok();
-            if modified.is_some() && modified > close_at {
-                // A clip export can defer shutdown. Keep the request and monitor alive
-                // until shutdown actually starts; otherwise the installer waits forever.
+            let next_close_request = std::fs::read_to_string(&close).ok();
+            if next_close_request.is_some() && next_close_request != close_request {
+                close_request = next_close_request;
+                // 클립 저장으로 종료가 미뤄질 수 있으므로 실제 종료가 시작될 때까지 요청 감시를 유지한다.
                 match self.finish_exit("keep") {
                     Ok(value) if value["closing"] == true => {
                         let _ = remove(&close);
@@ -485,6 +485,7 @@ impl Service {
         if self.boost.exiting.swap(true, Ordering::SeqCst) {
             return Ok(json!({"closing":true}));
         }
+        self.updater.cancel();
         if !self.fixture {
             std::thread::scope(|scope| {
                 scope.spawn(|| {

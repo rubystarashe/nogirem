@@ -134,6 +134,7 @@ impl Updater {
         let d=self.data.lock().unwrap();if d.state["phase"]!="downloaded"{return Err("다운로드가 완료되지 않았습니다".into());}
         let m=d.manifest.clone().ok_or("업데이트 정보 누락")?;let file=d.file.clone().ok_or("설치파일 누락")?;verify_file(&file,&m)?;Ok((m,d.envelope.clone(),file))
     }
+    pub fn cancel(&self){self.cancel.store(true,Ordering::SeqCst);}
     pub fn installing(&self){self.set("installing",100.,None);}
     pub fn failed(&self,error:String){self.set("error",0.,Some(error));}
 }

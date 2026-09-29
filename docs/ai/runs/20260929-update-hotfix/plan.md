@@ -1,0 +1,24 @@
+# 업데이트 전환 핫픽스 계획
+
+- DEV-HOTFIX-01 (`VERIFIED`): 0.4.0 다운로드 정지와 제거 차단 경로 진단
+  - links: REQ-HOTFIX-04, REQ-HOTFIX-05
+  - files: `desktop/backend/src/updater.rs`, `desktop/backend/src/service.rs`, `scripts/stop-installed-app.ps1`
+- DEV-HOTFIX-02 (`VERIFIED`): Electron 0.3.18 전환 상태·재시도 연결
+  - links: REQ-HOTFIX-01, REQ-HOTFIX-02
+  - files: `scripts/prepare-electron-bridge.mjs`, `desktop/src/main.rs`, `desktop/backend/src/update_install.rs`
+- DEV-HOTFIX-03 (`VERIFIED`): 릴리스 조립·라우팅 계약을 0.3.18로 변경
+  - links: REQ-HOTFIX-01, REQ-HOTFIX-03
+  - files: `scripts/prepare-release.mjs`, `scripts/test-release-routing.mjs`, 배포 문서
+- DEV-HOTFIX-04 (`VERIFIED`): 테스트·실서명 패키징·독립 리뷰
+  - links: 전체 요구사항
+- DEV-HOTFIX-05 (`IN_PROGRESS`): v0.4.1 자산 원자적 대체와 공개 검증
+  - links: REQ-HOTFIX-03
+
+## 검증 시나리오
+
+- 0.3.17이 0.3.18 bridge를 최신 Electron 업데이트로 선택한다.
+- 0.3.18에서 Rust 전환 확인·다운로드 진행·오류·재시도 상태를 전달한다.
+- 전환 상태 파일은 UUID 시도 식별자를 검증하고 다른 시도의 상태를 무시한다.
+- 정상 종료 요청이 성공하면 강제 종료를 사용하지 않는다.
+- 정상 종료 제한 시간을 넘기면 설치 폴더 내부 프로세스만 종료한다.
+- 앱 종료 시 다운로드 취소 플래그를 설정한다.

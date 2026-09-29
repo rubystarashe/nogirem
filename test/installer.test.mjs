@@ -1,20 +1,29 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
-const [installer, cleanup, service] = await Promise.all([
+const [installer, cleanup, service, rustService] = await Promise.all([
   readFile(new URL('../desktop/installer.nsi', import.meta.url), 'utf8'),
   readFile(new URL('../scripts/stop-installed-app.ps1', import.meta.url), 'utf8'),
   readFile(new URL('../service/main.mjs', import.meta.url), 'utf8'),
+  readFile(new URL('../desktop/backend/src/service.rs', import.meta.url), 'utf8'),
 ])
 test('설치기는 WebView2를 확인하고 설치 EXE를 직접 실행한다', () => {
-  assert.match(installer, /MUI_FINISHPAGE_RUN "\$INSTDIR\\nogirem.exe"/)
+  assert.match(installer, /SilentInstall silent/)
+  assert.match(installer, /Exec '"\$INSTDIR\\nogirem\.exe"'/)
+  assert.match(installer, /\$\{GetOptions\} "\$1" "\/S"/)
   assert.match(installer, /F3017226-FE2A-4295-8BDF-00C3A9A7E4C5/)
   assert.match(installer, /\/silent \/install/)
 })
 test('설치기는 정상 종료를 기다리고 해당 설치의 예약 작업만 제거한다', () => {
   assert.match(cleanup, /installer-close-request/)
+  assert.match(cleanup, /Guid\]::NewGuid/)
   assert.match(cleanup, /HasExited/)
-  assert.doesNotMatch(cleanup, /Stop-Process|taskkill/i)
+  assert.match(cleanup, /StartsWith\(\$prefix/)
+  assert.match(cleanup, /\$_\.Id -eq \$PID/)
+  assert.match(cleanup, /Stop-Process -Force/)
+  assert.doesNotMatch(cleanup, /taskkill.*\/IM/i)
+  assert.match(rustService, /read_to_string\(&close\)/)
+  assert.match(rustService, /next_close_request != close_request/)
   assert.match(cleanup, /\.Execute\.Trim\('"'\) -eq \$targetExe/)
   assert.match(installer, /UNINSTALL_MANIFEST/)
   assert.doesNotMatch(installer, /RMDir \/r/i)

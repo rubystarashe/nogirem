@@ -34,6 +34,7 @@ fn copy_files(from:&Path,to:&Path,list:&[PathBuf])->Result<()> {
 }
 fn state(dir:&Path,phase:&str,message:&str)->Result<()> {storage::write_json(&dir.join("result.json"),&json!({"phase":phase,"message":message,"updatedAt":app_services::iso(),"pid":std::process::id()}))}
 fn start(exe:&Path,args:&[String])->Result<std::process::Child>{Command::new(exe).args(args).creation_flags(0x08000000).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(err)}
+fn terminate(child:&mut std::process::Child){let _=child.kill();let _=child.wait();}
 pub fn protect_directory(path:&Path)->Result<()>{
     let tool=PathBuf::from(std::env::var_os("SystemRoot").ok_or("SystemRoot 누락")?).join("System32/icacls.exe");
     let status=Command::new(tool).arg(path).args(["/setintegritylevel","(OI)(CI)H","/C","/Q"]).creation_flags(0x08000000).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().map_err(err)?;
@@ -53,12 +54,26 @@ pub fn protected_cache_root()->Result<PathBuf>{
     if !same(&current,&updater::cache_root()?){return Err("업데이트 캐시 경로가 일치하지 않습니다".into());}
     Ok(current)
 }
+fn write_migration_status(path:&Path,attempt:&str,phase:&str,percent:f64,error:Option<&str>)->Result<()>{
+    uuid::Uuid::parse_str(attempt).map_err(|_|"잘못된 전환 시도 식별자")?;
+    storage::write_json(path,&json!({"attempt":attempt,"phase":phase,"percent":percent,"error":error,"updatedAt":app_services::iso(),"pid":std::process::id()}))
+}
+pub fn migration_status(attempt:&str,phase:&str,percent:f64,error:Option<&str>)->Result<()>{
+    write_migration_status(&protected_cache_root()?.join("migration-status.json"),attempt,phase,percent,error)
+}
 fn wait_exit(pids:&[u32],timeout:u64)->Result<()> {let end=Instant::now()+Duration::from_secs(timeout);while pids.iter().any(|p|process::alive(*p)){if Instant::now()>end{return Err("앱 종료를 기다리는 시간이 초과되었습니다".into());}std::thread::sleep(Duration::from_millis(100));}Ok(())}
+fn supported_migration(version:&str)->Result<bool>{updater::newer(version,"0.4.0")}
 fn stop_app(user:&Path,pid:u32)->Result<()> {
     if !process::alive(pid){return Ok(());}
     fs::create_dir_all(user.join("instance")).map_err(err)?;
-    fs::write(user.join("instance/installer-close-request"),b"updater").map_err(err)?;
-    wait_exit(&[pid],90)
+    let deadline=Instant::now()+Duration::from_secs(90);
+    while process::alive(pid) {
+        fs::write(user.join("instance/installer-close-request"),format!("updater:{}",uuid::Uuid::new_v4())).map_err(err)?;
+        let retry=Instant::now()+Duration::from_secs(1);
+        while process::alive(pid)&&Instant::now()<retry{std::thread::sleep(Duration::from_millis(100));}
+        if Instant::now()>=deadline{return Err("앱 종료를 기다리는 시간이 초과되었습니다".into());}
+    }
+    Ok(())
 }
 fn launch_healthy(dir:&Path,job:&Job,manifest:&Manifest)->Result<u32> {
     let _=fs::remove_file(dir.join("healthy.json"));
@@ -71,11 +86,7 @@ fn launch_healthy(dir:&Path,job:&Job,manifest:&Manifest)->Result<u32> {
         if !job.portable&& !process::alive(child.id()){break;}
         std::thread::sleep(Duration::from_millis(150));
     }
-    if job.portable{
-        fs::create_dir_all(job.user_dir.join("instance")).map_err(err)?;
-        fs::write(job.user_dir.join("instance/installer-close-request"),b"updater").map_err(err)?;
-        wait_exit(&[child.id()],30)?;
-    }else{stop_app(&job.user_dir,child.id())?;}
+    stop_app(&job.user_dir,child.id())?;
     Err("신규 앱의 UI·백엔드 시작 확인에 실패했습니다".into())
 }
 pub fn mark_healthy(args:&[String])->Result<()> {
@@ -307,25 +318,56 @@ pub fn recover_preinstall(dir:&Path) {
         Ok(())
     })();let _=recover;
 }
-pub fn migrate(legacy:&Path,pid:u32)->Result<()> {
+pub fn migrate(legacy:&Path,pid:u32,attempt:Option<&str>)->Result<()> {
+    let status_path=if attempt.is_some(){Some(protected_cache_root()?.join("migration-status.json"))}else{None};
+    if let (Some(attempt),Some(path))=(attempt,status_path.as_ref()){write_migration_status(path,attempt,"checking",0.,None)?;}
     legacy_uninstaller(legacy)?;
     if !same(Path::new(&process::path(pid)?),legacy){return Err("기존 앱 프로세스가 일치하지 않습니다".into());}
     let (m,envelope)=updater::fetch_manifest()?;
-    if !updater::newer(&m.version,"0.3.17")? {return Err("Rust 전환 릴리스가 아직 준비되지 않았습니다".into());}
+    if !supported_migration(&m.version)? {return Err("Rust 0.4.1 이상의 전환 릴리스가 아직 준비되지 않았습니다".into());}
     let dir=protected_cache_root()?.join(format!("job-{}",uuid::Uuid::new_v4()));fs::create_dir_all(&dir).map_err(err)?;protect_directory(&dir)?;
     state(&dir,"downloading",&m.version)?;
-    updater::download(&m,&dir.join("installer.exe"),&|_|{},&std::sync::atomic::AtomicBool::new(false))?;
+    if let (Some(attempt),Some(path))=(attempt,status_path.as_ref()){write_migration_status(path,attempt,"downloading",0.,None)?;}
+    let progress_at=std::sync::Mutex::new(Instant::now()-Duration::from_secs(1));
+    updater::download(&m,&dir.join("installer.exe"),&|n|{
+        if let (Some(attempt),Some(path))=(attempt,status_path.as_ref()) {
+            let mut last=progress_at.lock().unwrap();
+            if last.elapsed()>=Duration::from_millis(200)||n==m.size {
+                *last=Instant::now();
+                let _=write_migration_status(path,attempt,"downloading",(n as f64*100./m.size as f64).min(99.9),None);
+            }
+        }
+    },&std::sync::atomic::AtomicBool::new(false))?;
+    if let (Some(attempt),Some(path))=(attempt,status_path.as_ref()){write_migration_status(path,attempt,"installing",99.9,None)?;}
     let job=Job{nonce:uuid::Uuid::new_v4().to_string(),parent_pids:vec![pid],install_dir:installation()?,user_dir:user_dir()?,startup:app_services::startup(legacy,true,None)?["enabled"]==true,legacy_exe:Some(legacy.into()),portable:false,portable_exe:None};
     fs::write(dir.join("update.json"),envelope).map_err(err)?;
     storage::write_json(&dir.join("job.json"),&serde_json::to_value(&job).map_err(err)?)?;
-    // Run from a private staging copy; Electron's uninstaller can then remove its bundled migrator.
+    // Electron 제거기가 번들 helper를 지울 수 있도록 보호된 준비 사본에서 실행한다.
     let helper=dir.join("updater.exe");fs::copy(std::env::current_exe().map_err(err)?,&helper).map_err(err)?;
-    start(&helper,&["--apply-update".into(),dir.to_string_lossy().into()])?;
-    stop_app(&job.user_dir,pid)?;
+    let mut apply=start(&helper,&["--apply-update".into(),dir.to_string_lossy().into()])?;
+    let ready_deadline=Instant::now()+Duration::from_secs(10);
+    while !dir.join("helper-ready").is_file() {
+        match apply.try_wait() {
+            Ok(Some(status))=>return Err(format!("업데이트 적용 helper가 준비 전에 종료되었습니다: {status}")),
+            Ok(None)=>{},
+            Err(error)=>{terminate(&mut apply);return Err(error.to_string());}
+        }
+        if Instant::now()>=ready_deadline {
+            terminate(&mut apply);
+            return Err("업데이트 적용 helper가 준비되지 않았습니다".into());
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    if let (Some(attempt),Some(path))=(attempt,status_path.as_ref()){if let Err(error)=write_migration_status(path,attempt,"handoff",99.9,None){terminate(&mut apply);return Err(error);}}
+    if let Err(error)=stop_app(&job.user_dir,pid){
+        terminate(&mut apply);
+        return Err(error);
+    }
     Ok(())
 }
 #[cfg(test)]
 mod tests{
     use super::*;
+    #[test]fn migration_rejects_versions_before_0_4_1(){assert!(!supported_migration("0.4.0").unwrap());assert!(supported_migration("0.4.1").unwrap());assert!(supported_migration("0.5.0").unwrap());}
     #[test]fn backup_restore_preserves_unrelated_files(){let root=std::env::temp_dir().join(format!("nogirem-update-test-{}",uuid::Uuid::new_v4()));let old=root.join("old");let backup=root.join("backup");fs::create_dir_all(&old).unwrap();fs::write(old.join("app.exe"),b"old").unwrap();let list=files(&old).unwrap();copy_files(&old,&backup,&list).unwrap();fs::write(old.join("app.exe"),b"new").unwrap();fs::write(old.join("user.txt"),b"keep").unwrap();copy_files(&backup,&old,&list).unwrap();assert_eq!(fs::read(old.join("app.exe")).unwrap(),b"old");assert_eq!(fs::read(old.join("user.txt")).unwrap(),b"keep");assert!(copy_files(&old,&backup,&[PathBuf::from("../outside")]).is_err());for dir in [&old,&backup]{for p in files(dir).unwrap(){fs::remove_file(dir.join(p)).unwrap();}fs::remove_dir(dir).unwrap();}fs::remove_dir(root).unwrap();}
 }

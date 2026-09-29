@@ -4,16 +4,16 @@
 
 ## 업데이트 경로
 
-- Electron 0.3.16 이하 → `latest.yml` → Electron 0.3.17 전환 설치본
-- Electron 0.3.17 → 서명된 `update.json` → Rust 0.4.0 이상
+- Electron 0.3.17 이하 → `latest.yml` → Electron 0.3.18 전환 설치본
+- Electron 0.3.18 → 기존 업데이트 UI의 전환 버튼 → 서명된 `update.json` → Rust 0.4.1 이상
 - Rust → 서명된 `update.json` → 더 높은 Rust 버전
 
-Rust 릴리스에도 **0.3.17의 latest.yml, 설치 EXE, blockmap을 그대로 함께 올린다**. GitHub의 latest 릴리스가 Rust로 바뀌어도 구형 Electron의 업데이트 경로가 유지되어야 한다. latest.yml의 버전을 0.4.0으로 바꾸면 안 된다.
+Rust 릴리스에도 **0.3.18의 latest.yml, 설치 EXE, blockmap을 함께 올린다**. GitHub의 latest 릴리스가 Rust여도 구형 Electron이 먼저 전환본을 받을 수 있어야 한다. latest.yml의 버전을 Rust 버전으로 바꾸면 안 된다.
 
 ## 로컬 빌드
 
 1. `node scripts/package-dioxus.mjs`: Rust 설치본 + 서명된 update.json 생성.
-2. `node scripts/prepare-electron-bridge.mjs <Rust 빌드 폴더>/app/nogirem.exe --build`: 고정된 Electron 커밋 3ca3521의 소스를 별도 release 폴더로 추출하고 0.3.17 전환 설치본 생성. 현재 Dioxus 작업 트리는 덮어쓰지 않는다.
+2. `node scripts/prepare-electron-bridge.mjs <Rust 빌드 폴더>/app/nogirem.exe --build`: 고정된 Electron 커밋 3ca3521의 소스를 별도 release 폴더로 추출하고 0.3.18 전환 설치본 생성. 현재 Dioxus 작업 트리는 덮어쓰지 않는다.
 3. `node scripts/prepare-release.mjs <Rust 빌드 폴더> <Electron bridge artifacts 폴더>`: 서명/해시 검증 후 동일 릴리스에 올릴 파일 구성.
 
 Node는 개발/패키징 도구 및 기존 Electron 전환 버전에만 필요하다. Rust 설치본에는 포함하지 않는다.
@@ -30,15 +30,15 @@ Node는 개발/패키징 도구 및 기존 Electron 전환 버전에만 필요�
 
 코드/서명/UI 테스트와 실제 설치 전환 검증을 구분한다. 아래는 스냅샷이 있는 별도 Windows 환경에서 수행한다.
 
-- 0.3.16 업데이트 확인 → 0.3.17 → 0.4.0 자동 전환.
+- 0.3.17 업데이트 확인 → 0.3.18 → 0.4.1 전환.
 - 기존 설정, 최적화 원본 스냅샷, 녹화 데이터 보존.
 - 트레이 시작 켜짐/꺼짐, 바탕화면/시작 메뉴 바로가기, 재부팅 후 자동 시작.
 - 설치 취소/파일 복사 실패/신규 앱 시작 실패 시 기존 앱 복귀.
 - 네트워크 중단/잘못된 서명/잘린 설치본에서는 기존 앱 유지.
 - Rust 0.4.0 → 서명된 후속 테스트 버전 업데이트.
-- 0.4.0이 latest인 상태에서도 구형 Electron은 0.3.17을 받는지 확인.
+- 0.4.1이 latest인 상태에서도 구형 Electron은 0.3.18을 받는지 확인.
 
-초기 공개 시 v0.4.0 초안 릴리스에 위 파일을 전부 업로드하고 검증한 다음 한 번에 공개한다. 0.3.17만 먼저 공개하여 Rust 설치본이 없는 상태로 전환을 시작하지 않는다. 현재 스크립트는 GitHub 릴리스를 공개하거나 git을 push하지 않는다.
+공개 시 Rust와 Electron 전환 자산을 전부 업로드하고 검증한 다음 한 번에 공개한다. Electron 전환본만 먼저 공개하여 Rust 설치본이 없는 상태로 전환을 시작하지 않는다. 현재 스크립트는 GitHub 릴리스를 공개하거나 git을 push하지 않는다.
 
 ## Electron UI 동작 유지
 

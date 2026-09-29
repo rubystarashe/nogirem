@@ -42,18 +42,19 @@ fn main() {
     if let Some(i) = args.iter().position(|a| a == "--apply-update" || a == "--migrate-electron" || a == "--recover-portable-exe") {
         match platform::ensure_elevated() {
             Ok(true) => {}, Ok(false) => return,
-            Err(error) => {rfd::MessageDialog::new().set_title("업데이트 권한 오류").set_description(error).show();return;}
+            Err(error) => {rfd::MessageDialog::new().set_title("업데이트 권한 오류").set_description(error).show();std::process::exit(1);}
         }
         let result = if args[i] == "--apply-update" {
             args.get(i+1).ok_or_else(|| "업데이트 작업 경로 누락".to_owned()).and_then(|p|nogirem_backend::update_install::apply(std::path::Path::new(p)))
         } else if args[i] == "--recover-portable-exe" {
             (||{let dir=args.get(i+1).ok_or("복구 작업 경로 누락")?;let source=args.get(i+2).ok_or("포터블 원본 경로 누락")?;let pid=args.get(i+3).ok_or("포터블 실행 프로세스 누락")?.parse::<u32>().map_err(|e|e.to_string())?;nogirem_backend::update_install::recover_portable_exe(std::path::Path::new(dir),std::path::Path::new(source),pid)})()
         } else {
-            (|| { let exe=args.get(i+1).ok_or("기존 실행 경로 누락")?; let pid=args.get(i+2).ok_or("기존 프로세스 누락")?.parse::<u32>().map_err(|e|e.to_string())?;nogirem_backend::update_install::migrate(std::path::Path::new(exe),pid) })()
+            (|| { let exe=args.get(i+1).ok_or("기존 실행 경로 누락")?; let pid=args.get(i+2).ok_or("기존 프로세스 누락")?.parse::<u32>().map_err(|e|e.to_string())?;let attempt=args.iter().find_map(|arg|arg.strip_prefix("--migration-attempt="));nogirem_backend::update_install::migrate(std::path::Path::new(exe),pid,attempt) })()
         };
         if let Err(error) = result {
             if args[i]=="--apply-update" {if let Some(p)=args.get(i+1){nogirem_backend::update_install::recover_preinstall(std::path::Path::new(p));}}
             if args[i]=="--apply-update" { if let Some(p)=args.get(i+1) { let _=std::fs::write(std::path::Path::new(p).join("failure.txt"), &error); } }
+            if args[i]=="--migrate-electron" {if let Some(attempt)=args.iter().find_map(|arg|arg.strip_prefix("--migration-attempt=")){let _=nogirem_backend::update_install::migration_status(attempt,"error",0.,Some(&error));}}
             eprintln!("Update failed: {error}");
             rfd::MessageDialog::new().set_title("업데이트를 완료하지 못했습니다").set_description(&error).show();
             std::process::exit(1);
