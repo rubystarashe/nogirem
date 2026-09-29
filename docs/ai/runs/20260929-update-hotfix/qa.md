@@ -82,3 +82,28 @@
   - 공개 설치형 blocking 다운로드와 공개 포터블 실다운로드의 크기·SHA-256 확인
   - 전체 desktop 테스트는 기존 Markdown fixture의 `342.0MiB` 기대값 1건만 실패하고 나머지 7건 통과
 - status: PASS
+
+## QA-HOTFIX-09
+
+- links: REQ-HOTFIX-09, DEV-HOTFIX-08
+- environment: Windows 10, 실제 NTFS junction, Rust backend 테스트
+- expected: 일반 업데이트 helper가 모든 신뢰 입력을 받은 뒤 시작하고, 포터블 대상의 모든 상위 디렉터리를 실제 handle로 고정해 junction과 rename 경쟁을 거부
+- actual:
+  - 준비 작업이 `job.json`, `result.json`, `update.json`, payload, updater helper를 모두 생성하는 행동 테스트 통과
+  - 실제 NTFS junction 경로 거부 테스트 통과
+  - 열린 상위 디렉터리 handle이 rename을 막고 handle 해제 뒤 rename이 가능한 행동 테스트 통과
+  - Rust backend 56개 통과, 공개 자산 실다운로드 검사 1개는 기본 실행에서 제외
+- status: PASS
+
+## QA-HOTFIX-10
+
+- links: REQ-HOTFIX-04, REQ-HOTFIX-11, REQ-HOTFIX-12, DEV-HOTFIX-09
+- environment: Windows 10, 설치 폴더에 복사한 실제 `Uninstall.exe` 프로세스, Windows 예약 작업 전체 열거
+- expected: 제거 스크립트가 호출자 제거기를 유지하고 대상 앱만 종료하며 실행 파일 action이 없는 예약 작업을 안전하게 건너뜀
+- actual:
+  - 실제 제거 모드 PowerShell 스크립트가 호출자 PID를 제외하고 1.2초 안에 성공했으며 호출자 프로세스가 계속 실행됨
+  - 예약 작업 action의 `Execute`가 null인 항목을 건너뛰어 제거 스크립트 중단 방지
+  - 전체 Node 테스트 193개 통과
+  - Rust desktop은 8개 중 관련 7개 통과, 기존 Markdown fixture 1개 실패
+  - WebView 생성 전 `bootstrap.log`에 시작·권한 전환·instance·launch·panic 단계를 기록하도록 컴파일 검증
+- status: PASS

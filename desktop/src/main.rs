@@ -18,6 +18,17 @@ use dioxus::{
 use serde_json::json;
 use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc};
 
+fn bootstrap_log(message: impl AsRef<str>) {
+    use std::io::Write;
+    let Some(app_data)=std::env::var_os("APPDATA") else{return;};
+    let directory=PathBuf::from(app_data).join("마비노기 렘 부스터/logs");
+    if std::fs::create_dir_all(&directory).is_err(){return;}
+    if let Ok(mut file)=std::fs::OpenOptions::new().create(true).append(true).open(directory.join("bootstrap.log")){
+        let now=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis();
+        let _=writeln!(file,"{now} pid={} {}",std::process::id(),message.as_ref());
+    }
+}
+
 fn root() -> PathBuf {
     std::env::var_os("NOGIREM_ROOT")
         .map(PathBuf::from)
@@ -39,9 +50,12 @@ fn root() -> PathBuf {
 fn main() {
     // Native workers have no WebView, Node runtime, or application instance lock.
     let args: Vec<String> = std::env::args().collect();
+    let mode=if args.iter().any(|arg|arg=="--apply-update"){"apply-update"}else if args.iter().any(|arg|arg=="--migrate-electron"){"migrate-electron"}else if args.iter().any(|arg|arg=="--recover-portable-exe"){"recover-portable"}else if args.iter().any(|arg|arg=="--native-service"){"native-service"}else{"interactive"};
+    bootstrap_log(format!("START version={} mode={mode}",env!("CARGO_PKG_VERSION")));
+    std::panic::set_hook(Box::new(|info|bootstrap_log(format!("PANIC {info}"))));
     if let Some(i) = args.iter().position(|a| a == "--apply-update" || a == "--migrate-electron" || a == "--recover-portable-exe") {
         match platform::ensure_elevated() {
-            Ok(true) => {}, Ok(false) => return,
+            Ok(true) => bootstrap_log("ELEVATED helper"), Ok(false) => {bootstrap_log("ELEVATION handoff helper");return;},
             Err(error) => {rfd::MessageDialog::new().set_title("업데이트 권한 오류").set_description(error).show();std::process::exit(1);}
         }
         let result = if args[i] == "--apply-update" {
@@ -111,7 +125,7 @@ fn main() {
 
     let instance = match platform::acquire_instance() {
         Ok(Some(instance)) => instance,
-        Ok(None) => return,
+        Ok(None) => {bootstrap_log("INSTANCE existing");return;},
         Err(error) => {
             eprintln!("{error}");
             return;
@@ -120,7 +134,7 @@ fn main() {
     platform::retain_instance(instance);
     if !args.iter().any(|a|a=="--smoke-test") {
         match platform::ensure_elevated() {
-            Ok(true)=>{}, Ok(false)=>return,
+            Ok(true)=>bootstrap_log("ELEVATED interactive"), Ok(false)=>{bootstrap_log("ELEVATION handoff interactive");return;},
             Err(error)=>{rfd::MessageDialog::new().set_title("마비노기 렘 부스터").set_description(format!("관리자 권한으로 시작하지 못했습니다: {error}")).show();return;}
         }
     }
@@ -137,7 +151,9 @@ fn main() {
         }
     }
     let cfg = native::config(&app_root, "마비노기 렘 부스터", 640.0, 290.0);
+    bootstrap_log("WEBVIEW launch");
     LaunchBuilder::desktop().with_cfg(cfg).launch(app);
+    bootstrap_log("EXIT interactive");
 }
 
 fn app() -> Element {

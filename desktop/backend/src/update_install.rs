@@ -4,7 +4,7 @@ use serde_json::{Value,json};
 use sha2::{Digest,Sha256};
 use std::{fs::{self,File,OpenOptions}, io::{Read,Write}, path::{Path,PathBuf}, process::{Command,Stdio}, time::{Duration,Instant,SystemTime}};
 use std::os::windows::{ffi::OsStrExt,fs::{MetadataExt,OpenOptionsExt},process::CommandExt};
-use windows_sys::Win32::{Foundation::{CloseHandle,ERROR_ALREADY_EXISTS,GetLastError,HANDLE,INVALID_HANDLE_VALUE},Storage::FileSystem::{CreateFileW,FILE_FLAG_BACKUP_SEMANTICS,FILE_READ_ATTRIBUTES,FILE_SHARE_READ,FILE_SHARE_WRITE,OPEN_EXISTING},System::Threading::CreateMutexW};
+use windows_sys::Win32::{Foundation::{CloseHandle,ERROR_ALREADY_EXISTS,GetLastError,HANDLE,INVALID_HANDLE_VALUE},Storage::FileSystem::{CreateFileW,GetFileInformationByHandle,GetFinalPathNameByHandleW,BY_HANDLE_FILE_INFORMATION,FILE_ATTRIBUTE_REPARSE_POINT,FILE_FLAG_BACKUP_SEMANTICS,FILE_FLAG_OPEN_REPARSE_POINT,FILE_READ_ATTRIBUTES,FILE_SHARE_READ,FILE_SHARE_WRITE,OPEN_EXISTING},System::Threading::CreateMutexW};
 
 #[derive(Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
@@ -84,9 +84,32 @@ fn trusted_job(dir:&Path,files:&[&str])->Result<()>{
 }
 fn wide_path(path:&Path)->Vec<u16>{path.as_os_str().encode_wide().chain(Some(0)).collect()}
 fn lock_directory(path:&Path)->Result<PathGuard>{
-    let handle=unsafe{CreateFileW(wide_path(path).as_ptr(),FILE_READ_ATTRIBUTES,FILE_SHARE_READ|FILE_SHARE_WRITE,std::ptr::null(),OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,std::ptr::null_mut())};
+    let handle=unsafe{CreateFileW(wide_path(path).as_ptr(),FILE_READ_ATTRIBUTES,FILE_SHARE_READ|FILE_SHARE_WRITE,std::ptr::null(),OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,std::ptr::null_mut())};
     if handle==INVALID_HANDLE_VALUE{return Err(std::io::Error::last_os_error().to_string());}
     Ok(PathGuard(handle))
+}
+fn handle_path(handle:HANDLE)->Result<PathBuf>{
+    let needed=unsafe{GetFinalPathNameByHandleW(handle,std::ptr::null_mut(),0,0)};
+    if needed==0{return Err(std::io::Error::last_os_error().to_string());}
+    let mut buffer=vec![0u16;needed as usize+1];
+    let length=unsafe{GetFinalPathNameByHandleW(handle,buffer.as_mut_ptr(),buffer.len() as u32,0)};
+    if length==0||length as usize>=buffer.len(){return Err(std::io::Error::last_os_error().to_string());}
+    Ok(PathBuf::from(String::from_utf16_lossy(&buffer[..length as usize]).trim_start_matches(r"\\?\").to_string()))
+}
+fn lock_safe_directory(path:&Path)->Result<Vec<PathGuard>>{
+    let absolute=std::path::absolute(path).map_err(err)?;
+    let mut ancestors=absolute.ancestors().filter(|item|item.parent().is_some()).collect::<Vec<_>>();
+    ancestors.reverse();
+    let mut guards=Vec::with_capacity(ancestors.len());
+    for item in ancestors {
+        let guard=lock_directory(item)?;
+        let mut info=BY_HANDLE_FILE_INFORMATION::default();
+        if unsafe{GetFileInformationByHandle(guard.0,&mut info)}==0{return Err(std::io::Error::last_os_error().to_string());}
+        if info.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT!=0{return Err("재분석 지점을 통한 포터블 업데이트는 지원하지 않습니다".into());}
+        if !same(&handle_path(guard.0)?,&std::path::absolute(item).map_err(err)?){return Err("포터블 대상 경로가 다른 위치로 연결되어 있습니다".into());}
+        guards.push(guard);
+    }
+    Ok(guards)
 }
 pub fn protected_cache_root()->Result<PathBuf>{
     let base=PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA 누락")?);
@@ -173,6 +196,13 @@ pub fn cleanup_cache() -> Result<()> {
     }
     Ok(())
 }
+fn write_job_files(dir:&Path,job:&Job,envelope:&[u8],payload:&Path,version:&str)->Result<()>{
+    fs::write(dir.join("update.json"),envelope).map_err(err)?;
+    fs::copy(payload,dir.join(if job.portable{"portable.exe"}else{"installer.exe"})).map_err(err)?;
+    fs::copy(std::env::current_exe().map_err(err)?,dir.join("updater.exe")).map_err(err)?;
+    storage::write_json(&dir.join("job.json"),&serde_json::to_value(job).map_err(err)?)?;
+    state(dir,"preparing",version)
+}
 pub fn prepare(exe:&Path,user:&Path,envelope:&[u8],payload:&Path,pids:Vec<u32>,portable:bool)->Result<PathBuf>{
     let m=updater::verify_envelope_for(envelope,&updater::config(),portable)?;updater::verify_file(payload,&m)?;
     let install_dir=if portable {
@@ -187,10 +217,7 @@ pub fn prepare(exe:&Path,user:&Path,envelope:&[u8],payload:&Path,pids:Vec<u32>,p
     let dir=protected_cache_root()?.join(format!("job-{}",uuid::Uuid::new_v4()));fs::create_dir_all(&dir).map_err(err)?;protect_directory(&dir)?;
     let startup=app_services::startup(exe,true,None)?["enabled"]==true;
     let job=Job{nonce:uuid::Uuid::new_v4().to_string(),parent_pids:pids,install_dir,user_dir:user.into(),startup,legacy_exe:None,portable,portable_exe:portable.then(||exe.to_owned())};
-    fs::write(dir.join("update.json"),envelope).map_err(err)?;
-    fs::copy(payload,dir.join(if portable{"portable.exe"}else{"installer.exe"})).map_err(err)?;
-    fs::copy(std::env::current_exe().map_err(err)?,dir.join("updater.exe")).map_err(err)?;
-    storage::write_json(&dir.join("job.json"),&serde_json::to_value(job).map_err(err)?)?;
+    write_job_files(&dir,&job,envelope,payload,&m.version)?;
     start(&dir.join("updater.exe"),&["--apply-update".into(),dir.to_string_lossy().into()])?;
     let deadline=Instant::now()+Duration::from_secs(10);
     while !dir.join("helper-ready").exists(){if Instant::now()>deadline{return Err("업데이트 설치 프로세스를 시작하지 못했습니다".into());}std::thread::sleep(Duration::from_millis(50));}
@@ -265,10 +292,9 @@ fn complete_portable_recovery(dir:&Path)->Result<()>{fs::rename(dir.join("portab
 fn replace_file(source:&Path,target:&Path,expected_hash:&str)->Result<File>{
     if !file_sha256(source)?.eq_ignore_ascii_case(expected_hash){return Err("교체 원본 파일 무결성 확인 실패".into());}
     let parent=target.parent().ok_or("포터블 대상 상위 경로 누락")?;
-    reject_reparse(parent)?;
+    let _path_guards=lock_safe_directory(parent)?;
     if target.exists(){reject_reparse(target)?;}
     let canonical_parent=parent.canonicalize().map_err(err)?;
-    let _parent_guard=lock_directory(parent)?;
     let staging=parent.join(format!(".nogirem-stage-{}",uuid::Uuid::new_v4()));
     fs::create_dir(&staging).map_err(err)?;
     let _staging_cleanup=RemoveDirectory(staging.clone());
@@ -482,4 +508,7 @@ mod tests{
     #[test]fn migration_guard_prevents_concurrent_helpers(){let first=migration_guard().unwrap();assert!(migration_guard().is_err());drop(first);assert!(migration_guard().is_ok());}
     #[test]fn abandoned_cache_requires_age_and_preserves_recovery(){assert!(abandoned_job("preparing",false,true,false));assert!(abandoned_job("rolled-back",false,true,false));assert!(!abandoned_job("preparing",false,false,false));assert!(!abandoned_job("preparing",true,true,false));assert!(!abandoned_job("installing",false,true,false));assert!(!abandoned_job("rolled-back",false,true,true));}
     #[test]fn completed_portable_rollback_releases_recovery_cache(){let dir=std::env::temp_dir().join(format!("nogirem-recovery-test-{}",uuid::Uuid::new_v4()));fs::create_dir(&dir).unwrap();fs::write(dir.join("portable-recovery.json"),b"{}").unwrap();complete_portable_recovery(&dir).unwrap();assert!(!dir.join("portable-recovery.json").exists());assert!(dir.join("portable-complete.json").is_file());fs::remove_dir_all(dir).unwrap();}
+    #[test]fn prepared_job_contains_every_trusted_input(){let dir=std::env::temp_dir().join(format!("nogirem-job-test-{}",uuid::Uuid::new_v4()));fs::create_dir(&dir).unwrap();let payload=dir.join("source.exe");fs::write(&payload,b"payload").unwrap();let job=Job{nonce:uuid::Uuid::new_v4().to_string(),parent_pids:vec![1],install_dir:dir.clone(),user_dir:dir.clone(),startup:false,legacy_exe:None,portable:true,portable_exe:Some(dir.join("target.exe"))};write_job_files(&dir,&job,b"envelope",&payload,"0.4.1").unwrap();for name in ["job.json","result.json","update.json","portable.exe","updater.exe"]{assert!(dir.join(name).is_file(),"{name}");}assert_eq!(storage::read_json(&dir.join("result.json")).unwrap().unwrap()["phase"],"preparing");fs::remove_dir_all(dir).unwrap();}
+    #[test]fn safe_directory_lock_rejects_junctions(){let root=std::env::temp_dir().join(format!("nogirem-junction-test-{}",uuid::Uuid::new_v4()));let real=root.join("real");let link=root.join("link");fs::create_dir_all(&real).unwrap();let status=Command::new("cmd.exe").args(["/d","/c","mklink","/J"]).arg(&link).arg(&real).stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap();assert!(status.success());assert!(lock_safe_directory(&link).is_err());fs::remove_dir(&link).unwrap();fs::remove_dir_all(root).unwrap();}
+    #[test]fn safe_directory_lock_pins_ancestors(){let root=std::env::temp_dir().join(format!("nogirem-lock-test-{}",uuid::Uuid::new_v4()));let parent=root.join("parent");let child=parent.join("child");let moved=root.join("moved");fs::create_dir_all(&child).unwrap();let guards=lock_safe_directory(&child).unwrap();assert!(fs::rename(&parent,&moved).is_err());drop(guards);fs::rename(&parent,&moved).unwrap();fs::remove_dir_all(root).unwrap();}
 }

@@ -1,4 +1,4 @@
-﻿param([Parameter(Mandatory=$true)][string]$InstallDirectory, [switch]$Uninstall)
+﻿param([Parameter(Mandatory=$true)][string]$InstallDirectory, [Parameter(Mandatory=$true)][int]$CallerPid, [switch]$Uninstall)
 $ErrorActionPreference = 'Stop'
 $env:PSModulePath = Join-Path $PSHOME 'Modules'
 $instanceDirectory = Join-Path $env:APPDATA '마비노기 렘 부스터\instance'
@@ -8,7 +8,7 @@ $targetExe = [IO.Path]::GetFullPath((Join-Path $InstallDirectory 'nogirem.exe'))
 function Get-InstalledProcesses {
     $prefix = [IO.Path]::GetFullPath($InstallDirectory).TrimEnd('\') + '\'
     @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
-        if ($_.Id -eq $PID) { return $false }
+        if ($_.Id -eq $PID -or $_.Id -eq $CallerPid) { return $false }
         try {
             $path = $_.Path
             $path -and ([IO.Path]::GetFullPath($path).StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase))
@@ -16,6 +16,10 @@ function Get-InstalledProcesses {
     })
 }
 $running = @()
+if ($Uninstall) {
+    # 제거가 중단돼도 재부팅 때 같은 앱이 다시 시작되지 않도록 대상 예약 작업을 먼저 해제한다.
+    Get-ScheduledTask | Where-Object { @($_.Actions | Where-Object { $_.Execute -and $_.Execute.Trim('"') -eq $targetExe }).Count -gt 0 } | Unregister-ScheduledTask -Confirm:$false
+}
 if (Test-Path -LiteralPath $primaryFile) {
     try {
         $record = Get-Content -LiteralPath $primaryFile -Raw | ConvertFrom-Json
@@ -52,9 +56,5 @@ if ($running.Count -gt 0) {
         }
         Start-Sleep -Milliseconds 250
     }
-}
-if ($Uninstall) {
-    # 이 설치 경로의 예약 작업만 제거하고 다른 설치는 보존한다.
-    Get-ScheduledTask | Where-Object { @($_.Actions | Where-Object { $_.Execute.Trim('"') -eq $targetExe }).Count -gt 0 } | Unregister-ScheduledTask -Confirm:$false
 }
 if (Test-Path -LiteralPath $requestFile) { Remove-Item -LiteralPath $requestFile }

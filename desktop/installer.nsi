@@ -54,8 +54,9 @@ Section "Install"
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
   File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
+  System::Call 'kernel32::GetCurrentProcessId() i.r9'
   ${DisableX64FSRedirection}
-  ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR"' $0
+  ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9' $0
   ${EnableX64FSRedirection}
   ${If} $0 != 0
     SetErrorLevel 1
@@ -94,8 +95,9 @@ Section "Uninstall"
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
   File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
+  System::Call 'kernel32::GetCurrentProcessId() i.r9'
   ${DisableX64FSRedirection}
-  ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -Uninstall' $0
+  ExecWait '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 -Uninstall' $0
   ${EnableX64FSRedirection}
   ${If} $0 != 0
     SetErrorLevel 1

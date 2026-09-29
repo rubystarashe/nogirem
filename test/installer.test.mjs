@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { readFile } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
+import { copyFile, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 const [installer, cleanup, service, rustService] = await Promise.all([
   readFile(new URL('../desktop/installer.nsi', import.meta.url), 'utf8'),
   readFile(new URL('../scripts/stop-installed-app.ps1', import.meta.url), 'utf8'),
@@ -20,6 +24,8 @@ test('설치기는 정상 종료를 기다리고 해당 설치의 예약 작업�
   assert.match(cleanup, /HasExited/)
   assert.match(cleanup, /StartsWith\(\$prefix/)
   assert.match(cleanup, /\$_\.Id -eq \$PID/)
+  assert.match(cleanup, /\$_\.Id -eq \$CallerPid/)
+  assert.match(installer, /-CallerPid \$9/)
   assert.match(cleanup, /Stop-Process -Force/)
   assert.doesNotMatch(cleanup, /taskkill.*\/IM/i)
   assert.match(rustService, /read_to_string\(&close\)/)
@@ -27,6 +33,28 @@ test('설치기는 정상 종료를 기다리고 해당 설치의 예약 작업�
   assert.match(cleanup, /\.Execute\.Trim\('"'\) -eq \$targetExe/)
   assert.match(installer, /UNINSTALL_MANIFEST/)
   assert.doesNotMatch(installer, /RMDir \/r/i)
+})
+test('제거 종료 스크립트는 자신을 실행한 제거기를 종료하지 않는다', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'nogirem-uninstaller-'))
+  const caller = join(directory, 'Uninstall.exe')
+  await copyFile(process.env.ComSpec, caller)
+  const sleeper = spawn(caller, ['/d', '/c', 'ping', '127.0.0.1', '-n', '30'], { windowsHide: true, stdio: 'ignore' })
+  try {
+    const powershell = join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    const check = spawn(powershell, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', fileURLToPath(new URL('../scripts/stop-installed-app.ps1', import.meta.url)), '-InstallDirectory', directory, '-CallerPid', String(sleeper.pid), '-Uninstall'], { windowsHide: true, stdio: 'ignore' })
+    const code = await Promise.race([
+      new Promise(resolve => check.once('exit', resolve)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('종료 스크립트 시간 초과')), 8000)),
+    ])
+    assert.equal(code, 0)
+    assert.equal(sleeper.exitCode, null)
+  } finally {
+    if (sleeper.exitCode === null) {
+      sleeper.kill()
+      await new Promise(resolve => sleeper.once('exit', resolve))
+    }
+    await rm(directory, { recursive: true, force: true })
+  }
 })
 test('앱은 보존한 시작 설정으로 새 실행 파일의 예약 작업을 복구한다', () => {
   assert.match(service, /async function getStartupTraySetting\(\)[\s\S]*state\.preferred \|\| valid[\s\S]*applyStartupTraySetting\(true\)/)
