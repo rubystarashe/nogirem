@@ -15,3 +15,9 @@ desktop/target/
 
 native/recorder-helper/tools-bin/
 desktop/backend/target/
+
+# Understand Anything의 재현 가능한 정본만 추적하고 실행 중 scratch는 제외한다.
+.ua/intermediate/*
+!.ua/intermediate/scan-result.json
+.ua/tmp/
+.ua/.trash-*/

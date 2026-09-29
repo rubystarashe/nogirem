@@ -15,11 +15,11 @@
   <header>
     <p>프로젝트 설명 보고서 · Rust/Dioxus 현재 버전</p>
     <h1>마비노기 렘 부스터는<br>어떻게 움직이는가</h1>
-    <p class="summary">Windows 최적화 기능을 한곳에서 제어하는 관리자 권한 데스크톱 앱을, 신규 개발자가 쉬운 설명·기술 구조·시각 흐름의 세 관점으로 탐색할 수 있게 정리했다.</p>
+    <p class="summary">Windows 최적화 기능을 한곳에서 제어하는 관리자 권한 데스크톱 앱을, 신규 개발자가 쉬운 설명·인터랙티브 코드 지식 그래프·핵심 흐름 SVG의 세 관점으로 탐색할 수 있게 정리했다.</p>
     <nav aria-label="보고서 이동">
       <a href="eli5-report.html">쉬운 설명</a>
-      <a href="understanding-report.html">기술 구조</a>
-      <a href="visual-report.html">시각화</a>
+      <a href="understanding-report.html">인터랙티브 기술 그래프</a>
+      <a href="visual-report.html">핵심 흐름 SVG</a>
     </nav>
   </header>
   <main>
@@ -28,9 +28,10 @@
       <div><dt>대상 독자</dt><dd>신규 개발자</dd></div>
       <div><dt>분석 방식</dt><dd>full · Rust/Dioxus 전용</dd></div>
       <div><dt>생성 시각</dt><dd>2026-09-29T18:55:03+09:00</dd></div>
-      <div><dt>Base commit</dt><dd><code>abb9c8c0122dff3355776454aa58201f4cedb055</code></dd></div>
-      <div><dt>Target commit</dt><dd><code>abb9c8c0122dff3355776454aa58201f4cedb055</code></dd></div>
-      <div><dt>분석 시작 시 dirty scope</dt><dd>없음</dd></div>
+      <div><dt>최초 보고서 base commit</dt><dd><code>abb9c8c0122dff3355776454aa58201f4cedb055</code></dd></div>
+      <div><dt>앱 source 분석 commit</dt><dd><code>f44454cab129a0dfe3be8f55b8e9e95475ec4f35</code></dd></div>
+      <div><dt>Source dirty scope</dt><dd>분석한 앱 source에는 없음</dd></div>
+      <div><dt>Artifact snapshot</dt><dd><code>REV-EXPLAIN-GRAPH-TARGET-04</code> SHA-256 manifest</dd></div>
       <div><dt>분석 범위</dt><dd>현재 Rust/Dioxus 경로 · 외부/레거시 제외</dd></div>
     </dl>
 
@@ -42,12 +43,12 @@
           <p>UI, Rust 서비스, worker, 설정 파일, 업데이트를 “프런트·관제실·기술자·장부·봉인된 택배”에 대응한다. 비유가 틀어지는 지점도 함께 적었다.</p>
         </li>
         <li>
-          <a href="understanding-report.html">2. Understanding — 코드와 책임 경계</a>
-          <p>프로세스 구성, stdio RPC, 최적화 모듈, 저장 경로, 관리자 권한, 설치형·포터블 업데이트와 테스트 범위를 파일 근거와 함께 설명한다.</p>
+          <a href="understanding-report.html">2. Understand Anything — 인터랙티브 코드 지식 그래프</a>
+          <p>130개 파일에서 추출한 857개 node와 1,296개 edge를 9개 architecture layer와 10단계 guided tour로 탐색한다. 파일을 선택하면 내부 함수·클래스와 incoming/outgoing 관계가 펼쳐지며 기존 상세 기술 설명도 같은 페이지 아래에 보존했다.</p>
         </li>
         <li>
-          <a href="visual-report.html">3. Visual — 아키텍처와 핵심 흐름</a>
-          <p>외부 viewer 없이 열리는 inline SVG로 실행 구조와 서명 업데이트·롤백 흐름을 표시한다. 모든 연결선에 관계 이름과 방향을 적었다.</p>
+          <a href="visual-report.html">3. Visual — 실행 구조와 업데이트 핵심 흐름</a>
+          <p>외부 viewer 없이 열리는 inline SVG로 런타임 구조와 서명 업데이트·롤백 흐름을 표시한다. 코드 탐색은 2번 지식 그래프가 맡고 이 보고서는 시스템 수준 흐름을 고정된 도식으로 보완한다.</p>
         </li>
       </ul>
     </section>

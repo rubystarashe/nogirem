@@ -1,5 +1,8 @@
 # Project Explain Refresh 계획
 
+- feature_impact: none — 기존 Rust 앱을 분석한 설명 artifact만 변경
+- feature_map: no_change — 제품 capability, entry point, contract와 검증 상태는 바뀌지 않음
+
 | DEV ID | 연결 요구사항 | 작업 | 상태 | 근거 |
 |---|---|---|---|---|
 | `DEV-EXPLAIN-01` | REQ-01, REQ-05 | 규칙·handoff·wiki·README·manifest와 Git 기준선 확인 | VERIFIED | 시작 시 HEAD `abb9c8c`, 작업 트리 clean |
@@ -9,6 +12,7 @@
 | `DEV-EXPLAIN-05` | REQ-06 | 정본 불일치 기록, wiki 미변경 | VERIFIED | `report-manifest.json` |
 | `DEV-EXPLAIN-06` | 전체 | self-review, handoff, final report와 local commit | VERIFIED | `qa.md`, `handoff.md`, `final-report.md` |
 | `DEV-EXPLAIN-07` | REQ-02~04 | 후속 기능 분석의 복구 한계 반영, 390px 반응형 재검증, 독립 재검토 | VERIFIED | `REV-EXPLAIN-FOLLOWUP/review-02.md`, `qa.md` |
+| `DEV-EXPLAIN-08` | REQ-07 | 공식 Understand Anything pipeline으로 지식 그래프를 생성하고 기술 보고서를 standalone 인터랙티브 viewer로 재구성 | VERIFIED | `.ua/knowledge-graph.json`, `understanding-report.html`, `QA-EXPLAIN-07`, `REV-EXPLAIN-GRAPH/review-02.md` |
 
 ## 소유와 검토
 

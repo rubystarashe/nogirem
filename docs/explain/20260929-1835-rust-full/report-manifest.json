@@ -6,15 +6,38 @@
   "audience": "신규 개발자",
   "language": "ko",
   "mode": "full",
-  "generatedAt": "2026-09-29T18:55:03+09:00",
+  "generatedAt": "2026-09-29T20:05:04+09:00",
   "baseCommit": "abb9c8c0122dff3355776454aa58201f4cedb055",
-  "targetCommit": "abb9c8c0122dff3355776454aa58201f4cedb055",
+  "targetCommit": "f44454cab129a0dfe3be8f55b8e9e95475ec4f35",
   "dirtyFiles": [],
+  "dirtyFilesScope": "분석 대상 앱 source. 생성 중인 graph·HTML·run artifact는 별도 artifactTarget SHA-256 manifest로 식별한다",
+  "sourceTarget": {
+    "type": "commit",
+    "commit": "f44454cab129a0dfe3be8f55b8e9e95475ec4f35",
+    "dirtyFiles": []
+  },
+  "artifactTarget": {
+    "type": "uncommitted-manifest",
+    "targetId": "REV-EXPLAIN-GRAPH-TARGET-04",
+    "manifest": "../../ai/runs/20260929-project-explain-refresh/reviews/REV-EXPLAIN-GRAPH/target-04.sha256"
+  },
   "reports": {
     "index": "index.html",
     "eli5": "eli5-report.html",
     "understanding": "understanding-report.html",
-    "visual": "visual-report.html"
+    "visual": "visual-report.html",
+    "knowledgeGraph": "../../../.ua/knowledge-graph.json"
+  },
+  "understandAnything": {
+    "analyzedFiles": 130,
+    "nodes": 857,
+    "edges": 1296,
+    "layers": 9,
+    "tourSteps": 10,
+    "outputLanguage": "ko",
+    "graphTargetCommit": "f44454cab129a0dfe3be8f55b8e9e95475ec4f35",
+    "embeddedViewer": "understanding-report.html",
+    "officialDashboard": "BLOCKED: prebuilt viewer의 127.0.0.1:5173 bind 권한 거부와 Node 23/Vite 6 package import 호환 오류로 실행하지 못했다"
   },
   "sourceFiles": [
     "README.md",
@@ -80,12 +103,16 @@
     "links": "PASS",
     "offline": "PASS",
     "browser": "PASS",
-    "responsive": "PASS"
+    "responsive": "PASS",
+    "knowledgeGraph": "PASS",
+    "interactiveGraph": "PASS"
   },
   "warnings": [
     "범위는 사용자 요청에 따라 Rust/Dioxus 현재 버전으로 한정했다",
     "실제 최적화, 설치, 업데이트, 드라이버 변경, 녹화 QA는 이번 보고서 생성에서 실행하지 않았다",
     "CPU affinity, TCP autotuning, GPU 설정, 설치형 rollback은 완전한 이전 상태 복원을 보장하지 않으며 상세 한계를 기술 보고서에 기록했다",
-    "외부 SDK와 vendored framework 내부 동작은 저장소 경계 밖으로 취급했다"
+    "외부 SDK와 vendored framework 내부 동작은 저장소 경계 밖으로 취급했다",
+    "공식 dashboard 실행은 환경 제약으로 BLOCKED였으며 동일 graph 데이터를 standalone HTML에 내장해 layer·검색·파일 상세·guided tour를 실제 브라우저로 검증했다",
+    "정적 import 관계가 없는 설정·문서·자산 node 53개는 orphan warning으로 유지했으며 누락이나 validation 오류로 간주하지 않았다"
   ]
 }

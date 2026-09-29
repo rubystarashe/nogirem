@@ -1,0 +1,989 @@
+{
+  "name": "nogirem",
+  "description": "Rust와 Dioxus Desktop으로 구현된 Windows 데스크톱 앱으로, serde와 tokio를 사용해 상태 직렬화와 비동기 작업을 처리하고 Reqwest 및 windows-sys 기반 backend에서 시스템 최적화와 업데이트 기능을 제공합니다. 이 프로젝트는 분석 대상 파일이 100개를 넘으므로 더 빠른 분석이 필요하면 하위 디렉터리로 범위를 좁히는 것을 고려하세요.",
+  "languages": [
+    "batch",
+    "cpp",
+    "css",
+    "html",
+    "javascript",
+    "json",
+    "manifest",
+    "markdown",
+    "nsh",
+    "nsi",
+    "powershell",
+    "python",
+    "rust",
+    "toml",
+    "txt"
+  ],
+  "frameworks": [
+    "Dioxus Desktop",
+    "Reqwest",
+    "Rust",
+    "serde",
+    "tokio",
+    "windows-sys"
+  ],
+  "files": [
+    {
+      "path": "blackbox-editor.html",
+      "language": "html",
+      "sizeLines": 143,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "blackbox-manager.html",
+      "language": "html",
+      "sizeLines": 1766,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "build-config/update.json",
+      "language": "json",
+      "sizeLines": 4,
+      "fileCategory": "config"
+    },
+    {
+      "path": "character-guide.html",
+      "language": "html",
+      "sizeLines": 397,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "config.json",
+      "language": "json",
+      "sizeLines": 45,
+      "fileCategory": "config"
+    },
+    {
+      "path": "desktop/backend/Cargo.toml",
+      "language": "toml",
+      "sizeLines": 25,
+      "fileCategory": "config"
+    },
+    {
+      "path": "desktop/backend/src/affinity_worker.rs",
+      "language": "rust",
+      "sizeLines": 295,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/affinity.rs",
+      "language": "rust",
+      "sizeLines": 407,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/app_services.rs",
+      "language": "rust",
+      "sizeLines": 542,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/bin/nogirem-cli.rs",
+      "language": "rust",
+      "sizeLines": 211,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/blackbox-notice.html",
+      "language": "html",
+      "sizeLines": 44,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "desktop/backend/src/blackbox.rs",
+      "language": "rust",
+      "sizeLines": 1126,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/boost.rs",
+      "language": "rust",
+      "sizeLines": 488,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/command.rs",
+      "language": "rust",
+      "sizeLines": 155,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/diagnostics.rs",
+      "language": "rust",
+      "sizeLines": 359,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/dxvk_manager.rs",
+      "language": "rust",
+      "sizeLines": 269,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/dxvk.rs",
+      "language": "rust",
+      "sizeLines": 323,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/graphics.rs",
+      "language": "rust",
+      "sizeLines": 626,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/helper_log.rs",
+      "language": "rust",
+      "sizeLines": 219,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/http.rs",
+      "language": "rust",
+      "sizeLines": 57,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/inputs.rs",
+      "language": "rust",
+      "sizeLines": 448,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/lib.rs",
+      "language": "rust",
+      "sizeLines": 48,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/memory.rs",
+      "language": "rust",
+      "sizeLines": 266,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/muo.rs",
+      "language": "rust",
+      "sizeLines": 208,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/network_manager.rs",
+      "language": "rust",
+      "sizeLines": 199,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/network.rs",
+      "language": "rust",
+      "sizeLines": 300,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/nic.rs",
+      "language": "rust",
+      "sizeLines": 125,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/nvidia-definitions.json",
+      "language": "json",
+      "sizeLines": 85,
+      "fileCategory": "config"
+    },
+    {
+      "path": "desktop/backend/src/powershell.rs",
+      "language": "rust",
+      "sizeLines": 127,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/powershell/network-autotuning.ps1",
+      "language": "powershell",
+      "sizeLines": 28,
+      "fileCategory": "script"
+    },
+    {
+      "path": "desktop/backend/src/powershell/network-connectivity.ps1",
+      "language": "powershell",
+      "sizeLines": 62,
+      "fileCategory": "script"
+    },
+    {
+      "path": "desktop/backend/src/powershell/network-query.ps1",
+      "language": "powershell",
+      "sizeLines": 122,
+      "fileCategory": "script"
+    },
+    {
+      "path": "desktop/backend/src/powershell/network-restart.ps1",
+      "language": "powershell",
+      "sizeLines": 28,
+      "fileCategory": "script"
+    },
+    {
+      "path": "desktop/backend/src/powershell/network-restore.ps1",
+      "language": "powershell",
+      "sizeLines": 46,
+      "fileCategory": "script"
+    },
+    {
+      "path": "desktop/backend/src/powershell/nic.ps1",
+      "language": "powershell",
+      "sizeLines": 117,
+      "fileCategory": "script"
+    },
+    {
+      "path": "desktop/backend/src/process.rs",
+      "language": "rust",
+      "sizeLines": 257,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/rpc.rs",
+      "language": "rust",
+      "sizeLines": 120,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/service_fixture.rs",
+      "language": "rust",
+      "sizeLines": 142,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/service_windows.rs",
+      "language": "rust",
+      "sizeLines": 699,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/service-contract.json",
+      "language": "json",
+      "sizeLines": 112,
+      "fileCategory": "config"
+    },
+    {
+      "path": "desktop/backend/src/service.rs",
+      "language": "rust",
+      "sizeLines": 948,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/settings.rs",
+      "language": "rust",
+      "sizeLines": 220,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/storage.rs",
+      "language": "rust",
+      "sizeLines": 154,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/topology.rs",
+      "language": "rust",
+      "sizeLines": 286,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/update_install.rs",
+      "language": "rust",
+      "sizeLines": 533,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/update-notice.html",
+      "language": "html",
+      "sizeLines": 19,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "desktop/backend/src/updater.rs",
+      "language": "rust",
+      "sizeLines": 157,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/src/workers.rs",
+      "language": "rust",
+      "sizeLines": 212,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/tests/legacy-parity.json",
+      "language": "json",
+      "sizeLines": 17950,
+      "fileCategory": "config"
+    },
+    {
+      "path": "desktop/backend/tests/legacy-parity.rs",
+      "language": "rust",
+      "sizeLines": 43,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/backend/tests/native-services-parity.json",
+      "language": "json",
+      "sizeLines": 2964,
+      "fileCategory": "config"
+    },
+    {
+      "path": "desktop/backend/tests/native-services-parity.rs",
+      "language": "rust",
+      "sizeLines": 28,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/build.rs",
+      "language": "rust",
+      "sizeLines": 70,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/Cargo.toml",
+      "language": "toml",
+      "sizeLines": 33,
+      "fileCategory": "config"
+    },
+    {
+      "path": "desktop/installer.nsi",
+      "language": "nsi",
+      "sizeLines": 114,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/legacy-node-cleanup.nsh",
+      "language": "nsh",
+      "sizeLines": 183,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/portable.nsi",
+      "language": "nsi",
+      "sizeLines": 89,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/src/bridge.rs",
+      "language": "rust",
+      "sizeLines": 166,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/src/browser-bridge.js",
+      "language": "javascript",
+      "sizeLines": 58,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/src/keyboard-layout.json",
+      "language": "json",
+      "sizeLines": 525,
+      "fileCategory": "config"
+    },
+    {
+      "path": "desktop/src/keyboard.json",
+      "language": "json",
+      "sizeLines": 498,
+      "fileCategory": "config"
+    },
+    {
+      "path": "desktop/src/main.rs",
+      "language": "rust",
+      "sizeLines": 348,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/src/markdown.rs",
+      "language": "rust",
+      "sizeLines": 198,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/src/modal.css",
+      "language": "css",
+      "sizeLines": 189,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "desktop/src/native.rs",
+      "language": "rust",
+      "sizeLines": 751,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/src/notice.css",
+      "language": "css",
+      "sizeLines": 123,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "desktop/src/platform.rs",
+      "language": "rust",
+      "sizeLines": 439,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/src/smoke.rs",
+      "language": "rust",
+      "sizeLines": 1368,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/src/terms.css",
+      "language": "css",
+      "sizeLines": 101,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "desktop/src/ui.css",
+      "language": "css",
+      "sizeLines": 10,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "desktop/src/ui.rs",
+      "language": "rust",
+      "sizeLines": 1423,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/src/wave.js",
+      "language": "javascript",
+      "sizeLines": 708,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/src/wave.rs",
+      "language": "rust",
+      "sizeLines": 132,
+      "fileCategory": "code"
+    },
+    {
+      "path": "desktop/windows.manifest",
+      "language": "manifest",
+      "sizeLines": 16,
+      "fileCategory": "code"
+    },
+    {
+      "path": "DIOXUS_MIGRATION.md",
+      "language": "markdown",
+      "sizeLines": 205,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/ai/wiki/index.md",
+      "language": "markdown",
+      "sizeLines": 3,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/ai/wiki/portable-distribution.md",
+      "language": "markdown",
+      "sizeLines": 39,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "dxvk-guide.html",
+      "language": "html",
+      "sizeLines": 237,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "dxvk-manager.html",
+      "language": "html",
+      "sizeLines": 531,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "INTRODUCE.md",
+      "language": "markdown",
+      "sizeLines": 17,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "native/input-guard-helper/CMakeLists.txt",
+      "language": "txt",
+      "sizeLines": 19,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "native/input-guard-helper/main.cpp",
+      "language": "cpp",
+      "sizeLines": 737,
+      "fileCategory": "code"
+    },
+    {
+      "path": "native/radeon-helper/CMakeLists.txt",
+      "language": "txt",
+      "sizeLines": 25,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "native/radeon-helper/main.cpp",
+      "language": "cpp",
+      "sizeLines": 329,
+      "fileCategory": "code"
+    },
+    {
+      "path": "native/recorder-helper/CMakeLists.txt",
+      "language": "txt",
+      "sizeLines": 41,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "native/recorder-helper/main.cpp",
+      "language": "cpp",
+      "sizeLines": 4558,
+      "fileCategory": "code"
+    },
+    {
+      "path": "native/turbo-key/Cargo.toml",
+      "language": "toml",
+      "sizeLines": 16,
+      "fileCategory": "config"
+    },
+    {
+      "path": "native/turbo-key/rust-toolchain.toml",
+      "language": "toml",
+      "sizeLines": 4,
+      "fileCategory": "config"
+    },
+    {
+      "path": "native/turbo-key/src/main.rs",
+      "language": "rust",
+      "sizeLines": 1061,
+      "fileCategory": "code"
+    },
+    {
+      "path": "nogirem-admin.cmd",
+      "language": "batch",
+      "sizeLines": 13,
+      "fileCategory": "script"
+    },
+    {
+      "path": "nogirem-fast-ping-admin.cmd",
+      "language": "batch",
+      "sizeLines": 12,
+      "fileCategory": "script"
+    },
+    {
+      "path": "nogirem-last-core-admin.cmd",
+      "language": "batch",
+      "sizeLines": 12,
+      "fileCategory": "script"
+    },
+    {
+      "path": "nogirem-last-core-quiet-admin.cmd",
+      "language": "batch",
+      "sizeLines": 12,
+      "fileCategory": "script"
+    },
+    {
+      "path": "nogirem-memory-admin.cmd",
+      "language": "batch",
+      "sizeLines": 12,
+      "fileCategory": "script"
+    },
+    {
+      "path": "nogirem-passive-admin.cmd",
+      "language": "batch",
+      "sizeLines": 12,
+      "fileCategory": "script"
+    },
+    {
+      "path": "nogirem-passive-quiet-admin.cmd",
+      "language": "batch",
+      "sizeLines": 12,
+      "fileCategory": "script"
+    },
+    {
+      "path": "nogirem-quiet-admin.cmd",
+      "language": "batch",
+      "sizeLines": 12,
+      "fileCategory": "script"
+    },
+    {
+      "path": "nogirem-reset-admin.cmd",
+      "language": "batch",
+      "sizeLines": 12,
+      "fileCategory": "script"
+    },
+    {
+      "path": "NOTICE.md",
+      "language": "markdown",
+      "sizeLines": 24,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "OPERATION.md",
+      "language": "markdown",
+      "sizeLines": 64,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "package.json",
+      "language": "json",
+      "sizeLines": 67,
+      "fileCategory": "config"
+    },
+    {
+      "path": "README.md",
+      "language": "markdown",
+      "sizeLines": 203,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "RELEASE_PREPARATION.md",
+      "language": "markdown",
+      "sizeLines": 69,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "scripts/build-input-guard-helper.mjs",
+      "language": "javascript",
+      "sizeLines": 47,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/build-radeon-helper.mjs",
+      "language": "javascript",
+      "sizeLines": 47,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/build-recorder-helper.mjs",
+      "language": "javascript",
+      "sizeLines": 85,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/build-turbo-key.mjs",
+      "language": "javascript",
+      "sizeLines": 62,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/generate-backend-parity.mjs",
+      "language": "javascript",
+      "sizeLines": 26,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/init-update-signing.mjs",
+      "language": "javascript",
+      "sizeLines": 23,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/optimize-package-background.ps1",
+      "language": "powershell",
+      "sizeLines": 37,
+      "fileCategory": "script"
+    },
+    {
+      "path": "scripts/package-dioxus.mjs",
+      "language": "javascript",
+      "sizeLines": 169,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/prepare-release.mjs",
+      "language": "javascript",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/prune-report-responses.mjs",
+      "language": "javascript",
+      "sizeLines": 29,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/run-dioxus.mjs",
+      "language": "javascript",
+      "sizeLines": 12,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/sign-update.mjs",
+      "language": "javascript",
+      "sizeLines": 23,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/stop-installed-app.ps1",
+      "language": "powershell",
+      "sizeLines": 60,
+      "fileCategory": "script"
+    },
+    {
+      "path": "scripts/test-dioxus.mjs",
+      "language": "javascript",
+      "sizeLines": 70,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/test-native-backend.mjs",
+      "language": "javascript",
+      "sizeLines": 67,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/test-release-routing.mjs",
+      "language": "javascript",
+      "sizeLines": 29,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/test-rust-controller.py",
+      "language": "python",
+      "sizeLines": 89,
+      "fileCategory": "code"
+    },
+    {
+      "path": "service/blackbox-editor-preload.js",
+      "language": "javascript",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "service/blackbox-manager-preload.js",
+      "language": "javascript",
+      "sizeLines": 44,
+      "fileCategory": "code"
+    },
+    {
+      "path": "service/character-guide-preload.js",
+      "language": "javascript",
+      "sizeLines": 13,
+      "fileCategory": "code"
+    },
+    {
+      "path": "service/dxvk-guide-preload.js",
+      "language": "javascript",
+      "sizeLines": 14,
+      "fileCategory": "code"
+    },
+    {
+      "path": "service/dxvk-manager-preload.js",
+      "language": "javascript",
+      "sizeLines": 9,
+      "fileCategory": "code"
+    },
+    {
+      "path": "TURBO_KEY_TERMS.md",
+      "language": "markdown",
+      "sizeLines": 28,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "web/blackbox-editor.css",
+      "language": "css",
+      "sizeLines": 665,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "web/blackbox-editor.js",
+      "language": "javascript",
+      "sizeLines": 1138,
+      "fileCategory": "code"
+    },
+    {
+      "path": "web/update-preview.css",
+      "language": "css",
+      "sizeLines": 123,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "web/window-escape.js",
+      "language": "javascript",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    }
+  ],
+  "totalFiles": 130,
+  "filteredByIgnore": 210,
+  "estimatedComplexity": "moderate",
+  "importMap": {
+    "blackbox-editor.html": [],
+    "blackbox-manager.html": [],
+    "build-config/update.json": [],
+    "character-guide.html": [],
+    "config.json": [],
+    "desktop/backend/Cargo.toml": [],
+    "desktop/backend/src/affinity_worker.rs": [],
+    "desktop/backend/src/affinity.rs": [],
+    "desktop/backend/src/app_services.rs": [],
+    "desktop/backend/src/bin/nogirem-cli.rs": [],
+    "desktop/backend/src/blackbox-notice.html": [],
+    "desktop/backend/src/blackbox.rs": [],
+    "desktop/backend/src/boost.rs": [],
+    "desktop/backend/src/command.rs": [],
+    "desktop/backend/src/diagnostics.rs": [],
+    "desktop/backend/src/dxvk_manager.rs": [],
+    "desktop/backend/src/dxvk.rs": [],
+    "desktop/backend/src/graphics.rs": [],
+    "desktop/backend/src/helper_log.rs": [],
+    "desktop/backend/src/http.rs": [],
+    "desktop/backend/src/inputs.rs": [],
+    "desktop/backend/src/lib.rs": [
+      "desktop/backend/src/affinity_worker.rs",
+      "desktop/backend/src/affinity.rs",
+      "desktop/backend/src/app_services.rs",
+      "desktop/backend/src/blackbox.rs",
+      "desktop/backend/src/boost.rs",
+      "desktop/backend/src/command.rs",
+      "desktop/backend/src/diagnostics.rs",
+      "desktop/backend/src/dxvk_manager.rs",
+      "desktop/backend/src/dxvk.rs",
+      "desktop/backend/src/graphics.rs",
+      "desktop/backend/src/helper_log.rs",
+      "desktop/backend/src/http.rs",
+      "desktop/backend/src/inputs.rs",
+      "desktop/backend/src/memory.rs",
+      "desktop/backend/src/muo.rs",
+      "desktop/backend/src/network_manager.rs",
+      "desktop/backend/src/network.rs",
+      "desktop/backend/src/nic.rs",
+      "desktop/backend/src/powershell.rs",
+      "desktop/backend/src/process.rs",
+      "desktop/backend/src/rpc.rs",
+      "desktop/backend/src/service_fixture.rs",
+      "desktop/backend/src/service_windows.rs",
+      "desktop/backend/src/service.rs",
+      "desktop/backend/src/settings.rs",
+      "desktop/backend/src/storage.rs",
+      "desktop/backend/src/topology.rs",
+      "desktop/backend/src/update_install.rs",
+      "desktop/backend/src/updater.rs",
+      "desktop/backend/src/workers.rs"
+    ],
+    "desktop/backend/src/memory.rs": [],
+    "desktop/backend/src/muo.rs": [],
+    "desktop/backend/src/network_manager.rs": [],
+    "desktop/backend/src/network.rs": [],
+    "desktop/backend/src/nic.rs": [],
+    "desktop/backend/src/nvidia-definitions.json": [],
+    "desktop/backend/src/powershell.rs": [],
+    "desktop/backend/src/powershell/network-autotuning.ps1": [],
+    "desktop/backend/src/powershell/network-connectivity.ps1": [],
+    "desktop/backend/src/powershell/network-query.ps1": [],
+    "desktop/backend/src/powershell/network-restart.ps1": [],
+    "desktop/backend/src/powershell/network-restore.ps1": [],
+    "desktop/backend/src/powershell/nic.ps1": [],
+    "desktop/backend/src/process.rs": [],
+    "desktop/backend/src/rpc.rs": [],
+    "desktop/backend/src/service_fixture.rs": [],
+    "desktop/backend/src/service_windows.rs": [],
+    "desktop/backend/src/service-contract.json": [],
+    "desktop/backend/src/service.rs": [],
+    "desktop/backend/src/settings.rs": [],
+    "desktop/backend/src/storage.rs": [],
+    "desktop/backend/src/topology.rs": [],
+    "desktop/backend/src/update_install.rs": [],
+    "desktop/backend/src/update-notice.html": [],
+    "desktop/backend/src/updater.rs": [],
+    "desktop/backend/src/workers.rs": [],
+    "desktop/backend/tests/legacy-parity.json": [],
+    "desktop/backend/tests/legacy-parity.rs": [],
+    "desktop/backend/tests/native-services-parity.json": [],
+    "desktop/backend/tests/native-services-parity.rs": [],
+    "desktop/build.rs": [],
+    "desktop/Cargo.toml": [],
+    "desktop/installer.nsi": [],
+    "desktop/legacy-node-cleanup.nsh": [],
+    "desktop/portable.nsi": [],
+    "desktop/src/bridge.rs": [],
+    "desktop/src/browser-bridge.js": [],
+    "desktop/src/keyboard-layout.json": [],
+    "desktop/src/keyboard.json": [],
+    "desktop/src/main.rs": [
+      "desktop/src/bridge.rs",
+      "desktop/src/markdown.rs",
+      "desktop/src/native.rs",
+      "desktop/src/platform.rs",
+      "desktop/src/smoke.rs",
+      "desktop/src/ui.rs",
+      "desktop/src/wave.rs"
+    ],
+    "desktop/src/markdown.rs": [],
+    "desktop/src/modal.css": [],
+    "desktop/src/native.rs": [
+      "desktop/src/bridge.rs"
+    ],
+    "desktop/src/notice.css": [],
+    "desktop/src/platform.rs": [],
+    "desktop/src/smoke.rs": [],
+    "desktop/src/terms.css": [],
+    "desktop/src/ui.css": [],
+    "desktop/src/ui.rs": [
+      "desktop/src/bridge.rs"
+    ],
+    "desktop/src/wave.js": [],
+    "desktop/src/wave.rs": [],
+    "desktop/windows.manifest": [],
+    "DIOXUS_MIGRATION.md": [],
+    "docs/ai/wiki/index.md": [],
+    "docs/ai/wiki/portable-distribution.md": [],
+    "dxvk-guide.html": [],
+    "dxvk-manager.html": [],
+    "INTRODUCE.md": [],
+    "native/input-guard-helper/CMakeLists.txt": [],
+    "native/input-guard-helper/main.cpp": [],
+    "native/radeon-helper/CMakeLists.txt": [],
+    "native/radeon-helper/main.cpp": [],
+    "native/recorder-helper/CMakeLists.txt": [],
+    "native/recorder-helper/main.cpp": [],
+    "native/turbo-key/Cargo.toml": [],
+    "native/turbo-key/rust-toolchain.toml": [],
+    "native/turbo-key/src/main.rs": [],
+    "nogirem-admin.cmd": [],
+    "nogirem-fast-ping-admin.cmd": [],
+    "nogirem-last-core-admin.cmd": [],
+    "nogirem-last-core-quiet-admin.cmd": [],
+    "nogirem-memory-admin.cmd": [],
+    "nogirem-passive-admin.cmd": [],
+    "nogirem-passive-quiet-admin.cmd": [],
+    "nogirem-quiet-admin.cmd": [],
+    "nogirem-reset-admin.cmd": [],
+    "NOTICE.md": [],
+    "OPERATION.md": [],
+    "package.json": [],
+    "README.md": [],
+    "RELEASE_PREPARATION.md": [],
+    "scripts/build-input-guard-helper.mjs": [],
+    "scripts/build-radeon-helper.mjs": [],
+    "scripts/build-recorder-helper.mjs": [],
+    "scripts/build-turbo-key.mjs": [],
+    "scripts/generate-backend-parity.mjs": [],
+    "scripts/init-update-signing.mjs": [],
+    "scripts/optimize-package-background.ps1": [],
+    "scripts/package-dioxus.mjs": [],
+    "scripts/prepare-release.mjs": [],
+    "scripts/prune-report-responses.mjs": [],
+    "scripts/run-dioxus.mjs": [],
+    "scripts/sign-update.mjs": [],
+    "scripts/stop-installed-app.ps1": [],
+    "scripts/test-dioxus.mjs": [],
+    "scripts/test-native-backend.mjs": [],
+    "scripts/test-release-routing.mjs": [],
+    "scripts/test-rust-controller.py": [],
+    "service/blackbox-editor-preload.js": [],
+    "service/blackbox-manager-preload.js": [],
+    "service/character-guide-preload.js": [],
+    "service/dxvk-guide-preload.js": [],
+    "service/dxvk-manager-preload.js": [],
+    "TURBO_KEY_TERMS.md": [],
+    "web/blackbox-editor.css": [],
+    "web/blackbox-editor.js": [],
+    "web/update-preview.css": [],
+    "web/window-escape.js": []
+  }
+}

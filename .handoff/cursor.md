@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-29 19:29 +09:00
+Last Updated: 2026-09-29 20:25 +09:00
 
 ## Current Objective
 Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배포하고 두 형식의 안전한 자동 업데이트를 지원한다.
@@ -16,6 +16,10 @@ Rust·Dioxus 0.4.1 변경으로 설치형과 단일 EXE 포터블을 함께 배�
 - `DIOXUS_MIGRATION.md`의 역사적 중간 상태 문구와 `README.md` 설치 자산명 불일치를 보고서에 기록했으며 정본은 변경하지 않았다.
 - 기능 분석 후 CPU affinity·TCP autotuning·GPU 설정·설치형 rollback의 복구 한계를 보고서에 보강하고 독립 재검토 승인을 받았다.
 - 앱 `0.4.1`, Dioxus 요구값 `^0.7.3`, lock resolution `0.7.10`을 구분했으며 실제 390px viewport에서 발견한 ELI5 code link 넘침을 수정했다.
+- Understand Anything v2.9.0으로 Rust 앱 범위 130개 파일의 지식 그래프를 생성했다. `.ua/knowledge-graph.json`은 857 nodes, 1,296 edges, 9 layers, 10 tour steps를 포함한다.
+- `understanding-report.html`은 standalone 인터랙티브 코드 그래프를 첫 화면으로 제공하며 layer, 검색, 파일 내부 함수·클래스, 관계 Inspector, guided tour를 실제 브라우저에서 검증했다.
+- 공식 Understand Anything dashboard 실행은 Windows localhost bind와 Node 23/Vite 6 호환 문제로 막혔지만 동일 graph를 내장한 standalone viewer는 desktop 상호작용과 390px 반응형 검증을 통과했다.
+- 최종 graph review round 1의 source/artifact target 구분·상태 기록·검색 combobox 접근성 finding을 수정했고 `REV-EXPLAIN-GRAPH-TARGET-02` 독립 재검토 승인을 받았다.
 - 단일 포터블 EXE 생성과 전용 서명 업데이트 경로를 구현했다.
 - 포터블 내부 앱은 관리자 전용 버전 캐시에 한 번 준비하고 다음 실행부터 재사용한다.
 - 배포 EXE는 변경하지 않아 다른 위치로 복사·이동해도 독립 실행된다.

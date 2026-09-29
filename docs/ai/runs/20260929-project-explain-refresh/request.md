@@ -6,6 +6,8 @@
 - 언어: 한국어
 - 방식: `full`
 - 기준 commit: `abb9c8c0122dff3355776454aa58201f4cedb055`
+- feature_impact: none — 제품 동작이 아닌 코드 구조 설명·시각화 산출물 보강
+- feature_map: no_change — 정본 기능 설명과 사용자 journey는 변경되지 않음
 
 ## 요구사항
 
@@ -15,6 +17,7 @@
 - `REQ-EXPLAIN-04`: 외부 CDN·원격 script·추적 코드를 사용하지 않고 로컬 링크, 모바일, 인쇄, 브라우저 렌더링을 검증한다.
 - `REQ-EXPLAIN-05`: 사용자 지시에 따라 현재 Rust/Dioxus 버전만 분석하고 Electron 애플리케이션 구현은 제외한다.
 - `REQ-EXPLAIN-06`: `--sync-wiki`가 없으므로 정본 문서는 변경하지 않고 발견한 불일치만 기록한다.
+- `REQ-EXPLAIN-07`: `Understand Anything` 결과는 기술 설명문이 아니라 실제 코드 지식 그래프를 중심으로 제공하고 layer 탐색, node 검색, 파일 내부 상세와 guided tour를 standalone HTML에서 조작할 수 있어야 한다.
 
 ## 범위 제외
 

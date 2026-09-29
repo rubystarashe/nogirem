@@ -131,3 +131,33 @@ Screenshot binary는 Cursor browser artifact에 남고 저장소에는 복사하
 - 시각화: 390×844에서 document/body 폭 375, SVG diagram 두 개만 `overflow-x:auto`로 812px 내부 스크롤
 - ELI5: 첫 390px CSS viewport 검사에서 긴 inline code link가 document 폭을 435px로 넓히는 문제를 발견했다. <code>에 `overflow-wrap:anywhere`와 `word-break:break-word`를 추가한 뒤 viewport 390, document/body 폭 375로 재검증했다.
 - 독립 검토 후 정정: 앱 버전 `0.4.1`, Dioxus 선언 요구값 `^0.7.3`, `Cargo.lock` resolution `0.7.10`을 구분하고 sourceFiles에 `desktop/Cargo.lock`을 추가했다.
+
+## Understand Anything 인터랙티브 graph 재검증
+
+- 실행 시각: 2026-09-29 20:00~20:05 +09:00
+- source target: `f44454cab129a0dfe3be8f55b8e9e95475ec4f35`
+- graph: 130 files, 857 nodes, 1,296 edges, 9 layers, 10 tour steps
+- 페이지: `understanding-report.html`
+- 접근성 snapshot: 9개 layer button, node 검색, 5개 type filter, tour control, keyboard-selectable SVG node, Inspector, 기존 Reference 영역 확인
+- 상호작용: `main.rs` file node 선택 후 contained function과 import 대상 subgraph, summary/tag/path와 incoming/outgoing 관계 표시 확인
+- guided tour: 첫 단계 `제품 목적과 범위`가 `README.md` node만 bounded graph로 표시하고 Inspector와 설명을 갱신함을 확인
+- 검색 접근성: `service` 검색 결과 30개의 option tab stop이 0임을 확인했다. ArrowDown 뒤 input focus를 유지한 채 `search-option-0`이 active descendant와 selected 상태가 됐고 Enter 뒤 listbox가 닫히며 `app_services.rs` 상세 graph와 Inspector가 열렸다.
+- offline: 외부 script·stylesheet·asset·`fetch()` 없이 embedded `knowledge-graph-data` JSON을 사용
+
+390×844 emulation 측정:
+
+```json
+{
+  "innerWidth": 390,
+  "documentWidth": 390,
+  "bodyWidth": 390,
+  "graphClientWidth": 368,
+  "graphScrollWidth": 900,
+  "workspaceDisplay": "block",
+  "inspectorWidth": 368
+}
+```
+
+- 결과: 페이지 전체 가로 넘침 없음, graph canvas만 내부 가로 스크롤, Inspector 한 열 배치
+- screenshot artifact: `nogirem-understand-graph-mobile.png`, `nogirem-understand-graph-desktop.png`
+- 공식 dashboard 실행: prebuilt viewer의 `127.0.0.1:5173` bind `EACCES`와 source dashboard의 Node 23/Vite 6 package import 오류로 `BLOCKED`. standalone viewer 브라우저 검증 결과와 구분해 기록했다.

@@ -1,0 +1,42 @@
+# Nogirem Rust 앱 중심 Understand Anything 분석 범위
+# built-in 기본값 외에 Electron·외부 SDK·생성물·과거 작업 기록을 제외한다.
+
+/release/
+dist/
+target/
+**/target/
+desktop/vendor/
+vendor/
+third_party/
+node_modules/
+.ua/
+/assets/
+native/**/bin/
+
+docs/ai/runs/
+docs/explain/
+.handoff/
+VERSION_HISTORY*
+REPORT.json
+
+# Electron 본체와 기존 JS 서비스 구현
+/electron/
+/src/
+/test/
+/service/**
+
+# Rust 보조 창에서 실제 사용하는 preload만 다시 포함한다.
+!/service/*-preload.js
+
+# Svelte 메인 UI는 제외하고 Rust 보조 창 자산만 포함한다.
+/web/**
+!/web/window-escape.js
+!/web/blackbox-editor.js
+!/web/blackbox-editor.css
+!/web/update-preview.css
+
+/public/
+/.github/
+
+# Electron 전환용 build script는 현재 Rust 앱 구조에서 제외한다.
+/scripts/prepare-electron-bridge.mjs
