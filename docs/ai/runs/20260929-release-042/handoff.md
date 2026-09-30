@@ -94,3 +94,20 @@
 - feature_map: `updated — revision 2`
 - architecture_impact: `native mandatory-label trust boundary`
 - architecture_contract: `updated — revision 2`
+
+## CP-RELEASE-042-03 파일명 전환 인계
+
+- updated_at: `2026-09-30T10:06:00Z`
+- status: `IN_PROGRESS`
+- DEV: `READY_FOR_QA`
+- QA: `IN_PROGRESS`
+- review: `APPROVED`, independent, `ISSUE-ASSET-001~004 RESOLVED`
+- source target: base `57075bd7582976d39cabfe60341671a91a5afb2a` + reviewed uncommitted diff
+- compatibility: 배포된 0.4.x verifier가 `nogirem-dioxus-*`를 요구하므로 해당 자산과 signed manifests는 자동 업데이트 전용으로 유지한다. 짧은 설치형·포터블 이름은 byte-identical 수동 다운로드 alias다.
+- Electron: `latest.yml`이 새 `nogirem-legacy-electron-migration-0.3.19.exe`를 가리키며 sha512와 blockmap을 검증한다.
+- checks: focused 5/5 `PASS`; actual signed bundle assembly `PASS`; full Node 201/201 `PASS`.
+- remaining: source commit, 공개 alias·legacy feed 업로드, 자산 label·release 안내, 구 legacy 이름 제거, 실다운로드 검증.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `blocked — 배포 target 확정 뒤 revision 3 갱신`
+- architecture_impact: `release-assets 조립·alias·Electron feed 무결성`
+- architecture_contract: `blocked — 배포 target 확정 뒤 revision 3 갱신`

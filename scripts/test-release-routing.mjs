@@ -23,7 +23,7 @@ for(const tag of ['v0.4.0','v0.4.1']){
  assert(semver.gt(info.version,currentVersion))
  assert(!semver.gt(info.version,'0.3.19'))
  const files=provider.resolveFiles(info)
- assert.equal(files[0].url.href,`https://github.com/rubystarashe/nogirem/releases/download/${tag}/nogirem-setup-0.3.19.exe`)
+ assert.equal(files[0].url.href,`https://github.com/rubystarashe/nogirem/releases/download/${tag}/nogirem-legacy-electron-migration-0.3.19.exe`)
  console.log(JSON.stringify({tag,currentVersion,delivers:info.version,url:files[0].url.href,passed:true}))
  }
 }

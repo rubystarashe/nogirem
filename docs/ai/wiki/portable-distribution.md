@@ -2,8 +2,10 @@
 
 ## 배포 형식
 
-- 설치형: `nogirem-dioxus-setup-<version>.exe`
-- 포터블: `nogirem-dioxus-portable-<version>.exe`
+- 사용자 권장 설치형: `nogirem-setup-<version>.exe`
+- 사용자 권장 포터블: `nogirem-portable-<version>.exe`
+- 기존 0.4.x 자동 업데이트 호환 자산: `nogirem-dioxus-setup-<version>.exe`, `nogirem-dioxus-portable-<version>.exe`
+- Electron 전환 전용 자산: `nogirem-legacy-electron-migration-0.3.19.exe`
 - 사용자가 보관하고 이동하는 포터블 배포물은 EXE 한 개다.
 - launcher는 첫 실행에 내부 앱을 관리자 전용 Program Files 버전 캐시에 풀고 이후 실행에서 재사용한다.
 - 캐시 marker는 버전 문자열이 아니라 패키징된 내부 파일 전체의 SHA-256 digest를 기록해 동일 버전 교체본도 다시 준비한다.
@@ -24,6 +26,7 @@
 - 설치형은 서명된 `update.json`과 NSIS 설치 파일을 사용한다.
 - 포터블은 서명된 `portable-update.json`과 새 단일 EXE를 사용한다.
 - 두 매니페스트를 분리해 기존 설치형 클라이언트의 스키마 호환성을 유지한다.
+- 배포된 0.4.x verifier가 `nogirem-dioxus-*` URL을 요구하므로 자동 업데이트 manifest는 호환 이름을 유지한다. 같은 payload를 짧은 권장 이름으로도 게시해 수동 다운로드 선택을 분리한다.
 - 포터블 업데이트 helper는 GUI·서비스·launcher 종료를 기다린 뒤 원본 포터블 EXE를 원자 교체한다.
 - 업데이트 다운로드와 백업은 reparse 검증 및 High 무결성이 적용된 전용 캐시를 사용한다.
 - 원본 EXE와 같은 볼륨의 임시 staging 폴더는 High 무결성으로 보호하고 경로 handle을 유지한다. 이동 전후 SHA-256 검증과 실행 파일 handle 잠금으로 교체 후 실행 사이의 변경을 차단한다.

@@ -27,6 +27,7 @@ if(!pkg.dependencies?.['electron-updater'] || !pkg.main?.startsWith('electron/')
 pkg.version=bridgeVersion;pkg.build.files.push('migration/nogirem-migrator.exe')
 pkg.build.asarUnpack.push('migration/nogirem-migrator.exe')
 pkg.build.directories.output=output
+pkg.build.artifactName='nogirem-legacy-electron-migration-${version}.${ext}'
 await writeFile(join(source,'package.json'),JSON.stringify(pkg,null,2)+'\n')
 const lock=JSON.parse(await readFile(join(source,'package-lock.json'),'utf8'));lock.version=bridgeVersion;lock.packages[''].version=bridgeVersion;await writeFile(join(source,'package-lock.json'),JSON.stringify(lock,null,2)+'\n')
 await mkdir(join(source,'migration'),{recursive:true});await copyFile(helper,join(source,'migration/nogirem-migrator.exe'))

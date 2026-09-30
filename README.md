@@ -184,12 +184,19 @@ npm run package:win
 NSIS 기본 설치 경로를 사용하세요. 네이티브 헬퍼는 기존 `native:*` 명령으로 빌드할 수 있으며,
 패키징은 준비된 바이너리를 그대로 사용합니다. 선택적 터보 키 헬퍼도 먼저 빌드해야 합니다.
 
-생성 파일은 `release/dioxus-<version>-<timestamp>/`에 저장됩니다.
+`package:win`의 자동 업데이트용 원본은 `release/dioxus-<version>-<timestamp>/`에 저장됩니다.
 
-- `nogirem-dioxus-setup-<version>.exe`: Windows 설치기
 - `app/`: Dioxus 실행 파일과 Rust 백엔드, 네이티브 헬퍼, 리소스 (Node 런타임 없음)
-- `turbo-key-helper-win32-x64-v<helper-version>.exe`: 별도 배포할 선택적 헬퍼
 - `build.json`: 패키지 구성 정보
+- `nogirem-dioxus-setup-<version>.exe`, `nogirem-dioxus-portable-<version>.exe`: 서명 manifest가 가리키는 원본
+
+`prepare-release.mjs`가 만드는 최종 `release/ready-v<version>-<timestamp>/`에는 다음 공개 자산이 포함됩니다.
+
+- `nogirem-setup-<version>.exe`: 사용자에게 권장하는 Windows 설치기
+- `nogirem-portable-<version>.exe`: 사용자에게 권장하는 단일 EXE 포터블
+- `nogirem-dioxus-setup-<version>.exe`, `nogirem-dioxus-portable-<version>.exe`: 기존 0.4.x 자동 업데이트 호환 전용 자산
+- `nogirem-legacy-electron-migration-0.3.19.exe`: 기존 Electron 사용자의 Rust 전환 전용 자산
+- `turbo-key-helper-win32-x64-v<helper-version>.exe`: 별도 배포할 선택적 헬퍼
 
 설치기는 WebView2가 없으면 Microsoft 서명을 검증한 부트스트래퍼로 설치합니다.
 이 경우 인터넷 연결이 필요합니다. 기존 사용자 설정과 녹화 폴더는 보존합니다.

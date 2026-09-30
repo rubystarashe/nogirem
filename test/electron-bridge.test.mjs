@@ -2,9 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {readFile} from 'node:fs/promises'
 
-const [bridge,release,routing,installer]=await Promise.all([
+const [bridge,release,releaseAssets,routing,installer]=await Promise.all([
   readFile(new URL('../scripts/prepare-electron-bridge.mjs',import.meta.url),'utf8'),
   readFile(new URL('../scripts/prepare-release.mjs',import.meta.url),'utf8'),
+  readFile(new URL('../scripts/release-assets.mjs',import.meta.url),'utf8'),
   readFile(new URL('../scripts/test-release-routing.mjs',import.meta.url),'utf8'),
   readFile(new URL('../desktop/backend/src/update_install.rs',import.meta.url),'utf8'),
 ])
@@ -35,8 +36,14 @@ test('0.3.19 전환본은 기존 업데이트 UI에 Rust 상태와 재시도를 
 })
 
 test('릴리스 조립과 라우팅 계약은 0.3.19 전환본을 요구한다',()=>{
-  assert.match(release,/nogirem-setup-0\.3\.19\.exe/)
-  assert.match(release,/version:\\s\*0\\\.3\\\.19/)
+  assert.match(bridge,/nogirem-legacy-electron-migration-\$\{version\}\.\$\{ext\}/)
+  assert.match(release,/assembleReleaseAssets/)
+  assert.match(releaseAssets,/nogirem-legacy-electron-migration-0\.3\.19\.exe/)
+  assert.match(releaseAssets,/nogirem-setup-\$\{version\}\.exe/)
+  assert.match(releaseAssets,/nogirem-portable-\$\{version\}\.exe/)
+  assert.match(releaseAssets,/oldLegacy:'nogirem-setup-0\.3\.19\.exe'/)
+  assert.match(releaseAssets,/version:\\s\*0\\\.3\\\.19/)
+  assert.match(releaseAssets,/Electron migration blockmap is required/)
   assert.match(routing,/info\.version,'0\.3\.19'/)
-  assert.match(routing,/nogirem-setup-0\.3\.19\.exe/)
+  assert.match(routing,/nogirem-legacy-electron-migration-0\.3\.19\.exe/)
 })
