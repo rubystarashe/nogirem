@@ -53,3 +53,19 @@
 - feature_map: `updated — revision 2`
 - architecture_impact: `native mandatory-label trust boundary`
 - architecture_contract: `updated — revision 2`
+
+## CP-RELEASE-042-03
+
+- updated_at: `2026-09-30T10:14:00Z`
+- active_checkpoint: `completed`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
+- review: `APPROVED`, `ISSUE-ASSET-001~004 RESOLVED`
+- source: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d`
+- release: `PUBLISHED`, GitHub v0.4.2 named aliases and Electron feed
+- decision: Rust canonical manifest names stay `nogirem-dioxus-*` for deployed-client compatibility. Short names are user-facing aliases and labels distinguish both roles.
+- old Electron assets: removed only after long-name asset, blockmap, latest feed and full public download verification.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — revision 3`
+- architecture_impact: `dual asset naming and legacy Electron feed`
+- architecture_contract: `updated — revision 3`

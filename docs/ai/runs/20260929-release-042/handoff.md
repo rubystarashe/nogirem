@@ -111,3 +111,22 @@
 - feature_map: `blocked — 배포 target 확정 뒤 revision 3 갱신`
 - architecture_impact: `release-assets 조립·alias·Electron feed 무결성`
 - architecture_contract: `blocked — 배포 target 확정 뒤 revision 3 갱신`
+
+## CP-RELEASE-042-03 완료
+
+- updated_at: `2026-09-30T10:14:00Z`
+- status: `COMPLETED`
+- source: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d`
+- QA: `COMPLETE_PASS`, Node 201/201 and public download/feed verification.
+- review: `APPROVED`, fresh for source.
+- recommended installer: `nogirem-setup-0.4.2.exe`, SHA-256 `8ed390dbcc809fbaf3fbe84a591b1bda6ebb7974f7079f503030d39d2caa95c0`
+- recommended portable: `nogirem-portable-0.4.2.exe`, SHA-256 `128d4a3d0a381cbf2ad4bee183fb4d4a64dc0ae80635a9cfed2e4f37277d2b0c`
+- legacy migration: `nogirem-legacy-electron-migration-0.3.19.exe`, SHA-256 `63da5da24ed1aa89fb825ed8a0634d97a56114bd2eab9a4c0620fd48834ea366`
+- compatibility: `nogirem-dioxus-*`와 signed manifests 유지, label `자동 업데이트 전용`.
+- removed: `nogirem-setup-0.3.19.exe`와 기존 blockmap.
+- release: [GitHub v0.4.2](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.2)
+- push/tag rewrite/user activation: `none`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — revision 3`
+- architecture_impact: `dual naming and Electron legacy feed`
+- architecture_contract: `updated — revision 3`

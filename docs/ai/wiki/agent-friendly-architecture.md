@@ -2,20 +2,20 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `2`
-- updated_at: `2026-09-29T18:16:00Z`
+- revision: `3`
+- updated_at: `2026-09-30T10:14:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-09-29T18:09:00Z`
+- source_reviewed_at: `2026-09-30T10:05:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `3cb35d86bf8967a86303b9440754445d9d338443, v0.4.2 replacement assets`
+- source_review_target: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d, v0.4.2 named public assets`
 - source_review_evidence: `desktop/src`, `desktop/backend/src`, `desktop/*.nsi`, `scripts/package-dioxus.mjs`, release·installer tests
-- behavior_verified_at: `2026-09-29T18:15:00Z`
+- behavior_verified_at: `2026-09-30T10:13:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `3cb35d86bf8967a86303b9440754445d9d338443 기반 v0.4.2 replacement assets`
+- behavior_verification_target: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d 기반 v0.4.2 aliases and Electron feed`
 - behavior_verification_environment: `Windows 10.0.26200 x64`
-- behavior_verification_evidence: `npm test 198/198, backend Rust 57 executed with 2 declared ignores, cargo check, independent review APPROVED, public Ed25519 signature and asset hash verification`
+- behavior_verification_evidence: `npm test 201/201, independent review APPROVED, executable bundle tests, public alias and legacy feed full-download/hash verification`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.2 대치 자산의 native mandatory-label 경계와 공개 payload를 다시 확인함`
+- freshness_reason: `릴리스 alias·Electron feed 조립 경계와 실제 공개 target을 다시 확인함`
 - known_gaps: `아래 enforcement는 테스트와 Rust compiler 중심이며 별도 dependency graph lint는 없음`
 - feature_impact: `FEAT-NOGIREM-NETWORK-FASTPING`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
 - feature_map: `updated — feature-map.md의 두 기능과 연결됨`
@@ -30,7 +30,8 @@
 4. `desktop/backend/src/powershell`: PowerShell이 필요한 좁은 Windows adapter. 사용자 입력을 문자열로 직접 삽입하지 않는다.
 5. `desktop/installer.nsi`, `desktop/portable.nsi`: 배포 bootstrap과 파일 설치·캐시 준비만 담당한다.
 6. `scripts/package-dioxus.mjs`, `sign-update.mjs`: 재현 가능한 payload 조립과 매니페스트 서명 경로다.
-7. `src`, `service`: 0.3.x Electron 전환 호환 경로이며 Rust 신기능의 정본이 아니다.
+7. `scripts/release-assets.mjs`, `prepare-release.mjs`: 서명된 원본을 자동 업데이트 호환 이름과 사용자 권장 alias로 조립하고 Electron feed·sha512·blockmap을 검증한다.
+8. `src`, `service`: 0.3.x Electron 전환 호환 경로이며 Rust 신기능의 정본이 아니다.
 
 새 제품 기능은 capability module과 제한된 service 등록점을 사용한다. `service.rs`, NSIS root, update root에 기능별 분기를 늘릴 때는 등록·수명주기 조정만 두고 실제 동작은 소유 module이나 script에 둔다.
 
@@ -66,6 +67,7 @@
 
 - renderer IPC channel은 native contract test에서 등록 목록을 검증한다.
 - `update.json`과 `portable-update.json`은 분리된 서명 envelope이며 filename, version, size, SHA-256을 포함한다.
+- 배포된 Rust verifier가 요구하는 `nogirem-dioxus-*`는 manifest용 canonical asset이며 짧은 이름은 byte-identical 수동 다운로드 alias다. Electron legacy 이름은 `latest.yml`의 path·두 sha512·필수 blockmap과 함께 변경한다.
 - generated output: Rust web build, NSIS uninstall manifest, 설치형·포터블 EXE, signed manifests. authoritative input은 source, Cargo/npm lock, app assets, NSIS와 signing config다.
 - 생성 명령: `npm run package:win`. 생성된 `release/`과 `target/` 산출물은 source commit에 포함하지 않는다.
 

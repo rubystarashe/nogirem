@@ -54,3 +54,17 @@
 - feature_map: `updated — native label 시나리오와 배포 한계를 반영`
 - architecture_impact: `mandatory integrity label 조회·정책 검증 경계`
 - architecture_contract: `updated — PowerShell 문자열 대신 Win32 ACL 검증을 정본화`
+
+## CP-RELEASE-042-03 파일명 전환 요청
+
+- received_at: `2026-09-30T09:53:00Z`
+- original_request: 기존 Electron 설치 파일은 긴 legacy 이름으로, Rust 설치형·포터블은 `dioxus`를 뺀 정식 이름으로 변경.
+- objective: 수동 다운로드 사용자를 정식 Rust 설치형·포터블로 유도하고 Electron 전환본 오다운로드를 줄인다.
+- compatibility decision: 배포된 0.4.x verifier가 `nogirem-dioxus-*` URL을 요구하므로 signed manifest와 호환 자산은 유지하고 짧은 이름을 byte-identical 권장 alias로 제공한다.
+- acceptance: 권장 alias 공개, Electron `latest.yml`과 long legacy asset 전환, 구 legacy 이름 제거, labels·release 안내, 실행형 조립 테스트와 공개 실다운로드 검증.
+- risk: `HIGH — 기존 Rust 자동 업데이트와 Electron feed를 동시에 다룸`
+- authorization: v0.4.2 자산 추가·feed 대치·구 legacy 자산 제거와 release 안내 변경 허용. tag rewrite와 main push 제외.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 공개 자산 선택과 업데이트 라우팅`
+- feature_map: `updated — revision 3`
+- architecture_impact: `alias, signed manifest compatibility, Electron feed sha512·blockmap`
+- architecture_contract: `updated — revision 3`

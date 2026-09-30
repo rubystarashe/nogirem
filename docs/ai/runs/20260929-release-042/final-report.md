@@ -97,3 +97,29 @@
 - feature_map: `updated — docs/ai/wiki/feature-map.md revision 2`
 - architecture_impact: `mandatory integrity ACL parsing and setting failure boundary`
 - architecture_contract: `updated — docs/ai/wiki/agent-friendly-architecture.md revision 2`
+
+## CP-RELEASE-042-03 공개 파일명 전환 최종 보고
+
+- completed_at: `2026-09-30T10:14:00Z`
+- disposition: `COMPLETED`
+- requested: 정식 Rust 다운로드 이름을 짧게 하고 Electron 전환본은 legacy임을 명확히 표시.
+- delivered: 권장 `nogirem-setup-0.4.2.exe`, `nogirem-portable-0.4.2.exe`; legacy `nogirem-legacy-electron-migration-0.3.19.exe`; release 직접 링크와 labels.
+- compatibility: signed Rust manifests와 `nogirem-dioxus-*` canonical assets를 보존해 기존 0.4.x 자동 업데이트를 유지했다.
+- source target: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d`
+- automated-test-passing: Node 201/201, executable release assembly scenarios.
+- manually exercised: 다섯 공개 자산 전체 다운로드·SHA-256, Electron latest path·두 sha512, old legacy URL 제거, release body·labels.
+- review: `INDEPENDENT_REVIEW APPROVED`, `ISSUE-ASSET-001~004 RESOLVED`.
+- feature_gate: `PASS`
+- architecture_gate: `PASS`
+- review_qa_gate: `PASS`
+- target_authorization_gate: `PASS`
+- release: [v0.4.2](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.2)
+- installer: `8ed390dbcc809fbaf3fbe84a591b1bda6ebb7974f7079f503030d39d2caa95c0`
+- portable: `128d4a3d0a381cbf2ad4bee183fb4d4a64dc0ae80635a9cfed2e4f37277d2b0c`
+- legacy migration: `63da5da24ed1aa89fb825ed8a0634d97a56114bd2eab9a4c0620fd48834ea366`
+- latest.yml: `419a0e6c1bb6a9785df5d089ea2ba4188090dff807f940028a840e093a9bcc14`
+- commit: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d`; push/tag rewrite/activation: `none`.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — revision 3`
+- architecture_impact: `release alias, canonical manifest assets, Electron legacy feed`
+- architecture_contract: `updated — revision 3`

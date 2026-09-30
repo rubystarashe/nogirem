@@ -2,20 +2,20 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `2`
-- updated_at: `2026-09-29T18:16:00Z`
+- revision: `3`
+- updated_at: `2026-09-30T10:14:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-09-29T18:09:00Z`
+- source_reviewed_at: `2026-09-30T10:05:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `3cb35d86bf8967a86303b9440754445d9d338443, v0.4.2 replacement assets`
+- source_review_target: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d, v0.4.2 named public assets`
 - source_review_evidence: `desktop/backend/src/network.rs`, `network_manager.rs`, `update_install.rs`, `service.rs`, NSIS와 PowerShell 종료 경로
-- behavior_verified_at: `2026-09-29T18:15:00Z`
+- behavior_verified_at: `2026-09-30T10:13:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `3cb35d86bf8967a86303b9440754445d9d338443 기반 v0.4.2 replacement assets`
+- behavior_verification_target: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d 기반 v0.4.2 public aliases and Electron feed`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Node 테스트와 Rust test/check`
-- behavior_verification_evidence: `npm test 198/198, backend Rust 57 executed with 2 declared ignores, cargo check, independent review APPROVED, public manifest Ed25519 and full asset download hashes`
+- behavior_verification_evidence: `npm test 201/201, independent review APPROVED, signed bundle assembly, five renamed public assets full-download hashes, Electron feed path and sha512`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.2 대치 자산의 updater 무결성 소스와 공개 자산을 다시 검증함`
+- freshness_reason: `0.4.2 권장 alias, 자동 업데이트 호환 자산과 Electron 전환 feed를 실제 공개 target에서 검증함`
 - known_gaps: `실제 외부 장치의 High label 종단간 update는 미실행이며 이미 실패 중인 0.4.1 helper는 새 payload 실행 전에 중단돼 0.4.2 수동 설치가 한 번 필요함`
 - feature_impact: `FEAT-NOGIREM-NETWORK-FASTPING`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
 - feature_map: `updated — 두 기능의 정본 identity와 동작·증거를 신규 지정함`
@@ -73,7 +73,7 @@
 - dependencies_and_contracts: Rust updater가 유일한 update 작업 writer이며 NSIS는 설치 파일 writer, stop script는 경로 제한 process terminator다. Electron 0.3.19는 Rust 전환 manifest로 연결된다.
 - durable_data: 작업 `job.json/result.json/healthy.json`은 updater가 쓰고 service는 검증된 작업의 건강 확인만 쓴다. 사용자 설정과 녹화 파일은 제거·업데이트 대상이 아니다.
 - security_privacy: manifest 서명·digest, reparse 방지, Win32 mandatory-label authority·NO_WRITE_UP·High/System RID, exact executable path와 parent PID 검증을 사용한다. 개인 데이터나 signing key를 자산에 포함하지 않는다.
-- compatibility: 0.4.1 updater는 별도 installer 인자 없이도 검증된 부모 `updater.exe`로 인식한다. 새 updater는 `/NOGIREMUPDATE=<pid>`를 추가 전달한다.
+- compatibility: 0.4.1 updater는 별도 installer 인자 없이도 검증된 부모 `updater.exe`로 인식한다. 배포된 0.4.x URL 검증을 위해 `nogirem-dioxus-*` 자산은 자동 업데이트 전용으로 유지하며 짧은 `nogirem-setup-*`, `nogirem-portable-*`는 동일 payload의 수동 다운로드 alias다. Electron은 `latest.yml`이 긴 legacy migration 이름을 가리킨다.
 - limits_exclusions: OS 종료·전원 손실 전체를 transaction으로 만들지는 않는다. 관련 backup이 없는 오래된 설치는 수동 복구가 필요할 수 있다.
 - scenarios: `UPD-001 설치형 성공`, `UPD-002 건강 확인 실패 rollback`, `UPD-003 포터블 원자 교체`, `UPD-004 직접 제거 중 stale helper`, `UPD-005 늦게 생성된 프로세스`, `UPD-006 0.4.1 부모 updater 호환`, `UPD-007 native mandatory-label 검증`
 - evidence: `test/installer.test.mjs`, `test/portable-release.test.mjs`, Rust updater/update_install tests, `docs/ai/runs/20260929-release-042`

@@ -87,3 +87,21 @@
 - feature_map: `updated — native label QA와 외부 장치 gap 반영`
 - architecture_impact: `mandatory integrity ACL parsing and setting failure boundary`
 - architecture_contract: `updated — native verification requirements recorded`
+
+## CP-RELEASE-042-03 파일명 전환 QA
+
+- source_target: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d`
+- execution_target: `GitHub public v0.4.2 release assets`
+- QA_state: `COMPLETE_PASS`
+- full Node: `PASS`, 201/201.
+- executable bundle scenarios: `PASS`, alias byte identity, dioxus compatibility assets and manifests, old bridge conversion, latest path, sha512, blockmap rename, missing sha512/blockmap rejection.
+- independent review: `APPROVED`, four mandatory findings resolved.
+- public downloads: `PASS`, setup `8ed390dbcc809fbaf3fbe84a591b1bda6ebb7974f7079f503030d39d2caa95c0`, portable `128d4a3d0a381cbf2ad4bee183fb4d4a64dc0ae80635a9cfed2e4f37277d2b0c`, legacy `63da5da24ed1aa89fb825ed8a0634d97a56114bd2eab9a4c0620fd48834ea366`, blockmap `4cefd458f9ed2878568e897bc5765f0d6991696436af82b96dccb05b85212d96`, latest.yml `419a0e6c1bb6a9785df5d089ea2ba4188090dff807f940028a840e093a9bcc14`.
+- Electron feed: `PASS`, long legacy path and two sha512 entries matched downloaded payload.
+- Rust compatibility manifest: `PASS`, `update.json` still points to `nogirem-dioxus-setup-0.4.2.exe`.
+- old Electron names: `PASS`, old EXE and blockmap removed after new feed validation.
+- release guidance: `PASS`, direct recommended links and asset labels verified.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — revision 3`
+- architecture_impact: `release alias identity, manifest compatibility, legacy feed integrity`
+- architecture_contract: `updated — revision 3`
