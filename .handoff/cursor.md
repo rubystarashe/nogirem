@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-09-30 19:14 +09:00
+Last Updated: 2026-09-30 20:49 +09:00
 
 ## Current Objective
 Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거 수명주기를 보강하고 서명 배포한다.
@@ -15,6 +15,7 @@ Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거
 ## Current Status
 - v0.4.2에 권장 설치형 `nogirem-setup-0.4.2.exe`와 포터블 `nogirem-portable-0.4.2.exe`를 추가하고 release 본문·파일명으로 직접 다운로드를 유도했다.
 - 기존 Rust 자동 업데이트용 `nogirem-dioxus-*`와 signed manifests는 호환성을 위해 유지하며 `자동 업데이트 전용` label을 지정했다.
+- update feed·blockmap·터보 키 helper는 `내부용` label로 역할을 낮춰 표시하고 사용자용 두 EXE만 파일명을 그대로 노출한다.
 - Electron 전환본은 `nogirem-legacy-electron-migration-0.3.19.exe`로 바꾸고 latest.yml·sha512·blockmap을 공개 검증한 뒤 구 이름 자산을 제거했다.
 - 0.4.2 updater의 PowerShell SDDL 문자열 검사를 Win32 mandatory-label ACL 검증으로 교체하고 label authority·NO_WRITE_UP·High/System RID를 강제했다.
 - Node 198개, Rust backend 57개 실행, desktop compile과 독립 재리뷰를 통과했으며 source commit은 `3cb35d86bf8967a86303b9440754445d9d338443`이다.
