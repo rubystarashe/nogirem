@@ -100,7 +100,7 @@
 - Electron feed: `PASS`, long legacy path and two sha512 entries matched downloaded payload.
 - Rust compatibility manifest: `PASS`, `update.json` still points to `nogirem-dioxus-setup-0.4.2.exe`.
 - old Electron names: `PASS`, old EXE and blockmap removed after new feed validation.
-- release guidance: `PASS`, direct recommended links and asset labels verified.
+- release guidance: `PASS`, direct links와 권장 자산의 원래 파일명 노출, canonical 자산의 `자동 업데이트 전용` labels를 검증했다.
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE`
 - feature_map: `updated — revision 3`
 - architecture_impact: `release alias identity, manifest compatibility, legacy feed integrity`

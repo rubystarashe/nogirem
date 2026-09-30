@@ -103,11 +103,11 @@
 - completed_at: `2026-09-30T10:14:00Z`
 - disposition: `COMPLETED`
 - requested: 정식 Rust 다운로드 이름을 짧게 하고 Electron 전환본은 legacy임을 명확히 표시.
-- delivered: 권장 `nogirem-setup-0.4.2.exe`, `nogirem-portable-0.4.2.exe`; legacy `nogirem-legacy-electron-migration-0.3.19.exe`; release 직접 링크와 labels.
+- delivered: 권장 `nogirem-setup-0.4.2.exe`, `nogirem-portable-0.4.2.exe`는 파일명을 그대로 노출하고, legacy `nogirem-legacy-electron-migration-0.3.19.exe`와 canonical 자동 업데이트 자산만 역할 labels를 유지했다.
 - compatibility: signed Rust manifests와 `nogirem-dioxus-*` canonical assets를 보존해 기존 0.4.x 자동 업데이트를 유지했다.
 - source target: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d`
 - automated-test-passing: Node 201/201, executable release assembly scenarios.
-- manually exercised: 다섯 공개 자산 전체 다운로드·SHA-256, Electron latest path·두 sha512, old legacy URL 제거, release body·labels.
+- manually exercised: 다섯 공개 자산 전체 다운로드·SHA-256, Electron latest path·두 sha512, old legacy URL 제거, release body·파일명·canonical labels.
 - review: `INDEPENDENT_REVIEW APPROVED`, `ISSUE-ASSET-001~004 RESOLVED`.
 - feature_gate: `PASS`
 - architecture_gate: `PASS`

@@ -62,7 +62,7 @@
 2. `COMPLETED` — Electron artifactName을 `nogirem-legacy-electron-migration-0.3.19.exe`로 변경하고 기존 bridge 입력 변환 지원.
 3. `COMPLETED` — sha512 두 항목, 필수 non-empty blockmap과 선택적 선언 크기 검증.
 4. `COMPLETED` — 실행형 bundle 회귀, Node 201/201과 독립 리뷰 승인.
-5. `COMPLETED` — v0.4.2 권장 alias·legacy assets/feed 공개, old legacy assets 제거, labels·release 안내와 실다운로드 검증.
+5. `COMPLETED` — v0.4.2 권장 alias·legacy assets/feed 공개, old legacy assets 제거, 파일명·canonical labels·release 안내와 실다운로드 검증.
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE`
 - feature_map: `updated — revision 3`
 - architecture_impact: `release bundle assembly and dual naming contract`

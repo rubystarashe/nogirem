@@ -13,7 +13,7 @@ Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
-- v0.4.2에 권장 설치형 `nogirem-setup-0.4.2.exe`와 포터블 `nogirem-portable-0.4.2.exe`를 추가하고 release 본문·label로 직접 다운로드를 유도했다.
+- v0.4.2에 권장 설치형 `nogirem-setup-0.4.2.exe`와 포터블 `nogirem-portable-0.4.2.exe`를 추가하고 release 본문·파일명으로 직접 다운로드를 유도했다.
 - 기존 Rust 자동 업데이트용 `nogirem-dioxus-*`와 signed manifests는 호환성을 위해 유지하며 `자동 업데이트 전용` label을 지정했다.
 - Electron 전환본은 `nogirem-legacy-electron-migration-0.3.19.exe`로 바꾸고 latest.yml·sha512·blockmap을 공개 검증한 뒤 구 이름 자산을 제거했다.
 - 0.4.2 updater의 PowerShell SDDL 문자열 검사를 Win32 mandatory-label ACL 검증으로 교체하고 label authority·NO_WRITE_UP·High/System RID를 강제했다.
