@@ -28,7 +28,7 @@
 1. `COMPLETED` — 기존 로깅·진단 경계 확인
 2. `COMPLETED` — affinity 전환 JSONL과 Windows hardware event 수집 구현
 3. `COMPLETED` — Rust·Node 검사, lint, SELF_REVIEW
-4. `IN_PROGRESS` — handoff 갱신과 로컬 checkpoint commit
+4. `COMPLETED` — handoff 갱신과 로컬 checkpoint commit
 
 ## 검증 계획
 
@@ -39,10 +39,10 @@
 
 ## 현재 disposition
 
-- DEV: `READY_FOR_REVIEW`
+- DEV: `DONE`
 - QA: `COMPLETE_PASS`
 - review: `APPROVED`
-- status: `PARTIALLY_COMPLETED — 로컬 commit 대기`
+- status: `COMPLETED`
 
 ## 구현 결과
 
@@ -75,7 +75,7 @@
 
 - reviewer: `Cursor Agent`
 - reviewed_at: `2026-10-01T13:10:00Z`
-- target: base `14e620b8f791da0e317b4c128c7400abfb5c9982`의 변경 파일 전체 diff
+- target: base `14e620b8f791da0e317b4c128c7400abfb5c9982`, implementation commit `1eb7fe44e4100d6640d232ba03ce8dd9926e6fc9`
 - inspected: affinity 전환 전후 기록 순서, 기존 apply/restore 의미 보존, bounded file rotation, 강제 flush, PowerShell provider 실패 격리, 진단 redaction, 민감정보 수집 범위, 테스트와 미검증 주장
 - findings: `must_fix 0`
 - verdict: `APPROVED`
@@ -86,5 +86,5 @@
 - feature gate: `PASS — 제품 동작 변경 없음, 정본 feature map 변경 불필요`
 - architecture gate: `PASS — 기존 affinity writer·진단 조회 경계 유지, 신규 위반 없음`
 - review and QA gate: `PASS WITH LIMITATION — 자동 검사 통과, 독립 리뷰와 실제 하드 프리즈 후 검증 없음`
-- target and authorization gate: `IN_PROGRESS — 명시 파일 stage·commit과 최종 SHA 확인 대기`
-- commit/push/deployment: `commit pending, push NOT_RUN, deployment NOT_RUN`
+- target and authorization gate: `PASS — 명시 파일만 포함한 implementation commit 1eb7fe44e4100d6640d232ba03ce8dd9926e6fc9 확인`
+- commit/push/deployment: `local commit 1eb7fe44e4100d6640d232ba03ce8dd9926e6fc9, push NOT_RUN, deployment NOT_RUN`

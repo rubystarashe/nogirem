@@ -6,7 +6,7 @@ Last Updated: 2026-10-01 22:10 +09:00
 Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거 수명주기를 보강하고 서명 배포한다.
 
 ## Active Runs
-- `20261001-freeze-diagnostics`: 게임 종료·재실행 하드 프리즈의 다음 진단에서 affinity 전환과 WHEA·GPU·LiveKernelEvent 증거를 수집하도록 로깅 구현·검증 완료 (`docs/ai/runs/20261001-freeze-diagnostics/task.md`)
+- `20261001-freeze-diagnostics`: 게임 종료·재실행 하드 프리즈의 다음 진단에서 affinity 전환과 WHEA·GPU·LiveKernelEvent 증거를 수집하도록 로깅 구현·검증 완료, implementation commit `1eb7fe44e4100d6640d232ba03ce8dd9926e6fc9` (`docs/ai/runs/20261001-freeze-diagnostics/task.md`)
 - `20260929-release-042`: 패스트핑 기본 경로 부재, backend 건강 확인, updater/installer/uninstaller 경쟁 수정과 실서명 0.4.2 배포 완료 (`docs/ai/runs/20260929-release-042/final-report.md`)
 - `20260929-cursor-minimum-042`: 25%·50% 커서 선택, 0.4.2 버전 갱신, helper 재빌드와 자동 검증 완료 (`docs/ai/runs/20260929-cursor-minimum-042/task.md`)
 - `20260929-project-explain-refresh`: Rust/Dioxus 신규 개발자용 HTML 구조 보고서 생성·브라우저 검증 완료 (`docs/ai/runs/20260929-project-explain-refresh/handoff.md`)
