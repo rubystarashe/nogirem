@@ -6,7 +6,7 @@ Last Updated: 2026-10-01 23:52 +09:00
 Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거 수명주기를 보강하고 서명 배포한다.
 
 ## Active Runs
-- `20261001-repackage-042`: 진단 로깅 포함 Rust/Dioxus 0.4.2 설치형·포터블을 서명 패키징하고 기존 v0.4.2 자산을 대치하는 checkpoint 진행 중 (`docs/ai/runs/20261001-repackage-042/task.md`)
+- `20261001-repackage-042`: 진단 로깅 포함 Rust/Dioxus 0.4.2 설치형·포터블 서명 패키징, 기존 v0.4.2 자산 대치와 공개 검증 완료 (`docs/ai/runs/20261001-repackage-042/task.md`)
 - `20261001-freeze-diagnostics`: 게임 종료·재실행 하드 프리즈의 다음 진단에서 affinity 전환과 WHEA·GPU·LiveKernelEvent 증거를 수집하도록 로깅 구현·검증 완료, implementation commit `1eb7fe44e4100d6640d232ba03ce8dd9926e6fc9` (`docs/ai/runs/20261001-freeze-diagnostics/task.md`)
 - `20260929-release-042`: 패스트핑 기본 경로 부재, backend 건강 확인, updater/installer/uninstaller 경쟁 수정과 실서명 0.4.2 배포 완료 (`docs/ai/runs/20260929-release-042/final-report.md`)
 - `20260929-cursor-minimum-042`: 25%·50% 커서 선택, 0.4.2 버전 갱신, helper 재빌드와 자동 검증 완료 (`docs/ai/runs/20260929-cursor-minimum-042/task.md`)
@@ -15,6 +15,8 @@ Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- package source `cfdf43c68fd86f5db06bf127f6f06eab6035cc71`에서 설치형 `e51c7be021085892e5368cabfcd03b9e99e7e2885d61ca935a7e2f66b851a825`, 포터블 `a3b736b115c0912acb9745d1c18bad84bb6533defee6d784ac307c61abd6c439`을 생성해 GitHub v0.4.2 canonical·공개 alias와 signed manifest를 대치했다.
+- 공개 CDN 실다운로드와 Ed25519 payload 재검증, Node 201개, release asset 3개, packaged native contract와 독립 review를 통과했다. 기존 0.4.2 사용자는 동일 버전을 자동 재수신하지 않으므로 로깅 대치본이 필요하면 수동 재설치해야 한다.
 - affinity helper가 게임 감지·적용·종료 복원·시작 복구의 시작/완료 시각, 대상·변경·실패 수, mask와 ISLC·Process Lasso 충돌 상태를 `affinity/events.log`에 bounded JSONL로 기록한다.
 - 진단 ZIP의 `diagnostics.json`은 기존 비정상 종료 외에 최근 14일 WHEA, Display, NVIDIA·AMD·DxgKrnl, WER LiveKernelEvent를 구분해 포함한다.
 - backend 58개 통과·2개 환경 의존 ignore, desktop compile, Node 신뢰성 21개, Windows 이벤트 수집 실실행과 변경 파일 lint를 통과했다. 실제 하드 프리즈 후 생성된 신규 진단은 아직 없다.
