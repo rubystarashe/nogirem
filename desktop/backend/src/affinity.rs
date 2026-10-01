@@ -9,9 +9,46 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, HashSet},
+    fs::OpenOptions,
+    io::Write,
     path::PathBuf,
-    time::Duration,
+    time::{Duration, Instant},
 };
+const EVENT_LOG_MAX_BYTES: u64 = 1024 * 1024;
+
+fn append_event(path: &PathBuf, event: &str, details: Value) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    if std::fs::metadata(path).is_ok_and(|metadata| metadata.len() >= EVENT_LOG_MAX_BYTES) {
+        let previous = path.with_extension("log.previous");
+        match std::fs::remove_file(&previous) {
+            Ok(()) => (),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+            Err(error) => return Err(error.to_string()),
+        }
+        std::fs::rename(path, previous).map_err(|e| e.to_string())?;
+    }
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|e| e.to_string())?;
+    let record = json!({
+        "timestamp": chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        "event": event,
+        "details": details
+    });
+    writeln!(
+        file,
+        "{}",
+        serde_json::to_string(&record).map_err(|e| e.to_string())?
+    )
+    .map_err(|e| e.to_string())?;
+    file.flush().map_err(|e| e.to_string())?;
+    file.sync_data().map_err(|e| e.to_string())
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Entry {
@@ -57,6 +94,7 @@ pub struct Manager {
     pub running_process_names: HashSet<String>,
     config: Value,
     state_path: PathBuf,
+    event_path: PathBuf,
     apply_changes: bool,
     restore_on_exit: bool,
     game_mask: Option<u64>,
@@ -103,7 +141,8 @@ impl Manager {
         } else {
             allocation.alternate_game_mask
         };
-        Ok(Self {
+        let event_path = state_path.with_file_name("events.log");
+        let manager = Self {
             exclude_names: names(&config["excludeNames"]),
             exclude_patterns: patterns(&config["excludeNamePatterns"])?,
             latency_names: names(&config["latencySensitiveNames"]),
@@ -111,6 +150,7 @@ impl Manager {
             allocation,
             config,
             state_path,
+            event_path,
             apply_changes,
             restore_on_exit,
             game_mask,
@@ -124,7 +164,41 @@ impl Manager {
             changed: BTreeMap::new(),
             handled: HashSet::new(),
             normal_mode: !last_core && !passive,
-        })
+        };
+        manager.event(
+            "helper-created",
+            json!({
+                "applyChanges": apply_changes,
+                "restoreOnExit": restore_on_exit,
+                "requestedGameCoreCount": requested,
+                "gameMask": manager.game_mask.map(|value| format!("0x{value:x}")),
+                "backgroundMask": format!("0x{:x}", manager.background_mask),
+                "latencyMask": format!("0x{:x}", manager.latency_mask),
+                "allocationSource": manager.allocation.source
+            }),
+        );
+        Ok(manager)
+    }
+    fn event(&self, event: &str, details: Value) {
+        if let Err(error) = append_event(&self.event_path, event, details) {
+            eprintln!("[affinity-event] {event}: {error}");
+        }
+    }
+    fn conflicts(&self) -> Vec<&'static str> {
+        let mut conflicts = Vec::new();
+        if ["islc.exe", "intelligent standby list cleaner islc.exe"]
+            .iter()
+            .any(|name| self.running_process_names.contains(*name))
+        {
+            conflicts.push("ISLC");
+        }
+        if ["processlasso.exe", "processgovernor.exe"]
+            .iter()
+            .any(|name| self.running_process_names.contains(*name))
+        {
+            conflicts.push("Process Lasso");
+        }
+        conflicts
     }
     fn eligible(&self, p: &Process) -> bool {
         let name = p.name.to_lowercase();
@@ -188,7 +262,9 @@ impl Manager {
     pub fn entries(&self) -> Vec<Entry> {
         self.changed.values().cloned().collect()
     }
-    fn apply_all(&mut self, processes: &[Process]) {
+    fn apply_all(&mut self, processes: &[Process]) -> Value {
+        let before = self.changed.len();
+        let (mut targeted, mut failed) = (0, 0);
         for p in processes {
             let target = if process::matches_game(p, &self.config) {
                 self.game_mask.map(|m| (m, "game"))
@@ -200,11 +276,18 @@ impl Manager {
                 None
             };
             if let Some((m, role)) = target {
+                targeted += 1;
                 if let Err(e) = self.apply_one(p, m, role) {
+                    failed += 1;
                     eprintln!("[affinity-skip] {} PID={}: {e}", p.name, p.pid);
                 }
             }
         }
+        json!({
+            "targetedCount": targeted,
+            "changedCount": self.changed.len().saturating_sub(before),
+            "failedCount": failed
+        })
     }
     pub fn tick(&mut self) -> Result<()> {
         let processes = process::list(true)?;
@@ -216,10 +299,22 @@ impl Manager {
         if games.is_empty() {
             self.latest_game_start_time = None;
             if self.game_active {
+                self.event(
+                    "game-exit-detected",
+                    json!({
+                        "processCount": processes.len(),
+                        "trackedAffinityCount": self.changed.len(),
+                        "conflictingPrograms": self.conflicts()
+                    }),
+                );
                 if self.restore_on_exit {
-                    self.restore_all()?;
+                    self.restore_all_with_reason("game-exit")?;
                 } else {
                     self.handled.clear();
+                    self.event(
+                        "game-exit-without-restore",
+                        json!({"reason":"restore-disabled"}),
+                    );
                 }
                 self.game_active = false;
             }
@@ -230,33 +325,102 @@ impl Manager {
         if let Some(path) = games.iter().rev().find_map(|p| p.path.clone()) {
             self.latest_game_executable_path = Some(path);
         }
+        let starting = !self.game_active;
+        let started = Instant::now();
+        if starting {
+            self.event(
+                "game-start-detected",
+                json!({
+                    "gameProcesses": games.iter().map(|process| json!({
+                        "pid": process.pid,
+                        "name": process.name,
+                        "startTime": process.start_time
+                    })).collect::<Vec<_>>(),
+                    "processCount": processes.len(),
+                    "gameMask": self.game_mask.map(|value| format!("0x{value:x}")),
+                    "backgroundMask": format!("0x{:x}", self.background_mask),
+                    "latencyMask": format!("0x{:x}", self.latency_mask),
+                    "conflictingPrograms": self.conflicts()
+                }),
+            );
+        }
         self.game_active = true;
-        self.apply_all(&processes);
+        let result = self.apply_all(&processes);
+        if starting {
+            self.event(
+                "game-affinity-applied",
+                json!({
+                    "elapsedMs": started.elapsed().as_millis(),
+                    "result": result
+                }),
+            );
+        }
         Ok(())
     }
     pub fn restore_entries(&self, entries: &[Entry]) -> Result<()> {
-        let live = process::list(true)?;
+        self.restore_entries_with_reason(entries, "explicit")
+    }
+    fn restore_entries_with_reason(&self, entries: &[Entry], reason: &str) -> Result<()> {
+        let started = Instant::now();
+        self.event(
+            "affinity-restore-started",
+            json!({"reason":reason,"entryCount":entries.len()}),
+        );
+        let live = match process::list(true) {
+            Ok(live) => live,
+            Err(error) => {
+                self.event(
+                    "affinity-restore-failed",
+                    json!({"reason":reason,"stage":"process-list","error":error}),
+                );
+                return Err(error);
+            }
+        };
         let identities: HashSet<_> = live.iter().map(key).collect();
+        let (mut missing, mut identity_changed, mut restored, mut failed) = (0, 0, 0, 0);
         for e in entries {
             if !identities.contains(&format!(
                 "{}:{}",
                 e.pid,
                 e.start_time.as_deref().unwrap_or("null")
             )) {
+                missing += 1;
                 continue;
             }
-            if self.apply_changes && process::start_time(e.pid) == e.start_time {
-                if let Err(err) =
-                    mask(&e.original_mask).and_then(|m| process::set_affinity(e.pid, m))
-                {
-                    eprintln!("[restore-skip] PID={}: {err}", e.pid);
+            if self.apply_changes {
+                if process::start_time(e.pid) != e.start_time {
+                    identity_changed += 1;
+                    continue;
+                }
+                match mask(&e.original_mask).and_then(|m| process::set_affinity(e.pid, m)) {
+                    Ok(()) => restored += 1,
+                    Err(error) => {
+                        failed += 1;
+                        eprintln!("[restore-skip] PID={}: {error}", e.pid);
+                    }
                 }
             }
         }
+        self.event(
+            "affinity-restore-completed",
+            json!({
+                "reason": reason,
+                "elapsedMs": started.elapsed().as_millis(),
+                "entryCount": entries.len(),
+                "liveProcessCount": live.len(),
+                "restoredCount": restored,
+                "missingCount": missing,
+                "identityChangedCount": identity_changed,
+                "failedCount": failed
+            }),
+        );
         Ok(())
     }
     pub fn restore_all(&mut self) -> Result<()> {
-        self.restore_entries(&self.entries())?;
+        self.restore_all_with_reason("explicit-all")
+    }
+    fn restore_all_with_reason(&mut self, reason: &str) -> Result<()> {
+        self.restore_entries_with_reason(&self.entries(), reason)?;
         self.clear()
     }
     pub fn stop_without_restore(&mut self) -> Result<()> {
@@ -278,7 +442,7 @@ impl Manager {
         if let Some(v) = storage::read_json(&self.state_path)? {
             let entries: Vec<Entry> =
                 serde_json::from_value(v["entries"].clone()).map_err(|e| e.to_string())?;
-            self.restore_entries(&entries)?;
+            self.restore_entries_with_reason(&entries, "startup-recovery")?;
             self.clear()?;
         }
         Ok(())
@@ -333,7 +497,7 @@ impl Manager {
         if self.allocation.alternate_game_mask == 0 {
             return Err("CPU 재정렬에 사용할 대체 P-core 그룹이 없습니다".into());
         }
-        self.apply_all(&before);
+        let _ = self.apply_all(&before);
         let temporary_game = self.force(&games, self.allocation.alternate_game_mask);
         let temporary_background = self.force(
             &before
@@ -372,7 +536,7 @@ impl Manager {
                 return Err(e);
             }
         };
-        self.apply_all(&after);
+        let _ = self.apply_all(&after);
         let final_games: Vec<_> = after
             .iter()
             .filter(|p| process::matches_game(p, &self.config))
@@ -404,4 +568,44 @@ pub fn has_live_entries(entries: &[Entry]) -> bool {
                 .zip(process::affinity(e.pid).ok())
                 .is_some_and(|(a, b)| a == b)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temporary_log() -> PathBuf {
+        std::env::temp_dir()
+            .join(format!("nogirem-affinity-events-{}", uuid::Uuid::new_v4()))
+            .join("events.log")
+    }
+
+    #[test]
+    fn event_log_is_json_lines_and_flushes_transition_details() {
+        let path = temporary_log();
+        append_event(
+            &path,
+            "game-exit-detected",
+            json!({"trackedAffinityCount":169}),
+        )
+        .unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        let event: Value = serde_json::from_str(text.trim()).unwrap();
+        assert_eq!(event["event"], "game-exit-detected");
+        assert_eq!(event["details"]["trackedAffinityCount"], 169);
+        assert!(event["timestamp"].as_str().unwrap().ends_with('Z'));
+        std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn event_log_rotates_before_exceeding_the_bound_again() {
+        let path = temporary_log();
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let file = std::fs::File::create(&path).unwrap();
+        file.set_len(EVENT_LOG_MAX_BYTES).unwrap();
+        append_event(&path, "helper-created", json!({})).unwrap();
+        assert!(path.with_extension("log.previous").is_file());
+        assert!(std::fs::metadata(&path).unwrap().len() < EVENT_LOG_MAX_BYTES);
+        std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
 }

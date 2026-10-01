@@ -245,6 +245,33 @@ pub fn bundle(
 fn diagnostic(result: Result<Value>) -> Value {
     result.unwrap_or_else(|e| json!({"error":{"message":e}}))
 }
+const WINDOWS_FAILURE_EVENTS_SCRIPT: &str = r#"
+$since=(Get-Date).AddDays(-14)
+function Convert-Events([object[]]$events,[string]$category) {
+    @($events | Sort-Object TimeCreated -Descending | Select-Object -First 60 | ForEach-Object {
+        [ordered]@{
+            category=$category
+            timeCreated=if($_.TimeCreated){$_.TimeCreated.ToUniversalTime().ToString('o')}else{$null}
+            id=$_.Id
+            provider=$_.ProviderName
+            level=$_.LevelDisplayName
+            message=$_.Message
+        }
+    })
+}
+$shutdowns=@(try { Get-WinEvent -FilterHashtable @{LogName='System';Id=41,1001,6008;StartTime=$since} -MaxEvents 60 -ErrorAction Stop } catch {})
+$hardware=@()
+foreach($provider in @('Microsoft-Windows-WHEA-Logger','Display','nvlddmkm','amdwddmg','Microsoft-Windows-DxgKrnl')) {
+    $hardware+=@(try { Get-WinEvent -FilterHashtable @{LogName='System';ProviderName=$provider;StartTime=$since} -MaxEvents 60 -ErrorAction Stop } catch {})
+}
+$wer=@(try { Get-WinEvent -FilterHashtable @{LogName='Application';ProviderName='Windows Error Reporting';Id=1001;StartTime=$since} -MaxEvents 120 -ErrorAction Stop } catch {})
+$liveKernel=@($wer | Where-Object {$_.Message -match 'LiveKernelEvent|BlueScreen'})
+[ordered]@{
+    shutdowns=@(Convert-Events $shutdowns 'unexpected-shutdown')
+    hardware=@(Convert-Events $hardware 'hardware-or-display')
+    liveKernel=@(Convert-Events $liveKernel 'live-kernel')
+}|ConvertTo-Json -Depth 5 -Compress
+"#;
 pub fn export(s: &Service) -> Result<Value> {
     let id = uuid::Uuid::new_v4().to_string();
     let timestamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
@@ -269,14 +296,18 @@ $gpu=@(Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,
 [ordered]@{platform='win32';type='Windows_NT';release=$os.Version;version=$os.Caption;architecture=$env:PROCESSOR_ARCHITECTURE;uptimeSeconds=[math]::Round(((Get-Date)-$os.LastBootUpTime).TotalSeconds);totalMemoryBytes=[long]$os.TotalVisibleMemorySize*1024;freeMemoryBytes=[long]$os.FreePhysicalMemory*1024;logicalCpuCount=[Environment]::ProcessorCount;processorModels=$cpu;locale=(Get-Culture).Name;gpu=$gpu}|ConvertTo-Json -Depth 6 -Compress"#,
         15000,
     ));
-    let failures = diagnostic(powershell::json(
-        r#"$events=@(Get-WinEvent -FilterHashtable @{LogName='System';Id=41,1001,6008;StartTime=(Get-Date).AddDays(-14)} -ErrorAction SilentlyContinue | Select-Object -First 30)
-@($events | ForEach-Object {[ordered]@{timeCreated=if($_.TimeCreated){$_.TimeCreated.ToUniversalTime().ToString('o')}else{$null};id=$_.Id;provider=$_.ProviderName;level=$_.LevelDisplayName;message=$_.Message}}) | ConvertTo-Json -Depth 3 -Compress"#,
-        15000,
-    ));
+    let failures = diagnostic(powershell::json(WINDOWS_FAILURE_EVENTS_SCRIPT, 20000));
     let mut system = system;
     if system.is_object() {
-        system["recentWindowsFailures"] = failures;
+        if failures.is_object() && failures["error"].is_null() {
+            system["recentWindowsFailures"] = failures["shutdowns"].clone();
+            system["recentHardwareEvents"] = failures["hardware"].clone();
+            system["recentLiveKernelEvents"] = failures["liveKernel"].clone();
+        } else {
+            system["recentWindowsFailures"] = failures.clone();
+            system["recentHardwareEvents"] = failures.clone();
+            system["recentLiveKernelEvents"] = failures;
+        }
     }
     let turbo = diagnostic(s.inputs.lock().unwrap().turbo_status());
     let input = diagnostic(s.inputs.lock().unwrap().input_status());
@@ -355,5 +386,19 @@ mod tests {
         assert!(text.contains("%USER_DATA%"));
         drop(zip);
         fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn windows_failure_collection_covers_hard_freeze_sources() {
+        for expected in [
+            "Microsoft-Windows-WHEA-Logger",
+            "Display",
+            "nvlddmkm",
+            "amdwddmg",
+            "Microsoft-Windows-DxgKrnl",
+            "LiveKernelEvent",
+        ] {
+            assert!(WINDOWS_FAILURE_EVENTS_SCRIPT.contains(expected));
+        }
+        assert!(WINDOWS_FAILURE_EVENTS_SCRIPT.contains("Id=41,1001,6008"));
     }
 }
