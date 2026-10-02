@@ -96,7 +96,8 @@
 - 공개 다운로드를 입력으로 `prepare-release.mjs`를 재실행해 Ed25519 서명, payload size/hash/URL, Electron `latest.yml`·blockmap을 다시 검증했다.
 - canonical과 권장 alias는 설치형·포터블 각각 byte-identical이다.
 - commit: `COMPLETED`
-- push: `NOT_RUN`
+- integration target: `d3c1c599045022fda8fa715dc45ecc06bde373e8` — 원격 report prune `fbe892a628c6471d5aa1e36a9b759c60d81f25e1` 보존 merge
+- push: `COMPLETED — origin/main에 integration target까지 push`
 - deployment/activation: `GitHub v0.4.3 release assets published`; 사용자 장치 설치·실행은 `NOT_RUN`
 
 ## 완료 게이트
@@ -104,5 +105,5 @@
 - feature gate: `PASS — FEAT-NOGIREM-FRAME-BOOST·TURBO-KEY·UPDATE-LIFECYCLE 정본과 자동 증거 갱신`
 - architecture gate: `PASS — PID/start identity, polling 복구, 명시 폴더 trust boundary와 0.4.2 migration 반영`
 - review and QA gate: `PASS — independent APPROVED, ISSUE-043-001~005 RESOLVED, 필수 자동·package·공개 검증 통과`
-- target and authorization gate: `PASS — source commit·후보·공개 digest 식별, push와 tag rewrite 없음`
+- target and authorization gate: `PASS — source·integration commit, 후보·공개 digest 식별, origin/main push 완료, tag rewrite 없음`
 - remaining risk: 실제 테스트 서버 키 반복, 살아 있는 0.4.2 helper migration, full desktop smoke는 수동 검증이 남아 있다.

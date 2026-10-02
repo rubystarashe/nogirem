@@ -21,7 +21,7 @@ Rust·Dioxus 0.4.3의 부스트 helper 상태 복구와 테스트 서버 터보�
 - 터보키 helper 0.1.8은 정본의 `Mabinogi_Test` 폴더를 허용하며 사용자 쓰기 runtime 경로를 신뢰하지 않는다.
 - Node 203/203, backend 60 PASS·2 declared ignore와 integration 2/2, turbo-key 14/14, desktop compile, package·Ed25519·release assembly가 통과했고 독립 review `APPROVED`다.
 - 0.4.3 배포 후보 SHA-256은 설치형 `0eed1ea9...`, 포터블 `91f8415f...`, turbo-key `5b1e7952...`다. full desktop smoke는 `report.json` 생성 전 종료되어 실제 UI·테스트 서버 수동 QA와 함께 미검증으로 남는다.
-- source commit `5db679fd9c06cccaf9a29350d41f5e404528ad3b`; [GitHub v0.4.3](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.3)의 10개 자산을 공개 재다운로드해 후보 hash와 Ed25519 manifest·Electron bridge를 재검증했다. main push는 실행하지 않았다.
+- package source commit `5db679fd9c06cccaf9a29350d41f5e404528ad3b`; 원격 report 정리를 보존한 integration `d3c1c599045022fda8fa715dc45ecc06bde373e8`까지 origin/main에 push했다. [GitHub v0.4.3](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.3)의 10개 자산은 공개 재다운로드해 후보 hash와 Ed25519 manifest·Electron bridge를 재검증했다.
 - package source `cfdf43c68fd86f5db06bf127f6f06eab6035cc71`에서 설치형 `e51c7be021085892e5368cabfcd03b9e99e7e2885d61ca935a7e2f66b851a825`, 포터블 `a3b736b115c0912acb9745d1c18bad84bb6533defee6d784ac307c61abd6c439`을 생성해 GitHub v0.4.2 canonical·공개 alias와 signed manifest를 대치했다.
 - 공개 CDN 실다운로드와 Ed25519 payload 재검증, Node 201개, release asset 3개, packaged native contract와 독립 review를 통과했다. 기존 0.4.2 사용자는 동일 버전을 자동 재수신하지 않으므로 로깅 대치본이 필요하면 수동 재설치해야 한다.
 - affinity helper가 게임 감지·적용·종료 복원·시작 복구의 시작/완료 시각, 대상·변경·실패 수, mask와 ISLC·Process Lasso 충돌 상태를 `affinity/events.log`에 bounded JSONL로 기록한다.
