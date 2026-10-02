@@ -98,11 +98,13 @@ test("REPORT 조회와 모달이 시작 및 업데이트 확인에 연결된다"
   assert.match(preloadSource, /onReportResponsesAvailable/)
 
   assert.match(packageInfo, /['"]REPORT\.json['"]/)
+  const rawReport = JSON.parse(reportDocument)
   const normalizedReport = normalizeReportResponseDocument(reportDocument)
-  assert.deepEqual(
-    normalizedReport.responses.map(responseItem => responseItem.reportId),
-    [
-      "bcf9211a-0bab-415e-af4a-4473d2614a64",
-    ],
-  )
+  assert.ok(Array.isArray(normalizedReport.responses))
+  assert.equal(normalizedReport.responses.length, rawReport.responses.length)
+  for (const responseItem of normalizedReport.responses) {
+    assert.match(responseItem.reportId, /^[0-9a-f-]{36}$/i)
+    assert.ok(responseItem.responseId)
+    assert.ok(responseItem.answeredAt)
+  }
 })

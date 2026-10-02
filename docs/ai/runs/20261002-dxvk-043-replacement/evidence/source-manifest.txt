@@ -1,0 +1,24 @@
+manifest_id: SOURCE-MANIFEST-DXVK-043-R4
+run_id: 20261002-dxvk-043-replacement
+checkpoint_id: CP-DXVK-043-REPLACE
+created_at: 2026-10-02T16:05:00Z
+created_by: Cursor Agent
+repository: rubystarashe/nogirem
+branch: main
+base_commit: 8f365e1f0b4566f0c41da87856e9a290b59a0d28
+index_state: unchanged
+working_tree_state: 3 modified source/test files
+untracked_source_files: none
+renamed_deleted_binary_submodule_changes: none
+source_diff_sha256: 0ac7944b89344711a23fe48c5a581e8a8a41a8adf06878a87c4acce2273fad27
+diff_procedure: python subprocess.check_output(["git","diff","--binary","--",<ordered files>]) then hashlib.sha256(raw bytes)
+
+files:
+141371d01a4d9bc3d9c77526a6149bfff6d4e45aa214c8d2510276bfacae7e0c  desktop/backend/src/dxvk.rs
+4ca182e5e6cb7ef8f701660db554b217543d14488536639aba086d4aeff289c9  desktop/backend/src/dxvk_manager.rs
+9bf6f5b824925068fc140acf6488005d65d2b009edbc2559113a2c166e503e45  test/report-response.test.mjs
+
+feature_impact: FEAT-NOGIREM-DXVK — 경로 identity, 원자 교체, backup 복구와 오류 안내
+feature_map: updated — docs/ai/wiki/feature-map.md revision 5
+architecture_impact: DXVK game path trust, Win32 handle identity, replacement/rollback transaction
+architecture_contract: updated — docs/ai/wiki/agent-friendly-architecture.md revision 5

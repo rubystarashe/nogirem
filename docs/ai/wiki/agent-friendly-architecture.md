@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `4`
-- updated_at: `2026-10-02T12:40:00Z`
+- revision: `5`
+- updated_at: `2026-10-02T14:50:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-02T12:40:00Z`
+- source_reviewed_at: `2026-10-02T14:50:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `5db679fd9c06cccaf9a29350d41f5e404528ad3b`
-- source_review_evidence: `desktop/src/ui.rs`, `desktop/backend/src/boost.rs`, `inputs.rs`, `affinity_worker.rs`, `native/turbo-key/src/main.rs`
-- behavior_verified_at: `2026-10-02T12:40:00Z`
+- source_review_target: `SOURCE-MANIFEST-DXVK-043-R4, base 8f365e1f0b4566f0c41da87856e9a290b59a0d28, manifest SHA-256 8ad94541aa2daef8b158ac3b309cd93a8e6238422d99b02c708f9762ff75efba`
+- source_review_evidence: `desktop/backend/src/dxvk.rs`, `dxvk_manager.rs`, DXVK Rust·Node 회귀 테스트
+- behavior_verified_at: `2026-10-02T14:50:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source 5db679fd9c06cccaf9a29350d41f5e404528ad3b, GitHub v0.4.3 public assets`
+- behavior_verification_target: `SOURCE-MANIFEST-DXVK-043-R4`
 - behavior_verification_environment: `Windows 10.0.26200 x64`
-- behavior_verification_evidence: `turbo-key 14/14, backend 60 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check, signed package와 공개 재다운로드 Ed25519·SHA-256 재검증`
+- behavior_verification_evidence: `backend 71 PASS·2 declared ignore와 integration 2/2, DXVK 회귀 14/14, Node 203/203, desktop locked check`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.3 helper runtime·polling·명시 게임 폴더 경계를 source와 자동·공개 배포 검증에 맞춰 반영함`
-- known_gaps: `별도 dependency graph lint가 없고 실제 테스트 서버 입력 및 helper 강제 종료 UI 수동 QA는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST`, `FEAT-NOGIREM-TURBO-KEY`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
-- feature_map: `updated — feature-map.md의 부스트·터보키·배포 기능과 연결됨`
-- architecture_impact: `UI polling, affinity helper PID·시작 시각 identity, 터보 helper 명시 게임 폴더 판별, updater·installer 수명주기`
-- architecture_contract: `updated — helper 상태와 게임 경로 계약을 추가함`
+- freshness_reason: `0.4.3 DXVK 저장·적용 transaction과 game path 경계를 source와 자동 검증에 맞춰 반영함`
+- known_gaps: `별도 dependency graph lint가 없고 실제 게임 폴더·보안 제품 격리 수동 QA와 대치 payload 공개 검증은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-DXVK — 저장소와 게임 폴더 DLL의 검증·원자 교체·오류 경계`
+- feature_map: `updated — feature-map.md의 DXVK 기능과 연결됨`
+- architecture_impact: `DXVK manager path validation, file writer ownership, handle-based replace transaction`
+- architecture_contract: `updated — DXVK download·file transaction 경계를 추가함`
 
 ## 계층과 확장 경로
 
@@ -47,6 +47,7 @@
 - UI runtime polling은 한 helper 요청 실패로 영구 종료하지 않는다. 실패한 기능의 `running`·`gameActive`를 false로 보정하고 다음 주기에 재조회한다.
 - affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다.
 - 터보키는 임의의 `Client.exe` 이름만으로 입력하지 않는다. 정본 설정과 동일한 명시적 게임 폴더 또는 sibling launcher를 검증해야 한다.
+- DXVK는 확인되지 않은 게임 경로나 임의 URL에 파일을 쓰지 않는다. manager가 실제 `Client.exe`와 게임 미실행 상태를 확인하고 capability module이 digest·x64 PE·최종 파일 hash를 검증해야 한다.
 
 ## durable data와 single writer
 
@@ -58,6 +59,7 @@
 - installer uninstall registry·shortcut writer: NSIS 설치기 하나다.
 - game path state: affinity helper만 `%APPDATA%\마비노기 렘 부스터\game\path.json`을 쓰며 `Environment`와 입력 기능이 읽는다. 터보키의 허용 판단에는 사용하지 않는다.
 - turbo helper installation: `inputs.rs`가 helper version·manifest·binary 교체를 조정하고 native helper는 전달받은 설정과 game path state를 소비한다.
+- DXVK state와 DLL: `dxvk.rs` install/apply 경로만 `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 검증된 게임 폴더의 `d3d9_dxvk.dll`을 쓴다.
 
 ## 실시간 helper 상태와 게임 경로
 
@@ -67,6 +69,15 @@
 - 게임이 실행 중이 아니어도 helper는 대기 상태일 수 있으며 사용자의 부스트 중단·복원 조작을 차단하지 않는다.
 - 터보키는 전경 프로세스가 `Client.exe`이고 상위 폴더가 `Mabinogi`, `Mabinogi_Test`, `마비노기`, `Nexon` 중 하나이거나 같은 폴더에 `Mabinogi.exe`가 있을 때만 반복 입력한다.
 - 사용자 쓰기 가능한 runtime game path 파일은 터보키 허용 목록으로 신뢰하지 않는다. 새 게임 폴더 지원은 source 정본과 회귀 테스트를 함께 변경한다.
+
+## DXVK download·file transaction
+
+- `dxvk_manager.rs`는 다운로드 전에 실제 `Client.exe`, 허용 폴더명 또는 sibling launcher, 파일·모든 상위 경로의 reparse 여부와 canonical parent를 확인한다. 다운로드가 끝난 뒤 게임 실행 여부와 canonical 대상 경로를 교체 직전에 다시 확인하며 달라졌으면 적용하지 않는다.
+- `dxvk.rs`는 고정 GitHub release 주소, 공개 SHA-256, 제한 크기, x64 PE를 확인한 뒤에만 versioned DLL을 저장한다.
+- 저장소와 게임 폴더의 디렉터리·임시 파일·기존 파일 handle identity를 유지·재확인하고, 같은 디렉터리의 UUID 임시 파일에 기록·flush·hash 검증한다. 기존 파일은 별도 UUID backup에 flush·hash 검증하고 staged handle의 `SetFileInformationByHandle(FileRenameInfo)`로 기존 target을 교체한 뒤 최종 hash를 다시 확인한다.
+- 교체 전 실패하면 기존 파일을 유지하며, 교체 뒤 내부·외부 검증 실패는 검증된 backup을 복원·재검증한다. 원본이 없으면 실패한 새 target을 제거한다. 임시 파일과 성공적으로 끝난 backup은 정리하되 복구 실패 시 검증된 backup은 수동 복구를 위해 보존한다.
+- `NotFound`는 Windows 보안·백신 격리 가능성, access denied는 보안 차단·권한·파일 사용, sharing violation은 실행 중인 프로그램 사용으로 구분해 사용자에게 작업 단계와 함께 알린다.
+- 오류 메시지와 진단에는 사용자 전체 게임 경로를 포함하지 않는다. 보안 정책·백신 예외는 앱이 자동으로 변경하지 않는다.
 
 ## update·설치 transaction과 호환성
 

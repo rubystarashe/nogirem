@@ -3,7 +3,11 @@ use crate::{
     workers::{Environment, read},
 };
 use serde_json::{Value, json};
-use std::path::PathBuf;
+use std::{
+    fs::File,
+    os::windows::fs::{MetadataExt, OpenOptionsExt},
+    path::{Path, PathBuf},
+};
 const TTL: u64 = 360000;
 pub struct Manager {
     env: Environment,
@@ -68,6 +72,83 @@ impl Manager {
     }
     fn target(&self) -> PathBuf {
         PathBuf::from(self.env.game()).with_file_name("d3d9_dxvk.dll")
+    }
+    fn path_is_reparse(path: &Path) -> Result<bool> {
+        std::fs::symlink_metadata(path)
+            .map(|metadata| {
+                metadata.file_attributes()
+                    & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT
+                    != 0
+            })
+            .map_err(|error| error.to_string())
+    }
+    fn install_target_for(env: &Environment) -> Result<PathBuf> {
+        let game = env.game();
+        if !env.valid_game(&game) {
+            return Err(
+                "마비노기 Client.exe 경로를 확인하지 못했습니다. 게임을 한 번 실행한 뒤 다시 시도해 주세요"
+                    .into(),
+            );
+        }
+        let game = PathBuf::from(game);
+        let parent = game
+            .parent()
+            .filter(|path| path.is_dir())
+            .ok_or("마비노기 설치 폴더를 확인하지 못했습니다")?;
+        if Self::path_is_reparse(&game)? {
+            return Err("마비노기 실행 파일이 reparse point여서 DXVK를 적용하지 않았습니다".into());
+        }
+        for ancestor in parent.ancestors() {
+            if Self::path_is_reparse(ancestor)? {
+                return Err(
+                    "마비노기 설치 경로에 reparse point가 있어 DXVK를 적용하지 않았습니다"
+                        .into(),
+                );
+            }
+        }
+        let canonical_parent = parent
+            .canonicalize()
+            .map_err(|error| format!("마비노기 설치 폴더 확인에 실패했습니다 ({error})"))?;
+        let canonical_game = game
+            .canonicalize()
+            .map_err(|error| format!("마비노기 실행 파일 확인에 실패했습니다 ({error})"))?;
+        if canonical_game.parent() != Some(canonical_parent.as_path()) {
+            return Err("마비노기 실행 파일과 설치 폴더가 일치하지 않습니다".into());
+        }
+        let named = canonical_parent.file_name().is_some_and(|name| {
+            matches!(
+                name.to_string_lossy().to_ascii_lowercase().as_str(),
+                "mabinogi" | "mabinogi_test" | "마비노기" | "nexon"
+            )
+        });
+        let launcher = canonical_parent.join("Mabinogi.exe");
+        let launcher_valid = launcher.is_file() && !Self::path_is_reparse(&launcher)?;
+        if !named && !launcher_valid {
+            return Err(
+                "확인된 마비노기 설치 폴더가 아닙니다. 게임을 한 번 실행한 뒤 다시 시도해 주세요"
+                    .into(),
+            );
+        }
+        Ok(canonical_parent.join("d3d9_dxvk.dll"))
+    }
+    fn install_target(&self) -> Result<PathBuf> {
+        Self::install_target_for(&self.env)
+    }
+    fn lock_target_directory(target: &Path) -> Result<File> {
+        let parent = target.parent().ok_or("마비노기 설치 폴더가 없습니다")?;
+        std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(
+                windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ
+                    | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_WRITE
+                    | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_DELETE,
+            )
+            .custom_flags(
+                windows_sys::Win32::Storage::FileSystem::FILE_FLAG_BACKUP_SEMANTICS
+                    | windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT,
+            )
+            .open(parent)
+            .map_err(|error| format!("마비노기 설치 폴더를 고정하지 못했습니다 ({error})"))
     }
     fn releases(&mut self) -> Result<Vec<Value>> {
         if self.checked == 0 || crate::now_ms().saturating_sub(self.checked) >= TTL {
@@ -237,6 +318,15 @@ $mode = switch ([int]$value) { 0 { 'off' } 1 { 'enforced' } 2 { 'evaluation' } d
         )
     }
     pub fn install(&mut self, version: &str) -> Result<Value> {
+        let target = self.install_target()?;
+        let _target_directory_guard = Self::lock_target_directory(&target)?;
+        let locked_target = self.install_target()?;
+        if !locked_target
+            .to_string_lossy()
+            .eq_ignore_ascii_case(&target.to_string_lossy())
+        {
+            return Err("마비노기 설치 경로가 검사 중 변경되었습니다".into());
+        }
         if crate::process::game_active(&read(&self.env.root.join("config.json")))? {
             return Err("마비노기가 실행 중일 때에는 DXVK를 교체할 수 없습니다".into());
         }
@@ -257,13 +347,124 @@ $mode = switch ([int]$value) { 0 { 'off' } 1 { 'enforced' } 2 { 'evaluation' } d
             let releases = json!(self.releases()?);
             dxvk::install(&self.directory(), version, Some(&releases))?
         };
-        // The game can start while a download is in flight. Recheck before replacing its DLL.
+        // 다운로드 도중 게임이 실행될 수 있으므로 DLL 교체 전에 다시 확인한다.
         if crate::process::game_active(&read(&self.env.root.join("config.json")))? {
             return Err("마비노기가 실행 중일 때에는 DXVK를 교체할 수 없습니다".into());
         }
-        result["deployment"] = dxvk::apply(&self.directory(), &self.target())?;
+        let guard_env = self.env.clone();
+        let expected_target = target.clone();
+        result["deployment"] = dxvk::apply_guarded(&self.directory(), &target, move || {
+            if crate::process::game_active(&read(&guard_env.root.join("config.json")))? {
+                return Err("마비노기가 실행 중일 때에는 DXVK를 교체할 수 없습니다".into());
+            }
+            let refreshed = Self::install_target_for(&guard_env)?;
+            if !refreshed
+                .to_string_lossy()
+                .eq_ignore_ascii_case(&expected_target.to_string_lossy())
+            {
+                return Err(
+                    "다운로드 중 마비노기 설치 경로가 변경되었습니다. 다시 시도해 주세요"
+                        .into(),
+                );
+            }
+            Ok(())
+        })?;
         result["storagePath"] = json!(self.directory());
         result["runtimeStatus"] = self.refresh()?;
         Ok(result)
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn environment(root: &std::path::Path) -> Environment {
+        Environment {
+            root: root.join("app"),
+            user: root.join("user"),
+            documents: root.join("documents"),
+            videos: root.join("videos"),
+            exe: root.join("nogirem.exe"),
+            packaged: false,
+            portable: false,
+        }
+    }
+
+    #[test]
+    fn install_target_requires_existing_game_executable() {
+        let root = std::env::temp_dir().join(format!(
+            "nogirem-dxvk-manager-test-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let env = environment(&root);
+        fs::create_dir_all(&env.root).unwrap();
+        fs::write(
+            env.root.join("config.json"),
+            r#"{"gameExecutable":"C:\\missing\\Client.exe"}"#,
+        )
+        .unwrap();
+        let manager = Manager::new(env);
+        assert!(
+            manager
+                .install_target()
+                .unwrap_err()
+                .contains("Client.exe 경로")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn install_target_uses_valid_game_directory() {
+        let root = std::env::temp_dir().join(format!(
+            "nogirem-dxvk-manager-test-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let env = environment(&root);
+        let game = root.join("Mabinogi_Test/Client.exe");
+        fs::create_dir_all(&env.root).unwrap();
+        fs::create_dir_all(game.parent().unwrap()).unwrap();
+        fs::write(&game, b"client").unwrap();
+        storage::write_json(
+            &env.root.join("config.json"),
+            &json!({"gameExecutable":game}),
+        )
+        .unwrap();
+        let manager = Manager::new(env);
+        assert_eq!(
+            manager.install_target().unwrap(),
+            game.parent()
+                .unwrap()
+                .canonicalize()
+                .unwrap()
+                .join("d3d9_dxvk.dll")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn install_target_rejects_unrecognized_client_directory() {
+        let root = std::env::temp_dir().join(format!(
+            "nogirem-dxvk-manager-test-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let env = environment(&root);
+        let game = root.join("OtherGame/Client.exe");
+        fs::create_dir_all(&env.root).unwrap();
+        fs::create_dir_all(game.parent().unwrap()).unwrap();
+        fs::write(&game, b"client").unwrap();
+        storage::write_json(
+            &env.root.join("config.json"),
+            &json!({"gameExecutable":game}),
+        )
+        .unwrap();
+        let manager = Manager::new(env);
+        assert!(
+            manager
+                .install_target()
+                .unwrap_err()
+                .contains("확인된 마비노기 설치 폴더")
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 }

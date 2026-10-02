@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-02 22:00 +09:00
+Last Updated: 2026-10-02 23:50 +09:00
 
 ## Current Objective
-Rust·Dioxus 0.4.3의 부스트 helper 상태 복구와 테스트 서버 터보키 지원을 검증하고 서명 배포한다.
+Rust·Dioxus 0.4.3의 DXVK 파일 누락 오류를 개선하고 서명 자산을 대치한다.
 
 ## Active Runs
+- `20261002-dxvk-043-replacement`: 잘못된 게임 경로를 다운로드 전에 차단하고 DXVK 임시·최종 DLL을 검증해 Windows 원자 교체하며, 보안 격리·권한 오류를 구분해 안내한다. source 자동 검증 완료, 독립 review·서명 package·v0.4.3 자산 대치 대기 (`docs/ai/runs/20261002-dxvk-043-replacement/task.md`)
 - `20261002-release-043`: 게임 종료·helper 종료 뒤 stale 부스트 상태와 중단 조작 차단을 수정하고, 테스트 서버 `Mabinogi_Test\Client.exe`를 터보키 0.1.8에서 지원한다. 자동·package·공개 재다운로드 검증과 독립 review 승인 후 GitHub v0.4.3 배포 완료 (`docs/ai/runs/20261002-release-043/task.md`)
 - `20261001-repackage-042`: 진단 로깅 포함 Rust/Dioxus 0.4.2 설치형·포터블 서명 패키징, 기존 v0.4.2 자산 대치와 공개 검증 완료 (`docs/ai/runs/20261001-repackage-042/task.md`)
 - `20261001-freeze-diagnostics`: 게임 종료·재실행 하드 프리즈의 다음 진단에서 affinity 전환과 WHEA·GPU·LiveKernelEvent 증거를 수집하도록 로깅 구현·검증 완료, implementation commit `1eb7fe44e4100d6640d232ba03ce8dd9926e6fc9` (`docs/ai/runs/20261001-freeze-diagnostics/task.md`)
@@ -16,6 +17,10 @@ Rust·Dioxus 0.4.3의 부스트 helper 상태 복구와 테스트 서버 터보�
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- DXVK install은 실제 `Client.exe`, 허용 폴더·launcher, canonical parent와 파일·상위 reparse를 다운로드 전에 확인하고, file replace 직전에 경로 변경·게임 실행을 다시 차단한다.
+- 저장소와 게임 폴더 DLL은 디렉터리·staged·기존 파일 handle identity를 유지·재확인하고 UUID 임시 파일과 기존 파일 backup을 flush·hash 검증한 뒤 staged handle의 `SetFileInformationByHandle`로 교체한다. 외부 deployment I/O 오류·불일치까지 backup을 유지하며 복구 실패 시 수동 복구용으로 보존한다.
+- 임시·최종 파일 `NotFound`는 Windows 보안·백신 격리 가능성을, access denied·sharing violation은 보안 차단·권한·파일 사용을 구분해 안내한다.
+- round 4 backend 71 PASS·2 declared ignore와 integration 2/2, DXVK 14/14, Node 203/203, desktop locked check가 통과했다. 독립 review round 4가 exact source target을 `APPROVED`했으며 unresolved mandatory finding은 0이다. 실제 제보 환경과 package·public release 검증은 아직 NOT_RUN이다.
 - 0.4.3은 affinity status의 PID·프로세스 시작 시각을 함께 검증하고, runtime polling 오류 뒤 상태 조회를 계속하며, 게임 미실행 대기 중에도 부스트 중단을 허용한다.
 - 살아 있는 0.4.2 affinity helper는 control로 종료하고 동일 process instance의 종료를 확인한 뒤 0.4.3 helper로 교체한다.
 - 터보키 helper 0.1.8은 정본의 `Mabinogi_Test` 폴더를 허용하며 사용자 쓰기 runtime 경로를 신뢰하지 않는다.

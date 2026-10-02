@@ -1,13 +1,16 @@
 use crate::{Result, http, storage};
 use serde_json::{Value, json};
 use std::{
-    fs,
-    io::{Read, Write},
+    fs::{self, File},
+    io::{Read, Seek, SeekFrom, Write},
+    os::windows::{
+        ffi::OsStrExt,
+        fs::{MetadataExt, OpenOptionsExt},
+        io::AsRawHandle,
+    },
     path::{Component, Path},
-    sync::atomic::{AtomicU64, Ordering},
 };
 const MAX_ARCHIVE: usize = 64 * 1024 * 1024;
-static SEQUENCE: AtomicU64 = AtomicU64::new(0);
 fn re(pattern: &str, value: &str) -> bool {
     regex::Regex::new(pattern).unwrap().is_match(value)
 }
@@ -151,46 +154,417 @@ pub fn deployment(installed: &Value, target: &Path) -> Result<Value> {
         Err(e) => Err(e.to_string()),
     }
 }
-fn atomic_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
-    let parent = path.parent().ok_or("파일 디렉터리가 없습니다")?;
-    fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    let temp = parent.join(format!(
-        ".dxvk-{}-{}.tmp",
-        std::process::id(),
-        SEQUENCE.fetch_add(1, Ordering::Relaxed)
-    ));
+fn file_error(action: &str, error: std::io::Error) -> String {
+    match error.raw_os_error() {
+        Some(2 | 3) => format!(
+            "{action} 중 파일이 사라졌습니다. Windows 보안 또는 백신의 보호 기록에서 DXVK 격리 여부를 확인해 주세요 ({error})"
+        ),
+        Some(5) => format!(
+            "{action} 접근이 거부되었습니다. Windows 보안·백신 차단, 폴더 쓰기 권한 또는 다른 프로그램의 파일 사용 여부를 확인해 주세요 ({error})"
+        ),
+        Some(32 | 33) => format!(
+            "{action} 대상 파일이 사용 중입니다. 마비노기와 해당 폴더를 사용하는 프로그램을 종료한 뒤 다시 시도해 주세요 ({error})"
+        ),
+        _ => format!("{action}에 실패했습니다 ({error})"),
+    }
+}
+fn is_reparse(path: &Path) -> Result<bool> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) => Ok(
+            metadata.file_attributes()
+                & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT
+                != 0,
+        ),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(file_error("DXVK 대상 파일 정보 확인", error)),
+    }
+}
+fn handle_replace(file: &File, target: &Path, action: &str) -> Result<()> {
+    let name = target.as_os_str().encode_wide().collect::<Vec<_>>();
+    let offset = std::mem::offset_of!(
+        windows_sys::Win32::Storage::FileSystem::FILE_RENAME_INFO,
+        FileName
+    );
+    let size = offset + name.len() * std::mem::size_of::<u16>();
+    let mut buffer = vec![0usize; size.div_ceil(std::mem::size_of::<usize>())];
+    let info =
+        buffer.as_mut_ptr() as *mut windows_sys::Win32::Storage::FileSystem::FILE_RENAME_INFO;
+    unsafe {
+        (*info).Anonymous.ReplaceIfExists = true;
+        (*info).RootDirectory = std::ptr::null_mut();
+        (*info).FileNameLength = (name.len() * std::mem::size_of::<u16>()) as u32;
+        std::ptr::copy_nonoverlapping(
+            name.as_ptr(),
+            std::ptr::addr_of_mut!((*info).FileName).cast::<u16>(),
+            name.len(),
+        );
+    }
+    let renamed = unsafe {
+        windows_sys::Win32::Storage::FileSystem::SetFileInformationByHandle(
+            file.as_raw_handle() as windows_sys::Win32::Foundation::HANDLE,
+            windows_sys::Win32::Storage::FileSystem::FileRenameInfo,
+            buffer.as_ptr().cast(),
+            size as u32,
+        )
+    };
+    if renamed == 0 {
+        Err(file_error(action, std::io::Error::last_os_error()))
+    } else {
+        Ok(())
+    }
+}
+fn file_identity(file: &File, action: &str) -> Result<(u32, u64)> {
+    let mut info = unsafe {
+        std::mem::zeroed::<windows_sys::Win32::Storage::FileSystem::BY_HANDLE_FILE_INFORMATION>()
+    };
+    let ok = unsafe {
+        windows_sys::Win32::Storage::FileSystem::GetFileInformationByHandle(
+            file.as_raw_handle() as windows_sys::Win32::Foundation::HANDLE,
+            &mut info,
+        )
+    };
+    if ok == 0 {
+        return Err(file_error(action, std::io::Error::last_os_error()));
+    }
+    Ok((
+        info.dwVolumeSerialNumber,
+        ((info.nFileIndexHigh as u64) << 32) | info.nFileIndexLow as u64,
+    ))
+}
+fn path_identity(path: &Path, action: &str) -> Result<(u32, u64)> {
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .share_mode(
+            windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ
+                | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_WRITE
+                | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_DELETE,
+        )
+        .open(path)
+        .map_err(|error| file_error(action, error))?;
+    file_identity(&file, action)
+}
+fn lock_directory(path: &Path, action: &str) -> Result<File> {
+    fs::OpenOptions::new()
+        .read(true)
+        .share_mode(
+            windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ
+                | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_WRITE
+                | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_DELETE,
+        )
+        .custom_flags(
+            windows_sys::Win32::Storage::FileSystem::FILE_FLAG_BACKUP_SEMANTICS
+                | windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT,
+        )
+        .open(path)
+        .map_err(|error| file_error(action, error))
+}
+fn directory_path_identity(path: &Path, action: &str) -> Result<(u32, u64)> {
+    let directory = lock_directory(path, action)?;
+    file_identity(&directory, action)
+}
+#[derive(Debug)]
+struct PendingReplacement {
+    target: std::path::PathBuf,
+    backup: Option<(std::path::PathBuf, String)>,
+    action: String,
+}
+impl PendingReplacement {
+    fn commit(self) -> Result<()> {
+        if let Some((backup, _)) = self.backup {
+            match fs::remove_file(backup) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(file_error(
+                        &format!("{} 기존 파일 backup 정리", self.action),
+                        error,
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+    fn rollback(self, original_error: String) -> String {
+        if let Some((backup, expected)) = self.backup {
+            let backup_name = backup
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "DXVK backup".into());
+            let restore = backup.with_file_name(format!(".dxvk-restore-{}.tmp", uuid::Uuid::new_v4()));
+            let prepared: Result<File> = (|| {
+                let saved =
+                    fs::read(&backup).map_err(|error| file_error("DXVK backup 읽기", error))?;
+                if http::sha256(&saved) != expected {
+                    return Err("DXVK backup 무결성 검증에 실패했습니다".into());
+                }
+                let mut restore_file = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create_new(true)
+                    .access_mode(
+                        windows_sys::Win32::Storage::FileSystem::FILE_GENERIC_READ
+                            | windows_sys::Win32::Storage::FileSystem::FILE_GENERIC_WRITE
+                            | windows_sys::Win32::Storage::FileSystem::DELETE,
+                    )
+                    .share_mode(
+                        windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ
+                            | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_WRITE
+                            | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_DELETE,
+                    )
+                    .open(&restore)
+                    .map_err(|error| file_error("DXVK 복구 임시 파일 생성", error))?;
+                restore_file
+                    .write_all(&saved)
+                    .map_err(|error| file_error("DXVK 복구 임시 파일 기록", error))?;
+                restore_file
+                    .sync_all()
+                    .map_err(|error| file_error("DXVK 복구 임시 파일 동기화", error))?;
+                Ok(restore_file)
+            })();
+            let restore_file = match prepared {
+                Ok(file) => file,
+                Err(restore_error) => {
+                    let _ = fs::remove_file(&restore);
+                    return format!(
+                        "{original_error}; 기존 DXVK 파일 복구 준비에 실패했습니다. 수동 복구용 {backup_name} 파일은 보존했습니다: {restore_error}"
+                    );
+                }
+            };
+            if let Err(restore_error) = handle_replace(
+                &restore_file,
+                &self.target,
+                &format!("{} 기존 파일 복구", self.action),
+            ) {
+                let _ = fs::remove_file(&restore);
+                return format!(
+                    "{original_error}; 기존 DXVK 파일 복구에도 실패했습니다. 수동 복구용 {backup_name} 파일은 보존했습니다: {restore_error}"
+                );
+            }
+            return match fs::read(&self.target) {
+                Ok(restored) if http::sha256(&restored) == expected => {
+                    let _ = fs::remove_file(&backup);
+                    original_error
+                }
+                Ok(_) => format!(
+                    "{original_error}; 기존 DXVK 파일 복구 후 무결성 검증에 실패했습니다. 수동 복구용 {backup_name} 파일은 보존했습니다"
+                ),
+                Err(error) => format!(
+                    "{original_error}; {}; 수동 복구용 {backup_name} 파일은 보존했습니다",
+                    file_error("기존 DXVK 파일 복구 확인", error)
+                ),
+            };
+        }
+        match fs::remove_file(&self.target) {
+            Ok(()) => original_error,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => original_error,
+            Err(error) => format!(
+                "{original_error}; {}",
+                file_error("실패한 DXVK 대상 파일 정리", error)
+            ),
+        }
+    }
+}
+fn atomic_bytes_guarded(
+    path: &Path,
+    bytes: &[u8],
+    action: &str,
+    before_replace: impl FnOnce() -> Result<()>,
+) -> Result<PendingReplacement> {
+    let parent = path.parent().ok_or("DXVK 대상 디렉터리가 없습니다")?;
+    if parent.as_os_str().is_empty() {
+        return Err("DXVK 대상 디렉터리가 비어 있습니다".into());
+    }
+    fs::create_dir_all(parent).map_err(|e| file_error("DXVK 대상 디렉터리 준비", e))?;
+    if is_reparse(parent)? {
+        return Err("DXVK 대상 디렉터리가 reparse point여서 교체하지 않았습니다".into());
+    }
+    let canonical_parent = parent
+        .canonicalize()
+        .map_err(|error| file_error("DXVK 대상 디렉터리 확인", error))?;
+    let _parent_guard = lock_directory(parent, "DXVK 대상 디렉터리 고정")?;
+    let parent_identity =
+        file_identity(&_parent_guard, "DXVK 대상 디렉터리 identity 확인")?;
+    if parent
+        .canonicalize()
+        .map_err(|error| file_error("DXVK 대상 디렉터리 재확인", error))?
+        != canonical_parent
+    {
+        return Err("DXVK 대상 디렉터리가 검사 중 변경되었습니다".into());
+    }
+    if is_reparse(path)? {
+        return Err("DXVK 대상 파일이 reparse point여서 교체하지 않았습니다".into());
+    }
+    let id = uuid::Uuid::new_v4();
+    let temp = parent.join(format!(".dxvk-{id}.tmp"));
+    let backup = parent.join(format!(".dxvk-backup-{id}.tmp"));
+    let mut replaced = false;
+    let mut backup_state = None;
+    let mut target_guard = None;
     let result = (|| {
         let mut file = fs::OpenOptions::new()
+            .read(true)
             .write(true)
             .create_new(true)
+            .access_mode(
+                windows_sys::Win32::Storage::FileSystem::FILE_GENERIC_READ
+                    | windows_sys::Win32::Storage::FileSystem::FILE_GENERIC_WRITE
+                    | windows_sys::Win32::Storage::FileSystem::DELETE,
+            )
+            .share_mode(
+                windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ
+                    | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_WRITE
+                    | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_DELETE,
+            )
             .open(&temp)
-            .map_err(|e| e.to_string())?;
-        file.write_all(bytes).map_err(|e| e.to_string())?;
-        file.sync_all().map_err(|e| e.to_string())?;
-        drop(file);
-        fs::rename(&temp, path).map_err(|e| e.to_string())
+            .map_err(|e| file_error(&format!("{action} 임시 파일 생성"), e))?;
+        file.write_all(bytes)
+            .map_err(|e| file_error(&format!("{action} 임시 파일 기록"), e))?;
+        file.sync_all()
+            .map_err(|e| file_error(&format!("{action} 임시 파일 동기화"), e))?;
+        let staged_identity = file_identity(&file, &format!("{action} 임시 파일 identity 확인"))?;
+        file.seek(SeekFrom::Start(0))
+            .map_err(|e| file_error(&format!("{action} 임시 파일 재확인 준비"), e))?;
+        let mut staged = Vec::with_capacity(bytes.len());
+        file.read_to_end(&mut staged)
+            .map_err(|e| file_error(&format!("{action} 임시 파일 재확인"), e))?;
+        if http::sha256(&staged) != http::sha256(bytes) {
+            return Err(format!("{action} 임시 파일 무결성 검증에 실패했습니다"));
+        }
+        if path.exists() {
+            if is_reparse(path)? {
+                return Err("DXVK 대상 파일이 교체 직전에 reparse point로 변경되었습니다".into());
+            }
+            let mut previous_file = fs::OpenOptions::new()
+                .read(true)
+                .share_mode(
+                    windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ
+                        | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_WRITE
+                        | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_DELETE,
+                )
+                .open(path)
+                .map_err(|e| file_error(&format!("{action} 기존 파일 열기"), e))?;
+            let previous_identity =
+                file_identity(&previous_file, &format!("{action} 기존 파일 identity 확인"))?;
+            let mut previous = Vec::new();
+            previous_file
+                .read_to_end(&mut previous)
+                .map_err(|e| file_error(&format!("{action} 기존 파일 읽기"), e))?;
+            let mut backup_file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&backup)
+                .map_err(|e| file_error(&format!("{action} 기존 파일 백업 생성"), e))?;
+            backup_file
+                .write_all(&previous)
+                .map_err(|e| file_error(&format!("{action} 기존 파일 백업 기록"), e))?;
+            backup_file
+                .sync_all()
+                .map_err(|e| file_error(&format!("{action} 기존 파일 백업 동기화"), e))?;
+            drop(backup_file);
+            let saved = fs::read(&backup)
+                .map_err(|e| file_error(&format!("{action} 기존 파일 백업 확인"), e))?;
+            let hash = http::sha256(&previous);
+            if http::sha256(&saved) != hash {
+                return Err(format!("{action} 기존 파일 백업 무결성 검증에 실패했습니다"));
+            }
+            backup_state = Some((backup.clone(), hash));
+            target_guard = Some((previous_file, previous_identity));
+        }
+        before_replace()?;
+        if parent
+            .canonicalize()
+            .map_err(|error| file_error("DXVK 대상 디렉터리 최종 확인", error))?
+            != canonical_parent
+            || directory_path_identity(
+                parent,
+                "DXVK 대상 디렉터리 최종 identity 확인",
+            )? != parent_identity
+        {
+            return Err("DXVK 대상 디렉터리가 교체 직전에 변경되었습니다".into());
+        }
+        if path_identity(&temp, &format!("{action} 임시 파일 최종 identity 확인"))?
+            != staged_identity
+        {
+            return Err(format!("{action} 임시 파일이 검사 중 교체되었습니다"));
+        }
+        if let Some((_, expected_identity)) = &target_guard {
+            if is_reparse(path)?
+                || path_identity(path, &format!("{action} 기존 파일 최종 identity 확인"))?
+                    != *expected_identity
+            {
+                return Err(format!("{action} 기존 파일이 검사 중 교체되었습니다"));
+            }
+        } else if path.exists() {
+            return Err(format!("{action} 대상 파일이 검사 중 새로 생성되었습니다"));
+        }
+        drop(target_guard.take());
+        handle_replace(&file, path, &format!("{action} 최종 파일 교체"))?;
+        replaced = true;
+        let written =
+            fs::read(path).map_err(|e| file_error(&format!("{action} 최종 파일 확인"), e))?;
+        if http::sha256(&written) != http::sha256(bytes) {
+            return Err(format!("{action} 최종 파일 무결성 검증에 실패했습니다"));
+        }
+        Ok(())
     })();
-    if result.is_err() {
-        let _ = fs::remove_file(temp);
+    let _ = fs::remove_file(&temp);
+    match result {
+        Ok(()) => Ok(PendingReplacement {
+            target: path.to_path_buf(),
+            backup: backup_state,
+            action: action.into(),
+        }),
+        Err(error) if replaced => Err(PendingReplacement {
+            target: path.to_path_buf(),
+            backup: backup_state,
+            action: action.into(),
+        }
+        .rollback(error)),
+        Err(error) => {
+            let _ = fs::remove_file(&backup);
+            Err(error)
+        }
     }
-    result
+}
+fn atomic_bytes(path: &Path, bytes: &[u8], action: &str) -> Result<()> {
+    atomic_bytes_guarded(path, bytes, action, || Ok(()))?.commit()
+}
+fn finish_apply(
+    replacement: PendingReplacement,
+    verify: impl FnOnce() -> Result<Value>,
+) -> Result<Value> {
+    let result = match verify() {
+        Ok(result) => result,
+        Err(error) => return Err(replacement.rollback(error)),
+    };
+    if result["matchesCurrent"] != true {
+        return Err(replacement.rollback(
+            "게임 폴더의 d3d9_dxvk.dll 적용 검증에 실패했습니다".into(),
+        ));
+    }
+    replacement.commit()?;
+    Ok(result)
 }
 pub fn apply(dir: &Path, target: &Path) -> Result<Value> {
+    apply_guarded(dir, target, || Ok(()))
+}
+pub fn apply_guarded(
+    dir: &Path,
+    target: &Path,
+    before_replace: impl FnOnce() -> Result<()>,
+) -> Result<Value> {
     let current = installed(dir)?;
     if current["installed"] != true || current["integrity"] != true {
         return Err("게임에 적용할 검증된 DXVK 파일이 없습니다".into());
     }
     let bytes = fs::read(dir.join(current["current"]["fileName"].as_str().unwrap()))
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| file_error("보관된 DXVK DLL 읽기", e))?;
     if http::sha256(&bytes) != current["current"]["sha256"] {
         return Err("게임 폴더 적용 전 DXVK 무결성 검증에 실패했습니다".into());
     }
-    atomic_bytes(target, &bytes)?;
-    let result = deployment(&current, target)?;
-    if result["matchesCurrent"] != true {
-        return Err("게임 폴더의 d3d9_dxvk.dll 적용 검증에 실패했습니다".into());
-    }
-    Ok(result)
+    let replacement =
+        atomic_bytes_guarded(target, &bytes, "게임 폴더 DXVK 적용", before_replace)?;
+    finish_apply(replacement, || deployment(&current, target))
 }
 pub fn install(dir: &Path, v: &str, cached: Option<&Value>) -> Result<Value> {
     let v = version(v)?;
@@ -225,7 +599,7 @@ pub fn install(dir: &Path, v: &str, cached: Option<&Value>) -> Result<Value> {
     let dll = extract_archive(&archive)?;
     validate_dll(&dll)?;
     let filename = format!("dxvk-{v}-d3d9.dll");
-    atomic_bytes(&dir.join(&filename), &dll)?;
+    atomic_bytes(&dir.join(&filename), &dll, "다운로드한 DXVK DLL 저장")?;
     let current = json!({"version":v,"fileName":filename,"sha256":http::sha256(&dll),"archiveSha256":release["archiveSha256"],"downloadUrl":url,"releaseUrl":release["releaseUrl"],"publishedAt":release["publishedAt"],"installedAt":chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis,true)});
     storage::write_json(&dir.join("current.json"), &current)?;
     if let Some(previous) = old["current"]["fileName"]
@@ -292,6 +666,24 @@ pub fn dispatch(action: &str, p: &Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::os::windows::fs::OpenOptionsExt;
+
+    fn test_root() -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("nogirem-dxvk-test-{}", uuid::Uuid::new_v4()))
+    }
+
+    fn temporary_files(root: &Path) -> Vec<std::path::PathBuf> {
+        fs::read_dir(root)
+            .unwrap()
+            .filter_map(std::result::Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.file_name()
+                    .is_some_and(|name| name.to_string_lossy().starts_with(".dxvk-"))
+            })
+            .collect()
+    }
+
     #[test]
     fn rejects_invalid_pe_and_versions() {
         assert!(validate_dll(&[0; 300]).is_err());
@@ -319,5 +711,125 @@ mod tests {
         h[124..135].copy_from_slice(b"00000010000");
         gz.write_all(&h).unwrap();
         assert!(extract_archive(&gz.finish().unwrap()).is_err());
+    }
+    #[test]
+    fn atomic_bytes_creates_parent_and_replaces_existing_file() {
+        let root = test_root();
+        let target = root.join("nested/d3d9_dxvk.dll");
+        assert!(!target.parent().unwrap().exists());
+        atomic_bytes(&target, b"old", "DXVK 테스트 저장").unwrap();
+        atomic_bytes(&target, b"new", "DXVK 테스트 저장").unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"new");
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn failed_guard_preserves_existing_file_and_cleans_temporary_files() {
+        let root = test_root();
+        let target = root.join("d3d9_dxvk.dll");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&target, b"old").unwrap();
+        let error = atomic_bytes_guarded(&target, b"new", "DXVK 테스트 저장", || {
+            Err("교체 직전 검사 실패".into())
+        })
+        .unwrap_err();
+        assert!(error.contains("교체 직전 검사 실패"));
+        assert_eq!(fs::read(&target).unwrap(), b"old");
+        assert!(temporary_files(&root).is_empty());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn locked_target_is_preserved_and_reports_in_use() {
+        let root = test_root();
+        let target = root.join("d3d9_dxvk.dll");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&target, b"old").unwrap();
+        let lock = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ)
+            .open(&target)
+            .unwrap();
+        let error = atomic_bytes(&target, b"new", "DXVK 테스트 저장").unwrap_err();
+        assert!(error.contains("사용 여부"), "{error}");
+        assert_eq!(fs::read(&target).unwrap(), b"old");
+        drop(lock);
+        assert!(temporary_files(&root).is_empty());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn windows_file_errors_have_actionable_categories() {
+        assert!(
+            file_error("DXVK 테스트", std::io::Error::from_raw_os_error(2))
+                .contains("격리 여부")
+        );
+        assert!(
+            file_error("DXVK 테스트", std::io::Error::from_raw_os_error(5))
+                .contains("보안·백신")
+        );
+        assert!(
+            file_error("DXVK 테스트", std::io::Error::from_raw_os_error(32))
+                .contains("사용 중")
+        );
+    }
+    #[test]
+    fn post_replace_failure_restores_existing_file_and_cleans_backup() {
+        let root = test_root();
+        let target = root.join("d3d9_dxvk.dll");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&target, b"old").unwrap();
+        let replacement =
+            atomic_bytes_guarded(&target, b"new", "DXVK 테스트 저장", || Ok(())).unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"new");
+        let error = replacement.rollback("후속 검증 실패".into());
+        assert_eq!(error, "후속 검증 실패");
+        assert_eq!(fs::read(&target).unwrap(), b"old");
+        assert!(temporary_files(&root).is_empty());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn restore_failure_preserves_verified_backup() {
+        let root = test_root();
+        let target = root.join("d3d9_dxvk.dll");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&target, b"old").unwrap();
+        let replacement =
+            atomic_bytes_guarded(&target, b"new", "DXVK 테스트 저장", || Ok(())).unwrap();
+        let backup = replacement.backup.as_ref().unwrap().0.clone();
+        let lock = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ)
+            .open(&target)
+            .unwrap();
+        let error = replacement.rollback("후속 검증 실패".into());
+        assert!(error.contains("수동 복구용"));
+        assert_eq!(fs::read(&backup).unwrap(), b"old");
+        drop(lock);
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn post_replace_failure_without_original_removes_new_target() {
+        let root = test_root();
+        let target = root.join("d3d9_dxvk.dll");
+        fs::create_dir_all(&root).unwrap();
+        let replacement =
+            atomic_bytes_guarded(&target, b"new", "DXVK 테스트 저장", || Ok(())).unwrap();
+        let error = replacement.rollback("후속 검증 실패".into());
+        assert_eq!(error, "후속 검증 실패");
+        assert!(!target.exists());
+        assert!(temporary_files(&root).is_empty());
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn deployment_io_error_rolls_back_existing_target() {
+        let root = test_root();
+        let target = root.join("d3d9_dxvk.dll");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&target, b"old").unwrap();
+        let replacement =
+            atomic_bytes_guarded(&target, b"new", "DXVK 테스트 저장", || Ok(())).unwrap();
+        let error = finish_apply(replacement, || Err("deployment I/O 오류".into())).unwrap_err();
+        assert_eq!(error, "deployment I/O 오류");
+        assert_eq!(fs::read(&target).unwrap(), b"old");
+        assert!(temporary_files(&root).is_empty());
+        fs::remove_dir_all(root).unwrap();
     }
 }
