@@ -7,15 +7,15 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-02T12:40:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `1292f62c084200ec41201e1792d212ad58cc0569 + 20261002-release-043 working target`
+- source_review_target: `5db679fd9c06cccaf9a29350d41f5e404528ad3b`
 - source_review_evidence: `desktop/src/ui.rs`, `desktop/backend/src/boost.rs`, `inputs.rs`, `affinity_worker.rs`, `native/turbo-key/src/main.rs`
 - behavior_verified_at: `2026-10-02T12:40:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `0.4.3 pre-release working target`
+- behavior_verification_target: `source 5db679fd9c06cccaf9a29350d41f5e404528ad3b, GitHub v0.4.3 public assets`
 - behavior_verification_environment: `Windows 10.0.26200 x64`
-- behavior_verification_evidence: `turbo-key 14/14, backend 60 PASS·2 declared ignore와 integration 2/2, Node 최종 전체 실행 203/203, desktop locked check PASS; package·공개 검증 진행 중`
+- behavior_verification_evidence: `turbo-key 14/14, backend 60 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check, signed package와 공개 재다운로드 Ed25519·SHA-256 재검증`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.3 helper runtime·polling·명시 게임 폴더 경계를 현재 source와 자동 검사에 맞춰 반영함`
+- freshness_reason: `0.4.3 helper runtime·polling·명시 게임 폴더 경계를 source와 자동·공개 배포 검증에 맞춰 반영함`
 - known_gaps: `별도 dependency graph lint가 없고 실제 테스트 서버 입력 및 helper 강제 종료 UI 수동 QA는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST`, `FEAT-NOGIREM-TURBO-KEY`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
 - feature_map: `updated — feature-map.md의 부스트·터보키·배포 기능과 연결됨`

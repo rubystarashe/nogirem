@@ -24,17 +24,17 @@
 ## 위험 분류와 계획
 
 - risk: `HIGH — 실행 중 CPU affinity 상태 복구, 저수준 키보드 hook 대상 판별, 서명 자동 업데이트 배포를 함께 변경`
-- DEV: `READY_FOR_REVIEW`
+- DEV: `DONE`
 - QA: `COMPLETE_PASS for mandatory automated and package scope`
 - review: `APPROVED`
-- release: `READY_TO_PUBLISH`
+- release: `COMPLETED`
 
 1. `COMPLETED` — helper 생존·poll 오류·게임 미실행 중 중단 조작 수정
 2. `COMPLETED` — 정본 설정과 동일한 테스트 서버 폴더를 터보키 대상 판별에 추가
 3. `COMPLETED` — 0.4.3/터보키 0.1.8 버전, 기능 지도와 architecture contract 갱신
 4. `COMPLETED` — 전체 자동 검사, helper build, 독립 review
-5. `IN_PROGRESS` — signed package 생성·검증 완료, source commit 진행
-6. `NOT_STARTED` — GitHub v0.4.3 release·공개 다운로드 검증, handoff·최종 상태
+5. `COMPLETED` — signed package 생성·검증과 source commit
+6. `COMPLETED` — GitHub v0.4.3 release·공개 다운로드 검증, handoff·최종 상태
 
 ## 수용 기준과 시나리오
 
@@ -84,3 +84,25 @@
 - turbo-key 0.1.8 SHA-256: `5b1e79528b615cd02ca7a7ec59a45a0f0942e58130c8ac0bc6540fb4ccd78936`
 - update manifest SHA-256: `b6514d0c1e9c2d6c9a587cb9177005d05a71782aa17665ddbf8f8fe0b84effa9`
 - portable manifest SHA-256: `f13b402d2e9af306f20f421cd15326d298c7fb4658ee3928d1edda52275d1d79`
+
+## 최종 배포 상태
+
+- overall: `COMPLETED`
+- source commit: `5db679fd9c06cccaf9a29350d41f5e404528ad3b`
+- GitHub release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.3`
+- release tag target: `fbe892a628c6471d5aa1e36a9b759c60d81f25e1` (`main`; package source commit은 별도 로컬 commit으로 기록)
+- 공개 자산: release-plan의 10개 전부 `uploaded`, draft/prerelease 아님, 역할 label 적용 완료.
+- 공개 재다운로드: 설치형·포터블 canonical/alias, 두 signed manifest, turbo-key 0.1.8, Electron bridge 3개가 후보 SHA-256과 모두 일치.
+- 공개 다운로드를 입력으로 `prepare-release.mjs`를 재실행해 Ed25519 서명, payload size/hash/URL, Electron `latest.yml`·blockmap을 다시 검증했다.
+- canonical과 권장 alias는 설치형·포터블 각각 byte-identical이다.
+- commit: `COMPLETED`
+- push: `NOT_RUN`
+- deployment/activation: `GitHub v0.4.3 release assets published`; 사용자 장치 설치·실행은 `NOT_RUN`
+
+## 완료 게이트
+
+- feature gate: `PASS — FEAT-NOGIREM-FRAME-BOOST·TURBO-KEY·UPDATE-LIFECYCLE 정본과 자동 증거 갱신`
+- architecture gate: `PASS — PID/start identity, polling 복구, 명시 폴더 trust boundary와 0.4.2 migration 반영`
+- review and QA gate: `PASS — independent APPROVED, ISSUE-043-001~005 RESOLVED, 필수 자동·package·공개 검증 통과`
+- target and authorization gate: `PASS — source commit·후보·공개 digest 식별, push와 tag rewrite 없음`
+- remaining risk: 실제 테스트 서버 키 반복, 살아 있는 0.4.2 helper migration, full desktop smoke는 수동 검증이 남아 있다.

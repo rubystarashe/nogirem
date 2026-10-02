@@ -7,16 +7,16 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-02T12:40:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `1292f62c084200ec41201e1792d212ad58cc0569 + 20261002-release-043 working target`
+- source_review_target: `5db679fd9c06cccaf9a29350d41f5e404528ad3b`
 - source_review_evidence: `desktop/backend/src/boost.rs`, `inputs.rs`, `desktop/src/ui.rs`, `native/turbo-key/src/main.rs`, 관련 Rust·Node 테스트
 - behavior_verified_at: `2026-10-02T12:40:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `0.4.3 pre-release working target`
+- behavior_verification_target: `source 5db679fd9c06cccaf9a29350d41f5e404528ad3b, GitHub v0.4.3 public assets`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration tests와 Node source-contract tests`
-- behavior_verification_evidence: `turbo-key 14/14, backend 62 중 60 PASS·2 declared ignore와 integration 2/2, Node 최종 전체 실행 203/203, desktop locked check PASS`
+- behavior_verification_evidence: `turbo-key 14/14, backend 62 중 60 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check, signed package와 공개 재다운로드 Ed25519·SHA-256 재검증`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.3의 부스트 runtime과 터보키 게임 경로 변경을 현재 source와 자동 검사 기준으로 반영함`
-- known_gaps: `실제 테스트 서버 창에서의 터보키 반복 입력과 helper 강제 종료 뒤 UI 수동 복구는 NOT_RUN, 0.4.3 공개 payload 검증은 배포 전 진행 중`
+- freshness_reason: `0.4.3의 부스트 runtime·터보키 테스트 서버 경로·공개 payload를 source와 자동·배포 검증 기준으로 반영함`
+- known_gaps: `실제 테스트 서버 창의 터보키 반복 입력, 살아 있는 0.4.2 helper migration과 full desktop smoke는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST`, `FEAT-NOGIREM-TURBO-KEY`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
 - feature_map: `updated — 부스트와 터보키 기능 identity·동작·증거를 추가하고 0.4.3 배포 영향을 연결함`
 - architecture_impact: `helper PID·시작 시각 identity, UI polling 복구, 터보키 명시 게임 폴더 판별, updater·installer 수명주기`
