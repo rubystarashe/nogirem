@@ -1,14 +1,5 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-24T08:02:00.000Z",
-  "responses": [
-    {
-      "reportId": "bcf9211a-0bab-415e-af4a-4473d2614a64",
-      "responseId": "fast-ping-route-query-frame-drop-20260924",
-      "answeredAt": "2026-09-24T08:02:00.000Z",
-      "expiresAt": "2026-10-01T08:02:00.000Z",
-      "title": "네트워크 표시와 프레임 드랍 진단 결과",
-      "message": "진단에서 패스트핑 레지스트리 값은 정상 적용된 상태였으며, 노란 표시는 Windows의 MSFT_NetRoute 조회 실패로 현재 네트워크 상태 확인만 실패해 발생했습니다. 먼저 PC를 재부팅해 주세요. 계속 노란색이면 관리자 터미널에서 `DISM /Online /Cleanup-Image /RestoreHealth`와 `sfc /scannow`를 순서대로 실행한 뒤 재부팅해 주세요. 프레임 드랍 시점의 직접적인 오류는 기록되지 않았지만 Ryzen 9 9950X3D에서 게임 코어가 9개로 설정되어 두 CCD에 걸쳐 실행될 가능성이 있습니다. 게임 코어를 기본값인 8개로 되돌려 확인하고, 계속 발생하면 실시간 부스트를 완전히 끈 상태와 비교한 뒤 드랍 발생 중 게임을 종료하지 말고 새 진단 로그를 보내 주세요."
-    }
-  ]
+  "generatedAt": "2026-10-01T22:45:48.917Z",
+  "responses": []
 }
