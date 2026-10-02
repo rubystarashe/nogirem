@@ -42,9 +42,9 @@
 - architecture gate: `PASS`
 - review and QA gate: `PASS`
 - integration gate: `PASS — 단일 저장소, Electron bridge·turbo helper 호환 자산 보존`
-- target and authorization gate: `PASS except final documentation push pending`
+- target and authorization gate: `PASS`
 - commit: `COMPLETED`
-- push: `PENDING`
+- push: `COMPLETED — origin/main through 545ca42010917930877e4120eb33b6334f0cd9c3`
 - deployment: `COMPLETED — 기존 v0.4.3 자산 대치, tag rewrite 없음`
 - activation: `NOT_RUN — 사용자 장치 설치·실행 안 함`
 

@@ -103,9 +103,9 @@
 - feature gate: `PASS — FEAT-NOGIREM-DXVK 기능 map과 exact source·behavior evidence 갱신`
 - architecture gate: `PASS — canonical/reparse·Win32 handle identity·handle rename·backup rollback 경계와 enforcement 통과`
 - review and QA gate: `PASS — independent APPROVED, ISSUE-DXVK-043-001~006 RESOLVED, 자동·package·공개 검증 통과`
-- target and authorization gate: `PASS except final push pending — source commit과 package/public digest 식별, 기존 v0.4.3 tag rewrite 없음`
-- commit: `567ab935aad7d69476829b1e6a2e5a64d6c0eec7 plus final documentation commit pending`
-- push: `PENDING — final documentation commit 후 origin/main`
+- target and authorization gate: `PASS — source·release record commit과 package/public digest 식별, 기존 v0.4.3 tag rewrite 없음`
+- commit: `source 567ab935aad7d69476829b1e6a2e5a64d6c0eec7, release record 545ca42010917930877e4120eb33b6334f0cd9c3`
+- push: `COMPLETED — origin/main through 545ca42010917930877e4120eb33b6334f0cd9c3`
 - deployment/activation: `GitHub v0.4.3 release assets replaced`; 사용자 장치 설치·실행은 `NOT_RUN`
 - remaining risk: 실제 제보 PC의 AV 격리·게임 폴더 ACL에서 수동 재현하지 못했으며, 동일 0.4.3 사용자는 자동 버전 증가가 없어 대치본을 수동 재설치해야 할 수 있다.
 

@@ -6,7 +6,7 @@ Last Updated: 2026-10-03 00:30 +09:00
 Rust·Dioxus 0.4.3의 DXVK 파일 누락 오류를 개선하고 서명 자산을 대치한다.
 
 ## Active Runs
-- `20261002-dxvk-043-replacement`: 잘못된 게임 경로·reparse를 차단하고 handle 기반 DXVK 교체·backup 복구·보안/권한 오류 안내를 구현했다. 독립 review, 자동·서명 package·공개 재다운로드 검증 후 GitHub v0.4.3 자산 10개 대치 완료; final docs commit·push만 대기 (`docs/ai/runs/20261002-dxvk-043-replacement/task.md`)
+- `20261002-dxvk-043-replacement`: 잘못된 게임 경로·reparse를 차단하고 handle 기반 DXVK 교체·backup 복구·보안/권한 오류 안내를 구현했다. 독립 review, 자동·서명 package·공개 재다운로드 검증, GitHub v0.4.3 자산 10개 대치와 origin/main push 완료 (`docs/ai/runs/20261002-dxvk-043-replacement/task.md`)
 - `20261002-release-043`: 게임 종료·helper 종료 뒤 stale 부스트 상태와 중단 조작 차단을 수정하고, 테스트 서버 `Mabinogi_Test\Client.exe`를 터보키 0.1.8에서 지원한다. 자동·package·공개 재다운로드 검증과 독립 review 승인 후 GitHub v0.4.3 배포 완료 (`docs/ai/runs/20261002-release-043/task.md`)
 - `20261001-repackage-042`: 진단 로깅 포함 Rust/Dioxus 0.4.2 설치형·포터블 서명 패키징, 기존 v0.4.2 자산 대치와 공개 검증 완료 (`docs/ai/runs/20261001-repackage-042/task.md`)
 - `20261001-freeze-diagnostics`: 게임 종료·재실행 하드 프리즈의 다음 진단에서 affinity 전환과 WHEA·GPU·LiveKernelEvent 증거를 수집하도록 로깅 구현·검증 완료, implementation commit `1eb7fe44e4100d6640d232ba03ce8dd9926e6fc9` (`docs/ai/runs/20261001-freeze-diagnostics/task.md`)
@@ -23,7 +23,7 @@ Rust·Dioxus 0.4.3의 DXVK 파일 누락 오류를 개선하고 서명 자산을
 - round 4 backend 71 PASS·2 declared ignore와 integration 2/2, DXVK 14/14, Node 203/203, desktop locked check가 통과했다. 독립 review round 4가 exact source target을 `APPROVED`했으며 unresolved mandatory finding은 0이다.
 - source commit `567ab935aad7d69476829b1e6a2e5a64d6c0eec7`에서 서명 설치형 `087cad916f2250df18c9c6b5d92713b5326c0e56f18f16053a2b317566d9f285`, 포터블 `7104e2dbd23d4d819d13062b8ef9f5aeb6ec50619a10c0b358a33fe1d0079fe0`을 생성했다.
 - [GitHub v0.4.3](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.3)의 자산 10개를 대치하고 역할 label을 복원했다. 공개 재다운로드 10/10이 후보 hash와 일치하고 공개 파일 입력 Ed25519·Electron bridge 재검증이 통과했다.
-- 실제 제보 PC의 백신 격리·게임 폴더 ACL 적용은 NOT_RUN이며, 동일 0.4.3 사용자는 대치본을 수동 재설치해야 할 수 있다. final docs commit과 origin/main push가 남아 있다.
+- 실제 제보 PC의 백신 격리·게임 폴더 ACL 적용은 NOT_RUN이며, 동일 0.4.3 사용자는 대치본을 수동 재설치해야 할 수 있다. source·release 기록은 `545ca42010917930877e4120eb33b6334f0cd9c3`까지 origin/main에 push됐다.
 - 0.4.3은 affinity status의 PID·프로세스 시작 시각을 함께 검증하고, runtime polling 오류 뒤 상태 조회를 계속하며, 게임 미실행 대기 중에도 부스트 중단을 허용한다.
 - 살아 있는 0.4.2 affinity helper는 control로 종료하고 동일 process instance의 종료를 확인한 뒤 0.4.3 helper로 교체한다.
 - 터보키 helper 0.1.8은 정본의 `Mabinogi_Test` 폴더를 허용하며 사용자 쓰기 runtime 경로를 신뢰하지 않는다.
