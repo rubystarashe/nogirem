@@ -4,7 +4,7 @@ use crate::{
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
-const VERSION: &str = "0.1.7";
+const VERSION: &str = "0.1.8";
 fn input_normalize(v: &Value) -> Value {
     let scale = v["cursorScalePercent"]
         .as_i64()

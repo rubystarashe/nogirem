@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-01 23:52 +09:00
+Last Updated: 2026-10-02 22:00 +09:00
 
 ## Current Objective
-Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거 수명주기를 보강하고 서명 배포한다.
+Rust·Dioxus 0.4.3의 부스트 helper 상태 복구와 테스트 서버 터보키 지원을 검증하고 서명 배포한다.
 
 ## Active Runs
+- `20261002-release-043`: 게임 종료·helper 종료 뒤 stale 부스트 상태와 중단 조작 차단을 수정하고, 테스트 서버 `Mabinogi_Test\Client.exe`를 터보키 0.1.8에서 지원한다. 자동·package 검증과 독립 review 승인 완료, GitHub v0.4.3 공개 전 source commit 진행 중 (`docs/ai/runs/20261002-release-043/task.md`)
 - `20261001-repackage-042`: 진단 로깅 포함 Rust/Dioxus 0.4.2 설치형·포터블 서명 패키징, 기존 v0.4.2 자산 대치와 공개 검증 완료 (`docs/ai/runs/20261001-repackage-042/task.md`)
 - `20261001-freeze-diagnostics`: 게임 종료·재실행 하드 프리즈의 다음 진단에서 affinity 전환과 WHEA·GPU·LiveKernelEvent 증거를 수집하도록 로깅 구현·검증 완료, implementation commit `1eb7fe44e4100d6640d232ba03ce8dd9926e6fc9` (`docs/ai/runs/20261001-freeze-diagnostics/task.md`)
 - `20260929-release-042`: 패스트핑 기본 경로 부재, backend 건강 확인, updater/installer/uninstaller 경쟁 수정과 실서명 0.4.2 배포 완료 (`docs/ai/runs/20260929-release-042/final-report.md`)
@@ -15,6 +16,11 @@ Rust·Dioxus 0.4.2의 패스트핑 단절 처리와 업데이트·설치·제거
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- 0.4.3은 affinity status의 PID·프로세스 시작 시각을 함께 검증하고, runtime polling 오류 뒤 상태 조회를 계속하며, 게임 미실행 대기 중에도 부스트 중단을 허용한다.
+- 살아 있는 0.4.2 affinity helper는 control로 종료하고 동일 process instance의 종료를 확인한 뒤 0.4.3 helper로 교체한다.
+- 터보키 helper 0.1.8은 정본의 `Mabinogi_Test` 폴더를 허용하며 사용자 쓰기 runtime 경로를 신뢰하지 않는다.
+- Node 203/203, backend 60 PASS·2 declared ignore와 integration 2/2, turbo-key 14/14, desktop compile, package·Ed25519·release assembly가 통과했고 독립 review `APPROVED`다.
+- 0.4.3 배포 후보 SHA-256은 설치형 `0eed1ea9...`, 포터블 `91f8415f...`, turbo-key `5b1e7952...`다. full desktop smoke는 `report.json` 생성 전 종료되어 실제 UI·테스트 서버 수동 QA와 함께 미검증으로 남는다.
 - package source `cfdf43c68fd86f5db06bf127f6f06eab6035cc71`에서 설치형 `e51c7be021085892e5368cabfcd03b9e99e7e2885d61ca935a7e2f66b851a825`, 포터블 `a3b736b115c0912acb9745d1c18bad84bb6533defee6d784ac307c61abd6c439`을 생성해 GitHub v0.4.2 canonical·공개 alias와 signed manifest를 대치했다.
 - 공개 CDN 실다운로드와 Ed25519 payload 재검증, Node 201개, release asset 3개, packaged native contract와 독립 review를 통과했다. 기존 0.4.2 사용자는 동일 버전을 자동 재수신하지 않으므로 로깅 대치본이 필요하면 수동 재설치해야 한다.
 - affinity helper가 게임 감지·적용·종료 복원·시작 복구의 시작/완료 시각, 대상·변경·실패 수, mask와 ISLC·Process Lasso 충돌 상태를 `affinity/events.log`에 bounded JSONL로 기록한다.

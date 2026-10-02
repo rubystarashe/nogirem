@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `3`
-- updated_at: `2026-09-30T10:14:00Z`
+- revision: `4`
+- updated_at: `2026-10-02T12:40:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-09-30T10:05:00Z`
+- source_reviewed_at: `2026-10-02T12:40:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d, v0.4.2 named public assets`
-- source_review_evidence: `desktop/src`, `desktop/backend/src`, `desktop/*.nsi`, `scripts/package-dioxus.mjs`, release·installer tests
-- behavior_verified_at: `2026-09-30T10:13:00Z`
+- source_review_target: `1292f62c084200ec41201e1792d212ad58cc0569 + 20261002-release-043 working target`
+- source_review_evidence: `desktop/src/ui.rs`, `desktop/backend/src/boost.rs`, `inputs.rs`, `affinity_worker.rs`, `native/turbo-key/src/main.rs`
+- behavior_verified_at: `2026-10-02T12:40:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d 기반 v0.4.2 aliases and Electron feed`
+- behavior_verification_target: `0.4.3 pre-release working target`
 - behavior_verification_environment: `Windows 10.0.26200 x64`
-- behavior_verification_evidence: `npm test 201/201, independent review APPROVED, executable bundle tests, public alias and legacy feed full-download/hash verification`
+- behavior_verification_evidence: `turbo-key 14/14, backend 60 PASS·2 declared ignore와 integration 2/2, Node 최종 전체 실행 203/203, desktop locked check PASS; package·공개 검증 진행 중`
 - freshness_status: `CURRENT`
-- freshness_reason: `릴리스 alias·Electron feed 조립 경계와 실제 공개 target을 다시 확인함`
-- known_gaps: `아래 enforcement는 테스트와 Rust compiler 중심이며 별도 dependency graph lint는 없음`
-- feature_impact: `FEAT-NOGIREM-NETWORK-FASTPING`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
-- feature_map: `updated — feature-map.md의 두 기능과 연결됨`
-- architecture_impact: `네트워크 writer, UI/backend 준비 신호, updater·installer·helper·uninstaller 수명주기`
-- architecture_contract: `updated — 신규 정본으로 지정함`
+- freshness_reason: `0.4.3 helper runtime·polling·명시 게임 폴더 경계를 현재 source와 자동 검사에 맞춰 반영함`
+- known_gaps: `별도 dependency graph lint가 없고 실제 테스트 서버 입력 및 helper 강제 종료 UI 수동 QA는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST`, `FEAT-NOGIREM-TURBO-KEY`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — feature-map.md의 부스트·터보키·배포 기능과 연결됨`
+- architecture_impact: `UI polling, affinity helper PID·시작 시각 identity, 터보 helper 명시 게임 폴더 판별, updater·installer 수명주기`
+- architecture_contract: `updated — helper 상태와 게임 경로 계약을 추가함`
 
 ## 계층과 확장 경로
 
@@ -44,6 +44,9 @@
 - 포터블 배포 EXE를 실행 중 직접 덮어쓰지 않는다. 보호 staging, digest, backup과 launcher 종료 경로를 사용한다.
 - 사용자 설정·녹화 파일은 설치 manifest와 제거 manifest에 포함하지 않는다.
 - Electron 호환 코드는 새 Rust backend authoritative state의 두 번째 writer가 될 수 없다.
+- UI runtime polling은 한 helper 요청 실패로 영구 종료하지 않는다. 실패한 기능의 `running`·`gameActive`를 false로 보정하고 다음 주기에 재조회한다.
+- affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다.
+- 터보키는 임의의 `Client.exe` 이름만으로 입력하지 않는다. 정본 설정과 동일한 명시적 게임 폴더 또는 sibling launcher를 검증해야 한다.
 
 ## durable data와 single writer
 
@@ -53,6 +56,17 @@
 - portable cache marker: packager가 내부 payload digest를 만들고 launcher만 marker를 쓴다.
 - update manifest: release signing script만 private key를 사용해 작성하며 앱은 embedded public key로 검증만 한다.
 - installer uninstall registry·shortcut writer: NSIS 설치기 하나다.
+- game path state: affinity helper만 `%APPDATA%\마비노기 렘 부스터\game\path.json`을 쓰며 `Environment`와 입력 기능이 읽는다. 터보키의 허용 판단에는 사용하지 않는다.
+- turbo helper installation: `inputs.rs`가 helper version·manifest·binary 교체를 조정하고 native helper는 전달받은 설정과 game path state를 소비한다.
+
+## 실시간 helper 상태와 게임 경로
+
+- affinity worker는 `status.json`에 `helperPid`, `updatedAt`, `running`, `gameActive`를 함께 기록한다. backend는 최신 timestamp와 실제 PID 생존을 모두 만족할 때만 실행 중으로 노출한다.
+- `helperStartedAt`이 없는 신선한 0.4.2 status와 살아 있는 PID는 migration 대상으로만 인정한다. 새 helper가 lock을 경쟁하기 전에 기존 control 경로로 중단하고 동일 PID·시작 시각 instance의 종료를 확인한다.
+- UI는 2초 runtime polling을 유지한다. 개별 affinity/memory 오류는 사용자에게 한 번 표시할 수 있지만 polling task 자체를 종료하거나 이전 `gameActive=true`를 유지하지 않는다.
+- 게임이 실행 중이 아니어도 helper는 대기 상태일 수 있으며 사용자의 부스트 중단·복원 조작을 차단하지 않는다.
+- 터보키는 전경 프로세스가 `Client.exe`이고 상위 폴더가 `Mabinogi`, `Mabinogi_Test`, `마비노기`, `Nexon` 중 하나이거나 같은 폴더에 `Mabinogi.exe`가 있을 때만 반복 입력한다.
+- 사용자 쓰기 가능한 runtime game path 파일은 터보키 허용 목록으로 신뢰하지 않는다. 새 게임 폴더 지원은 source 정본과 회귀 테스트를 함께 변경한다.
 
 ## update·설치 transaction과 호환성
 

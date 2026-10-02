@@ -28,12 +28,24 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
-    if std::env::args().any(|a| a == "--smoke-visual-activity") { return visual_activity_check(host,state).await; }
-    if std::env::args().any(|a| a == "--smoke-creator-prompt") { return creator_prompt_check(client,host,state).await; }
-    if std::env::args().any(|a| a == "--smoke-updater") { return updater_check(client,host,state).await; }
-    if std::env::args().any(|a| a == "--smoke-announcements") { return announcements_check(host,state).await; }
-    if std::env::args().any(|a| a == "--smoke-terms") { return terms_scroll_check(host,state).await; }
-    if std::env::args().any(|a| a == "--smoke-boost") { return boost_mask_check(client,host,state).await; }
+    if std::env::args().any(|a| a == "--smoke-visual-activity") {
+        return visual_activity_check(host, state).await;
+    }
+    if std::env::args().any(|a| a == "--smoke-creator-prompt") {
+        return creator_prompt_check(client, host, state).await;
+    }
+    if std::env::args().any(|a| a == "--smoke-updater") {
+        return updater_check(client, host, state).await;
+    }
+    if std::env::args().any(|a| a == "--smoke-announcements") {
+        return announcements_check(host, state).await;
+    }
+    if std::env::args().any(|a| a == "--smoke-terms") {
+        return terms_scroll_check(host, state).await;
+    }
+    if std::env::args().any(|a| a == "--smoke-boost") {
+        return boost_mask_check(client, host, state).await;
+    }
     if std::env::args().any(|a| a == "--smoke-escape") {
         return escape_check(client, host, state).await;
     }
@@ -58,11 +70,11 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     }
     let layout = layout_check(&main, state).await?;
     // Actual DOM event -> Dioxus handler -> service -> signal -> DOM.
-    // Waiting status must remain disabled, matching the original app.
+    // 게임이 꺼진 대기 상태에서도 사용자가 부스트를 중단할 수 있어야 한다.
     let waiting_disabled =
         inspect(&main, "document.querySelector('.boost-text-area').disabled").await?;
-    if waiting_disabled != true {
-        return Err("Waiting boost control must be disabled".into());
+    if waiting_disabled != false {
+        return Err("Waiting boost control must remain actionable".into());
     }
     client
         .invoke(
@@ -267,7 +279,11 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     )
 }
 
-async fn startup_check(client: Client, host: Host, mut state: Signal<State>) -> Result<Value, String> {
+async fn startup_check(
+    client: Client,
+    host: Host,
+    mut state: Signal<State>,
+) -> Result<Value, String> {
     let main = host.0.borrow().main.clone();
     state.write().visual_active = false;
     let opening = inspect(&main, "({logo:!!document.querySelector('.game-wave.startup .game-wave-logo'),copy:document.querySelector('.game-wave-copy strong')?.textContent,guideEntered:document.querySelector('.character-guide-link')?.classList.contains('entered')})").await?;
@@ -375,14 +391,24 @@ async fn startup_check(client: Client, host: Host, mut state: Signal<State>) -> 
         ));
     }
     for _ in 0..40 {
-        if inspect(&main,"window.nogiremWave.inspect().startupSequenceActive").await?==false {break;}
+        if inspect(&main, "window.nogiremWave.inspect().startupSequenceActive").await? == false {
+            break;
+        }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
-    let unfocused_startup=inspect(&main,"window.nogiremWave.inspect()").await?;
-    if unfocused_startup["pageVisible"]!=false || unfocused_startup["startupSequenceActive"]!=false || unfocused_startup["logoMask"]!=false || unfocused_startup["renderedFrames"].as_u64()<=audio["renderedFrames"].as_u64(){return Err(format!("Unfocused startup did not finish: {unfocused_startup}"));}
+    let unfocused_startup = inspect(&main, "window.nogiremWave.inspect()").await?;
+    if unfocused_startup["pageVisible"] != false
+        || unfocused_startup["startupSequenceActive"] != false
+        || unfocused_startup["logoMask"] != false
+        || unfocused_startup["renderedFrames"].as_u64() <= audio["renderedFrames"].as_u64()
+    {
+        return Err(format!(
+            "Unfocused startup did not finish: {unfocused_startup}"
+        ));
+    }
     main.set_focus();
     tokio::time::sleep(Duration::from_millis(300)).await;
-    state.write().visual_active=true;
+    state.write().visual_active = true;
     tokio::time::sleep(Duration::from_millis(200)).await;
     inspect(&main,"(()=>{const c=document.querySelector('#nogirem-wave').getBoundingClientRect();document.querySelector('.boost-home').dispatchEvent(new MouseEvent('mousemove',{bubbles:true,clientX:c.right,clientY:c.bottom}));setTimeout(()=>{window.__parallaxProbe=window.nogiremWave.inspect()},1500);return true})()").await?;
     tokio::time::sleep(Duration::from_millis(1800)).await;
@@ -1012,7 +1038,9 @@ async fn escape_check(
                 &format!("{setup} {target}.setAttribute('tabindex','-1'); {target}.focus();true"),
             )
             .await?;
-            native_escape(&child).await.map_err(|e|format!("{channel}-{scenario}: {e}"))?;
+            native_escape(&child)
+                .await
+                .map_err(|e| format!("{channel}-{scenario}: {e}"))?;
         } else {
             inspect(&child, &format!("{setup} setTimeout(()=>{target}.dispatchEvent(new KeyboardEvent('keydown',{{key:'Escape',code:'Escape',repeat:{},bubbles:true,cancelable:true}})),50);true", scenario == "repeat")).await?;
         }
@@ -1053,15 +1081,23 @@ async fn native_escape(window: &dioxus::desktop::DesktopContext) -> Result<(), S
     let thread = unsafe { GetWindowThreadProcessId(root, std::ptr::null_mut()) };
     let mut info: GUITHREADINFO = unsafe { std::mem::zeroed() };
     info.cbSize = std::mem::size_of::<GUITHREADINFO>() as u32;
-    let mut ready=false;
+    let mut ready = false;
     for _ in 0..10 {
         window.set_focus();
         window.webview.focus().map_err(|e| e.to_string())?;
         tokio::time::sleep(Duration::from_millis(100)).await;
-        ready=unsafe {GetGUIThreadInfo(thread,&mut info)!=0 && !info.hwndFocus.is_null() && (info.hwndFocus==root || IsChild(root,info.hwndFocus)!=0)};
-        if ready {break;}
+        ready = unsafe {
+            GetGUIThreadInfo(thread, &mut info) != 0
+                && !info.hwndFocus.is_null()
+                && (info.hwndFocus == root || IsChild(root, info.hwndFocus) != 0)
+        };
+        if ready {
+            break;
+        }
     }
-    if !ready {return Err("No focused child in the test window".into());}
+    if !ready {
+        return Err("No focused child in the test window".into());
+    }
     unsafe {
         // Address only this WebView's focus HWND; never send input to another app.
         if PostMessageW(info.hwndFocus, WM_KEYDOWN, 0x1b, 1 | (1 << 16)) == 0
@@ -1078,291 +1114,774 @@ async fn native_escape(window: &dioxus::desktop::DesktopContext) -> Result<(), S
     Ok(())
 }
 
-async fn boost_mask_check(client: Client, host: Host, mut state: Signal<State>) -> Result<Value,String> {
+async fn boost_mask_check(
+    client: Client,
+    host: Host,
+    mut state: Signal<State>,
+) -> Result<Value, String> {
     tokio::time::sleep(Duration::from_secs(2)).await;
-    let main=host.0.borrow().main.clone();
+    let main = host.0.borrow().main.clone();
     main.set_focus();
-    state.write().visual_active=true;
-    state.write().document_hidden=false;
-    let mut cases=vec![];
-    for paused in [true,false,true,false] {
+    state.write().visual_active = true;
+    state.write().document_hidden = false;
+    let mut cases = vec![];
+    for paused in [true, false, true, false] {
         // Only fixture state is altered; no real optimizer is invoked.
-        state.write().services["affinity"]["gameActive"]=json!(true);
+        state.write().services["affinity"]["gameActive"] = json!(true);
         tokio::time::sleep(Duration::from_millis(50)).await;
         inspect(&main,"document.querySelector('.boost-text-area').dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:320,clientY:216}));true").await?;
         tokio::time::sleep(Duration::from_millis(100)).await;
         let during=inspect(&main,"({wave:window.nogiremWave.inspect(),overlay:!!document.querySelector('.boost-color-overlay'),basePaused:document.querySelector('.boost-home').classList.contains('paused'),copy:document.querySelector('.boost-text-area').textContent,style:document.querySelector('.boost-color-overlay')?.getAttribute('style')})").await?;
-        if during["wave"]["transition"]["targetDark"]!=paused || during["basePaused"]!=!paused || during["overlay"]!=true {
-            return Err(format!("Action mask canceled/reversed while backend pending: {during}"));
+        if during["wave"]["transition"]["targetDark"] != paused
+            || during["basePaused"] != !paused
+            || during["overlay"] != true
+        {
+            return Err(format!(
+                "Action mask canceled/reversed while backend pending: {during}"
+            ));
         }
-        if paused && !during["copy"].as_str().unwrap_or("").contains("부스트 중단중") {return Err(format!("Missing stopping status: {during}"));}
+        if paused
+            && !during["copy"]
+                .as_str()
+                .unwrap_or("")
+                .contains("부스트 중단중")
+        {
+            return Err(format!("Missing stopping status: {during}"));
+        }
         // Unrelated state updates and service polling must not reset the mask.
-        state.write().notices.insert("mask-probe".into(),"updated".into());
-        tokio::time::sleep(Duration::from_millis(if paused {150}else{900})).await;
+        state
+            .write()
+            .notices
+            .insert("mask-probe".into(), "updated".into());
+        tokio::time::sleep(Duration::from_millis(if paused { 150 } else { 900 })).await;
         let mid=inspect(&main,"({wave:window.nogiremWave.inspect(),clip:getComputedStyle(document.querySelector('.boost-color-overlay')).clipPath})").await?;
-        if mid["wave"]["transition"]["targetDark"]!=paused {return Err(format!("Mask lost during state update: {mid}"));}
-        let duration=if paused {600}else{3000};
-        if mid["wave"]["transition"]["duration"]!=duration {return Err(format!("Original timing changed: {mid}"));}
-        tokio::time::sleep(Duration::from_millis(if paused {700}else{2850})).await;
+        if mid["wave"]["transition"]["targetDark"] != paused {
+            return Err(format!("Mask lost during state update: {mid}"));
+        }
+        let duration = if paused { 600 } else { 3000 };
+        if mid["wave"]["transition"]["duration"] != duration {
+            return Err(format!("Original timing changed: {mid}"));
+        }
+        tokio::time::sleep(Duration::from_millis(if paused { 700 } else { 2850 })).await;
         let end=inspect(&main,"({wave:window.nogiremWave.inspect(),overlay:!!document.querySelector('.boost-color-overlay'),basePaused:document.querySelector('.boost-home').classList.contains('paused')})").await?;
-        if end["overlay"]!=false || end["basePaused"]!=paused || end["wave"]["darkBackground"]!=paused || !end["wave"]["transition"].is_null() {return Err(format!("Mask completion mismatch: {end}"));}
+        if end["overlay"] != false
+            || end["basePaused"] != paused
+            || end["wave"]["darkBackground"] != paused
+            || !end["wave"]["transition"].is_null()
+        {
+            return Err(format!("Mask completion mismatch: {end}"));
+        }
         cases.push(json!({"paused":paused,"during":during,"middle":mid,"end":end}));
     }
-    client.invoke(1,"smoke:fail-next-boost",json!([])).await?;
-    state.write().services["affinity"]["gameActive"]=json!(true);
+    client.invoke(1, "smoke:fail-next-boost", json!([])).await?;
+    state.write().services["affinity"]["gameActive"] = json!(true);
     tokio::time::sleep(Duration::from_millis(50)).await;
     inspect(&main,"document.querySelector('.boost-text-area').dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:320,clientY:216}));true").await?;
     tokio::time::sleep(Duration::from_millis(800)).await;
     let rollback=inspect(&main,"({wave:window.nogiremWave.inspect(),overlay:!!document.querySelector('.boost-color-overlay'),basePaused:document.querySelector('.boost-home').classList.contains('paused')})").await?;
-    if rollback["overlay"]!=false || rollback["basePaused"]!=false || rollback["wave"]["darkBackground"]!=false || !rollback["wave"]["transition"].is_null(){return Err(format!("Failed action did not restore original color: {rollback}"));}
+    if rollback["overlay"] != false
+        || rollback["basePaused"] != false
+        || rollback["wave"]["darkBackground"] != false
+        || !rollback["wave"]["transition"].is_null()
+    {
+        return Err(format!(
+            "Failed action did not restore original color: {rollback}"
+        ));
+    }
     state.write().error.clear();
     Ok(json!({"passed":true,"cases":cases,"failureRollback":rollback}))
 }
 
-async fn terms_scroll_check(host:Host,mut state:Signal<State>)->Result<Value,String>{
+async fn terms_scroll_check(host: Host, mut state: Signal<State>) -> Result<Value, String> {
     tokio::time::sleep(Duration::from_secs(2)).await;
-    let main=host.0.borrow().main.clone();
-    state.write().turbo["installed"]=json!(false);
-    state.write().modal="turbo".into();
+    let main = host.0.borrow().main.clone();
+    state.write().turbo["installed"] = json!(false);
+    state.write().modal = "turbo".into();
     tokio::time::sleep(Duration::from_millis(400)).await;
     let layout=inspect(&main,r#"(()=>{const e=document.querySelector('.terms-scroll'),f=document.querySelector('.terms-modal>footer'),h=document.querySelector('.terms-modal>header'),r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,headerBottom:h.getBoundingClientRect().bottom,footerTop:f.getBoundingClientRect().top,overflowX:e.scrollWidth-e.clientWidth,scheme:getComputedStyle(e).colorScheme,width:getComputedStyle(e).scrollbarWidth,maximum:e.scrollHeight-e.clientHeight,connected:!!window.nogiremTermsScroller}})()"#).await?;
-    if layout["connected"]!=true || layout["scheme"]!="dark" || layout["width"]!="thin" || layout["top"]!=layout["headerBottom"] || layout["bottom"]!=layout["footerTop"] || layout["overflowX"].as_f64().unwrap_or(1.)>0. {return Err(format!("Terms scroll layout: {layout}"));}
+    if layout["connected"] != true
+        || layout["scheme"] != "dark"
+        || layout["width"] != "thin"
+        || layout["top"] != layout["headerBottom"]
+        || layout["bottom"] != layout["footerTop"]
+        || layout["overflowX"].as_f64().unwrap_or(1.) > 0.
+    {
+        return Err(format!("Terms scroll layout: {layout}"));
+    }
     let wheel=inspect(&main,r#"(()=>{const e=document.querySelector('.terms-scroll'),event=new WheelEvent('wheel',{deltaY:120,bubbles:true,cancelable:true});e.dispatchEvent(event);return{prevented:event.defaultPrevented,immediate:e.scrollTop}})()"#).await?;
     tokio::time::sleep(Duration::from_millis(70)).await;
-    let middle=inspect(&main,"document.querySelector('.terms-scroll').scrollTop").await?;
+    let middle = inspect(&main, "document.querySelector('.terms-scroll').scrollTop").await?;
     tokio::time::sleep(Duration::from_millis(700)).await;
-    let settled=inspect(&main,"document.querySelector('.terms-scroll').scrollTop").await?;
-    if wheel["prevented"]!=true || middle.as_f64().unwrap_or(0.)<=0. || middle.as_f64()>=settled.as_f64(){return Err(format!("Wheel interpolation failed: {wheel}, {middle}, {settled}"));}
+    let settled = inspect(&main, "document.querySelector('.terms-scroll').scrollTop").await?;
+    if wheel["prevented"] != true
+        || middle.as_f64().unwrap_or(0.) <= 0.
+        || middle.as_f64() >= settled.as_f64()
+    {
+        return Err(format!(
+            "Wheel interpolation failed: {wheel}, {middle}, {settled}"
+        ));
+    }
     inspect(&main,"const e=document.querySelector('.terms-scroll');e.scrollTop=e.scrollHeight;e.dispatchEvent(new WheelEvent('wheel',{deltaY:120,bubbles:true,cancelable:true}));true").await?;
     tokio::time::sleep(Duration::from_millis(200)).await;
     let bottom=inspect(&main,"(()=>{const e=document.querySelector('.terms-scroll');return Math.abs(e.scrollTop-(e.scrollHeight-e.clientHeight))<1})()").await?;
-    if bottom!=true{return Err("Terms cannot reach bottom".into());}
-    if let Some(report)=std::env::args().find_map(|a|a.strip_prefix("--smoke-report=").map(str::to_owned)){capture(&main,&report.replace(".json",".png"))?;}
+    if bottom != true {
+        return Err("Terms cannot reach bottom".into());
+    }
+    if let Some(report) =
+        std::env::args().find_map(|a| a.strip_prefix("--smoke-report=").map(str::to_owned))
+    {
+        capture(&main, &report.replace(".json", ".png"))?;
+    }
     state.write().modal.clear();
     tokio::time::sleep(Duration::from_millis(150)).await;
-    let disposed=inspect(&main,"!window.nogiremTermsScroller").await?;
-    state.write().modal="turbo".into();
+    let disposed = inspect(&main, "!window.nogiremTermsScroller").await?;
+    state.write().modal = "turbo".into();
     tokio::time::sleep(Duration::from_millis(300)).await;
-    let reopened=inspect(&main,"document.querySelector('.terms-scroll').scrollTop").await?;
-    if disposed!=true || reopened!=0 {return Err(format!("Terms scroll cleanup/reopen failed: {disposed}, {reopened}"));}
+    let reopened = inspect(&main, "document.querySelector('.terms-scroll').scrollTop").await?;
+    if disposed != true || reopened != 0 {
+        return Err(format!(
+            "Terms scroll cleanup/reopen failed: {disposed}, {reopened}"
+        ));
+    }
     state.write().modal.clear();
-    Ok(json!({"passed":true,"layout":layout,"wheel":wheel,"middle":middle,"settled":settled,"bottomReached":bottom,"disposed":disposed,"reopened":reopened}))
+    Ok(
+        json!({"passed":true,"layout":layout,"wheel":wheel,"middle":middle,"settled":settled,"bottomReached":bottom,"disposed":disposed,"reopened":reopened}),
+    )
 }
 
-async fn announcements_check(host:Host,mut state:Signal<State>)->Result<Value,String>{
+async fn announcements_check(host: Host, mut state: Signal<State>) -> Result<Value, String> {
     tokio::time::sleep(Duration::from_secs(2)).await;
-    let main=host.0.borrow().main.clone();
-    {let mut s=state.write();s.modal.clear();s.notice=Value::Null;s.reports=json!([]);s.seen_report_ids.clear();}
-    crate::ui::receive(state,"application:notice-available",&json!({"id":"a".repeat(64),"markdown":include_str!("../../NOTICE.md")}));
+    let main = host.0.borrow().main.clone();
+    {
+        let mut s = state.write();
+        s.modal.clear();
+        s.notice = Value::Null;
+        s.reports = json!([]);
+        s.seen_report_ids.clear();
+    }
+    crate::ui::receive(
+        state,
+        "application:notice-available",
+        &json!({"id":"a".repeat(64),"markdown":include_str!("../../NOTICE.md")}),
+    );
     tokio::time::sleep(Duration::from_millis(350)).await;
     let notice=inspect(&main,"({title:document.querySelector('.application-notice-title')?.textContent,headers:document.querySelectorAll('.markdown-table th').length,cells:document.querySelectorAll('.markdown-table td').length,overflow:document.querySelector('.notice-content').scrollWidth-document.querySelector('.notice-content').clientWidth})").await?;
-    if notice["headers"]!=4 || notice["cells"]!=16 || notice["overflow"].as_f64().unwrap_or(1.)>1. {return Err(format!("Notice table: {notice}"));}
-    if let Some(report)=std::env::args().find_map(|a|a.strip_prefix("--smoke-report=").map(str::to_owned)){capture(&main,&report.replace(".json",".png"))?;}
+    if notice["headers"] != 4
+        || notice["cells"] != 16
+        || notice["overflow"].as_f64().unwrap_or(1.) > 1.
+    {
+        return Err(format!("Notice table: {notice}"));
+    }
+    if let Some(report) =
+        std::env::args().find_map(|a| a.strip_prefix("--smoke-report=").map(str::to_owned))
+    {
+        capture(&main, &report.replace(".json", ".png"))?;
+    }
     let notice_scroll = notice_scroll_check(&main).await?;
-    let first=json!({"responseId":"first","reportId":"fixture","title":"첫 답변","message":"긴 리포트 답변 스크롤 확인입니다. ".repeat(100),"answeredAt":"2026-09-29T00:00:00Z"});
-    let second=json!({"responseId":"second","reportId":"fixture","title":"두 번째 답변","message":"두 번째 본문","answeredAt":"2026-09-29T00:00:00Z"});
-    crate::ui::receive(state,"application:report-responses-available",&json!([first,second]));
-    crate::ui::receive(state,"application:report-responses-available",&json!([]));
-    crate::ui::receive(state,"application:report-responses-available",&json!([first]));
+    let first = json!({"responseId":"first","reportId":"fixture","title":"첫 답변","message":"긴 리포트 답변 스크롤 확인입니다. ".repeat(100),"answeredAt":"2026-09-29T00:00:00Z"});
+    let second = json!({"responseId":"second","reportId":"fixture","title":"두 번째 답변","message":"두 번째 본문","answeredAt":"2026-09-29T00:00:00Z"});
+    crate::ui::receive(
+        state,
+        "application:report-responses-available",
+        &json!([first, second]),
+    );
+    crate::ui::receive(state, "application:report-responses-available", &json!([]));
+    crate::ui::receive(
+        state,
+        "application:report-responses-available",
+        &json!([first]),
+    );
     tokio::time::sleep(Duration::from_millis(350)).await;
-    if inspect(&main,"document.querySelector('.report-response-content h2')?.textContent").await?!="첫 답변" {return Err("First report lost".into());}
+    if inspect(
+        &main,
+        "document.querySelector('.report-response-content h2')?.textContent",
+    )
+    .await?
+        != "첫 답변"
+    {
+        return Err("First report lost".into());
+    }
     let report_scroll = notice_scroll_check(&main).await?;
-    inspect(&main,"document.querySelector('.report-response-confirm').click();true").await?;
+    inspect(
+        &main,
+        "document.querySelector('.report-response-confirm').click();true",
+    )
+    .await?;
     tokio::time::sleep(Duration::from_millis(500)).await;
-    if inspect(&main,"document.querySelector('.report-response-content h2')?.textContent").await?!="두 번째 답변" {return Err("Second report lost".into());}
-    if inspect(&main,"document.querySelector('.notice-content').scrollTop").await?!=0 {return Err("Next reply retained old scroll position".into());}
+    if inspect(
+        &main,
+        "document.querySelector('.report-response-content h2')?.textContent",
+    )
+    .await?
+        != "두 번째 답변"
+    {
+        return Err("Second report lost".into());
+    }
+    if inspect(&main, "document.querySelector('.notice-content').scrollTop").await? != 0 {
+        return Err("Next reply retained old scroll position".into());
+    }
     inspect(&main,"document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));true").await?;
     tokio::time::sleep(Duration::from_millis(500)).await;
-    if inspect(&main,"!!document.querySelector('.application-notice-content')").await?!=true {return Err("Notice not restored after reports".into());}
-    inspect(&main,"document.querySelector('.application-notice-confirm').click();true").await?;
+    if inspect(
+        &main,
+        "!!document.querySelector('.application-notice-content')",
+    )
+    .await?
+        != true
+    {
+        return Err("Notice not restored after reports".into());
+    }
+    inspect(
+        &main,
+        "document.querySelector('.application-notice-confirm').click();true",
+    )
+    .await?;
     tokio::time::sleep(Duration::from_millis(500)).await;
-    if inspect(&main,"!!document.querySelector('.notice-dialog')").await?!=false {return Err("Notice confirmation did not close".into());}
-    if inspect(&main,"!window.nogiremNoticeScroller").await?!=true {return Err("Notice scroller not disposed".into());}
-    crate::ui::receive(state,"application:notice-available",&json!({"id":"b".repeat(64),"markdown":include_str!("../../NOTICE.md")}));
+    if inspect(&main, "!!document.querySelector('.notice-dialog')").await? != false {
+        return Err("Notice confirmation did not close".into());
+    }
+    if inspect(&main, "!window.nogiremNoticeScroller").await? != true {
+        return Err("Notice scroller not disposed".into());
+    }
+    crate::ui::receive(
+        state,
+        "application:notice-available",
+        &json!({"id":"b".repeat(64),"markdown":include_str!("../../NOTICE.md")}),
+    );
     tokio::time::sleep(Duration::from_millis(300)).await;
-    if inspect(&main,"document.querySelector('.notice-content').scrollTop===0 && !!window.nogiremNoticeScroller").await?!=true {return Err("Reopened notice scroller not reset".into());}
+    if inspect(
+        &main,
+        "document.querySelector('.notice-content').scrollTop===0 && !!window.nogiremNoticeScroller",
+    )
+    .await?
+        != true
+    {
+        return Err("Reopened notice scroller not reset".into());
+    }
     state.write().modal.clear();
-    Ok(json!({"passed":true,"notice":notice,"noticeScroll":notice_scroll,"reportScroll":report_scroll,"cleanup":true,"reopen":true,"reportQueue":true,"duplicateDelivery":true,"emptyRecheck":true,"confirm":true,"escape":true,"noticeAfterReports":true}))
+    Ok(
+        json!({"passed":true,"notice":notice,"noticeScroll":notice_scroll,"reportScroll":report_scroll,"cleanup":true,"reopen":true,"reportQueue":true,"duplicateDelivery":true,"emptyRecheck":true,"confirm":true,"escape":true,"noticeAfterReports":true}),
+    )
 }
 
 // Interactive preview uses the production notice renderer with isolated fixture services.
-pub async fn preview_notice(host:Host,mut state:Signal<State>,path:&str)->Result<Value,String>{
+pub async fn preview_notice(
+    host: Host,
+    mut state: Signal<State>,
+    path: &str,
+) -> Result<Value, String> {
     for _ in 0..100 {
-        if state.peek().ready { break; }
+        if state.peek().ready {
+            break;
+        }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
     tokio::time::sleep(Duration::from_secs(2)).await;
-    let markdown=std::fs::read_to_string(path).map_err(|e|e.to_string())?;
-    let notice=nogirem_backend::app_services::normalize_notice(&markdown)?;
-    { let mut s=state.write();s.modal.clear();s.reports=json!([]); }
-    crate::ui::receive(state,"application:notice-available",&notice);
-    let main=host.0.borrow().main.clone();
-    main.window.set_visible(true);main.window.set_focus();
+    let markdown = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let notice = nogirem_backend::app_services::normalize_notice(&markdown)?;
+    {
+        let mut s = state.write();
+        s.modal.clear();
+        s.reports = json!([]);
+    }
+    crate::ui::receive(state, "application:notice-available", &notice);
+    let main = host.0.borrow().main.clone();
+    main.window.set_visible(true);
+    main.window.set_focus();
     tokio::time::sleep(Duration::from_millis(400)).await;
     let view=inspect(&main,"({title:document.querySelector('.application-notice-title')?.textContent,tableRows:document.querySelectorAll('.markdown-table tbody tr').length,overflow:document.querySelector('.notice-content').scrollWidth-document.querySelector('.notice-content').clientWidth,text:document.querySelector('.application-notice-content')?.innerText})").await?;
-    if let Some(report)=std::env::args().find_map(|a|a.strip_prefix("--preview-report=").map(str::to_owned)) {
-        capture(&main,&report.replace(".json",".png"))?;
+    if let Some(report) =
+        std::env::args().find_map(|a| a.strip_prefix("--preview-report=").map(str::to_owned))
+    {
+        capture(&main, &report.replace(".json", ".png"))?;
     }
     Ok(json!({"passed":true,"source":path,"rendered":view,"leftOpen":true}))
 }
 
-async fn notice_scroll_check(main:&dioxus::desktop::DesktopContext)->Result<Value,String>{
+async fn notice_scroll_check(main: &dioxus::desktop::DesktopContext) -> Result<Value, String> {
     let initial=inspect(main,"(()=>{const e=document.querySelector('.notice-content');return {connected:!!window.nogiremNoticeScroller,top:e.scrollTop,maximum:e.scrollHeight-e.clientHeight}})()").await?;
-    if initial["connected"]!=true || initial["top"]!=0 || initial["maximum"].as_f64().unwrap_or(0.)<=0. {return Err(format!("Notice scroll setup: {initial}"));}
+    if initial["connected"] != true
+        || initial["top"] != 0
+        || initial["maximum"].as_f64().unwrap_or(0.) <= 0.
+    {
+        return Err(format!("Notice scroll setup: {initial}"));
+    }
     let wheel=inspect(main,"(()=>{const e=document.querySelector('.notice-content'),w=new WheelEvent('wheel',{deltaY:120,bubbles:true,cancelable:true});e.dispatchEvent(w);return {prevented:w.defaultPrevented,immediate:e.scrollTop}})()").await?;
     tokio::time::sleep(Duration::from_millis(40)).await;
-    let middle=inspect(main,"document.querySelector('.notice-content').scrollTop").await?;
+    let middle = inspect(main, "document.querySelector('.notice-content').scrollTop").await?;
     tokio::time::sleep(Duration::from_millis(700)).await;
-    let end=inspect(main,"document.querySelector('.notice-content').scrollTop").await?;
-    if wheel["prevented"]!=true || wheel["immediate"]!=0 || middle.as_f64().unwrap_or(0.)<=0. || middle.as_f64()>=end.as_f64(){return Err(format!("Notice easing: {wheel} {middle} {end}"));}
+    let end = inspect(main, "document.querySelector('.notice-content').scrollTop").await?;
+    if wheel["prevented"] != true
+        || wheel["immediate"] != 0
+        || middle.as_f64().unwrap_or(0.) <= 0.
+        || middle.as_f64() >= end.as_f64()
+    {
+        return Err(format!("Notice easing: {wheel} {middle} {end}"));
+    }
     inspect(main,"(()=>{const e=document.querySelector('.notice-content');e.dispatchEvent(new PointerEvent('pointerdown'));e.scrollTop=e.scrollHeight;e.dispatchEvent(new WheelEvent('wheel',{deltaY:120,bubbles:true,cancelable:true}));return true})()").await?;
     tokio::time::sleep(Duration::from_millis(200)).await;
     if inspect(main,"(()=>{const e=document.querySelector('.notice-content');return Math.abs(e.scrollTop-(e.scrollHeight-e.clientHeight))<=1})()").await?!=true{return Err(format!("Notice bottom boundary failed: {}",inspect(main,"(()=>{const e=document.querySelector('.notice-content');return {top:e.scrollTop,max:e.scrollHeight-e.clientHeight,key:window.nogiremNoticeScroller?.key}})()").await?));}
     Ok(json!({"initial":initial,"wheel":wheel,"middle":middle,"settled":end,"bottomReached":true}))
 }
 
-async fn updater_check(client:Client,host:Host,mut state:Signal<State>)->Result<Value,String>{
+async fn updater_check(
+    client: Client,
+    host: Host,
+    mut state: Signal<State>,
+) -> Result<Value, String> {
     tokio::time::sleep(Duration::from_secs(6)).await;
-    let main=host.0.borrow().main.clone();state.write().modal.clear();
-    let existing:Vec<_>=host.0.borrow().windows.keys().copied().collect();
+    let main = host.0.borrow().main.clone();
+    state.write().modal.clear();
+    let existing: Vec<_> = host.0.borrow().windows.keys().copied().collect();
     use dioxus::desktop::tao::platform::windows::WindowExtWindows;
-    main.set_focus();tokio::time::sleep(Duration::from_millis(200)).await;
-    let foreground=unsafe{windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow()};
-    client.invoke(1,"smoke:update-state",json!([{"phase":"available","version":"0.4.1","percent":0}])).await?;
-    tokio::time::sleep(Duration::from_millis(500)).await;
-    let toast_id=host.0.borrow().windows.keys().find(|id|!existing.contains(id)).copied().ok_or("Update notification did not open")?;
-    let toast=host.0.borrow().windows[&toast_id].clone();
-    let toast_dom=inspect(&toast,r#"({text:document.querySelector('.notice').innerText,color:getComputedStyle(document.querySelector('.notice')).backgroundColor,width:innerWidth,height:innerHeight})"#).await?;
-    if toast_dom["text"]!="마비노기 렘 부스터 새 버전 업데이트가 가능합니다" || toast_dom["color"]!="rgb(255, 157, 0)" || toast_dom["height"]!=88{return Err(format!("Toast parity: {toast_dom}"));}
-    if unsafe{windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow()}!=foreground{return Err(format!("Update notification stole focus: before={foreground:?}, after={:?}, toast={:?}, main={:?}",unsafe{windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow()},toast.hwnd(),main.hwnd()));}
-    let position=toast.outer_position().map_err(|e|e.to_string())?.to_logical::<f64>(toast.scale_factor());
-    let toast_position=json!({"x":position.x,"y":position.y});
-    let native_style=unsafe{windows_sys::Win32::UI::WindowsAndMessaging::GetWindowLongW(toast.hwnd() as _,windows_sys::Win32::UI::WindowsAndMessaging::GWL_STYLE)} as u32;
-    if native_style & windows_sys::Win32::UI::WindowsAndMessaging::WS_CAPTION != 0 {return Err(format!("Notification native title bar: {native_style:#x}"));}
-    if let Some(prefix)=std::env::args().find_map(|a|a.strip_prefix("--capture=").map(str::to_owned)){capture(&toast,&format!("{prefix}-notification.png"))?;}
-
-    client.invoke(1,"smoke:update-state",json!([{"phase":"available","version":"0.4.1","percent":0}])).await?;
-    if !host.0.borrow().windows.contains_key(&toast_id) {return Err("Duplicate notification recreated the window".into());}
-    let badge=inspect(&main,r#"({text:document.querySelector('.app-version').textContent,highlight:document.querySelector('.app-version').classList.contains('update-available')})"#).await?;
-    if badge["text"]!="새 버전 출시됨" || badge["highlight"]!=true {return Err(format!("Update badge parity: {badge}"));}
-    inspect(&main,"(()=>{document.querySelector('.app-version').click();return true})()").await?;
+    main.set_focus();
     tokio::time::sleep(Duration::from_millis(200)).await;
-    let started=inspect(&main,"document.querySelector('.update-preview-panel')?.innerText").await?;
-    if !started.as_str().unwrap_or("").contains("새 버전을 가져오고 있습니다"){return Err(format!("Version click did not start download: {started}"));}
-    client.invoke(1,"smoke:update-state",json!([{"phase":"downloading","version":"0.4.1","percent":42.9}])).await?;
+    let foreground = unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() };
+    client
+        .invoke(
+            1,
+            "smoke:update-state",
+            json!([{"phase":"available","version":"0.4.1","percent":0}]),
+        )
+        .await?;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let toast_id = host
+        .0
+        .borrow()
+        .windows
+        .keys()
+        .find(|id| !existing.contains(id))
+        .copied()
+        .ok_or("Update notification did not open")?;
+    let toast = host.0.borrow().windows[&toast_id].clone();
+    let toast_dom=inspect(&toast,r#"({text:document.querySelector('.notice').innerText,color:getComputedStyle(document.querySelector('.notice')).backgroundColor,width:innerWidth,height:innerHeight})"#).await?;
+    if toast_dom["text"] != "마비노기 렘 부스터 새 버전 업데이트가 가능합니다"
+        || toast_dom["color"] != "rgb(255, 157, 0)"
+        || toast_dom["height"] != 88
+    {
+        return Err(format!("Toast parity: {toast_dom}"));
+    }
+    if unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } != foreground {
+        return Err(format!(
+            "Update notification stole focus: before={foreground:?}, after={:?}, toast={:?}, main={:?}",
+            unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() },
+            toast.hwnd(),
+            main.hwnd()
+        ));
+    }
+    let position = toast
+        .outer_position()
+        .map_err(|e| e.to_string())?
+        .to_logical::<f64>(toast.scale_factor());
+    let toast_position = json!({"x":position.x,"y":position.y});
+    let native_style = unsafe {
+        windows_sys::Win32::UI::WindowsAndMessaging::GetWindowLongW(
+            toast.hwnd() as _,
+            windows_sys::Win32::UI::WindowsAndMessaging::GWL_STYLE,
+        )
+    } as u32;
+    if native_style & windows_sys::Win32::UI::WindowsAndMessaging::WS_CAPTION != 0 {
+        return Err(format!("Notification native title bar: {native_style:#x}"));
+    }
+    if let Some(prefix) =
+        std::env::args().find_map(|a| a.strip_prefix("--capture=").map(str::to_owned))
+    {
+        capture(&toast, &format!("{prefix}-notification.png"))?;
+    }
+
+    client
+        .invoke(
+            1,
+            "smoke:update-state",
+            json!([{"phase":"available","version":"0.4.1","percent":0}]),
+        )
+        .await?;
+    if !host.0.borrow().windows.contains_key(&toast_id) {
+        return Err("Duplicate notification recreated the window".into());
+    }
+    let badge=inspect(&main,r#"({text:document.querySelector('.app-version').textContent,highlight:document.querySelector('.app-version').classList.contains('update-available')})"#).await?;
+    if badge["text"] != "새 버전 출시됨" || badge["highlight"] != true {
+        return Err(format!("Update badge parity: {badge}"));
+    }
+    inspect(
+        &main,
+        "(()=>{document.querySelector('.app-version').click();return true})()",
+    )
+    .await?;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let started = inspect(
+        &main,
+        "document.querySelector('.update-preview-panel')?.innerText",
+    )
+    .await?;
+    if !started
+        .as_str()
+        .unwrap_or("")
+        .contains("새 버전을 가져오고 있습니다")
+    {
+        return Err(format!("Version click did not start download: {started}"));
+    }
+    client
+        .invoke(
+            1,
+            "smoke:update-state",
+            json!([{"phase":"downloading","version":"0.4.1","percent":42.9}]),
+        )
+        .await?;
     tokio::time::sleep(Duration::from_millis(400)).await;
     let progress=inspect(&main,r#"(()=>{const p=document.querySelector('.update-preview-panel'),r=p.getBoundingClientRect();return {text:p.innerText,top:r.top,height:r.height,color:getComputedStyle(p).backgroundColor,bar:document.querySelector('.update-progress-value').style.width,modal:!!document.querySelector('.modal-sheet')}})()"#).await?;
-    if progress["top"]!=64 || progress["height"]!=156 || progress["color"]!="rgb(255, 157, 0)" || progress["bar"]!="42.9%" || progress["modal"]!=false || !progress["text"].as_str().unwrap_or("").contains("42%") {return Err(format!("Download panel parity: {progress}"));}
-    if let Some(prefix)=std::env::args().find_map(|a|a.strip_prefix("--capture=").map(str::to_owned)){capture(&main,&format!("{prefix}-progress.png"))?;}
-    let acks_before=client.invoke(1,"smoke:announcement-acks",json!([])).await?;
-    state.write().notice=json!({"id":"update-unread-test","markdown":"# 업데이트 공지\n확인하기 전까지 읽지 않은 공지입니다."});state.write().modal="notice".into();
+    if progress["top"] != 64
+        || progress["height"] != 156
+        || progress["color"] != "rgb(255, 157, 0)"
+        || progress["bar"] != "42.9%"
+        || progress["modal"] != false
+        || !progress["text"].as_str().unwrap_or("").contains("42%")
+    {
+        return Err(format!("Download panel parity: {progress}"));
+    }
+    if let Some(prefix) =
+        std::env::args().find_map(|a| a.strip_prefix("--capture=").map(str::to_owned))
+    {
+        capture(&main, &format!("{prefix}-progress.png"))?;
+    }
+    let acks_before = client
+        .invoke(1, "smoke:announcement-acks", json!([]))
+        .await?;
+    state.write().notice = json!({"id":"update-unread-test","markdown":"# 업데이트 공지\n확인하기 전까지 읽지 않은 공지입니다."});
+    state.write().modal = "notice".into();
     tokio::time::sleep(Duration::from_millis(250)).await;
-    let foreground_notice=inspect(&main,"!!document.elementFromPoint(320,120)?.closest('.notice-backdrop')").await?;
-    if foreground_notice!=true {return Err("Update panel covered the unread notice".into());}
-    client.invoke(1,"smoke:update-state",json!([{"phase":"downloaded","version":"0.4.1","percent":100}])).await?;
+    let foreground_notice = inspect(
+        &main,
+        "!!document.elementFromPoint(320,120)?.closest('.notice-backdrop')",
+    )
+    .await?;
+    if foreground_notice != true {
+        return Err("Update panel covered the unread notice".into());
+    }
+    client
+        .invoke(
+            1,
+            "smoke:update-state",
+            json!([{"phase":"downloaded","version":"0.4.1","percent":100}]),
+        )
+        .await?;
     tokio::time::sleep(Duration::from_millis(100)).await;
     state.write().modal.clear(); // Unmount as during shutdown, without a user's confirmation.
     tokio::time::sleep(Duration::from_millis(100)).await;
-    if client.invoke(1,"smoke:announcement-acks",json!([])).await?!=acks_before{return Err("Update/unmount acknowledged an unread notice".into());}
-    state.write().modal="notice".into();tokio::time::sleep(Duration::from_millis(150)).await;
-    if inspect(&main,"!!document.querySelector('.notice-dialog')").await?!=true{return Err("Unread notice was lost".into());}
-    inspect(&main,"(()=>{document.querySelector('.application-notice-confirm').click();return true})()").await?;
+    if client
+        .invoke(1, "smoke:announcement-acks", json!([]))
+        .await?
+        != acks_before
+    {
+        return Err("Update/unmount acknowledged an unread notice".into());
+    }
+    state.write().modal = "notice".into();
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    if inspect(&main, "!!document.querySelector('.notice-dialog')").await? != true {
+        return Err("Unread notice was lost".into());
+    }
+    inspect(
+        &main,
+        "(()=>{document.querySelector('.application-notice-confirm').click();return true})()",
+    )
+    .await?;
     tokio::time::sleep(Duration::from_millis(350)).await;
-    let acks_after=client.invoke(1,"smoke:announcement-acks",json!([])).await?;
-    if acks_after["notice"].as_u64()!=Some(acks_before["notice"].as_u64().unwrap_or(0)+1){return Err("Explicit notice confirmation did not acknowledge".into());}
-    state.write().modal="close".into();tokio::time::sleep(Duration::from_millis(100)).await;
-    if inspect(&main,"!!document.querySelector('.update-preview-overlay')").await?!=false{return Err("Close confirmation must hide the update panel".into());}
+    let acks_after = client
+        .invoke(1, "smoke:announcement-acks", json!([]))
+        .await?;
+    if acks_after["notice"].as_u64() != Some(acks_before["notice"].as_u64().unwrap_or(0) + 1) {
+        return Err("Explicit notice confirmation did not acknowledge".into());
+    }
+    state.write().modal = "close".into();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    if inspect(&main, "!!document.querySelector('.update-preview-overlay')").await? != false {
+        return Err("Close confirmation must hide the update panel".into());
+    }
     state.write().modal.clear();
-    client.invoke(1,"smoke:update-state",json!([{"phase":"downloaded","version":"0.4.1","percent":100}])).await?;
+    client
+        .invoke(
+            1,
+            "smoke:update-state",
+            json!([{"phase":"downloaded","version":"0.4.1","percent":100}]),
+        )
+        .await?;
     tokio::time::sleep(Duration::from_millis(250)).await;
-    let downloaded=inspect(&main,"document.querySelector('.update-preview-panel').innerText").await?;
-    if !downloaded.as_str().unwrap_or("").contains("새 버전 설치") {return Err(format!("Install button parity: {downloaded}"));}
-    inspect(&main,"(()=>{document.querySelector('.update-install').click();return true})()").await?;
+    let downloaded = inspect(
+        &main,
+        "document.querySelector('.update-preview-panel').innerText",
+    )
+    .await?;
+    if !downloaded.as_str().unwrap_or("").contains("새 버전 설치") {
+        return Err(format!("Install button parity: {downloaded}"));
+    }
+    inspect(
+        &main,
+        "(()=>{document.querySelector('.update-install').click();return true})()",
+    )
+    .await?;
     tokio::time::sleep(Duration::from_millis(150)).await;
-    if inspect(&main,"document.querySelector('.update-install').disabled").await?!=true {return Err("Repeated install must be disabled".into());}
-    client.invoke(1,"smoke:update-state",json!([{"phase":"error","version":"0.4.1","error":"서명 검증 실패"}])).await?;
+    if inspect(&main, "document.querySelector('.update-install').disabled").await? != true {
+        return Err("Repeated install must be disabled".into());
+    }
+    client
+        .invoke(
+            1,
+            "smoke:update-state",
+            json!([{"phase":"error","version":"0.4.1","error":"서명 검증 실패"}]),
+        )
+        .await?;
     tokio::time::sleep(Duration::from_millis(150)).await;
-    let failed=inspect(&main,"document.querySelector('.update-preview-panel')?.innerText").await?;
-    if !failed.as_str().unwrap_or("").contains("서명 검증 실패"){return Err(format!("Update error was not visible: {failed}"));}
-    inspect(&main,"(()=>{document.querySelector('.update-dismiss').click();return true})()").await?;
+    let failed = inspect(
+        &main,
+        "document.querySelector('.update-preview-panel')?.innerText",
+    )
+    .await?;
+    if !failed.as_str().unwrap_or("").contains("서명 검증 실패") {
+        return Err(format!("Update error was not visible: {failed}"));
+    }
+    inspect(
+        &main,
+        "(()=>{document.querySelector('.update-dismiss').click();return true})()",
+    )
+    .await?;
     tokio::time::sleep(Duration::from_millis(100)).await;
     let dismissed=inspect(&main,"({panel:!!document.querySelector('.update-preview-overlay'),badge:document.querySelector('.app-version').classList.contains('update-available')})").await?;
-    if dismissed["panel"]!=false || dismissed["badge"]!=true{return Err(format!("Failed update could not be hidden: {dismissed}"));}
-    inspect(&main,"(()=>{document.querySelector('.app-version').click();return true})()").await?;
+    if dismissed["panel"] != false || dismissed["badge"] != true {
+        return Err(format!("Failed update could not be hidden: {dismissed}"));
+    }
+    inspect(
+        &main,
+        "(()=>{document.querySelector('.app-version').click();return true})()",
+    )
+    .await?;
     tokio::time::sleep(Duration::from_millis(200)).await;
-    if inspect(&main,"!!document.querySelector('.update-preview-overlay')").await?!=true{return Err("Hidden update could not be retried".into());}
+    if inspect(&main, "!!document.querySelector('.update-preview-overlay')").await? != true {
+        return Err("Hidden update could not be retried".into());
+    }
     tokio::time::sleep(Duration::from_secs(5)).await;
-    if host.0.borrow().windows.contains_key(&toast_id){return Err("Notification did not close after 4.8 seconds".into());}
-    client.invoke(1,"smoke:update-state",json!([{"phase":"available","version":"0.4.1","percent":0}])).await?;
+    if host.0.borrow().windows.contains_key(&toast_id) {
+        return Err("Notification did not close after 4.8 seconds".into());
+    }
+    client
+        .invoke(
+            1,
+            "smoke:update-state",
+            json!([{"phase":"available","version":"0.4.1","percent":0}]),
+        )
+        .await?;
     tokio::time::sleep(Duration::from_millis(200)).await;
-    if host.0.borrow().windows.keys().any(|id|!existing.contains(id)){return Err("Same version notified twice in one session".into());}
-    client.invoke(1,"smoke:update-state",json!([{"phase":"idle"}])).await?;
-    Ok(json!({"passed":true,"badge":badge,"notification":toast_dom,"notificationPosition":toast_position,"noFocusSteal":true,"deduplicated":true,"autoDismissed":true,"progress":progress,"downloaded":downloaded,"nativeFrameAbsent":true,"noticeAboveUpdate":true,"unreadPreservedWithoutConfirmation":true,"installerExecuted":false}))
+    if host
+        .0
+        .borrow()
+        .windows
+        .keys()
+        .any(|id| !existing.contains(id))
+    {
+        return Err("Same version notified twice in one session".into());
+    }
+    client
+        .invoke(1, "smoke:update-state", json!([{"phase":"idle"}]))
+        .await?;
+    Ok(
+        json!({"passed":true,"badge":badge,"notification":toast_dom,"notificationPosition":toast_position,"noFocusSteal":true,"deduplicated":true,"autoDismissed":true,"progress":progress,"downloaded":downloaded,"nativeFrameAbsent":true,"noticeAboveUpdate":true,"unreadPreservedWithoutConfirmation":true,"installerExecuted":false}),
+    )
 }
 
-async fn creator_prompt_check(client:Client,host:Host,mut state:Signal<State>)->Result<Value,String>{
+async fn creator_prompt_check(
+    client: Client,
+    host: Host,
+    mut state: Signal<State>,
+) -> Result<Value, String> {
     tokio::time::sleep(Duration::from_secs(2)).await;
-    let main=host.0.borrow().main.clone();main.set_focus();tokio::time::sleep(Duration::from_millis(200)).await;
-    client.invoke(1,"smoke:creator-prompt-count",json!([0])).await?;
-    {let mut s=state.write();s.creator_prompt=true;s.creator_prompt_loaded=true;s.navigation_ready=false;s.controls_entered=false;s.identity="transition".into();s.visual_active=true;s.document_hidden=false;s.modal.clear();s.tab.clear();s.creator_phase="home".into();}
+    let main = host.0.borrow().main.clone();
+    main.set_focus();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    client
+        .invoke(1, "smoke:creator-prompt-count", json!([0]))
+        .await?;
+    {
+        let mut s = state.write();
+        s.creator_prompt = true;
+        s.creator_prompt_loaded = true;
+        s.navigation_ready = false;
+        s.controls_entered = false;
+        s.identity = "transition".into();
+        s.visual_active = true;
+        s.document_hidden = false;
+        s.modal.clear();
+        s.tab.clear();
+        s.creator_phase = "home".into();
+    }
     crate::wave::finish_identity(state);
     tokio::time::sleep(Duration::from_millis(100)).await;
     let opening=inspect(&main,"({opacity:getComputedStyle(document.querySelector('.creator-credit')).opacity,disabled:document.querySelector('.creator-credit').disabled,prompt:!!document.querySelector('.creator-prompt')})").await?;
-    if opening["opacity"]!="0" || opening["disabled"]!=true || opening["prompt"]!=false{return Err(format!("Creator shown during identity: {opening}"));}
+    if opening["opacity"] != "0" || opening["disabled"] != true || opening["prompt"] != false {
+        return Err(format!("Creator shown during identity: {opening}"));
+    }
     tokio::time::sleep(Duration::from_millis(1750)).await;
-    if state.peek().navigation_ready {return Err("Creator navigation advanced before its 3s delay".into());}
+    if state.peek().navigation_ready {
+        return Err("Creator navigation advanced before its 3s delay".into());
+    }
     tokio::time::sleep(Duration::from_millis(3400)).await;
     let shown=inspect(&main,"({opacity:getComputedStyle(document.querySelector('.creator-credit')).opacity,disabled:document.querySelector('.creator-credit').disabled,prompt:document.querySelector('.creator-prompt')?.textContent})").await?;
-    if shown["opacity"]!="1" || shown["disabled"]!=false || shown["prompt"]!="고급 기능은 여기에서" {return Err(format!("Creator ready: {shown}; eligible={}, loaded={}, visual={}, hidden={}, phase={}, tab={}, modal={}, identity={}, interface={}",state.peek().creator_prompt,state.peek().creator_prompt_loaded,state.peek().visual_active,state.peek().document_hidden,state.peek().creator_phase,state.peek().tab,state.peek().modal,state.peek().identity,state.peek().interface_visible));}
-    state.write().visual_active=false;tokio::time::sleep(Duration::from_millis(250)).await;
-    if inspect(&main,"!!document.querySelector('.creator-prompt')").await?!=false{return Err("Inactive window retained prompt".into());}
-    state.write().visual_active=true;tokio::time::sleep(Duration::from_millis(350)).await;
-    state.write().modal="input".into();tokio::time::sleep(Duration::from_millis(250)).await;
-    if inspect(&main,"!!document.querySelector('.creator-prompt')").await?!=false{return Err("Settings retained prompt".into());}
-    state.write().modal.clear();tokio::time::sleep(Duration::from_millis(350)).await;
-    let untouched=client.invoke(1,"smoke:creator-prompt-state",json!([])).await?;
-    if untouched["count"]!=0 || untouched["displayCalls"]!=0 {return Err(format!("Displaying tip changed count: {untouched}"));}
-    for count in 1..=2 {
-        inspect(&main,"(()=>{document.querySelector('.creator-credit').click();return true})()").await?;
-        tokio::time::sleep(Duration::from_millis(900)).await;
-        let saved=client.invoke(1,"smoke:creator-prompt-state",json!([])).await?;
-        if state.peek().tab!="developer" || state.peek().creator_prompt || saved["count"]!=count{return Err(format!("Creator opening count: {saved}"));}
-        inspect(&main,"(()=>{document.querySelector('.creator-credit').click();return true})()").await?;
-        tokio::time::sleep(Duration::from_millis(900)).await;
-        if client.invoke(1,"smoke:creator-prompt-state",json!([])).await?["count"]!=count{return Err("Returning home counted as opening".into());}
-        if inspect(&main,"!!document.querySelector('.creator-prompt')").await?!=false{return Err("Dismissed tip reappeared in same session".into());}
-        // Re-read stored preference as a subsequent launch would.
-        let dismissed=client.invoke(1,"application:get-creator-prompt-dismissed",json!([])).await?;
-        state.write().creator_prompt=dismissed!=true;tokio::time::sleep(Duration::from_millis(350)).await;
-        if inspect(&main,"!!document.querySelector('.creator-prompt')").await?!=json!(count<2){return Err("Two-click cutoff not preserved on preference reload".into());}
+    if shown["opacity"] != "1"
+        || shown["disabled"] != false
+        || shown["prompt"] != "고급 기능은 여기에서"
+    {
+        return Err(format!(
+            "Creator ready: {shown}; eligible={}, loaded={}, visual={}, hidden={}, phase={}, tab={}, modal={}, identity={}, interface={}",
+            state.peek().creator_prompt,
+            state.peek().creator_prompt_loaded,
+            state.peek().visual_active,
+            state.peek().document_hidden,
+            state.peek().creator_phase,
+            state.peek().tab,
+            state.peek().modal,
+            state.peek().identity,
+            state.peek().interface_visible
+        ));
     }
-    Ok(json!({"passed":true,"opening":opening,"ready":shown,"displayCountUnchanged":true,"onlyOpeningClicksCount":true,"twoClickLimit":true,"timing":"identity done + 3000ms"}))
+    state.write().visual_active = false;
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    if inspect(&main, "!!document.querySelector('.creator-prompt')").await? != false {
+        return Err("Inactive window retained prompt".into());
+    }
+    state.write().visual_active = true;
+    tokio::time::sleep(Duration::from_millis(350)).await;
+    state.write().modal = "input".into();
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    if inspect(&main, "!!document.querySelector('.creator-prompt')").await? != false {
+        return Err("Settings retained prompt".into());
+    }
+    state.write().modal.clear();
+    tokio::time::sleep(Duration::from_millis(350)).await;
+    let untouched = client
+        .invoke(1, "smoke:creator-prompt-state", json!([]))
+        .await?;
+    if untouched["count"] != 0 || untouched["displayCalls"] != 0 {
+        return Err(format!("Displaying tip changed count: {untouched}"));
+    }
+    for count in 1..=2 {
+        inspect(
+            &main,
+            "(()=>{document.querySelector('.creator-credit').click();return true})()",
+        )
+        .await?;
+        tokio::time::sleep(Duration::from_millis(900)).await;
+        let saved = client
+            .invoke(1, "smoke:creator-prompt-state", json!([]))
+            .await?;
+        if state.peek().tab != "developer" || state.peek().creator_prompt || saved["count"] != count
+        {
+            return Err(format!("Creator opening count: {saved}"));
+        }
+        inspect(
+            &main,
+            "(()=>{document.querySelector('.creator-credit').click();return true})()",
+        )
+        .await?;
+        tokio::time::sleep(Duration::from_millis(900)).await;
+        if client
+            .invoke(1, "smoke:creator-prompt-state", json!([]))
+            .await?["count"]
+            != count
+        {
+            return Err("Returning home counted as opening".into());
+        }
+        if inspect(&main, "!!document.querySelector('.creator-prompt')").await? != false {
+            return Err("Dismissed tip reappeared in same session".into());
+        }
+        // Re-read stored preference as a subsequent launch would.
+        let dismissed = client
+            .invoke(1, "application:get-creator-prompt-dismissed", json!([]))
+            .await?;
+        state.write().creator_prompt = dismissed != true;
+        tokio::time::sleep(Duration::from_millis(350)).await;
+        if inspect(&main, "!!document.querySelector('.creator-prompt')").await? != json!(count < 2)
+        {
+            return Err("Two-click cutoff not preserved on preference reload".into());
+        }
+    }
+    Ok(
+        json!({"passed":true,"opening":opening,"ready":shown,"displayCountUnchanged":true,"onlyOpeningClicksCount":true,"twoClickLimit":true,"timing":"identity done + 3000ms"}),
+    )
 }
 
-async fn visual_activity_check(host:Host,mut state:Signal<State>)->Result<Value,String>{
+async fn visual_activity_check(host: Host, mut state: Signal<State>) -> Result<Value, String> {
     tokio::time::sleep(Duration::from_secs(2)).await;
-    let main=host.0.borrow().main.clone();
-    {let mut s=state.write();s.visual_active=true;s.document_hidden=false;s.identity="done".into();s.tab.clear();s.modal.clear();s.services["affinity"]["running"]=json!(true);s.services["memory"]["running"]=json!(true);s.services["affinity"]["gameActive"]=json!(true);s.services["memory"]["gameActive"]=json!(true);}
+    let main = host.0.borrow().main.clone();
+    {
+        let mut s = state.write();
+        s.visual_active = true;
+        s.document_hidden = false;
+        s.identity = "done".into();
+        s.tab.clear();
+        s.modal.clear();
+        s.services["affinity"]["running"] = json!(true);
+        s.services["memory"]["running"] = json!(true);
+        s.services["affinity"]["gameActive"] = json!(true);
+        s.services["memory"]["gameActive"] = json!(true);
+    }
     tokio::time::sleep(Duration::from_secs(3)).await;
-    let script="({animation:getComputedStyle(document.querySelector('.boost-text-final')).animationName,spinner:!!document.querySelector('.boost-progress'),wave:window.nogiremWave.inspect()})";
-    let active=inspect(&main,script).await?;
+    let script = "({animation:getComputedStyle(document.querySelector('.boost-text-final')).animationName,spinner:!!document.querySelector('.boost-progress'),wave:window.nogiremWave.inspect()})";
+    let active = inspect(&main, script).await?;
     let bounds=inspect(&main,"JSON.parse(JSON.stringify(document.querySelector('.boost-progress').getBoundingClientRect()))").await?;
-    if (bounds["y"].as_f64().unwrap_or(0.)-232.).abs()>1. || bounds["height"]!=2 || bounds["width"]!=112 {return Err(format!("Spinner outside expected position: {bounds}"));}
-    if let Some(path)=std::env::args().find_map(|a|a.strip_prefix("--capture=").map(str::to_owned)){capture(&main,&path)?;}
-    if (active["animation"]=="none" || active["spinner"]!=true) || active["wave"]["pageVisible"]!=true{return Err(format!("Active visuals missing: {active}"));}
-    for hidden in [false,true] {
-        {let mut s=state.write();s.visual_active=hidden;s.document_hidden=hidden;}
+    if (bounds["y"].as_f64().unwrap_or(0.) - 232.).abs() > 1.
+        || bounds["height"] != 2
+        || bounds["width"] != 112
+    {
+        return Err(format!("Spinner outside expected position: {bounds}"));
+    }
+    if let Some(path) =
+        std::env::args().find_map(|a| a.strip_prefix("--capture=").map(str::to_owned))
+    {
+        capture(&main, &path)?;
+    }
+    if (active["animation"] == "none" || active["spinner"] != true)
+        || active["wave"]["pageVisible"] != true
+    {
+        return Err(format!("Active visuals missing: {active}"));
+    }
+    for hidden in [false, true] {
+        {
+            let mut s = state.write();
+            s.visual_active = hidden;
+            s.document_hidden = hidden;
+        }
         tokio::time::sleep(Duration::from_millis(250)).await;
-        let before=inspect(&main,script).await?;
+        let before = inspect(&main, script).await?;
         // Background service updates and mouse movement must not restart drawing.
         inspect(&main,"(()=>{window.dispatchEvent(new MouseEvent('mousemove',{clientX:600,clientY:250}));window.nogiremApplyWave();return true})()").await?;
         tokio::time::sleep(Duration::from_millis(1800)).await;
-        let after=inspect(&main,script).await?;
-        if (after["animation"]!="none" || after["spinner"]!=false || after["wave"]["circles"]!=0) || after["wave"]["pageVisible"]!=false || before["wave"]["renderedFrames"]!=after["wave"]["renderedFrames"] || after["wave"]["framePending"]!=false || after["wave"]["ambientPending"]!=false{return Err(format!("Inactive visuals still running (hidden={hidden}): {before} -> {after}"));}
-        {let mut s=state.write();s.visual_active=true;s.document_hidden=false;}
+        let after = inspect(&main, script).await?;
+        if (after["animation"] != "none"
+            || after["spinner"] != false
+            || after["wave"]["circles"] != 0)
+            || after["wave"]["pageVisible"] != false
+            || before["wave"]["renderedFrames"] != after["wave"]["renderedFrames"]
+            || after["wave"]["framePending"] != false
+            || after["wave"]["ambientPending"] != false
+        {
+            return Err(format!(
+                "Inactive visuals still running (hidden={hidden}): {before} -> {after}"
+            ));
+        }
+        {
+            let mut s = state.write();
+            s.visual_active = true;
+            s.document_hidden = false;
+        }
         tokio::time::sleep(Duration::from_millis(1600)).await;
-        let resumed=inspect(&main,script).await?;
-        if (resumed["animation"]=="none" || resumed["spinner"]!=true) || resumed["wave"]["pageVisible"]!=true || resumed["wave"]["renderedFrames"].as_u64()<=after["wave"]["renderedFrames"].as_u64(){return Err(format!("Visuals failed to resume: {resumed}"));}
+        let resumed = inspect(&main, script).await?;
+        if (resumed["animation"] == "none" || resumed["spinner"] != true)
+            || resumed["wave"]["pageVisible"] != true
+            || resumed["wave"]["renderedFrames"].as_u64()
+                <= after["wave"]["renderedFrames"].as_u64()
+        {
+            return Err(format!("Visuals failed to resume: {resumed}"));
+        }
     }
-    Ok(json!({"passed":true,"blurPausesPulseAndCanvas":true,"documentHiddenPauses":true,"backgroundUpdatesStayIdle":true,"focusResumes":true}))
+    Ok(
+        json!({"passed":true,"blurPausesPulseAndCanvas":true,"documentHiddenPauses":true,"backgroundUpdatesStayIdle":true,"focusResumes":true}),
+    )
 }

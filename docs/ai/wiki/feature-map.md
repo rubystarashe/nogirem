@@ -2,30 +2,76 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `3`
-- updated_at: `2026-09-30T10:14:00Z`
+- revision: `4`
+- updated_at: `2026-10-02T12:40:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-09-30T10:05:00Z`
+- source_reviewed_at: `2026-10-02T12:40:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d, v0.4.2 named public assets`
-- source_review_evidence: `desktop/backend/src/network.rs`, `network_manager.rs`, `update_install.rs`, `service.rs`, NSIS와 PowerShell 종료 경로
-- behavior_verified_at: `2026-09-30T10:13:00Z`
+- source_review_target: `1292f62c084200ec41201e1792d212ad58cc0569 + 20261002-release-043 working target`
+- source_review_evidence: `desktop/backend/src/boost.rs`, `inputs.rs`, `desktop/src/ui.rs`, `native/turbo-key/src/main.rs`, 관련 Rust·Node 테스트
+- behavior_verified_at: `2026-10-02T12:40:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `ce0bd8cda6265373e68cf2c23e3d1f2f87045e5d 기반 v0.4.2 public aliases and Electron feed`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Node 테스트와 Rust test/check`
-- behavior_verification_evidence: `npm test 201/201, independent review APPROVED, signed bundle assembly, five renamed public assets full-download hashes, Electron feed path and sha512`
+- behavior_verification_target: `0.4.3 pre-release working target`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration tests와 Node source-contract tests`
+- behavior_verification_evidence: `turbo-key 14/14, backend 62 중 60 PASS·2 declared ignore와 integration 2/2, Node 최종 전체 실행 203/203, desktop locked check PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.2 권장 alias, 자동 업데이트 호환 자산과 Electron 전환 feed를 실제 공개 target에서 검증함`
-- known_gaps: `실제 외부 장치의 High label 종단간 update는 미실행이며 이미 실패 중인 0.4.1 helper는 새 payload 실행 전에 중단돼 0.4.2 수동 설치가 한 번 필요함`
-- feature_impact: `FEAT-NOGIREM-NETWORK-FASTPING`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
-- feature_map: `updated — 두 기능의 정본 identity와 동작·증거를 신규 지정함`
-- architecture_impact: `네트워크 설정 writer와 updater·installer·helper 수명주기 경계`
-- architecture_contract: `updated — agent-friendly-architecture.md와 상호 연결함`
+- freshness_reason: `0.4.3의 부스트 runtime과 터보키 게임 경로 변경을 현재 source와 자동 검사 기준으로 반영함`
+- known_gaps: `실제 테스트 서버 창에서의 터보키 반복 입력과 helper 강제 종료 뒤 UI 수동 복구는 NOT_RUN, 0.4.3 공개 payload 검증은 배포 전 진행 중`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST`, `FEAT-NOGIREM-TURBO-KEY`, `FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — 부스트와 터보키 기능 identity·동작·증거를 추가하고 0.4.3 배포 영향을 연결함`
+- architecture_impact: `helper PID·시작 시각 identity, UI polling 복구, 터보키 명시 게임 폴더 판별, updater·installer 수명주기`
+- architecture_contract: `updated — agent-friendly-architecture.md와 새 helper 경계를 상호 연결함`
 
 ## ID 할당
 
 - 새 ID는 저장소 이름을 포함한 `FEAT-NOGIREM-<CAPABILITY>` 형식으로 maintainer가 예약한다.
 - 공개된 ID는 이름이 바뀌어도 재사용하거나 번호를 바꾸지 않는다. 분할·병합·제거 시 기존 identity를 tombstone으로 유지한다.
+
+## FEAT-NOGIREM-FRAME-BOOST
+
+- canonical_name: `마비노기 실시간 프레임 부스트`
+- aliases: `실시간 부스트`, `CPU affinity 최적화`
+- lifecycle: `ACTIVE`
+- lifecycle_reason: `Rust/Dioxus 앱이 게임 실행 상태에 따라 affinity·메모리 helper를 유지하고 사용자가 적용·중단할 수 있음`
+- owners: `product=nogirem maintainer`, `technical=boost/affinity backend owner`
+- purpose_and_scope: 관리자 권한 Windows 사용자의 마비노기 실행을 감지해 게임과 백그라운드 CPU 범위를 관리하고, 게임 미실행 중에는 대기 상태를 표시하며 언제든 중단·복원한다.
+- exclusions: 하드웨어·드라이버 교착 복구, 타 프로그램의 별도 affinity writer 통제, 비정상 종료 전 임의 custom mask의 완전한 원상복구는 보장하지 않는다.
+- personas_permissions_accessibility_entry: 일반 사용자가 메인 화면을 클릭해 적용·중단하며 관리자 권한이 필요하다. 상태는 문구로 표시하고 오류는 확인 가능한 alert로 제공한다.
+- preconditions_dependencies: Windows CPU topology, `config.json`, affinity/memory helper, Win32 process query, `%APPDATA%\마비노기 렘 부스터` 상태 폴더.
+- normal_error_cancel_retry_flow: helper 상태의 PID·시작 시각·생존을 함께 확인한다. 게임이 없으면 대기하지만 중단 버튼은 활성이다. runtime 조회 실패 시 화면 상태를 중단으로 보정하고 polling을 계속한다. `helperStartedAt`이 없는 살아 있는 0.4.2 helper는 control 명령으로 종료한 뒤 0.4.3 helper로 교체한다.
+- concurrency_partial_failure_recovery: affinity·memory operation lock이 작업을 직렬화한다. 두 helper 중 하나가 실패하면 해당 runtime을 비실행으로 표시하며 사용자가 중단하거나 ensure 경로가 재시작한다.
+- state_side_effects_limits: 프로세스 affinity, memory cleanup, 선택적 NIC RSS를 변경한다. `status.json`, `control.json`, `runtime-state.json`, `applied-marker.json`, `events.log`를 사용한다.
+- modules_contracts: `desktop/src/ui.rs` → `service.rs` → `boost.rs` → `affinity_worker.rs`/`affinity.rs`. helper PID와 최신 timestamp가 실행 상태의 필수 조건이다.
+- durable_data_owner: affinity helper가 affinity runtime과 `game/path.json`의 유일한 writer이며 backend/UI가 읽는다.
+- security_privacy: 다른 `Client.exe` 오탐을 막기 위해 정본의 명시적 게임 폴더를 사용하며 진단 내 사용자 경로는 마스킹한다.
+- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 0.4.2 helper 인계`, `BOOST-005 게임 시작·종료 affinity 적용·복원`
+- observability_evidence: UI 상태 문구, `affinity/events.log`, diagnostics affinity snapshot, `boost::tests`, `test/application-reliability.test.mjs`
+- architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
+- freshness_status: `CURRENT`
+- known_gaps: `helper 강제 종료와 실제 게임 종료를 결합한 수동 UI QA는 NOT_RUN`
+
+## FEAT-NOGIREM-TURBO-KEY
+
+- canonical_name: `마비노기 전용 터보키`
+- aliases: `터보 키`, `반복 입력 helper`
+- lifecycle: `ACTIVE`
+- lifecycle_reason: `사용자가 별도 helper를 내려받아 선택 키를 마비노기 전경 창에서만 반복 입력할 수 있음`
+- owners: `product=nogirem maintainer`, `technical=input helper owner`
+- purpose_and_scope: 선택한 비수정키를 1~30ms 간격으로 반복하며 정식·테스트 서버 `Client.exe`가 전경일 때만 입력한다.
+- exclusions: 마비노기 외 창, 허용되지 않은 modifier/lock/Esc, background 입력, 자동 게임 플레이 판단은 지원하지 않는다.
+- personas_permissions_accessibility_entry: 고급 기능에서 안내 동의 후 helper를 다운로드·설정한다. 실행·업데이트 오류를 텍스트로 표시한다.
+- preconditions_dependencies: Windows x64, 저수준 keyboard hook, 서명 release의 SHA-256 자산, 정본에 명시된 게임 폴더.
+- normal_error_cancel_retry_flow: 키 입력 시 전경 PID의 실제 경로를 확인하고 `Mabinogi`, `Mabinogi_Test`, `마비노기`, `Nexon` 폴더 또는 sibling `Mabinogi.exe`가 있는 경로만 허용한다. 포커스·modifier·부모 앱이 바뀌면 즉시 반복을 취소한다.
+- concurrency_partial_failure_recovery: named mutex가 단일 helper를 보장한다. 앱은 설정 변경·업데이트 전에 이전 helper를 중단하고, 구버전 0.1.7은 동의를 보존한 채 0.1.8로 교체한다.
+- state_side_effects_limits: 저수준 hook과 `SendInput`을 사용하며 설정·설치 manifest·status/control JSON만 지속한다.
+- modules_contracts: `inputs.rs`가 실행 인자와 설치 상태를 소유하고 `native/turbo-key`가 입력 동작과 명시적 게임 폴더 판별을 소유한다.
+- durable_data_owner: turbo 설정·manifest writer는 inputs installer 경로 하나이며 native helper는 실행 중 상태만 기록한다.
+- security_privacy: 실행 파일 PE·digest·GitHub 자산을 검증하고, 전경 PID의 전체 경로가 명시 폴더 또는 launcher 조건을 충족할 때만 입력한다.
+- scenarios: `TURBO-001 정식 서버`, `TURBO-002 테스트 서버`, `TURBO-003 다른 Client.exe 거부`, `TURBO-004 modifier·포커스 이탈 취소`
+- observability_evidence: turbo status JSON, UI 실행 오류, helper 14개 unit test, `test/turbo-key.test.mjs`
+- architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 선택 helper·명시 게임 폴더 경계.
+- freshness_status: `CURRENT`
+- known_gaps: `실제 테스트 서버 창에서 1ms~30ms 반복 입력 수동 확인은 NOT_RUN`
 
 ## FEAT-NOGIREM-NETWORK-FASTPING
 

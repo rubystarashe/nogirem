@@ -3,7 +3,11 @@ use dioxus::{desktop, prelude::*};
 use serde_json::{Value, json};
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct ColorTransition { pub x: f64, pub y: f64, pub paused: bool }
+pub struct ColorTransition {
+    pub x: f64,
+    pub y: f64,
+    pub paused: bool,
+}
 
 #[derive(Default, Clone)]
 pub struct State {
@@ -50,7 +54,7 @@ pub fn receive(mut state: Signal<State>, channel: &str, value: &Value) {
 
 fn apply_event(state: &mut State, channel: &str, value: &Value) {
     match channel {
-        "application:update-state-changed" => state.update=value.clone(),
+        "application:update-state-changed" => state.update = value.clone(),
         "optimization:graphics-status-changed" => state.services["graphics"] = value.clone(),
         "optimization:dxvk-status-changed" => state.services["affinity"]["dxvk"] = value.clone(),
         "application:blackbox-status-changed" => {
@@ -68,23 +72,29 @@ fn apply_event(state: &mut State, channel: &str, value: &Value) {
             state.visual_active = value.as_bool().unwrap_or(false)
         }
         "application:notice-available" => {
-            if value["id"].as_str().is_none() || value["markdown"].as_str().is_none() { return; }
+            if value["id"].as_str().is_none() || value["markdown"].as_str().is_none() {
+                return;
+            }
             state.notice = value.clone();
             if state.modal.is_empty() {
                 state.modal = "notice".into();
             }
         }
         "application:report-responses-available" => {
-            let Some(incoming) = value.as_array() else { return; };
+            let Some(incoming) = value.as_array() else {
+                return;
+            };
             let mut queue = state.reports.as_array().cloned().unwrap_or_default();
             for reply in incoming {
-                let Some(id) = reply["responseId"].as_str().filter(|s| !s.is_empty()) else { continue; };
-                if state.seen_report_ids.insert(id.to_owned()) { queue.push(reply.clone()); }
+                let Some(id) = reply["responseId"].as_str().filter(|s| !s.is_empty()) else {
+                    continue;
+                };
+                if state.seen_report_ids.insert(id.to_owned()) {
+                    queue.push(reply.clone());
+                }
             }
             state.reports = json!(queue);
-            if !queue.is_empty()
-                && (state.modal.is_empty() || state.modal == "notice")
-            {
+            if !queue.is_empty() && (state.modal.is_empty() || state.modal == "notice") {
                 state.modal = "report".into();
             }
         }
@@ -147,8 +157,12 @@ pub async fn initialize(client: Client, mut state: Signal<State>) {
                     "turbo" => state.write().turbo = value,
                     "input" => state.write().input = value,
                     "creator" => state.write().creator_profile = value,
-                    "creator-prompt" => {let mut s=state.write();s.creator_prompt=value!=true;s.creator_prompt_loaded=true;},
-                    "update" => state.write().update=value,
+                    "creator-prompt" => {
+                        let mut s = state.write();
+                        s.creator_prompt = value != true;
+                        s.creator_prompt_loaded = true;
+                    }
+                    "update" => state.write().update = value,
                     "notice" => {
                         if !value.is_null() {
                             receive(state, "application:notice-available", &value);
@@ -163,9 +177,14 @@ pub async fn initialize(client: Client, mut state: Signal<State>) {
                     }
                 },
                 Err(error) => {
-                    if key=="creator-prompt" {let mut s=state.write();s.creator_prompt=true;s.creator_prompt_loaded=true;}
-                    else {state.write().error=error;}
-                },
+                    if key == "creator-prompt" {
+                        let mut s = state.write();
+                        s.creator_prompt = true;
+                        s.creator_prompt_loaded = true;
+                    } else {
+                        state.write().error = error;
+                    }
+                }
             }
         });
     }
@@ -191,8 +210,14 @@ pub async fn initialize(client: Client, mut state: Signal<State>) {
                     }
                 }
                 Err(error) => {
-                    state.write().error = error;
-                    return;
+                    let mut state = state.write();
+                    if state.error.is_empty() {
+                        state.error = error;
+                    }
+                    if state.services[key].is_object() {
+                        state.services[key]["running"] = json!(false);
+                        state.services[key]["gameActive"] = json!(false);
+                    }
                 }
             }
         }
@@ -207,8 +232,13 @@ fn command(client: Client, mut state: Signal<State>, channel: &'static str, args
             return;
         }
         state.write().busy = true;
-        let boost_command = matches!(channel,"optimization:set-frame-boost-enabled" | "optimization:reset-frame-boost");
-        if boost_command { state.write().boost_action = Some(args[0]["enabled"].as_bool().unwrap_or(false)); }
+        let boost_command = matches!(
+            channel,
+            "optimization:set-frame-boost-enabled" | "optimization:reset-frame-boost"
+        );
+        if boost_command {
+            state.write().boost_action = Some(args[0]["enabled"].as_bool().unwrap_or(false));
+        }
         match client.invoke(1, channel, args).await {
             Ok(value) => {
                 let mut state = state.write();
@@ -223,13 +253,20 @@ fn command(client: Client, mut state: Signal<State>, channel: &'static str, args
                     );
                 }
                 match channel {
-                    "application:check-update" | "application:install-update" => { if value["phase"].is_string() { state.update=value; } },
+                    "application:check-update" | "application:install-update" => {
+                        if value["phase"].is_string() {
+                            state.update = value;
+                        }
+                    }
                     "optimization:get-status" => state.services = unwrap_status(value),
                     "optimization:set-frame-boost-enabled" | "optimization:reset-frame-boost" => {
                         state.services["affinity"] = value["affinity"].clone();
                         state.services["memory"] = value["memory"].clone();
-                        let paused = !(state.services["affinity"]["running"] == true && state.services["memory"]["running"] == true);
-                        if state.color_transition.is_some_and(|t| t.paused != paused) { state.color_transition = None; }
+                        let paused = !(state.services["affinity"]["running"] == true
+                            && state.services["memory"]["running"] == true);
+                        if state.color_transition.is_some_and(|t| t.paused != paused) {
+                            state.color_transition = None;
+                        }
                     }
                     "optimization:optimize-graphics" | "optimization:refresh-graphics" => {
                         state.services["graphics"] = value
@@ -275,10 +312,18 @@ fn command(client: Client, mut state: Signal<State>, channel: &'static str, args
                     _ => {}
                 }
             }
-            Err(error) => { let mut s=state.write();s.error=error;if boost_command {s.color_transition=None;} },
+            Err(error) => {
+                let mut s = state.write();
+                s.error = error;
+                if boost_command {
+                    s.color_transition = None;
+                }
+            }
         }
         let mut state = state.write();
-        if boost_command { state.boost_action=None; }
+        if boost_command {
+            state.boost_action = None;
+        }
         state.pending.remove(channel);
         state.busy = !state.pending.is_empty();
     });
@@ -392,8 +437,9 @@ pub fn Main() -> Element {
                 "#,
                 );
                 while let Ok(message) = eval.recv::<Value>().await {
-                    if let Some(hidden)=message["documentHidden"].as_bool() {state.write().document_hidden=hidden;}
-                    else if message["escape"] == true {
+                    if let Some(hidden) = message["documentHidden"].as_bool() {
+                        state.write().document_hidden = hidden;
+                    } else if message["escape"] == true {
                         close_modal(client.clone(), state);
                     } else if let Some(url) = message["url"].as_str() {
                         command(
@@ -426,8 +472,10 @@ pub fn Main() -> Element {
         "부스트 대기중"
     };
     let creator = !snapshot.tab.is_empty();
-    let visual_running = snapshot.color_transition.map(|t|t.paused)
-        .unwrap_or_else(||snapshot.boost_action.unwrap_or(running));
+    let visual_running = snapshot
+        .color_transition
+        .map(|t| t.paused)
+        .unwrap_or_else(|| snapshot.boost_action.unwrap_or(running));
     rsx! {
         document::Stylesheet { href: "/web/styles.css" }
         document::Stylesheet { href: "/web/update-preview.css" }
@@ -466,9 +514,8 @@ pub fn Main() -> Element {
                 Action { label_span: true, label: "주변 캐릭터 강제 간소화", channel: "application:open-character-guide", class: format!("character-guide-link {} {}", if snapshot.controls_entered { "entered" } else { "" }, if snapshot.services["affinity"]["characterSimplification"]["applied"] == true { "ready" } else { "warning" }), StatusIcon { ready: snapshot.services["affinity"]["characterSimplification"]["applied"] == true } }
                 Action { label_span: true, label: dxvk_label(&snapshot.services["affinity"]), channel: "application:open-dxvk-manager", class: format!("dxvk-update-link {} {}", if snapshot.controls_entered { "entered" } else { "" }, dxvk_class(&snapshot.services["affinity"])), StatusIcon { ready: dxvk_class(&snapshot.services["affinity"]) == "ready", checking: dxvk_class(&snapshot.services["affinity"]) == "checking" } }
                 if snapshot.blackbox["featureEnabled"] == true { BlackboxControls {} }
-                button { class: if status.contains("중단") { "boost-text-area paused-target" } else { "boost-text-area" }, disabled: !snapshot.ready || snapshot.busy || snapshot.identity != "done" || snapshot.color_transition.is_some() || (running && !active),
+                button { class: if status.contains("중단") { "boost-text-area paused-target" } else { "boost-text-area" }, disabled: !snapshot.ready || snapshot.busy || snapshot.identity != "done" || snapshot.color_transition.is_some(),
                     onclick: move |event| {
-                        if running && !active { return; }
                         let p = event.client_coordinates();
                         state.write().color_transition=Some(ColorTransition{x:p.x,y:p.y,paused:any_running});
                         let _ = document::eval(&format!("window.nogiremWave?.makeActionWave({}, {}, {})", p.x, p.y, any_running));
@@ -661,8 +708,13 @@ fn Modal() -> Element {
     }
     if matches!(snapshot.modal.as_str(), "notice" | "report") {
         let alert_key = if snapshot.modal == "report" {
-            format!("report:{}", snapshot.reports[0]["responseId"].as_str().unwrap_or(""))
-        } else { format!("notice:{}", snapshot.notice["id"].as_str().unwrap_or("")) };
+            format!(
+                "report:{}",
+                snapshot.reports[0]["responseId"].as_str().unwrap_or("")
+            )
+        } else {
+            format!("notice:{}", snapshot.notice["id"].as_str().unwrap_or(""))
+        };
         return rsx! {NoticeDialog { key: "{alert_key}" }};
     }
     rsx! { div { class: if snapshot.modal == "turbo" && snapshot.turbo["installed"] == true { "modal-backdrop fullscreen" } else if snapshot.modal == "optimization" { "modal-backdrop large" } else { "modal-backdrop" },
@@ -1043,9 +1095,17 @@ mod tests {
     fn report_queue_survives_empty_rechecks_duplicates_and_late_delivery() {
         let mut state = State::default();
         let event = "application:report-responses-available";
-        apply_event(&mut state, event, &json!([{"responseId":"first"},{"responseId":"second"}]));
+        apply_event(
+            &mut state,
+            event,
+            &json!([{"responseId":"first"},{"responseId":"second"}]),
+        );
         apply_event(&mut state, event, &json!([]));
-        apply_event(&mut state, event, &json!([{"responseId":"second"},{"responseId":"third"}]));
+        apply_event(
+            &mut state,
+            event,
+            &json!([{"responseId":"second"},{"responseId":"third"}]),
+        );
         assert_eq!(state.reports.as_array().unwrap().len(), 3);
         assert_eq!(state.reports[0]["responseId"], "first");
         state.reports.as_array_mut().unwrap().remove(0);
@@ -1246,8 +1306,9 @@ fn BlackboxControls() -> Element {
 fn TermsDialog() -> Element {
     let state = use_context::<Signal<State>>();
     let client = use_context::<Client>();
-    let mount_scroller = move |_| { spawn(async move {
-        let _ = document::eval(r#"
+    let mount_scroller = move |_| {
+        spawn(async move {
+            let _ = document::eval(r#"
             const {createSmoothWheelScroller} = await import('/web/smooth-wheel-scroll.mjs');
             window.nogiremTermsScroller?.dispose();
             const element = document.querySelector('.terms-scroll');
@@ -1261,8 +1322,13 @@ fn TermsDialog() -> Element {
                 }};
             }
         "#).await;
-    }); };
-    use_drop(|| { let _ = document::eval("window.nogiremTermsScroller?.dispose(); delete window.nogiremTermsScroller;"); });
+        });
+    };
+    use_drop(|| {
+        let _ = document::eval(
+            "window.nogiremTermsScroller?.dispose(); delete window.nogiremTermsScroller;",
+        );
+    });
     rsx! {
         div { class: "terms-backdrop",
             div { class: "terms-modal", role: "dialog", aria_modal: "true", aria_labelledby: "terms-modal-title",
@@ -1285,21 +1351,40 @@ fn NoticeDialog() -> Element {
     let client = use_context::<Client>();
     let scroll_key = use_hook(move || {
         let s = state.peek();
-        format!("{}:{}", s.modal, if s.modal == "report" { &s.reports[0]["responseId"] } else { &s.notice["id"] })
+        format!(
+            "{}:{}",
+            s.modal,
+            if s.modal == "report" {
+                &s.reports[0]["responseId"]
+            } else {
+                &s.notice["id"]
+            }
+        )
     });
     let content_key = use_memo(move || {
         let s = state.read();
-        format!("{}:{}", s.modal, if s.modal == "report" { &s.reports[0]["responseId"] } else { &s.notice["id"] })
+        format!(
+            "{}:{}",
+            s.modal,
+            if s.modal == "report" {
+                &s.reports[0]["responseId"]
+            } else {
+                &s.notice["id"]
+            }
+        )
     });
     use_effect(move || {
         let key = serde_json::to_string(&content_key()).unwrap();
-        let _ = document::eval(&format!("requestAnimationFrame(()=>{{const s=window.nogiremNoticeScroller;if(s && s.contentKey!=={key}){{s.contentKey={key};s.reset();document.querySelectorAll('.notice-backdrop,.notice-dialog').forEach(e=>e.classList.remove('closing'));}}}});"));
+        let _ = document::eval(&format!(
+            "requestAnimationFrame(()=>{{const s=window.nogiremNoticeScroller;if(s && s.contentKey!=={key}){{s.contentKey={key};s.reset();document.querySelectorAll('.notice-backdrop,.notice-dialog').forEach(e=>e.classList.remove('closing'));}}}});"
+        ));
     });
     let mount_key = scroll_key.clone();
     let mount_scroller = move |_| {
         let key = serde_json::to_string(&mount_key).unwrap();
         spawn(async move {
-            let script = format!(r#"
+            let script = format!(
+                r#"
                 const key = {key};
                 const element = document.querySelector('.notice-content');
                 const {{createSmoothWheelScroller}} = await import('/web/smooth-wheel-scroll.mjs');
@@ -1319,13 +1404,16 @@ fn NoticeDialog() -> Element {
                         element.removeEventListener('keydown', stop);
                     }}}};
                 }}
-            "#);
+            "#
+            );
             let _ = document::eval(&script).await;
         });
     };
     use_drop(move || {
         let key = serde_json::to_string(&scroll_key).unwrap();
-        let _ = document::eval(&format!("if(window.nogiremNoticeScroller?.key==={key}){{window.nogiremNoticeScroller.dispose();delete window.nogiremNoticeScroller;}}"));
+        let _ = document::eval(&format!(
+            "if(window.nogiremNoticeScroller?.key==={key}){{window.nogiremNoticeScroller.dispose();delete window.nogiremNoticeScroller;}}"
+        ));
     });
     let s = state.read().clone();
     let markdown = s.notice["markdown"].as_str().unwrap_or("");
@@ -1381,17 +1469,27 @@ fn VersionHistory() -> Element {
     rsx! { div { class: "version-history", for (version,changes) in entries { article { h2 { "{version}" } ul { for change in changes { li { "{change}" } } } } } } }
 }
 
-fn update_available(update:&Value)->bool {
-    matches!(update["phase"].as_str(),Some("available"|"downloading"|"downloaded"|"installing"|"error")) && update["version"].as_str().is_some_and(|v|!v.is_empty())
+fn update_available(update: &Value) -> bool {
+    matches!(
+        update["phase"].as_str(),
+        Some("available" | "downloading" | "downloaded" | "installing" | "error")
+    ) && update["version"].as_str().is_some_and(|v| !v.is_empty())
 }
 #[component]
-fn UpdatePreview()->Element {
-    let mut state=use_context::<Signal<State>>();let client=use_context::<Client>();let s=state.read();
-    let downloaded=matches!(s.update["phase"].as_str(),Some("downloaded"|"installing"));
-    let failed=s.update["phase"]=="error";
-    let installing=s.update["phase"]=="installing" || s.busy;
-    let percent=s.update["percent"].as_f64().unwrap_or(0.).clamp(0.,100.);
-    let error=s.update["error"].as_str().unwrap_or("업데이트 다운로드에 실패했습니다");
+fn UpdatePreview() -> Element {
+    let mut state = use_context::<Signal<State>>();
+    let client = use_context::<Client>();
+    let s = state.read();
+    let downloaded = matches!(
+        s.update["phase"].as_str(),
+        Some("downloaded" | "installing")
+    );
+    let failed = s.update["phase"] == "error";
+    let installing = s.update["phase"] == "installing" || s.busy;
+    let percent = s.update["percent"].as_f64().unwrap_or(0.).clamp(0., 100.);
+    let error = s.update["error"]
+        .as_str()
+        .unwrap_or("업데이트 다운로드에 실패했습니다");
     rsx! {div {class:"update-preview-overlay",role:"dialog",aria_modal:"true",aria_label:"업데이트",
         section {class:"update-preview-panel",
             button {class:"update-dismiss",r#type:"button",onclick:move |_| state.write().update_dismissed=true,"숨기기"}
@@ -1403,21 +1501,38 @@ fn UpdatePreview()->Element {
     }}
 }
 
-fn creator_prompt_visible(s:&State)->bool {
-    s.interface_visible && s.identity=="done" && s.navigation_ready && s.creator_prompt_loaded
-        && s.creator_prompt && s.tab.is_empty() && matches!(s.creator_phase.as_str(),""|"home")
-        && s.modal.is_empty() && s.visual_active && !s.document_hidden
+fn creator_prompt_visible(s: &State) -> bool {
+    s.interface_visible
+        && s.identity == "done"
+        && s.navigation_ready
+        && s.creator_prompt_loaded
+        && s.creator_prompt
+        && s.tab.is_empty()
+        && matches!(s.creator_phase.as_str(), "" | "home")
+        && s.modal.is_empty()
+        && s.visual_active
+        && !s.document_hidden
 }
 #[component]
-fn CreatorPrompt(visible:bool)->Element {
-    let mut mounted=use_signal(||false);let mut leaving=use_signal(||false);let mut generation=use_signal(||0u64);
+fn CreatorPrompt(visible: bool) -> Element {
+    let mut mounted = use_signal(|| false);
+    let mut leaving = use_signal(|| false);
+    let mut generation = use_signal(|| 0u64);
     use_effect(use_reactive!(|(visible,)| {
-        let id=*generation.peek()+1;generation.set(id);
-        if visible {mounted.set(true);leaving.set(false);}
-        else if *mounted.peek() {leaving.set(true);spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(180)).await;
-            if *generation.peek()==id {mounted.set(false);}
-        });}
+        let id = *generation.peek() + 1;
+        generation.set(id);
+        if visible {
+            mounted.set(true);
+            leaving.set(false);
+        } else if *mounted.peek() {
+            leaving.set(true);
+            spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(180)).await;
+                if *generation.peek() == id {
+                    mounted.set(false);
+                }
+            });
+        }
     }));
     rsx! {if mounted() {span {class:if leaving() {"creator-prompt leaving"} else {"creator-prompt"},"고급 기능은 여기에서"}}}
 }

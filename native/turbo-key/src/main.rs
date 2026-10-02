@@ -333,7 +333,7 @@ fn is_mabinogi_path(path: &Path) -> bool {
         .is_some_and(|value| {
             matches!(
                 value.to_lowercase().as_str(),
-                "mabinogi" | "마비노기" | "nexon"
+                "mabinogi" | "mabinogi_test" | "마비노기" | "nexon"
             )
         });
     let launcher_exists = path
@@ -830,6 +830,9 @@ mod tests {
     #[test]
     fn foreground_target_requires_client_in_supported_directory() {
         assert!(is_mabinogi_path(Path::new(r"D:\Games\Mabinogi\Client.exe")));
+        assert!(is_mabinogi_path(Path::new(
+            r"D:\Games\Mabinogi_Test\Client.exe"
+        )));
         assert!(is_mabinogi_path(Path::new(r"D:\마비노기\Client.exe")));
         assert!(is_mabinogi_path(Path::new(r"D:\Nexon\Client.exe")));
         assert!(!is_mabinogi_path(Path::new(r"D:\Games\Other\Client.exe")));

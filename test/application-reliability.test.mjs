@@ -301,6 +301,15 @@ test("부스트 중단은 일부 실행 상태도 원상복구하고 중단 상�
   )
 })
 
+test("helper 오류 후 상태 조회를 계속하고 게임 대기 중에도 부스트를 중단할 수 있다", () => {
+  assert.match(
+    applicationView,
+    /optimization:get-affinity-runtime[\s\S]*Err\(error\) => \{[\s\S]*state\.error\.is_empty\(\)[\s\S]*\["running"\] = json!\(false\)[\s\S]*\["gameActive"\] = json!\(false\)/,
+  )
+  assert.doesNotMatch(applicationView, /\|\| \(running && !active\)/)
+  assert.doesNotMatch(applicationView, /if running && !active \{\s*return;\s*\}/)
+})
+
 test("강제 간소화 미적용 상태는 빠른 런타임 조회마다 직접 확인한다", () => {
   assert.match(
     serviceMain,

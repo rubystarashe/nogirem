@@ -74,6 +74,16 @@ test("터보 키 helper는 게임 외 P-core 마스크를 시작 인자로 받�
   assert.match(serviceMain, /`--interval-ms=\$\{normalizeTurboKeyIntervalMs\(intervalMs\)\}`/)
 })
 
+test("Rust 터보 키는 정본에 등록된 테스트 서버 폴더만 허용한다", async () => {
+  const helperSource = await readFile(
+    new URL("../native/turbo-key/src/main.rs", import.meta.url),
+    "utf8",
+  )
+
+  assert.match(helperSource, /"mabinogi_test"/)
+  assert.match(helperSource, /executable_matches && \(directory_matches \|\| launcher_exists\)/)
+})
+
 test("미설치 helper는 자동 실행하지 않고 제한된 다운로드 IPC만 제공한다", async () => {
   const [serviceMain, servicePreload] = await Promise.all([
     readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
@@ -191,7 +201,7 @@ test("기존 동의를 유지한 채 구버전 터보 키 helper를 시작 시 �
     readFile(new URL("../src/turbo-key-installer.mjs", import.meta.url), "utf8"),
   ])
 
-  assert.match(installerSource, /turboKeyHelperVersion = "0\.1\.7"/)
+  assert.match(installerSource, /turboKeyHelperVersion = "0\.1\.8"/)
   assert.match(
     installerSource,
     /const updateRequired = manifest\.helperVersion !== turboKeyHelperVersion/,

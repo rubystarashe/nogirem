@@ -5,12 +5,19 @@ use std::{
     path::{Path, PathBuf},
     time::{Duration, Instant},
 };
-static RENDERER_VERSION: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)\bDXVK:\s*(v[^\s]+)").unwrap());
-static RENDERER_MARKERS: std::sync::LazyLock<[regex::Regex; 6]> = std::sync::LazyLock::new(|| [
-    r"(?i)\bCreating device:", r"(?i)\bPresenter:\s*Actual swapchain properties:",
-    r"(?i)\bVulkan:\s*Found vkGetInstanceProcAddr", r"(?i)\bFound device:",
-    r"(?i)\bD3D9DeviceEx::ResetSwapChain:", r"(?i)\bDevice reset\b",
-].map(|pattern| regex::Regex::new(pattern).unwrap()));
+static RENDERER_VERSION: std::sync::LazyLock<regex::Regex> =
+    std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)\bDXVK:\s*(v[^\s]+)").unwrap());
+static RENDERER_MARKERS: std::sync::LazyLock<[regex::Regex; 6]> = std::sync::LazyLock::new(|| {
+    [
+        r"(?i)\bCreating device:",
+        r"(?i)\bPresenter:\s*Actual swapchain properties:",
+        r"(?i)\bVulkan:\s*Found vkGetInstanceProcAddr",
+        r"(?i)\bFound device:",
+        r"(?i)\bD3D9DeviceEx::ResetSwapChain:",
+        r"(?i)\bDevice reset\b",
+    ]
+    .map(|pattern| regex::Regex::new(pattern).unwrap())
+});
 fn renderer(manager: &Manager, executable: &str) -> Value {
     if !manager.game_active {
         return json!({"mode":"not-running","version":null});
@@ -64,6 +71,7 @@ struct Status {
     reorder: Value,
     reconfigure: Value,
     failure: Option<String>,
+    helper_started_at: i64,
 }
 impl Status {
     fn record(&mut self, manager: &Manager) -> Result<()> {
@@ -116,7 +124,7 @@ impl Status {
                 conflicts.push(name);
             }
         }
-        let mut value = json!({"running":running,"gameActive":running&&manager.game_active,"gameExecutablePath":self.executable,"renderer":renderer(manager,&self.executable),"includeNic":self.include_nic,"nicManaged":self.nic_managed,"backgroundCpuRange":topology["backgroundCpuRange"],"gameCpuRange":topology["gameCpuRange"],"cpuTopology":topology,"helperPid":std::process::id(),"helperAffinity":pinned,"nicStatus":self.nic_status,"appliedMarkerRecorded":!self.marker.is_null(),"conflictingPrograms":conflicts,"cpuReorder":self.reorder,"gameCoreReconfigure":self.reconfigure,"updatedAt":crate::now_ms(),"error":self.failure.as_ref().map(|e|json!({"message":e}))});
+        let mut value = json!({"running":running,"gameActive":running&&manager.game_active,"gameExecutablePath":self.executable,"renderer":renderer(manager,&self.executable),"includeNic":self.include_nic,"nicManaged":self.nic_managed,"backgroundCpuRange":topology["backgroundCpuRange"],"gameCpuRange":topology["gameCpuRange"],"cpuTopology":topology,"helperPid":std::process::id(),"helperStartedAt":self.helper_started_at,"helperAffinity":pinned,"nicStatus":self.nic_status,"appliedMarkerRecorded":!self.marker.is_null(),"conflictingPrograms":conflicts,"cpuReorder":self.reorder,"gameCoreReconfigure":self.reconfigure,"updatedAt":crate::now_ms(),"error":self.failure.as_ref().map(|e|json!({"message":e}))});
         if let Some(exit) = exit {
             value["exitAction"] = json!(exit);
             value["stoppedAt"] = json!(crate::now_ms());
@@ -178,6 +186,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
         reorder: Value::Null,
         reconfigure: Value::Null,
         failure: None,
+        helper_started_at: process::start_ms(std::process::id())?,
     };
     let mut exit = "keep";
     let outcome = (|| -> Result<()> {

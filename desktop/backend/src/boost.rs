@@ -1,5 +1,5 @@
 use crate::{
-    Result, affinity, memory, muo, nic, storage, topology,
+    Result, affinity, memory, muo, nic, process, storage, topology,
     workers::{Environment, read, remove},
 };
 use serde_json::{Value, json};
@@ -28,6 +28,27 @@ pub fn fresh(status: &Value, interval: u64, minimum: u64, now: u64) -> bool {
     status["updatedAt"].as_u64().is_some_and(|at| {
         at > 0 && now.saturating_sub(at) < interval.saturating_mul(4).max(minimum)
     })
+}
+fn helper_alive(status: &Value) -> bool {
+    status["running"] != true
+        || status["helperPid"]
+            .as_u64()
+            .and_then(|pid| u32::try_from(pid).ok())
+            .is_some_and(|pid| {
+                process::alive(pid)
+                    && status["helperStartedAt"].as_i64() == process::start_ms(pid).ok()
+            })
+}
+fn legacy_helper(status: &Value, interval: u64, now: u64) -> Option<(u32, i64)> {
+    if status["running"] != true
+        || status["helperStartedAt"].is_number()
+        || !fresh(status, interval, 30000, now)
+    {
+        return None;
+    }
+    let pid = u32::try_from(status["helperPid"].as_u64()?).ok()?;
+    let started = process::start_ms(pid).ok()?;
+    process::alive(pid).then_some((pid, started))
 }
 fn error(status: &Value, fallback: &str) -> String {
     status["error"]["message"]
@@ -142,12 +163,13 @@ impl Boost {
     pub fn affinity_runtime(&self) -> Result<Value> {
         let status = self.raw("affinity");
         let config = read(&self.env.root.join("config.json"));
-        let fresh = fresh(
-            &status,
-            config["pollIntervalMs"].as_u64().unwrap_or(5000),
-            30000,
-            crate::now_ms(),
-        );
+        let fresh = helper_alive(&status)
+            && fresh(
+                &status,
+                config["pollIntervalMs"].as_u64().unwrap_or(5000),
+                30000,
+                crate::now_ms(),
+            );
         let count =
             unsafe { windows_sys::Win32::System::Threading::GetActiveProcessorCount(0xffff) };
         let field = |name: &str| {
@@ -237,6 +259,26 @@ impl Boost {
         ))
     }
     fn launch_affinity(&self, include_nic: bool, managed: bool) -> Result<()> {
+        let previous = self.raw("affinity");
+        let interval = read(&self.env.root.join("config.json"))["pollIntervalMs"]
+            .as_u64()
+            .unwrap_or(5000);
+        if let Some((pid, started)) = legacy_helper(&previous, interval, crate::now_ms()) {
+            self.control(
+                "affinity",
+                json!({"command":"stop","reason":"version-migration"}),
+            )?;
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while Instant::now() < deadline
+                && process::alive(pid)
+                && process::start_ms(pid).ok() == Some(started)
+            {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            if process::alive(pid) && process::start_ms(pid).ok() == Some(started) {
+                return Err("이전 버전 Affinity helper를 종료하지 못했습니다".into());
+            }
+        }
         let directory = self.directory("affinity");
         let game = self.env.user.join("game/path.json");
         std::fs::create_dir_all(game.parent().unwrap()).map_err(|e| e.to_string())?;
@@ -477,6 +519,37 @@ mod tests {
         assert!(fresh(&v, 5000, 30000, 30999));
         assert!(!fresh(&v, 5000, 30000, 31000));
         assert!(!fresh(&Value::Null, 1000, 15000, 100));
+    }
+    #[test]
+    fn running_affinity_status_requires_a_live_helper() {
+        let pid = std::process::id();
+        let started = process::start_ms(pid).unwrap();
+        assert!(helper_alive(
+            &json!({"running":true,"helperPid":pid,"helperStartedAt":started})
+        ));
+        assert!(!helper_alive(
+            &json!({"running":true,"helperPid":pid,"helperStartedAt":started - 1})
+        ));
+        assert!(!helper_alive(&json!({"running":true})));
+        assert!(helper_alive(&json!({"running":false})));
+    }
+    #[test]
+    fn legacy_affinity_helper_requires_a_fresh_live_process() {
+        let pid = std::process::id();
+        let status = json!({"running":true,"helperPid":pid,"updatedAt":1000});
+        assert_eq!(
+            legacy_helper(&status, 5000, 2000),
+            Some((pid, process::start_ms(pid).unwrap()))
+        );
+        assert!(legacy_helper(&status, 5000, 31000).is_none());
+        assert!(
+            legacy_helper(
+                &json!({"running":true,"helperPid":pid,"helperStartedAt":1,"updatedAt":1000}),
+                5000,
+                2000
+            )
+            .is_none()
+        );
     }
     #[test]
     fn topology_errors_are_user_visible() {
