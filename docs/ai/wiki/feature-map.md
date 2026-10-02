@@ -3,20 +3,20 @@
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
 - revision: `5`
-- updated_at: `2026-10-02T14:50:00Z`
+- updated_at: `2026-10-02T15:30:00Z`
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-02T14:50:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
 - source_review_target: `SOURCE-MANIFEST-DXVK-043-R4, base 8f365e1f0b4566f0c41da87856e9a290b59a0d28, manifest SHA-256 8ad94541aa2daef8b158ac3b309cd93a8e6238422d99b02c708f9762ff75efba`
 - source_review_evidence: `desktop/backend/src/dxvk.rs`, `dxvk_manager.rs`, DXVK Rust·Node 회귀 테스트
-- behavior_verified_at: `2026-10-02T14:50:00Z`
+- behavior_verified_at: `2026-10-02T15:30:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `SOURCE-MANIFEST-DXVK-043-R4`
+- behavior_verification_target: `source commit 567ab935aad7d69476829b1e6a2e5a64d6c0eec7 + GitHub v0.4.3 public assets replaced at 2026-10-02T15:25Z`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration tests와 Node source-contract tests`
-- behavior_verification_evidence: `backend 73 중 71 PASS·2 declared ignore와 integration 2/2, DXVK 회귀 14/14, Node 203/203, desktop locked check`
+- behavior_verification_evidence: `backend 73 중 71 PASS·2 declared ignore와 integration 2/2, DXVK 14/14, Node 203/203, desktop locked check, signed package, release assembly 10/10, 공개 재다운로드 SHA-256·Ed25519 검증`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.3 DXVK 저장·게임 적용 경로와 자동 검증을 현재 source에 맞춰 반영함`
-- known_gaps: `문제를 제보한 사용자 PC의 보안 제품·실제 마비노기 폴더 대상 수동 재현과 대치 payload 공개 검증은 아직 NOT_RUN`
+- freshness_reason: `0.4.3 DXVK 저장·게임 적용 경로와 대치 공개 payload를 source·자동·배포 검증에 맞춰 반영함`
+- known_gaps: `문제를 제보한 사용자 PC의 보안 제품·실제 마비노기 폴더 대상 수동 재현은 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-DXVK — 게임 경로 선검증, Windows 원자 교체, 보안 격리·권한 오류 안내`
 - feature_map: `updated — DXVK 기능 identity와 저장·적용·복구 흐름을 추가함`
 - architecture_impact: `DXVK release 저장소와 게임 폴더 writer 경계, 검증된 game path, SetFileInformationByHandle replace transaction`

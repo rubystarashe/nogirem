@@ -23,17 +23,17 @@
 
 ## 계획·상태
 
-- DEV: `READY_FOR_QA`
-- QA: `COMPLETE_PASS for changed source automated scope`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
 - review: `APPROVED round 4`
-- release: `NOT_STARTED`
+- release: `COMPLETED`
 
 1. `COMPLETED` — 저장·적용 단계의 raw OS 오류 원인과 잘못된 게임 경로 선검증 누락 확인
 2. `COMPLETED` — game path 선·후 검증, same-directory 임시 파일, Windows replace, 임시·최종 hash 검증과 단계별 오류 구현
 3. `COMPLETED` — 경로 누락·기존 DLL 교체 회귀와 전체 자동 검사
 4. `COMPLETED` — 4개 round에서 mandatory finding 6개 수정, exact source target 독립 review 승인
-5. `IN_PROGRESS` — source checkpoint commit, signed package 생성·검증
-6. `NOT_STARTED` — GitHub v0.4.3 자산 대치·공개 검증·push·최종 handoff
+5. `COMPLETED` — source checkpoint commit, signed package 생성·검증
+6. `COMPLETED` — GitHub v0.4.3 자산 대치·공개 검증·최종 handoff; push만 마지막 기록 commit 뒤 수행
 
 ## 수용 기준·시나리오
 
@@ -54,7 +54,10 @@
 - `PASS` — round 4 DXVK 전용 `14/14`, Node `203/203`, desktop locked check
 - `PASS` — 변경 파일 IDE lint와 `git diff --check`
 - `FAIL → FIXED` — 빈 최신 `REPORT.json`과 삭제된 과거 report ID를 결합한 오래된 test fixture를 현재 유효 응답 구조 검증으로 수정한 뒤 Node `203/203`
-- `NOT_RUN` — 제보 사용자 PC의 보안 제품 격리, 실제 게임 폴더 적용, signed package와 공개 자산 검증
+- `PASS` — signed installer·portable package, NSIS warning-as-error, native contract, WebView2 bootstrap 서명, Ed25519 manifest 생성·검증
+- `PASS` — release assembly 10/10, canonical/alias byte identity, Electron 0.3.19 bridge·turbo-key 0.1.8 보존
+- `PASS` — GitHub 공개 자산 10개 재다운로드 SHA-256 일치와 공개 파일 입력 Ed25519·Electron bridge 재검증
+- `NOT_RUN` — 제보 사용자 PC의 보안 제품 격리와 실제 게임 폴더 적용
 
 ## 독립 review
 
@@ -79,6 +82,32 @@
 - source diff SHA-256: `0ac7944b89344711a23fe48c5a581e8a8a41a8adf06878a87c4acce2273fad27`
 - index: unchanged
 - untracked source/test files: none
+
+## 배포 후보와 공개 결과
+
+- package source commit: `567ab935aad7d69476829b1e6a2e5a64d6c0eec7`
+- build: `release/dioxus-0.4.3-2026-10-02T15-20-01-171Z`
+- candidate: `release/ready-v0.4.3-2026-10-02T15-24-35-158Z`
+- installer canonical/alias SHA-256: `087cad916f2250df18c9c6b5d92713b5326c0e56f18f16053a2b317566d9f285`
+- portable canonical/alias SHA-256: `7104e2dbd23d4d819d13062b8ef9f5aeb6ec50619a10c0b358a33fe1d0079fe0`
+- update manifest SHA-256: `9573b097cdf251e28e5f702850c53613686e7932f64fd977c618d2374033bc18`
+- portable manifest SHA-256: `193e3b66005a77fddf80cf425d804cd503d1d35c9bca4bb2295c2442db8dc8`
+- preserved turbo-key SHA-256: `5b1e79528b615cd02ca7a7ec59a45a0f0942e58130c8ac0bc6540fb4ccd78936`
+- GitHub release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.3`
+- release state: `10 assets uploaded, draft=false, prerelease=false, 역할 label 복원 완료`
+- public verification: `후보와 공개 10/10 SHA-256 일치; 공개 다운로드를 입력으로 prepare-release 재실행 PASS`
+
+## 완료 게이트와 최종 상태
+
+- overall: `COMPLETED`
+- feature gate: `PASS — FEAT-NOGIREM-DXVK 기능 map과 exact source·behavior evidence 갱신`
+- architecture gate: `PASS — canonical/reparse·Win32 handle identity·handle rename·backup rollback 경계와 enforcement 통과`
+- review and QA gate: `PASS — independent APPROVED, ISSUE-DXVK-043-001~006 RESOLVED, 자동·package·공개 검증 통과`
+- target and authorization gate: `PASS except final push pending — source commit과 package/public digest 식별, 기존 v0.4.3 tag rewrite 없음`
+- commit: `567ab935aad7d69476829b1e6a2e5a64d6c0eec7 plus final documentation commit pending`
+- push: `PENDING — final documentation commit 후 origin/main`
+- deployment/activation: `GitHub v0.4.3 release assets replaced`; 사용자 장치 설치·실행은 `NOT_RUN`
+- remaining risk: 실제 제보 PC의 AV 격리·게임 폴더 ACL에서 수동 재현하지 못했으며, 동일 0.4.3 사용자는 자동 버전 증가가 없어 대치본을 수동 재설치해야 할 수 있다.
 
 ## 검증 한계·중단 조건
 
