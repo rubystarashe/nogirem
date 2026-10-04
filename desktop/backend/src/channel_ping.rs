@@ -267,6 +267,35 @@ enum InputEvent {
 static INPUT_EVENTS: Mutex<Option<SyncSender<InputEvent>>> = Mutex::new(None);
 static INPUT_KEYS: Mutex<[bool; 256]> = Mutex::new([false; 256]);
 static INPUT_OVERFLOW: AtomicBool = AtomicBool::new(false);
+static INPUT_OVERLAY_WINDOW: Mutex<Option<(u64, isize)>> = Mutex::new(None);
+
+pub fn set_input_overlay_window(window: Option<(u64, isize)>) {
+    if let Ok(mut registered) = INPUT_OVERLAY_WINDOW.lock() {
+        *registered = window;
+    }
+}
+
+pub fn clear_input_overlay_window(window_id: u64) {
+    if let Ok(mut registered) = INPUT_OVERLAY_WINDOW.lock()
+        && registered.is_some_and(|(id, _)| id == window_id)
+    {
+        *registered = None;
+    }
+}
+
+#[cfg(windows)]
+fn hide_input_overlay() {
+    if let Ok(mut registered) = INPUT_OVERLAY_WINDOW.lock()
+        && let Some((_, hwnd)) = registered.take()
+    {
+        unsafe {
+            windows_sys::Win32::UI::WindowsAndMessaging::ShowWindowAsync(
+                hwnd as _,
+                windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE,
+            );
+        }
+    }
+}
 
 pub struct InputMonitor {
     ignored: [bool; 256],
@@ -362,6 +391,7 @@ fn take_input_overflow(ignored: &mut [bool; 256]) -> bool {
 
 impl Drop for InputMonitor {
     fn drop(&mut self) {
+        set_input_overlay_window(None);
         self.stopping.store(true, Ordering::Release);
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
@@ -430,6 +460,9 @@ unsafe extern "system" fn keyboard_hook(
                 true
             });
             if edge {
+                if down {
+                    hide_input_overlay();
+                }
                 send_input_event(InputEvent::Key {
                     code: key,
                     down,
@@ -460,6 +493,7 @@ unsafe extern "system" fn mouse_hook(
             WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN | WM_XBUTTONDOWN
         )
     {
+        hide_input_overlay();
         send_input_event(InputEvent::MouseDown);
     }
     unsafe { CallNextHookEx(std::ptr::null_mut(), code, parameter, data) }
@@ -869,6 +903,18 @@ mod tests {
             decide_event(true, InputEvent::MouseDown, &mut [false; 256], None),
             InputDecision::Hide
         );
+    }
+
+    #[test]
+    fn 표시된_native_창_handle을_등록하고_해제한다() {
+        let _guard = INPUT_TEST_LOCK.lock().unwrap();
+        set_input_overlay_window(Some((7, 123)));
+        assert_eq!(*INPUT_OVERLAY_WINDOW.lock().unwrap(), Some((7, 123)));
+        clear_input_overlay_window(8);
+        assert_eq!(*INPUT_OVERLAY_WINDOW.lock().unwrap(), Some((7, 123)));
+        clear_input_overlay_window(7);
+        assert_eq!(*INPUT_OVERLAY_WINDOW.lock().unwrap(), None);
+        set_input_overlay_window(None);
     }
 
     #[test]

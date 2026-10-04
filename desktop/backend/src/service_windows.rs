@@ -1,6 +1,6 @@
 use crate::{
     Result,
-    channel_ping::OverlayBounds,
+    channel_ping::{OverlayBounds, clear_input_overlay_window, set_input_overlay_window},
     rpc::Rpc,
     storage,
     workers::{Environment, read},
@@ -93,13 +93,28 @@ impl Windows {
     pub fn channel_ping_id(&self) -> Option<u64> {
         self.id("channel-ping-overlay")
     }
+    pub fn arm_channel_ping_input(&self, id: u64, hwnd: isize) -> bool {
+        let state = self.state.lock().unwrap();
+        let valid = state.windows.get(&id).is_some_and(|window| {
+            window.kind == "channel-ping-overlay"
+                && window.state["hwnd"].as_u64() == Some(hwnd as u64)
+        });
+        if valid {
+            set_input_overlay_window(Some((id, hwnd)));
+        }
+        valid
+    }
     pub fn prepare_channel_ping(self: &Arc<Self>) -> Result<()> {
         self.open("channel-ping-overlay", false).map(|_| ())
     }
-    pub fn show_channel_ping(self: &Arc<Self>, bounds: OverlayBounds) -> Result<u64> {
+    pub fn show_channel_ping(self: &Arc<Self>, bounds: OverlayBounds) -> Result<(u64, isize)> {
         let id = self
             .id("channel-ping-overlay")
             .ok_or("채널 핑 오버레이가 준비되지 않았습니다")?;
+        let hwnd = self
+            .get(id)
+            .and_then(|window| window.state["hwnd"].as_u64())
+            .ok_or("채널 핑 오버레이의 native 창을 찾지 못했습니다")?;
         self.command(
             id,
             "physicalBounds",
@@ -114,11 +129,17 @@ impl Windows {
         self.command(id, "focusable", json!(false));
         self.command(id, "ignoreMouseEvents", json!(true));
         self.command(id, "opacity", json!(1));
-        self.command(id, "showInactive", Value::Null);
+        self.rpc.request(
+            "window.command",
+            json!({"windowId":id,"action":"showInactive","value":Value::Null}),
+        )?;
+        if let Some(window) = self.state.lock().unwrap().windows.get_mut(&id) {
+            window.state["visible"] = json!(true);
+        }
         if self.channel_ping_id() != Some(id) {
             return Err("채널 핑 오버레이가 표시 중 다시 생성되었습니다".into());
         }
-        Ok(id)
+        Ok((id, hwnd as isize))
     }
     pub fn hide_channel_ping(&self) {
         if let Some(id) = self.id("channel-ping-overlay") {
@@ -126,8 +147,24 @@ impl Windows {
         }
     }
     pub fn destroy_channel_ping(&self) {
-        if let Some(id) = self.id("channel-ping-overlay") {
-            self.destroy(id);
+        let removed = {
+            let mut state = self.state.lock().unwrap();
+            let id = state
+                .windows
+                .values()
+                .find(|window| window.kind == "channel-ping-overlay")
+                .map(|window| window.id);
+            id.and_then(|id| {
+                clear_input_overlay_window(id);
+                state.windows.remove(&id)
+            })
+        };
+        let Some(window) = removed else { return };
+        for action in ["hide", "destroy"] {
+            self.rpc.native(
+                "window.command",
+                json!({"windowId":window.id,"action":action,"value":Value::Null}),
+            );
         }
     }
     pub fn command(&self, id: u64, action: &str, value: Value) {
@@ -383,6 +420,13 @@ impl Windows {
         self.notify_visual();
     }
     pub fn destroy(&self, id: u64) {
+        if self
+            .get(id)
+            .is_some_and(|window| window.kind == "channel-ping-overlay")
+        {
+            self.destroy_channel_ping();
+            return;
+        }
         self.command(id, "hide", Value::Null);
         self.command(id, "destroy", Value::Null);
         self.state.lock().unwrap().windows.remove(&id);
@@ -578,9 +622,21 @@ impl Windows {
                 drag: None,
             },
         );
-        if let Err(e)=self.rpc.request("window.open",json!({"windowId":id,"file":self.env.root.join(format!("{kind}.html")),"options":options})){self.state.lock().unwrap().windows.remove(&id);return Err(e);}
+        let opened = match self.rpc.request(
+            "window.open",
+            json!({"windowId":id,"file":self.env.root.join(format!("{kind}.html")),"options":options}),
+        ) {
+            Ok(opened) => opened,
+            Err(error) => {
+                self.state.lock().unwrap().windows.remove(&id);
+                return Err(error);
+            }
+        };
         if let Some(w) = self.state.lock().unwrap().windows.get_mut(&id) {
             w.loaded = true;
+            if let Some(hwnd) = opened["hwnd"].as_u64() {
+                w.state["hwnd"] = json!(hwnd);
+            }
         }
         if reveal {
             self.reveal_aux(id);

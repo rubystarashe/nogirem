@@ -540,6 +540,7 @@ impl Host {
                 let size = window.inner_size().to_logical::<f64>(window.scale_factor());
                 client.notify("window",json!({"windowId":id,"event":"move","state":{"x":p.x,"y":p.y,"width":size.width,"height":size.height}}));
                 window.set_visible(options["show"] != false);
+                return Ok(json!({"hwnd":window.hwnd() as usize}));
             }
             "window.command" => {
                 let id = params["windowId"].as_u64().ok_or("Missing window id")?;

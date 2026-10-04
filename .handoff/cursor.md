@@ -1,6 +1,6 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-05 05:37 +09:00
+Last Updated: 2026-10-05 06:00 +09:00
 
 ## Current Objective
 Rust·Dioxus 고급 기능에 채널별 TCP 지연시간 오버레이를 추가한다.
@@ -25,8 +25,9 @@ Rust·Dioxus 고급 기능에 채널별 TCP 지연시간 오버레이를 추가�
 - 검증된 마비노기 전경에서 좌·우 Windows 키 down 시 client rect·DPI로 중앙 위치를 계산해 720×430 반투명 click-through·비활성·topmost 창을 표시한다.
 - 표시 trigger 당시 눌린 입력은 release까지 무시하며 그 외 keyboard·mouse down edge에 창을 숨긴다. 고급 기능에서 상태를 저장해 켜고 끈다.
 - 수동 활성화에서 발견된 `Unknown auxiliary document`는 Dioxus native 허용 목록의 `channel-ping-overlay.html` 누락이 원인이며 수정했다. 정지 화면의 `터보키 제거하기` 버튼은 피드백에 따라 최소 너비 72px·좌우 5px 여백으로 축소했다.
-- 표시 뒤 입력이 닫히지 않던 상태 경쟁을 피하도록 input monitor loop가 성공한 show/hide 상태를 직접 추적한다. 오버레이 외곽 여백·잘리는 그림자를 제거하고 채널을 `1~15`, `16~29`, `30~38` 세로 3열로 재배치했다.
-- 후속 자동 검사는 channel ping 관련 10/10, overlay-interface 3/3, desktop locked check, 변경 파일 lint 0을 통과했고 창 재생성 경쟁 수정까지 독립 재리뷰 `APPROVED`를 받았다. 수정 빌드의 물리 입력 숨김·외곽 마감·3열 배치·버튼 시각 재확인은 남아 있다.
+- 표시 뒤 입력이 닫히지 않던 상태 경쟁을 피하도록 input monitor loop가 성공한 show/hide 상태와 native window ID를 추적한다. 실제 QA에서 여전히 남은 문제는 검증된 `(window ID, HWND)`를 hook에 등록해 다음 down callback에서 즉시 숨기고, registry 제거 전 등록을 해제하는 방식으로 보강했다.
+- 오버레이 외곽 여백·잘리는 그림자를 제거하고 채널을 `1~15`, `16~29`, `30~38` 세로 3열로 재배치했다. 채널명·핑 간격을 줄이고 우상단 로고, 실시간 `n초 전` 표시, 5/10/15ms 색상 경계와 최저 핑 단일 강조를 적용했다.
+- 후속 자동 검사는 channel ping 관련 11/11, overlay-interface 3/3, desktop locked check, JavaScript syntax, 변경 파일 lint 0을 통과했고 HWND 수명 경합 수정까지 독립 재리뷰 `APPROVED`를 받았다. 최신 빌드의 물리 입력 즉시 숨김과 최종 시각 확인은 남아 있다.
 - channel ping 8/8을 기본 병렬 설정으로 10회 반복했고 backend 79 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check가 통과했다. 독립 review는 모든 must-fix 해결 후 `APPROVED`다. 실제 게임·DPI·물리 입력과 package 실행은 NOT_RUN이며 push·배포는 하지 않았다.
 - DXVK install은 실제 `Client.exe`, 허용 폴더·launcher, canonical parent와 파일·상위 reparse를 다운로드 전에 확인하고, file replace 직전에 경로 변경·게임 실행을 다시 차단한다.
 - 저장소와 게임 폴더 DLL은 디렉터리·staged·기존 파일 handle identity를 유지·재확인하고 UUID 임시 파일과 기존 파일 backup을 flush·hash 검증한 뒤 staged handle의 `SetFileInformationByHandle`로 교체한다. 외부 deployment I/O 오류·불일치까지 backup을 유지하며 복구 실패 시 수동 복구용으로 보존한다.

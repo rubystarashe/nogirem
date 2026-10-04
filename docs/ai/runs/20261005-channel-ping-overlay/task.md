@@ -108,6 +108,28 @@
 - architecture_impact: `overlay visibility authority를 비동기 window state에서 input monitor loop의 로컬 상태로 이동`
 - architecture_contract: `no_change — 기존 service-owned 보조 창·입력 adapter 경계 안의 상태 추적 수정`
 
+### 실제 QA 재현과 native 즉시 숨김 보강
+
+- feedback_id: `CP-FEEDBACK-019`
+- classification: `DEFECT`, severity: `HIGH`, must_fix: `true`, status: `READY_FOR_VERIFICATION`
+- reported behavior: 상태 추적 수정 빌드에서도 키보드·마우스 down 후 오버레이가 실제 화면에서 사라지지 않음.
+- disposition: `FIXED — native open 응답의 HWND를 window ID와 함께 검증·등록하고, 다음 low-level down callback에서 ShowWindowAsync(SW_HIDE)를 즉시 enqueue한 뒤 기존 상태 이벤트를 처리함`
+- safety: 등록·hook hide·파괴는 `window registry state → input registration` 순서로 잠그고, hook은 hide enqueue 반환까지 등록 잠금을 유지한다. 일반 hide/destroy는 raw HWND를 사용하지 않고 native window ID 명령만 사용한다.
+- feedback_id: `CP-FEEDBACK-020`
+- classification: `REQUIREMENT_CLARIFICATION`, severity: `MEDIUM`, must_fix: `true`, status: `READY_FOR_VERIFICATION`
+- requested behavior: 채널명과 핑 간격 축소, 우상단 시각 제거와 로고 watermark, `n초 전에 측정했습니다` 실시간 표시, 5~10ms 노랑·10~15ms 주홍·15ms 이상 빨강, 최저 핑 채널 단일 highlight.
+- disposition: `FIXED — 42px label column과 6px gap, 1초 age 갱신, 경계별 색상 및 첫 최저값 강조를 적용함`
+- validation: `PASS — channel ping 관련 11/11`, `PASS — overlay-interface 3/3`, `PASS — desktop locked check`, `PASS — JavaScript syntax`, `PASS — 변경 파일 IDE lint 0`
+- manual verification: `NOT_RUN — 최신 수정 빌드에서 실제 물리 입력 즉시 숨김과 최종 시각 표현 확인 필요`
+- review_mode: `INDEPENDENT_REVIEW`
+- reviewer: `generalPurpose agent 7a370aca-f40b-449a-87c1-80340497cfe8`
+- review_rounds: `CHANGES_REQUESTED 2회 — raw HWND 등록·파괴 및 검증-사용 경합`, `APPROVED — ISSUE-CP-019 RESOLVED, 새 must-fix 0`
+- review_target: `base b95f053804a38e56d1cf34dff21fa6f041d0b4e5, uncommitted diff SHA-256 550b4f0e1174289cd898dad394ecb729ef319320bdf4a2c46b51492bed99f9c9`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 물리 입력 종료 경로와 지연시간 상태·강조 표현 변경`
+- feature_map: `no_change — 기존 종료·측정 기능 정의는 정확하며 구현 신뢰성과 표시만 수정`
+- architecture_impact: `native HWND identity 전달, low-level hook hide enqueue, window registry와 input registration 수명 잠금`
+- architecture_contract: `no_change — 기존 native window adapter와 input monitor 경계 안에서 lifetime을 결합`
+
 ## 최종 상태
 
 - disposition: `PARTIALLY_COMPLETED — source·자동 QA·독립 review 완료, 실제 게임·package QA 미실행`

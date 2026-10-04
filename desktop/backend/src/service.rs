@@ -2,7 +2,7 @@ use crate::{
     Result, app_services,
     blackbox::{self, Blackbox, EditorSession},
     boost::Boost,
-    channel_ping::{ChannelPing, InputDecision, InputMonitor},
+    channel_ping::{ChannelPing, InputDecision, InputMonitor, set_input_overlay_window},
     dxvk_manager, graphics,
     inputs::Inputs,
     network_manager,
@@ -392,6 +392,7 @@ impl Service {
         while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
             let enabled = self.channel_ping.enabled();
             if !enabled {
+                set_input_overlay_window(None);
                 input = None;
                 if overlay_visible || self.windows.channel_ping_visible() {
                     self.windows.hide_channel_ping();
@@ -426,6 +427,9 @@ impl Service {
                 self.windows.channel_ping_id(),
                 &mut overlay_visible,
             );
+            if !overlay_visible {
+                set_input_overlay_window(None);
+            }
             match input
                 .as_mut()
                 .unwrap()
@@ -434,28 +438,40 @@ impl Service {
                 InputDecision::Show(bounds) => {
                     if self.channel_ping.enabled() {
                         match self.windows.show_channel_ping(bounds) {
-                            Ok(window_id) => mark_overlay_shown(
-                                &mut overlay_window_id,
-                                &mut overlay_visible,
-                                window_id,
-                            ),
+                            Ok((window_id, hwnd)) => {
+                                if self.windows.arm_channel_ping_input(window_id, hwnd) {
+                                    mark_overlay_shown(
+                                        &mut overlay_window_id,
+                                        &mut overlay_visible,
+                                        window_id,
+                                    );
+                                } else {
+                                    overlay_visible = false;
+                                    self.windows.hide_channel_ping();
+                                    log("채널 핑 오버레이가 표시 중 다시 생성되었습니다");
+                                }
+                            }
                             Err(error) => {
+                                set_input_overlay_window(None);
                                 overlay_visible = false;
                                 log(format!("채널 핑 오버레이 표시 실패: {error}"));
                             }
                         }
                     }
                     if !self.channel_ping.enabled() {
+                        set_input_overlay_window(None);
                         self.windows.destroy_channel_ping();
                         overlay_visible = false;
                         overlay_window_id = None;
                     }
                 }
                 InputDecision::Hide => {
+                    set_input_overlay_window(None);
                     self.windows.hide_channel_ping();
                     overlay_visible = false;
                 }
                 InputDecision::Unavailable => {
+                    set_input_overlay_window(None);
                     self.windows.hide_channel_ping();
                     overlay_visible = false;
                     self.channel_ping
@@ -466,6 +482,7 @@ impl Service {
                 InputDecision::None => {}
             }
         }
+        set_input_overlay_window(None);
         self.windows.hide_channel_ping();
     }
     fn check_startup_network(&self) {
