@@ -604,7 +604,7 @@ fn game_bounds(env: &Environment, window: usize) -> Option<OverlayBounds> {
         return None;
     }
     let scale = f64::from(unsafe { GetDpiForWindow(window) }.max(96)) / 96.0;
-    let width = 720.0;
+    let width = 584.0;
     let height = 430.0;
     let physical_width = width * scale;
     let physical_height = height * scale;
@@ -840,7 +840,7 @@ mod tests {
         let bounds = OverlayBounds {
             x: 0.0,
             y: 0.0,
-            width: 720.0,
+            width: 584.0,
             height: 430.0,
         };
         assert_eq!(
