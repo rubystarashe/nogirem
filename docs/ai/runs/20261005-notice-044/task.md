@@ -1,0 +1,33 @@
+# 0.4.4 채널별 핑 신규 기능 공지
+
+- run_id: `20261005-notice-044`
+- checkpoint_id: `CP-NOTICE-044`
+- owner: `Cursor Agent`
+- created_at: `2026-10-04T22:06:00Z`
+- repository: `rubystarashe/nogirem`
+- branch: `main`
+- source_base: `6d7a424f9de1aaf1c95f7e98d2ded9cc9fe17186`
+- roles: `Cursor Agent = Coordinator + DEV + QA + Documentation maintainer`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 0.4.4 신규 기능 소개 공지와 화면 이미지`
+- feature_map: `no_change — 제품 동작·검증 범위는 바뀌지 않고 기존 기능을 소개함`
+- architecture_impact: `none — 공지 Markdown·원격 정적 이미지·표시 크기만 변경`
+- architecture_contract: `no_change — 기존 HTTPS 공지 이미지 경로를 사용`
+
+## 요청·범위
+
+- 요청: 제공된 채널별 핑 이미지를 GitHub raw 경로에서 불러오는 신규 기능 공지로 `NOTICE.md`를 작성하고 테스트 앱에서 확인한다.
+- 포함: package에 포함되지 않는 `docs/notices/channel-ping-0.4.4.png`, 공지 문안, 이미지 전체 표시 스타일, 로컬 interactive preview.
+- 게시 순서: 이미지 raw URL 확보를 위해 이미지와 run 상태만 먼저 push한다. `NOTICE.md`는 시각 확인 전 원격에 push하지 않는다.
+- risk: `LOW — 제품 동작·데이터·통합 경계를 바꾸지 않는 공지 콘텐츠와 국소 표시 스타일이며 원격 공지 공개는 별도 확인 전 보류`
+
+## 상태·수용 기준
+
+- DEV: `IN_PROGRESS`
+- QA: `PLANNED`
+- review: `NOT_REVIEWED`
+- publishing: `IMAGE_ONLY_AUTHORIZED`
+
+- 이미지 URL은 HTTPS raw GitHub 주소이며 package script 입력에 포함되지 않는다.
+- 공지는 류트 서버 한정, 고급 기능 활성화, Windows 키 표시, 입력 시 닫기와 측정값 의미를 정확히 설명한다.
+- 제공된 이미지가 잘리지 않고 공지 폭에 맞게 표시된다.
+- 테스트 앱이 production 공지 renderer로 `NOTICE.md`를 열고 screenshot·구조 결과를 남긴다.
