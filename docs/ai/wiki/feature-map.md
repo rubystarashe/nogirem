@@ -2,30 +2,72 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `5`
-- updated_at: `2026-10-02T15:30:00Z`
+- revision: `6`
+- updated_at: `2026-10-04T20:00:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-02T14:50:00Z`
+- source_reviewed_at: `2026-10-04T20:00:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `SOURCE-MANIFEST-DXVK-043-R4, base 8f365e1f0b4566f0c41da87856e9a290b59a0d28, manifest SHA-256 8ad94541aa2daef8b158ac3b309cd93a8e6238422d99b02c708f9762ff75efba`
-- source_review_evidence: `desktop/backend/src/dxvk.rs`, `dxvk_manager.rs`, DXVK Rust·Node 회귀 테스트
-- behavior_verified_at: `2026-10-02T15:30:00Z`
+- source_review_target: `working tree based on ac3abe73a4b32785e5319e84178dd457310a66b6, run 20261005-channel-ping-overlay`
+- source_review_evidence: `channel_ping.rs`, `service.rs`, `service_windows.rs`, `ui.rs`, overlay HTML/preload, package script와 변경 diff SELF_REVIEW`
+- behavior_verified_at: `2026-10-04T20:00:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 567ab935aad7d69476829b1e6a2e5a64d6c0eec7 + GitHub v0.4.3 public assets replaced at 2026-10-02T15:25Z`
+- behavior_verification_target: `working tree based on ac3abe73a4b32785e5319e84178dd457310a66b6`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration tests와 Node source-contract tests`
-- behavior_verification_evidence: `backend 73 중 71 PASS·2 declared ignore와 integration 2/2, DXVK 14/14, Node 203/203, desktop locked check, signed package, release assembly 10/10, 공개 재다운로드 SHA-256·Ed25519 검증`
+- behavior_verification_evidence: `channel ping 8/8을 기본 병렬 설정으로 10회 반복 PASS, backend 79 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.3 DXVK 저장·게임 적용 경로와 대치 공개 payload를 source·자동·배포 검증에 맞춰 반영함`
-- known_gaps: `문제를 제보한 사용자 PC의 보안 제품·실제 마비노기 폴더 대상 수동 재현은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-DXVK — 게임 경로 선검증, Windows 원자 교체, 보안 격리·권한 오류 안내`
-- feature_map: `updated — DXVK 기능 identity와 저장·적용·복구 흐름을 추가함`
-- architecture_impact: `DXVK release 저장소와 게임 폴더 writer 경계, 검증된 game path, SetFileInformationByHandle replace transaction`
-- architecture_contract: `updated — agent-friendly-architecture.md에 DXVK 단일 writer와 파일 교체 경계를 추가함`
+- freshness_reason: `채널 핑 source·자동 검사 범위를 현재 working tree와 일치시킴`
+- known_gaps: `실제 마비노기 창의 Windows 키·click-through·topmost 수동 QA, package와 GitHub 원격 channel.csv 조회는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — endpoint 동기화, 지연시간 이동 평균, 게임 중앙 입력 연동 오버레이`
+- feature_map: `updated — 신규 기능 identity·흐름·writer·시나리오·검증 범위를 추가함`
+- architecture_impact: `채널 CSV/cache writer, TCP worker, foreground input adapter, click-through auxiliary window`
+- architecture_contract: `updated — agent-friendly-architecture.md에 채널 핑 기능 경계와 금지 규칙을 추가함`
 
 ## ID 할당
 
 - 새 ID는 저장소 이름을 포함한 `FEAT-NOGIREM-<CAPABILITY>` 형식으로 maintainer가 예약한다.
 - 공개된 ID는 이름이 바뀌어도 재사용하거나 번호를 바꾸지 않는다. 분할·병합·제거 시 기존 identity를 tombstone으로 유지한다.
+
+## FEAT-NOGIREM-CHANNEL-PING
+
+- canonical_name: `마비노기 채널별 핑 오버레이`
+- aliases: `채널 핑`, `핑 오버레이`
+- lifecycle: `PLANNED`
+- lifecycle_reason: `Rust source 구현과 자동 검사는 완료했으나 package·release와 실제 게임 수동 검증 전이므로 사용자에게 전달된 기능으로 보지 않음`
+- owners: `product=nogirem maintainer`, `technical=channel ping backend owner`
+- purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 TCP 연결 지연시간을 1분마다 측정하고 최근 성공 5회의 평균을 메모리에 유지한다. 마비노기가 전경일 때 좌·우 Windows 키를 누르면 게임 client 중앙에 클릭 통과·비활성·topmost 반투명 표를 표시한다.
+- exclusions: ICMP 왕복시간, 서버 내부 처리시간, 패킷 손실률, 임의 endpoint·URL 입력, Windows 키 차단, 게임 프로세스 주입은 지원하지 않는다.
+- personas_permissions_accessibility_entry: Windows 사용자가 고급 기능에서 선택적으로 켜고 끈다. 각 채널 상태는 숫자와 `측정 중`·`연결 실패`·`정보 없음` 문구로 표시해 색상에만 의존하지 않는다.
+- preconditions_dependencies: Windows, 실행 중인 Rust 앱, 검증 가능한 마비노기 `Client.exe`, 저수준 keyboard·mouse hook, 고정 GitHub raw HTTPS URL, WebView2, 공개 채널 TCP endpoint.
+- normal_error_cancel_retry_flow: 앱 시작 시 원격 CSV를 제한 크기·UTF-8·header·연속 channel·IP·port 기준으로 검증하고 성공 시 cache에 원자 저장한다. 실패하면 마지막 유효 cache, 그다음 package CSV를 사용한다. endpoint 연결 실패가 있으면 시작 확인 이후 최대 1시간에 한 번 원격 파일을 다시 확인한다.
+- concurrency_partial_failure_recovery: CSV 갱신 operation lock이 cache 교체를 직렬화하고 RwLock snapshot이 overlay reader와 측정 worker를 분리한다. 채널별 측정은 병렬이며 한 채널 실패가 다른 평균을 지우지 않는다. endpoint가 바뀐 채널만 이전 표본을 폐기한다.
+- state_side_effects_limits: `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv` cache만 지속한다. 평균·실패 상태는 메모리에만 있으며 앱 종료 시 폐기된다. 기능을 끄면 입력 hook을 제거하고 TCP 측정을 하지 않는다.
+- modules_contracts: `desktop/src/ui.rs` → `service.rs` → `channel_ping.rs`; `service_windows.rs`와 `desktop/src/native.rs`가 제한된 auxiliary window command를 중계하고 overlay preload는 읽기 전용 status IPC 하나만 노출한다.
+- durable_data_owner: `channel_ping.rs`가 setting과 CSV cache의 유일한 writer다. 패키지 `channel.csv`는 fallback source이며 packager만 배포 payload에 복사한다.
+- security_privacy: 고정 HTTPS URL과 IP literal·port만 허용하며 사용자 endpoint나 인증값을 받지 않는다. 전경 PID의 실제 실행 경로가 정본 게임 조건을 충족할 때만 표시한다. 공개 endpoint 외 사용자 데이터를 전송하지 않는다.
+- scenarios: `PING-001 startup 원격 갱신`, `PING-002 cache·package fallback`, `PING-003 1분 측정·5회 평균`, `PING-004 실패 중 1시간 갱신`, `PING-005 게임 전경 Win 키 표시`, `PING-006 후속 모든 down 숨김`, `PING-007 비활성 유휴`, `PING-008 package 입력`
+- observability_evidence: 고급 기능 sync fallback 문구, overlay 측정 시각·채널 상태, `channel_ping.rs` unit tests, `test/overlay-interface.test.mjs`, native IPC contract test.
+- architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 채널 핑 network·input·auxiliary window 경계.
+- record_id: `FEAT-NOGIREM-CHANNEL-PING`
+- owner: `nogirem maintainer`
+- revision: `1`
+- updated_at: `2026-10-04T20:00:00Z`
+- updated_by: `cursor-agent-92251f36`
+- source_reviewed_at: `2026-10-04T20:00:00Z`
+- source_reviewed_by: `cursor-agent-92251f36`
+- source_review_target: `working tree based on ac3abe73a4b32785e5319e84178dd457310a66b6`
+- source_review_evidence: `run 20261005-channel-ping-overlay, source diff SELF_REVIEW`
+- behavior_verified_at: `2026-10-04T20:00:00Z`
+- behavior_verified_by: `cursor-agent-92251f36`
+- behavior_verification_target: `working tree based on ac3abe73a4b32785e5319e84178dd457310a66b6`
+- behavior_verification_environment: `Windows 10.0.26200 x64, automated tests only`
+- behavior_verification_evidence: `channel ping 8/8을 기본 병렬 설정으로 10회 반복 PASS, backend 79 PASS·2 ignore와 integration 2/2, Node 203/203, desktop locked check`
+- freshness_status: `CURRENT`
+- freshness_reason: `현재 source에 구현된 범위와 미배포·미수동검증 gap을 분리해 기록함`
+- known_gaps: `실제 게임 전경 표시·DPI별 중앙 정렬·모든 물리 입력 down·원격 갱신·package 실행은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 신규 기능 전체`
+- feature_map: `updated — 이 entry를 신규 canonical identity로 추가`
+- architecture_impact: `channel ping capability·cache writer·Win32 input·auxiliary window 경계`
+- architecture_contract: `updated — 관련 contract section과 연결`
 
 ## FEAT-NOGIREM-FRAME-BOOST
 

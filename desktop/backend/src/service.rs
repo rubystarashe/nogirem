@@ -2,6 +2,7 @@ use crate::{
     Result, app_services,
     blackbox::{self, Blackbox, EditorSession},
     boost::Boost,
+    channel_ping::{ChannelPing, InputDecision, InputMonitor},
     dxvk_manager, graphics,
     inputs::Inputs,
     network_manager,
@@ -27,6 +28,7 @@ pub struct Service {
     pub boost: Boost,
     pub blackbox: Mutex<Blackbox>,
     pub inputs: Mutex<Inputs>,
+    pub channel_ping: Arc<ChannelPing>,
     pub dxvk: Mutex<dxvk_manager::Manager>,
     pub dxvk_runtime: RwLock<Value>,
     startup: OnceLock<()>,
@@ -111,6 +113,7 @@ impl Service {
                 });
             });
             let blackbox = Blackbox::new(env.clone(), event);
+            let channel_ping = Arc::new(ChannelPing::new(&env));
             let clips = blackbox.clips();
             let updates = rpc.clone();
             let update_service=weak.clone();
@@ -125,6 +128,7 @@ impl Service {
                 windows: Arc::new(Windows::new(env.clone(), rpc.clone(), displays)),
                 boost: Boost::new(env.clone()),
                 inputs: Mutex::new(Inputs::new(env.clone())),
+                channel_ping,
                 dxvk: Mutex::new(dxvk_manager::Manager::new(env.clone())),
                 dxvk_runtime: RwLock::new(
                     json!({"state":"checking","latestVersion":null,"error":null}),
@@ -346,6 +350,14 @@ impl Service {
         let service = self.clone();
         std::thread::spawn(move || service.monitor());
         let service = self.clone();
+        std::thread::spawn(move || {
+            service
+                .channel_ping
+                .run(|| service.rpc.closed() || service.boost.exiting.load(Ordering::SeqCst));
+        });
+        let service = self.clone();
+        std::thread::spawn(move || service.monitor_channel_ping_overlay());
+        let service = self.clone();
         std::thread::spawn(move || service.check_startup_network());
         if self.env.packaged {
             let service=self.clone();std::thread::spawn(move || {
@@ -357,6 +369,64 @@ impl Service {
             });
         }
         Ok(())
+    }
+
+    fn monitor_channel_ping_overlay(self: &Arc<Self>) {
+        let mut input = None;
+        while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
+            let enabled = self.channel_ping.enabled();
+            let visible = self.windows.channel_ping_visible();
+            if !enabled {
+                input = None;
+                if visible {
+                    self.windows.hide_channel_ping();
+                }
+                std::thread::sleep(Duration::from_millis(250));
+                continue;
+            }
+            if input.is_none() {
+                if let Err(error) = self.windows.prepare_channel_ping() {
+                    self.channel_ping.set_input_error(Some(error.clone()));
+                    log(format!("채널 핑 오버레이 준비 실패: {error}"));
+                    std::thread::sleep(Duration::from_secs(5));
+                    continue;
+                }
+                match InputMonitor::new() {
+                    Ok(monitor) => {
+                        self.channel_ping.set_input_error(None);
+                        input = Some(monitor);
+                    }
+                    Err(error) => {
+                        self.channel_ping.set_input_error(Some(error.clone()));
+                        log(format!("채널 핑 입력 감시 시작 실패: {error}"));
+                        std::thread::sleep(Duration::from_secs(5));
+                        continue;
+                    }
+                }
+            }
+            match input.as_mut().unwrap().poll(visible, &self.env) {
+                InputDecision::Show(bounds) => {
+                    if self.channel_ping.enabled()
+                        && let Err(error) = self.windows.show_channel_ping(bounds)
+                    {
+                        log(format!("채널 핑 오버레이 표시 실패: {error}"));
+                    }
+                    if !self.channel_ping.enabled() {
+                        self.windows.destroy_channel_ping();
+                    }
+                }
+                InputDecision::Hide => self.windows.hide_channel_ping(),
+                InputDecision::Unavailable => {
+                    self.windows.hide_channel_ping();
+                    self.channel_ping
+                        .set_input_error(Some("입력 감시 작업이 중단되었습니다".into()));
+                    input = None;
+                    std::thread::sleep(Duration::from_secs(1));
+                }
+                InputDecision::None => {}
+            }
+        }
+        self.windows.hide_channel_ping();
     }
     fn check_startup_network(&self) {
         let path = self.env.user.join("network/fast-ping-original.json");
@@ -610,6 +680,7 @@ impl Service {
         let allowed = match prefix {
             "application" | "optimization" | "smoke" => kind == "main",
             "dxvk" => kind == "dxvk-manager",
+            "channel-ping" => kind == "channel-ping-overlay",
             prefix => prefix == kind,
         };
         if !allowed {
@@ -677,6 +748,7 @@ impl Service {
    "application:get-startup-tray-setting"=>app_services::startup(&self.env.exe,self.env.packaged,None),"application:set-startup-tray-setting"=>app_services::startup(&self.env.exe,self.env.packaged,Some(bool_arg(v)?)),
    "application:get-turbo-key-setting"=>self.inputs.lock().unwrap().turbo_status(),"application:set-turbo-key-setting"=>self.inputs.lock().unwrap().set_turbo(v),"application:download-turbo-key-helper"=>self.inputs.lock().unwrap().install(env!("CARGO_PKG_VERSION")),"application:remove-turbo-key-helper"=>self.inputs.lock().unwrap().uninstall(),
    "application:get-input-guard-setting"=>self.inputs.lock().unwrap().input_status(),"application:set-input-guard-setting"=>self.inputs.lock().unwrap().set_input(v),
+   "application:get-channel-ping-setting"|"channel-ping:get-status"=>Ok(self.channel_ping.status()),"application:set-channel-ping-setting"=>{let enabled=bool_arg(v)?;if enabled {self.windows.prepare_channel_ping()?;}let status=self.channel_ping.set_enabled(enabled)?;if !enabled {self.windows.destroy_channel_ping();}Ok(status)},
    "application:get-blackbox-setting"=>self.blackbox.lock().unwrap().status(),"application:set-blackbox-setting"=>{let mut b=self.blackbox.lock().unwrap();let result=b.set(v);self.sync_media(&b);result},
    "application:set-blackbox-enabled"=>self.blackbox.lock().unwrap().enabled(bool_arg(v)?),"application:set-blackbox-feature-enabled"=>self.blackbox.lock().unwrap().set(&json!({"featureEnabled":bool_arg(v)?,"enabled":bool_arg(v)?})),
    "application:save-blackbox-clip"=>self.save_clip(""),"application:clear-blackbox-recording"=>self.clear_recordings(id),"application:open-blackbox-folder"=>self.open_clips(),

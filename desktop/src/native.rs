@@ -12,7 +12,7 @@ use dioxus::{
     desktop::{
         self, Config, DesktopContext, WindowBuilder, WindowCloseBehaviour,
         tao::{
-            dpi::{LogicalPosition, LogicalSize},
+            dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
             event::{Event, WindowEvent},
         },
     },
@@ -578,6 +578,16 @@ impl Host {
                         window.set_inner_size(LogicalSize::new(
                             value["width"].as_f64().unwrap_or(640.0),
                             value["height"].as_f64().unwrap_or(290.0),
+                        ));
+                    }
+                    "physicalBounds" => {
+                        window.set_outer_position(PhysicalPosition::new(
+                            value["x"].as_f64().unwrap_or(0.0) as i32,
+                            value["y"].as_f64().unwrap_or(0.0) as i32,
+                        ));
+                        window.set_inner_size(PhysicalSize::new(
+                            value["width"].as_f64().unwrap_or(640.0).max(1.0) as u32,
+                            value["height"].as_f64().unwrap_or(290.0).max(1.0) as u32,
                         ));
                     }
                     "minimumSize" => window.set_min_inner_size(Some(LogicalSize::new(

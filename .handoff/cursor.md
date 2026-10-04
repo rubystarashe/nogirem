@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-03 00:30 +09:00
+Last Updated: 2026-10-05 05:00 +09:00
 
 ## Current Objective
-Rust·Dioxus 0.4.3의 DXVK 파일 누락 오류를 개선하고 서명 자산을 대치한다.
+Rust·Dioxus 고급 기능에 채널별 TCP 지연시간 오버레이를 추가한다.
 
 ## Active Runs
+- `20261005-channel-ping-overlay`: startup GitHub `channel.csv` 검증·cache fallback, 1분 측정·최근 5회 평균, 실패 중 1시간 재검사, 마비노기 전경 Windows 키 표시와 모든 후속 down 숨김, click-through topmost 보조 창, 고급 기능 toggle을 구현했다. 자동 검사·review·commit 진행 중 (`docs/ai/runs/20261005-channel-ping-overlay/task.md`)
 - `20261002-dxvk-043-replacement`: 잘못된 게임 경로·reparse를 차단하고 handle 기반 DXVK 교체·backup 복구·보안/권한 오류 안내를 구현했다. 독립 review, 자동·서명 package·공개 재다운로드 검증, GitHub v0.4.3 자산 10개 대치와 origin/main push 완료 (`docs/ai/runs/20261002-dxvk-043-replacement/task.md`)
 - `20261002-release-043`: 게임 종료·helper 종료 뒤 stale 부스트 상태와 중단 조작 차단을 수정하고, 테스트 서버 `Mabinogi_Test\Client.exe`를 터보키 0.1.8에서 지원한다. 자동·package·공개 재다운로드 검증과 독립 review 승인 후 GitHub v0.4.3 배포 완료 (`docs/ai/runs/20261002-release-043/task.md`)
 - `20261001-repackage-042`: 진단 로깅 포함 Rust/Dioxus 0.4.2 설치형·포터블 서명 패키징, 기존 v0.4.2 자산 대치와 공개 검증 완료 (`docs/ai/runs/20261001-repackage-042/task.md`)
@@ -17,6 +18,13 @@ Rust·Dioxus 0.4.3의 DXVK 파일 누락 오류를 개선하고 서명 자산을
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- 채널 핑은 고정 GitHub raw URL을 startup에 확인하고 유효한 CSV만 `%APPDATA%\마비노기 렘 부스터\channel-ping\channel.csv`로 원자 교체한다. 원격 실패 시 cache→package 순으로 복구한다.
+- 기능 활성 중 endpoint가 있는 채널을 1분마다 병렬 TCP 연결하고 최근 성공 5회 평균을 메모리에 유지한다. 빈 11채널은 `정보 없음`이며 실패 갱신을 유발하지 않는다.
+- 실제 endpoint 실패가 있으면 startup 확인 뒤 최대 1시간에 한 번 원격 CSV를 다시 확인한다. 기능 비활성 중에는 TCP 측정과 저수준 input hook을 모두 중단한다.
+- 기능 활성 중에만 `WH_KEYBOARD_LL`·`WH_MOUSE_LL`을 전용 message thread에 설치한다. callback이 Windows 키 down 순간의 전경 창을 캡처하므로 지속적인 전역 키 상태 조회나 Windows shell 포커스 경쟁에 의존하지 않는다.
+- 검증된 마비노기 전경에서 좌·우 Windows 키 down 시 client rect·DPI로 중앙 위치를 계산해 720×430 반투명 click-through·비활성·topmost 창을 표시한다.
+- 표시 trigger 당시 눌린 입력은 release까지 무시하며 그 외 keyboard·mouse down edge에 창을 숨긴다. 고급 기능에서 상태를 저장해 켜고 끈다.
+- channel ping 8/8을 기본 병렬 설정으로 10회 반복했고 backend 79 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check가 통과했다. 독립 review는 모든 must-fix 해결 후 `APPROVED`다. 실제 게임·DPI·물리 입력과 package 실행은 NOT_RUN이며 최종 commit은 진행 중이다.
 - DXVK install은 실제 `Client.exe`, 허용 폴더·launcher, canonical parent와 파일·상위 reparse를 다운로드 전에 확인하고, file replace 직전에 경로 변경·게임 실행을 다시 차단한다.
 - 저장소와 게임 폴더 DLL은 디렉터리·staged·기존 파일 handle identity를 유지·재확인하고 UUID 임시 파일과 기존 파일 backup을 flush·hash 검증한 뒤 staged handle의 `SetFileInformationByHandle`로 교체한다. 외부 deployment I/O 오류·불일치까지 backup을 유지하며 복구 실패 시 수동 복구용으로 보존한다.
 - 임시·최종 파일 `NotFound`는 Windows 보안·백신 격리 가능성을, access denied·sharing violation은 보안 차단·권한·파일 사용을 구분해 안내한다.
@@ -110,7 +118,7 @@ Rust·Dioxus 0.4.3의 DXVK 파일 누락 오류를 개선하고 서명 자산을
 
 ## Constraints / Rules
 - 코드 주석은 한국어로 작성하고 JavaScript 줄 끝 세미콜론은 사용하지 않는다.
-- 오버레이 실제 기능은 요구사항 확정 전 구현하지 않는다.
+- 채널 핑 오버레이 외의 화면 복제·스킬 슬롯 오버레이는 별도 요구사항과 권한 없이는 구현하지 않는다.
 - Smart App Control 활성만으로 DXVK 설치를 막거나 DLL을 자동 삭제하지 않는다.
 - 의미 있는 변경 후 이 파일을 갱신하고 설명 본문이 포함된 semantic commit을 만든다.
 
@@ -120,7 +128,7 @@ Rust·Dioxus 0.4.3의 DXVK 파일 누락 오류를 개선하고 서명 자산을
 3. 기존 0.4.1 포터블 사용자에게 수정 EXE를 1회 직접 내려받도록 안내하고 실제 성공 여부를 확인한다.
 4. 0.4.x 무응답 사용자에게 보호 bootstrap 로그와 startup 로그를 받아 WebView 이전·이후 실패 단계를 판별한다.
 5. 실제 앱에서 고해상도 휠과 일반 휠의 스크롤 감각을 확인한다.
-6. 오버레이 모듈 배포 자산·무결성 manifest·동의 화면과 독립 다운로드/제거 IPC를 설계한다.
+6. 채널 핑 오버레이를 실제 마비노기 창과 여러 DPI에서 수동 검증하고 이후 배포 요청 시 package·release를 검증한다.
 
 ## Known Issues
 - 이미 `신뢰할 수 없는 업데이트 작업 파일입니다`에서 막힌 0.4.1 helper는 새 payload 실행 전 실패하므로 대치 0.4.2 설치형을 한 번 수동 설치해야 한다.
@@ -134,7 +142,7 @@ Rust·Dioxus 0.4.3의 DXVK 파일 누락 오류를 개선하고 서명 자산을
 - 새 스크롤 보정은 자동 테스트와 빌드만 검증됐으며 실제 장치별 휠 감각 확인이 필요하다.
 - 일부 DXVK 버전은 Windows Smart App Control에서 `0xC0E90002`로 차단될 수 있다.
 - 0.3.16 설치본은 Authenticode 인증서 서명이 없어 Windows 검증 결과가 `NotSigned`다.
-- 오버레이 버튼은 의도적으로 `개발 중` 상태다.
+- 채널 핑 source는 구현됐지만 실제 게임 수동 QA와 package·release는 완료하지 않았다.
 - 사용 중인 녹화 청크가 Windows 파일 잠금으로 삭제되지 않으면 정리 오류를 표시하며 해당 파일은 남는다.
 
 ## Key Files

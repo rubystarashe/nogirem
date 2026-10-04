@@ -58,7 +58,7 @@ for (const file of await readdir(join(root, 'service'))) {
   await copyFile(join(root, 'service', file), join(appDirectory, 'service', file))
 }
 await cp(join(root, 'desktop/target/release/web'), join(appDirectory, 'web'), { recursive: true })
-for (const file of ['character-guide.html', 'dxvk-guide.html', 'dxvk-manager.html', 'blackbox-manager.html', 'blackbox-editor.html', 'icon.ico', 'icon-paused.png', 'config.json', 'INTRODUCE.md', 'OPERATION.md', 'TURBO_KEY_TERMS.md', 'VERSION_HISTORY.md', 'VERSION_HISTORY_DETAIL.md', 'NOTICE.md', 'REPORT.json']) {
+for (const file of ['character-guide.html', 'dxvk-guide.html', 'dxvk-manager.html', 'blackbox-manager.html', 'blackbox-editor.html', 'channel-ping-overlay.html', 'channel.csv', 'icon.ico', 'icon-paused.png', 'config.json', 'INTRODUCE.md', 'OPERATION.md', 'TURBO_KEY_TERMS.md', 'VERSION_HISTORY.md', 'VERSION_HISTORY_DETAIL.md', 'NOTICE.md', 'REPORT.json']) {
   await copyFile(join(root, file), join(appDirectory, file))
 }
 for (const helper of ['input-guard-helper', 'radeon-helper', 'recorder-helper']) {

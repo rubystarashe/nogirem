@@ -25,6 +25,7 @@ pub struct State {
     pub blackbox: Value,
     pub turbo: Value,
     pub input: Value,
+    pub channel_ping: Value,
     pub startup_tray: bool,
     pub startup_tray_supported: bool,
     pub muted: bool,
@@ -142,6 +143,7 @@ pub async fn initialize(client: Client, mut state: Signal<State>) {
     for (channel, key) in [
         ("application:get-turbo-key-setting", "turbo"),
         ("application:get-input-guard-setting", "input"),
+        ("application:get-channel-ping-setting", "channel-ping"),
         ("application:get-startup-tray-setting", "startup"),
         ("application:get-creator-channel", "creator"),
         ("application:get-creator-prompt-dismissed", "creator-prompt"),
@@ -156,6 +158,7 @@ pub async fn initialize(client: Client, mut state: Signal<State>) {
                 Ok(value) => match key {
                     "turbo" => state.write().turbo = value,
                     "input" => state.write().input = value,
+                    "channel-ping" => state.write().channel_ping = value,
                     "creator" => state.write().creator_profile = value,
                     "creator-prompt" => {
                         let mut s = state.write();
@@ -221,6 +224,12 @@ pub async fn initialize(client: Client, mut state: Signal<State>) {
                 }
             }
         }
+        if let Ok(value) = client
+            .invoke(1, "application:get-channel-ping-setting", json!([]))
+            .await
+        {
+            state.write().channel_ping = value;
+        }
     }
 }
 
@@ -278,6 +287,7 @@ fn command(client: Client, mut state: Signal<State>, channel: &'static str, args
                     | "application:download-turbo-key-helper"
                     | "application:remove-turbo-key-helper" => state.turbo = value,
                     "application:set-input-guard-setting" => state.input = value,
+                    "application:set-channel-ping-setting" => state.channel_ping = value,
                     "application:set-blackbox-feature-enabled"
                     | "application:set-blackbox-enabled" => state.blackbox = value,
                     "application:set-startup-tray-setting" => {
@@ -642,12 +652,12 @@ fn Advanced() -> Element {
                 } span { "키보드 입력 지연을 무시하고 즉시 입력" }
             }
         }
-        div { class: "developer-tool-row developer-tool-row-nested overlay-tool-row",
-            div { h2 { "오버레이" } p { "게임 화면의 원하는 영역을 복제해 화면 중앙 근처에 표시합니다" } }
-            button { disabled: true, "개발 중" }
-            div { class: "overlay-tool-example", span { "스킬 슬롯 지정" } svg { view_box: "0 0 20 12", "aria-hidden": "true", path { d: "M1 6h16m-4-4 4 4-4 4" } } strong { "쿨타임을 보기 쉬운 위치에 표시" } }
-            small { class: "overlay-tool-download", "기능 모듈은 터보 키처럼 별도 다운로드 방식으로 제공될 예정입니다" }
+        div { class: "developer-tool-row",
+            div { h2 { "채널별 핑" } p { "마비노기가 활성화된 상태에서 Windows 키를 누르면 채널별 연결 지연시간을 게임 중앙에 표시합니다" } }
+            Action { label: if s.channel_ping["enabled"] == true { "사용 중" } else { "사용하기" }, channel: "application:set-channel-ping-setting", args: json!([s.channel_ping["enabled"] != true]), disabled: !s.channel_ping.is_object(), class: if s.channel_ping["enabled"] == true { "active" } else { "" } }
         }
+        if let Some(error) = s.channel_ping["syncError"].as_str() { span { class: "developer-tool-status", "최신 채널 정보를 확인하지 못해 저장된 정보를 사용합니다: {error}" } }
+        if let Some(error) = s.channel_ping["inputError"].as_str() { span { class: "developer-tool-status", "채널 핑 입력 감시를 시작하지 못했습니다: {error}" } }
         div { class: "developer-tool-row",
             div { h2 { "게임 블랙박스" } p { "메인 화면에서 게임 화면 순환 녹화와 클립 저장 기능을 사용할 수 있습니다" } }
             Action { label: if s.blackbox["featureEnabled"] == true { "사용 중" } else { "사용하기" }, channel: "application:set-blackbox-feature-enabled", args: json!([s.blackbox["featureEnabled"] != true]), disabled: !s.blackbox.is_object(), class: if s.blackbox["featureEnabled"] == true { "active" } else { "" } }

@@ -32,6 +32,7 @@ pub mod app_services;
 
 pub mod blackbox;
 pub mod boost;
+pub mod channel_ping;
 pub mod dxvk_manager;
 pub mod inputs;
 pub mod network_manager;

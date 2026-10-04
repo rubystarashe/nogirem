@@ -1,0 +1,78 @@
+# 채널별 핑 오버레이
+
+- run_id: `20261005-channel-ping-overlay`
+- checkpoint_id: `CP-CHANNEL-PING-OVERLAY`
+- owner: `Cursor Agent`
+- created_at: `2026-10-04T19:35:00Z`
+- repository: `rubystarashe/nogirem`
+- branch: `main`
+- source_base: `ac3abe73a4b32785e5319e84178dd457310a66b6`
+- roles: `Cursor Agent = Coordinator + DEV + QA + Feature owner + Architecture owner + Documentation maintainer`, `independent reviewer = generalPurpose agent 8e36f609-a04b-447b-b9f4-e23e6caa50ab`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 채널 endpoint 동기화, 주기적 지연시간 측정, 게임 전경 Win 키 오버레이`
+- feature_map: `updated — 신규 기능 identity와 시나리오·증거·미검증 범위를 추가`
+- architecture_impact: `channel.csv 정본·캐시 writer, TCP 측정 worker, foreground input adapter, 클릭 통과 보조 창`
+- architecture_contract: `updated — 기능 module·durable writer·저수준 input hook·보조 창 경계를 추가`
+
+## 요청·권한·위험
+
+- 원 요청: 앱 시작 시 GitHub의 `channel.csv`를 최신화하고 1분마다 채널별 평균 핑을 측정한다. 마비노기가 전경일 때 Windows 키를 누르면 게임 중앙에 클릭 불가·항상 위·반투명 인터페이스를 표시하고, 이후 마우스나 키보드의 어떤 down 입력에도 숨긴다. 고급 기능에서 켜고 끌 수 있어야 한다.
+- 포함: Rust backend 기능 module, 고정 GitHub raw URL 동기화, 검증된 사용자 캐시, TCP 포트 지연시간 이동 평균, 실패 중 1시간 원격 재검사, Win32 전경·입력 adapter, 보조 WebView 오버레이, 고급 기능 설정, 패키징 입력, 자동 테스트와 정본 문서.
+- 제외: ICMP 관리자 권한 변경, 임의 URL 입력, Windows 키 차단, 게임 프로세스 주입, 배포·push.
+- risk: `HIGH — 전역 입력 상태를 관찰하고 외부 endpoint에 주기적으로 연결하며 topmost 보조 창과 지속 캐시를 추가함`
+- low_risk: `not_applicable — behavioral·network·privacy·durable data·Windows UI 경계가 함께 변경됨`
+
+## 계획·상태
+
+- DEV: `READY_FOR_QA`
+- QA: `COMPLETE_PASS — 자동 범위`; `실제 게임 수동 범위 NOT_RUN`
+- review: `APPROVED — independent round 5`
+
+1. `COMPLETED` — 기존 IPC·보조 창·게임 식별·패키징 경계와 CSV 형식 확인
+2. `COMPLETED` — strict CSV 검증, startup 원격 동기화, 1분 측정과 최근 5회 성공값 평균 구현
+3. `COMPLETED` — 마비노기 전경 Windows 키 표시, trigger 입력 release 처리, 모든 후속 down 숨김 구현
+4. `COMPLETED` — 클릭 통과·비활성 topmost 반투명 오버레이와 고급 기능 설정 연결
+5. `IN_PROGRESS` — 자동 검사·독립 review·정본 문서 완료, source checkpoint commit 진행
+
+## 수용 기준·시나리오
+
+- `PING-001`: 유효한 원격 CSV는 앱 시작 때 검증 후 사용자 캐시에 원자 저장하고 즉시 endpoint 정본으로 사용한다.
+- `PING-002`: 원격 실패 또는 잘못된 CSV는 마지막 유효 캐시, 그다음 패키지 CSV 순으로 복구하며 잘못된 원격 값으로 기존 정본을 덮지 않는다.
+- `PING-003`: endpoint가 있는 각 채널은 1분마다 TCP 연결 지연을 측정하고 최근 성공 5회의 평균을 메모리에 유지한다. 빈 endpoint는 `정보 없음`이며 실패 갱신을 유발하지 않는다.
+- `PING-004`: 하나 이상의 실제 endpoint 측정이 실패하면 원격 CSV 재검사를 최대 1시간에 한 번 수행한다.
+- `PING-005`: 기능이 켜져 있고 마비노기 전경 창에서 좌·우 Windows 키 down이 시작되면 게임 client 영역 중앙에 오버레이가 비활성·click-through·topmost 상태로 나타난다.
+- `PING-006`: 표시 trigger 당시 눌린 키는 release까지 무시하되, 그 외 키보드·마우스 down 또는 trigger 키의 다음 down은 오버레이를 즉시 숨긴다.
+- `PING-007`: 기능을 끄면 오버레이를 숨기고 입력 감지는 표시 동작을 수행하지 않는다.
+- `PING-008`: 패키지에 fallback `channel.csv`, 오버레이 HTML과 preload가 포함된다.
+
+## 데이터·보안·운영
+
+- durable writer: `channel_ping.rs`만 `%APPDATA%\마비노기 렘 부스터\channel-ping\channel.csv`와 `setting.json`을 쓴다.
+- authoritative source: 고정 HTTPS GitHub raw URL의 검증된 CSV. 캐시와 패키지 CSV는 네트워크 실패 fallback이다.
+- readers: channel ping worker와 오버레이 상태 IPC만 endpoint 정본을 읽는다.
+- sensitive data: 사용자 계정·게임 데이터·로컬 주소를 수집하거나 전송하지 않는다. 고정 공개 endpoint에 TCP 연결하고 고정 공개 URL만 조회한다.
+- compatibility: Windows 전용 desktop 기능이며 Electron 경로는 변경하지 않는다.
+- logs_metrics_alerts: 시작 동기화·측정 오류는 기존 bounded startup log에 오류만 기록하며 IP 외 사용자 데이터는 기록하지 않는다.
+
+## QA·review 기록
+
+- `PASS` — channel ping unit 8/8, 기본 병렬 설정 10회 반복
+- `PASS` — backend 81개 중 79 PASS·2 declared ignore, integration 2/2
+- `PASS` — Node 203/203
+- `PASS` — `cargo check --manifest-path desktop/Cargo.toml --locked`
+- `PASS` — 실제 Windows에서 `WH_KEYBOARD_LL`·`WH_MOUSE_LL` 설치·정리 수명주기 unit test
+- `NOT_RUN` — 실제 마비노기 전경에서 Windows 키 표시, 모든 물리 입력 즉시 숨김, 혼합 DPI 위치, 실제 endpoint 측정, 원격 GitHub 갱신
+- `NOT_RUN` — 설치형·포터블 package 실행. package script 입력 계약만 자동 검사함
+- review_mode: `INDEPENDENT_REVIEW`
+- reviewer: `generalPurpose agent 8e36f609-a04b-447b-b9f4-e23e6caa50ab`
+- round 1: `CHANGES_REQUESTED` — opacity, IPC authorization, mixed DPI, mapped IPv6, queue overflow, hook timeout·disconnect, 반대 Win 키, disable 경쟁, async error 갱신과 테스트 finding
+- round 2~4: `CHANGES_REQUESTED` — overflow stale queue, 최초 WebView open block, quiet barrier, 테스트 전역 상태 간섭 finding
+- round 5: `APPROVED` — `ISSUE-CP-001~015` resolved, unresolved source must-fix `0`, new finding `0`
+- review_target: `base ac3abe73a4b32785e5319e84178dd457310a66b6, channel_ping.rs f17a9452… 이후 quiet barrier·test isolation 후속 diff`
+- review_limitations: 실제 게임·혼합 DPI·물리 입력과 package는 reviewer도 실행하지 않음
+
+## 최종 상태
+
+- disposition: `PARTIALLY_COMPLETED — source·자동 QA·독립 review 완료, 실제 게임·package QA 미실행`
+- commit: `NOT_CREATED`
+- push: `NOT_AUTHORIZED`
+- deployment: `NOT_AUTHORIZED`

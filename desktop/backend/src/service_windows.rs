@@ -1,5 +1,6 @@
 use crate::{
     Result,
+    channel_ping::OverlayBounds,
     rpc::Rpc,
     storage,
     workers::{Environment, read},
@@ -84,6 +85,45 @@ impl Windows {
             .find(|w| w.kind == kind)
             .map(|w| w.id)
     }
+    pub fn channel_ping_visible(&self) -> bool {
+        self.id("channel-ping-overlay")
+            .and_then(|id| self.get(id))
+            .is_some_and(|window| window.state["visible"] == true)
+    }
+    pub fn prepare_channel_ping(self: &Arc<Self>) -> Result<()> {
+        self.open("channel-ping-overlay", false).map(|_| ())
+    }
+    pub fn show_channel_ping(self: &Arc<Self>, bounds: OverlayBounds) -> Result<()> {
+        let id = self
+            .id("channel-ping-overlay")
+            .ok_or("채널 핑 오버레이가 준비되지 않았습니다")?;
+        self.command(
+            id,
+            "physicalBounds",
+            json!({
+                "x":bounds.x,
+                "y":bounds.y,
+                "width":bounds.width,
+                "height":bounds.height
+            }),
+        );
+        self.command(id, "alwaysOnTop", json!(true));
+        self.command(id, "focusable", json!(false));
+        self.command(id, "ignoreMouseEvents", json!(true));
+        self.command(id, "opacity", json!(1));
+        self.command(id, "showInactive", Value::Null);
+        Ok(())
+    }
+    pub fn hide_channel_ping(&self) {
+        if let Some(id) = self.id("channel-ping-overlay") {
+            self.command(id, "hide", Value::Null);
+        }
+    }
+    pub fn destroy_channel_ping(&self) {
+        if let Some(id) = self.id("channel-ping-overlay") {
+            self.destroy(id);
+        }
+    }
     pub fn command(&self, id: u64, action: &str, value: Value) {
         {
             let mut state = self.state.lock().unwrap();
@@ -97,7 +137,7 @@ impl Windows {
                     window.state[action] = value.clone()
                 }
                 "restore" => window.state["minimized"] = json!(false),
-                "position" | "bounds" => {
+                "position" | "bounds" | "physicalBounds" => {
                     if let Some(fields) = value.as_object() {
                         for (k, v) in fields {
                             window.state[k] = v.clone();
@@ -501,6 +541,9 @@ impl Windows {
             }
             "blackbox-editor" => {
                 json!({"width":1100,"height":720,"minWidth":780,"minHeight":560,"title":"블랙박스 영상 추출","alwaysOnTop":true})
+            }
+            "channel-ping-overlay" => {
+                json!({"width":720,"height":430,"title":"채널별 핑","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":true})
             }
             _ => return Err("허용되지 않은 보조 창".into()),
         };

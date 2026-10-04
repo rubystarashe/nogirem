@@ -2,19 +2,42 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
 
-const [applicationView, applicationStyles, serviceMain, servicePreload] = await Promise.all([
+const [applicationView, backend, service, windows, native, overlay, preload, packager] = await Promise.all([
   readFile(new URL("../desktop/src/ui.rs", import.meta.url), "utf8"),
-  readFile(new URL("../web/styles.css", import.meta.url), "utf8"),
-  readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
-  readFile(new URL("../service/preload.js", import.meta.url), "utf8"),
+  readFile(new URL("../desktop/backend/src/channel_ping.rs", import.meta.url), "utf8"),
+  readFile(new URL("../desktop/backend/src/service.rs", import.meta.url), "utf8"),
+  readFile(new URL("../desktop/backend/src/service_windows.rs", import.meta.url), "utf8"),
+  readFile(new URL("../desktop/src/native.rs", import.meta.url), "utf8"),
+  readFile(new URL("../channel-ping-overlay.html", import.meta.url), "utf8"),
+  readFile(new URL("../service/channel-ping-overlay-preload.js", import.meta.url), "utf8"),
+  readFile(new URL("../scripts/package-dioxus.mjs", import.meta.url), "utf8"),
 ])
 
-test("고급 기능에 스킬 쿨타임 확인용 오버레이 인터페이스를 표시한다", () => {
-
-  assert.match(applicationStyles, /\.overlay-tool-example/)
+test("고급 기능에서 채널별 핑 오버레이를 켜고 끈다", () => {
+  assert.match(applicationView, /h2 \{ "채널별 핑" \}/)
+  assert.match(applicationView, /application:set-channel-ping-setting/)
+  assert.match(backend, /REMOTE_URL[\s\S]+channel\.csv/)
+  assert.match(backend, /MEASURE_INTERVAL[\s\S]+from_secs\(60\)/)
+  assert.match(backend, /FAILURE_SYNC_INTERVAL[\s\S]+60 \* 60/)
+  assert.match(backend, /WH_KEYBOARD_LL/)
+  assert.match(backend, /WH_MOUSE_LL/)
+  assert.doesNotMatch(backend, /GetAsyncKeyState/)
+  assert.match(service, /"channel-ping" => kind == "channel-ping-overlay"/)
+  assert.match(service, /prepare_channel_ping\(\)[\s\S]+InputMonitor::new\(\)/)
+  assert.match(applicationView, /application:get-channel-ping-setting/)
 })
 
-test("오버레이 인터페이스는 아직 다운로드나 실행 IPC를 연결하지 않는다", () => {
-  assert.doesNotMatch(serviceMain, /overlay:(?:download|install|start|stop)/)
-  assert.doesNotMatch(servicePreload, /(?:download|install|start|stop)Overlay/)
+test("채널별 핑 창은 클릭 통과 비활성 topmost 창으로 패키징된다", () => {
+  assert.match(windows, /"channel-ping-overlay"[\s\S]+transparent/)
+  assert.match(windows, /"channel-ping-overlay"[\s\S]+alwaysOnTop/)
+  assert.match(windows, /ignoreMouseEvents/)
+  assert.match(windows, /"opacity", json!\(1\)/)
+  assert.match(windows, /physicalBounds/)
+  assert.match(windows, /채널 핑 오버레이가 준비되지 않았습니다/)
+  assert.match(native, /"physicalBounds"/)
+  assert.match(overlay, /키보드 또는 마우스를 누르면 닫힙니다/)
+  assert.match(preload, /channel-ping:get-status/)
+  assert.doesNotMatch(preload, /set|write|open/)
+  assert.match(packager, /channel-ping-overlay\.html/)
+  assert.match(packager, /channel\.csv/)
 })
