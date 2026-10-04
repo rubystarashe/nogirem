@@ -1,0 +1,21 @@
+# EVIDENCE-NOTICE-044-RELEASE
+
+- evidence_id: `EVIDENCE-NOTICE-044-RELEASE`
+- producer: `Cursor Agent`
+- created_at: `2026-10-04T22:42:50Z`
+- run_id: `20261005-notice-044`
+- checkpoint_id: `CP-NOTICE-044`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 0.4.4 공개 배포와 신규 기능 공지`
+- feature_map: `updated — lifecycle ACTIVE와 공개 검증 target을 기록`
+- architecture_impact: `none — 기존 GitHub Release·signed update·Electron bridge 경계를 사용`
+- architecture_contract: `no_change — 새 dependency·writer·예외 없음`
+- source_target: `package source 40a99dc1d110bb79020ba2693f4fc0bbd152fc86`, `release tag target 603ccc5d1814be708ece6e7de44a15ce3b62160e`
+- release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.4`
+- release_state: `published`, draft `false`, prerelease `false`
+- assets: `10/10`, public GitHub digest와 재다운로드 SHA-256가 로컬 기준과 일치.
+- installer: `nogirem-setup-0.4.4.exe`, SHA-256 `a92caa5878a12a7ba3697ab054978f39c2da9fed7a11bf093879d2bd5c61b368`
+- portable: `nogirem-portable-0.4.4.exe`, SHA-256 `9c5af70d38955333262be4936fc25778a830dac2560d6b22c896abde828714a7`
+- update_contract: 공개 다운로드를 입력으로 installer·portable Ed25519 manifest, 권장 alias byte identity, Electron `latest.yml` 0.3.19 bridge·blockmap과 turbo-key helper를 재검증함.
+- notice: origin/main raw `NOTICE.md` HTTP `200`; CRLF/LF 정규화 후 local과 SHA-256 `0f75279c7e26f18770ed30cc0a54ba97374ed3198afd822730262dcb145a0198` 일치.
+- outcome: `PASS`
+- limitations: 실제 사용자 PC 설치·업데이트·포터블 실행, 실제 게임 물리 입력·혼합 DPI는 `NOT_RUN`.

@@ -2,20 +2,20 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `8`
-- updated_at: `2026-10-04T22:33:05Z`
+- revision: `9`
+- updated_at: `2026-10-04T22:42:50Z`
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-04T22:33:05Z`
 - source_reviewed_by: `cursor-agent-92251f36`
 - source_review_target: `source commit 40a99dc1d110bb79020ba2693f4fc0bbd152fc86, base ac3abe73a4b32785e5319e84178dd457310a66b6`
 - source_review_evidence: `run 20261005-release-044 independent review와 run 20261005-notice-044 SELF_REVIEW`
-- behavior_verified_at: `2026-10-04T22:33:05Z`
+- behavior_verified_at: `2026-10-04T22:42:50Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 40a99dc1d110bb79020ba2693f4fc0bbd152fc86, local signed package dioxus-0.4.4-2026-10-04T22-30-48-908Z`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust·Node 자동 검사, production notice preview와 local signed package contract`
-- behavior_verification_evidence: `Node 204/204, Rust notice 1/1, desktop locked check, notice preview PASS, signed package·manifest self-verification와 packaged native contract PASS`
+- behavior_verification_target: `source commit 40a99dc1d110bb79020ba2693f4fc0bbd152fc86, GitHub v0.4.4 public release`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Rust·Node 자동 검사, production notice preview, local package와 GitHub public redownload`
+- behavior_verification_evidence: `Node 204/204, Rust notice 1/1, desktop locked check, notice preview, public assets 10/10 SHA-256와 signed update·Electron bridge 검증 PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `공지 포함 0.4.4 source와 자동·preview·package 검증 범위를 최신 로컬 후보에 일치시킴`
+- freshness_reason: `공지 포함 0.4.4 source와 자동·preview·package·공개 재다운로드 검증 범위를 배포 target에 일치시킴`
 - known_gaps: `실제 마비노기 창의 Windows 키·click-through·topmost·혼합 DPI 수동 QA, 설치·제거 종단간과 GitHub 원격 channel.csv 조회는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — endpoint 동기화, 지연시간 이동 평균, 게임 중앙 입력 연동 오버레이`
 - feature_map: `updated — 신규 기능 identity·흐름·writer·시나리오·검증 범위를 추가함`
@@ -31,8 +31,8 @@
 
 - canonical_name: `마비노기 채널별 핑 오버레이`
 - aliases: `채널 핑`, `핑 오버레이`
-- lifecycle: `PLANNED`
-- lifecycle_reason: `Rust source·로컬 signed package는 완료했으나 release가 금지되어 사용자에게 전달된 기능으로 보지 않음`
+- lifecycle: `ACTIVE`
+- lifecycle_reason: `GitHub v0.4.4 정식 Release로 설치형·포터블과 signed update manifest를 공개함`
 - owners: `product=nogirem maintainer`, `technical=channel ping backend owner`
 - purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 TCP 연결 지연시간을 1분마다 측정하고 최근 성공 5회의 평균을 메모리에 유지한다. 마비노기가 전경일 때 좌·우 Windows 키를 누르면 게임 client 중앙에 클릭 통과·비활성·topmost 반투명 표를 표시한다.
 - exclusions: ICMP 왕복시간, 서버 내부 처리시간, 패킷 손실률, 임의 endpoint·URL 입력, Windows 키 차단, 게임 프로세스 주입은 지원하지 않는다.
@@ -49,20 +49,20 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 채널 핑 network·input·auxiliary window 경계.
 - record_id: `FEAT-NOGIREM-CHANNEL-PING`
 - owner: `nogirem maintainer`
-- revision: `3`
-- updated_at: `2026-10-04T22:33:05Z`
+- revision: `4`
+- updated_at: `2026-10-04T22:42:50Z`
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-04T22:33:05Z`
 - source_reviewed_by: `cursor-agent-92251f36`
 - source_review_target: `source commit 40a99dc1d110bb79020ba2693f4fc0bbd152fc86`
 - source_review_evidence: `run 20261005-release-044 independent review와 run 20261005-notice-044 SELF_REVIEW`
-- behavior_verified_at: `2026-10-04T22:33:05Z`
+- behavior_verified_at: `2026-10-04T22:42:50Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 40a99dc1d110bb79020ba2693f4fc0bbd152fc86, local signed package dioxus-0.4.4-2026-10-04T22-30-48-908Z`
-- behavior_verification_environment: `Windows 10.0.26200 x64, automated tests·production notice preview와 local package contract`
-- behavior_verification_evidence: `Node 204/204, Rust notice 1/1, desktop locked check, notice preview, signed package·manifest self-verification와 packaged native contract PASS`
+- behavior_verification_target: `source commit 40a99dc1d110bb79020ba2693f4fc0bbd152fc86, GitHub v0.4.4 public release`
+- behavior_verification_environment: `Windows 10.0.26200 x64, automated tests·production notice preview·local package와 GitHub public redownload`
+- behavior_verification_evidence: `Node 204/204, Rust notice 1/1, desktop locked check, notice preview, public assets 10/10 SHA-256와 signed update·Electron bridge 검증 PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `최신 공지 포함 source·로컬 package의 구현·검증 범위와 미배포·미수동검증 gap을 분리해 기록함`
+- freshness_reason: `최신 공지 포함 source·공개 v0.4.4의 구현·검증 범위와 미수동검증 gap을 분리해 기록함`
 - known_gaps: `실제 게임 전경 표시·DPI별 중앙 정렬·모든 물리 입력 down·원격 갱신·설치·제거 종단간은 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 신규 기능 전체`
 - feature_map: `updated — 이 entry를 신규 canonical identity로 추가`

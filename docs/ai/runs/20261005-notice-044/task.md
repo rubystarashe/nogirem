@@ -25,7 +25,7 @@
 - DEV: `DONE`
 - QA: `COMPLETE_PASS — local interactive preview·package 범위`
 - review: `APPROVED`, `review_mode: SELF_REVIEW`
-- publishing: `IN_PROGRESS — NOTICE·source push와 GitHub v0.4.4 Release authorized at 2026-10-04T22:38:00Z`
+- publishing: `COMPLETED — NOTICE·source push와 GitHub v0.4.4 Release 공개·재다운로드 검증 완료`
 
 - 이미지 URL은 HTTPS raw GitHub 주소이며 package script 입력에 포함되지 않는다.
 - 공지는 류트 서버 한정, 고급 기능 활성화, Windows 키 표시, 입력 시 닫기와 측정값 의미를 정확히 설명한다.
@@ -65,3 +65,15 @@
 - authorization: 사용자가 `0.4.4 패키징한거 배포하고, 공지 푸쉬 다해`라고 명시해 source·NOTICE push, GitHub v0.4.4 Release 생성·자산 업로드와 공개 검증을 승인함.
 - release_candidate: `release/dioxus-0.4.4-2026-10-04T22-30-48-908Z`
 - release_source: `40a99dc1d110bb79020ba2693f4fc0bbd152fc86`
+
+## 공개 배포 결과
+
+- status: `COMPLETED`
+- origin_main: `603ccc5d1814be708ece6e7de44a15ce3b62160e`
+- release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.4`
+- `PASS` — 공개 Release 자산 `10/10` digest·재다운로드 SHA-256 일치.
+- `PASS` — 공개 installer·portable signed manifest와 권장 alias, Electron 0.3.19 bridge·blockmap, turbo-key helper 재검증.
+- `PASS` — 공개 raw `NOTICE.md`가 로컬 최종 공지와 줄바꿈 정규화 SHA-256 일치.
+- evidence: `evidence/release-publication.md`
+- `NOT_RUN` — 실제 사용자 PC 설치·업데이트·포터블 실행, 실제 게임 입력·혼합 DPI.
+- final disposition: `COMPLETED`, source push `YES`, NOTICE push `YES`, GitHub Release `YES`, deployment activation `GitHub public release only`.

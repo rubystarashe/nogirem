@@ -27,7 +27,7 @@
 - QA: `COMPLETE_PASS — 자동 source·package 범위`
 - review: `APPROVED — independent review`
 - package: `COMPLETED`
-- deployment: `IN_PROGRESS — user authorized GitHub v0.4.4 release at 2026-10-04T22:38:00Z`
+- deployment: `COMPLETED — GitHub v0.4.4 published and public assets verified`
 
 1. `COMPLETED` — 안내 문구·footer 여백과 0.4.4 버전·변경 기록 반영
 2. `COMPLETED` — 자동 검사와 독립 review
@@ -78,3 +78,9 @@
 - review and QA gate: `PASS for automated/package scope`, independent review `APPROVED`, must-fix `0`.
 - target and authorization gate: `PASS — source commit과 artifact hash 고정, 배포·push·tag·activation 없음`
 - commit: `60f9b58cea09c4d1668af56c7cfda446211b4a51`; 최종 package 기록 commit은 별도 로컬 commit으로 남긴다.
+
+## 배포 연계
+
+- 이 run의 최초 로컬 후보는 신규 기능 공지·fixture 보완을 포함한 `20261005-notice-044` source `40a99dc1d110bb79020ba2693f4fc0bbd152fc86` package로 supersede됐다.
+- 실제 공개 installer SHA-256은 `a92caa5878a12a7ba3697ab054978f39c2da9fed7a11bf093879d2bd5c61b368`, portable은 `9c5af70d38955333262be4936fc25778a830dac2560d6b22c896abde828714a7`이다.
+- 최종 Release·공지·공개 재다운로드 증거는 `../20261005-notice-044/evidence/release-publication.md`를 정본으로 사용한다.
