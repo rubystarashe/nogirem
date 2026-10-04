@@ -1,9 +1,9 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-05 07:23 +09:00
+Last Updated: 2026-10-05 07:28 +09:00
 
 ## Current Objective
-0.4.4 채널별 핑 신규 기능 공지를 원격 이미지와 함께 테스트 앱에 열어 두었다. 공지 본문은 사용자 화면 확인 전 원격 공개하지 않는다.
+확인된 0.4.4 채널별 핑 신규 기능 공지와 fixture 보완을 로컬 package로 다시 생성한다. 공지 본문은 아직 원격 공개하지 않는다.
 
 ## Active Runs
 - `20261005-notice-044`: package에서 제외되는 공지 이미지만 origin/main `05e6d59`에 게시했고, `NOTICE.md`와 원본 비율 `cover` 스타일을 production renderer로 preview했다. fixture의 신규 channel ping getter 누락을 수정했으며 preview PASS·앱 열린 상태다. `NOTICE.md` 공개는 사용자 화면 확인 뒤다. (`docs/ai/runs/20261005-notice-044/task.md`)

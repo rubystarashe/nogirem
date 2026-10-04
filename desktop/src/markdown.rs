@@ -16,7 +16,7 @@ mod tests {
         let html = blocks(include_str!("../../NOTICE.md"), true, true);
         assert!(html.contains("class=\"markdown-image\""));
         assert!(html.contains("https://raw.githubusercontent.com/rubystarashe/nogirem/main/docs/notices/channel-ping-0.4.4.png"));
-        assert!(html.contains("<h2>이용 방법</h2>"));
+        assert!(html.contains("<h2>사용 방법</h2>"));
         assert!(html.contains("류트 서버의 채널만 확인할 수 있습니다."));
         let hostile = blocks("| A | B |\n| --- | --- |\n| <script>x</script> | <img onerror=x> |", true, false);
         assert!(!hostile.contains("<script>"));

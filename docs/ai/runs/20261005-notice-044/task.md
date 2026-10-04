@@ -22,10 +22,10 @@
 
 ## 상태·수용 기준
 
-- DEV: `READY_FOR_REVIEW`
+- DEV: `READY_FOR_QA`
 - QA: `COMPLETE_PASS — local interactive preview 범위`
 - review: `APPROVED`, `review_mode: SELF_REVIEW`
-- publishing: `IMAGE_ONLY_COMPLETED`, `NOTICE_NOT_PUBLISHED`
+- publishing: `IMAGE_ONLY_COMPLETED`, `NOTICE_NOT_PUBLISHED`, `LOCAL_PACKAGE_AUTHORIZED`
 
 - 이미지 URL은 HTTPS raw GitHub 주소이며 package script 입력에 포함되지 않는다.
 - 공지는 류트 서버 한정, 고급 기능 활성화, Windows 키 표시, 입력 시 닫기와 측정값 의미를 정확히 설명한다.
@@ -40,10 +40,10 @@
 - notice: 0.4.4 채널별 핑 목적, 고급 기능 활성화, Windows 키 표시, 모든 후속 입력 종료, 류트 서버 한정을 안내함.
 - style: 공지 폭 100%, 원본 `958:668` 비율, `object-fit: cover`로 빈 여백 없이 표시함.
 - fixture: 신규 `application:get-channel-ping-setting` route 누락으로 첫 preview에 표시된 오류를 수정함. 실제 production IPC 오류가 아니라 smoke fixture 결손이었음.
-- `PASS` — Node application notice `2/2`
+- `PASS` — Node full suite `204/204`
 - `PASS` — Rust notice Markdown remote image `1/1`
 - `PASS` — desktop `cargo check --locked`, lint 0, `git diff --check`
 - `PASS` — production renderer interactive preview, overflow `0`, title·본문 일치, 앱을 열린 상태로 유지함.
-- evidence: `evidence/notice-preview.json`, SHA-256 `f482b99d53ab991a4d976aa086086ac11f29f25ba6a91d0826b0055eae9a1368`
-- evidence: `evidence/notice-preview.png`, SHA-256 `83e71198b38a55a81e4185f97ce00ef0935f98699037c3257a47a9cb9640697f`
+- evidence: `evidence/notice-preview.json`, SHA-256 `ca62dea44f3acf4d0d0e77066c71611035dd8770054fe8deecaacfbb72d231fa`
+- evidence: `evidence/notice-preview.png`, SHA-256 `4ffe2ddc182c0bbb30c622a5f2a872434182acdb01bc48906d1fdea1bcbc849c`
 - limitation: 공지 본문은 아직 origin/main에 push하지 않아 사용자에게 노출되지 않음. 현재 테스트 앱 화면 확인 뒤 게시 여부를 결정함.
