@@ -31,7 +31,7 @@
 2. `COMPLETED` — strict CSV 검증, startup 원격 동기화, 1분 측정과 최근 5회 성공값 평균 구현
 3. `COMPLETED` — 마비노기 전경 Windows 키 표시, trigger 입력 release 처리, 모든 후속 down 숨김 구현
 4. `COMPLETED` — 클릭 통과·비활성 topmost 반투명 오버레이와 고급 기능 설정 연결
-5. `IN_PROGRESS` — 자동 검사·독립 review·정본 문서 완료, source checkpoint commit 진행
+5. `COMPLETED` — 자동 검사·독립 review·정본 문서와 source checkpoint commit 완료
 
 ## 수용 기준·시나리오
 
@@ -67,12 +67,12 @@
 - round 1: `CHANGES_REQUESTED` — opacity, IPC authorization, mixed DPI, mapped IPv6, queue overflow, hook timeout·disconnect, 반대 Win 키, disable 경쟁, async error 갱신과 테스트 finding
 - round 2~4: `CHANGES_REQUESTED` — overflow stale queue, 최초 WebView open block, quiet barrier, 테스트 전역 상태 간섭 finding
 - round 5: `APPROVED` — `ISSUE-CP-001~015` resolved, unresolved source must-fix `0`, new finding `0`
-- review_target: `base ac3abe73a4b32785e5319e84178dd457310a66b6, channel_ping.rs f17a9452… 이후 quiet barrier·test isolation 후속 diff`
+- review_target: `source commit 000481dbdc438729d13b54829d4653ab51824c78, base ac3abe73a4b32785e5319e84178dd457310a66b6`
 - review_limitations: 실제 게임·혼합 DPI·물리 입력과 package는 reviewer도 실행하지 않음
 
 ## 최종 상태
 
 - disposition: `PARTIALLY_COMPLETED — source·자동 QA·독립 review 완료, 실제 게임·package QA 미실행`
-- commit: `NOT_CREATED`
+- commit: `000481dbdc438729d13b54829d4653ab51824c78`
 - push: `NOT_AUTHORIZED`
 - deployment: `NOT_AUTHORIZED`

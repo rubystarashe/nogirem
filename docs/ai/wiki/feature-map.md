@@ -7,11 +7,11 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-04T20:00:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `working tree based on ac3abe73a4b32785e5319e84178dd457310a66b6, run 20261005-channel-ping-overlay`
+- source_review_target: `source commit 000481dbdc438729d13b54829d4653ab51824c78, base ac3abe73a4b32785e5319e84178dd457310a66b6`
 - source_review_evidence: `channel_ping.rs`, `service.rs`, `service_windows.rs`, `ui.rs`, overlay HTML/preload, package script와 변경 diff SELF_REVIEW`
 - behavior_verified_at: `2026-10-04T20:00:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `working tree based on ac3abe73a4b32785e5319e84178dd457310a66b6`
+- behavior_verification_target: `source commit 000481dbdc438729d13b54829d4653ab51824c78`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration tests와 Node source-contract tests`
 - behavior_verification_evidence: `channel ping 8/8을 기본 병렬 설정으로 10회 반복 PASS, backend 79 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check`
 - freshness_status: `CURRENT`
@@ -54,11 +54,11 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-04T20:00:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `working tree based on ac3abe73a4b32785e5319e84178dd457310a66b6`
+- source_review_target: `source commit 000481dbdc438729d13b54829d4653ab51824c78`
 - source_review_evidence: `run 20261005-channel-ping-overlay, source diff SELF_REVIEW`
 - behavior_verified_at: `2026-10-04T20:00:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `working tree based on ac3abe73a4b32785e5319e84178dd457310a66b6`
+- behavior_verification_target: `source commit 000481dbdc438729d13b54829d4653ab51824c78`
 - behavior_verification_environment: `Windows 10.0.26200 x64, automated tests only`
 - behavior_verification_evidence: `channel ping 8/8을 기본 병렬 설정으로 10회 반복 PASS, backend 79 PASS·2 ignore와 integration 2/2, Node 203/203, desktop locked check`
 - freshness_status: `CURRENT`
