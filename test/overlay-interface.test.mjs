@@ -47,6 +47,7 @@ test("채널별 핑 창은 클릭 통과 비활성 topmost 창으로 패키징�
   assert.match(native, /"hwnd":window\.hwnd\(\) as usize/)
   assert.match(overlay, /키보드 또는 마우스를 누르면 닫힙니다/)
   assert.match(overlay, /const channelGroups = \[\[1, 15\], \[16, 29\], \[30, 38\]\]/)
+  assert.match(overlay, /if \(item\?\.endpoint\) group\.append/)
   assert.match(overlay, /grid-template-columns:\s*repeat\(3, 170px\)/)
   assert.match(overlay, /justify-content:\s*space-between/)
   assert.doesNotMatch(overlay, /0 18px 50px/)

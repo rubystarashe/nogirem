@@ -118,7 +118,7 @@
 - feedback_id: `CP-FEEDBACK-020`
 - classification: `REQUIREMENT_CLARIFICATION`, severity: `MEDIUM`, must_fix: `true`, status: `READY_FOR_VERIFICATION`
 - requested behavior: 채널명과 핑 간격 축소, 우상단 시각 제거와 로고 watermark, `n초 전에 측정했습니다` 실시간 표시, 5~10ms 노랑·10~15ms 주홍·15ms 이상 빨강, 최저 핑 채널 단일 highlight.
-- disposition: `FIXED — 세 열을 각각 170px로 축소하고 각 행 내부는 채널 왼쪽·핑 오른쪽 정렬을 유지함. 콘텐츠 합계에 맞춰 overlay 창도 720px에서 584px로 축소함. 1초 age 갱신, 경계별 색상 및 첫 최저값 강조도 적용함`
+- disposition: `FIXED — 세 열을 각각 170px로 축소하고 각 행 내부는 채널 왼쪽·핑 오른쪽 정렬을 유지함. 콘텐츠 합계에 맞춰 overlay 창도 720px에서 584px로 축소하고 endpoint가 없는 채널은 숨김. 1초 age 갱신, 경계별 색상 및 첫 최저값 강조도 적용함`
 - validation: `PASS — channel ping 관련 11/11`, `PASS — overlay-interface 3/3`, `PASS — desktop locked check`, `PASS — JavaScript syntax`, `PASS — 변경 파일 IDE lint 0`
 - manual verification: `NOT_RUN — 최신 수정 빌드에서 실제 물리 입력 즉시 숨김과 최종 시각 표현 확인 필요`
 - review_mode: `INDEPENDENT_REVIEW`

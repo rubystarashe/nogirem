@@ -198,7 +198,7 @@
         group.setAttribute("aria-label", `${start}채널부터 ${end}채널`)
         for (let channel = start; channel <= end; channel += 1) {
           const item = items.find(entry => entry.channel === channel)
-          if (item) group.append(createCard(item))
+          if (item?.endpoint) group.append(createCard(item))
         }
         return group
       }))
