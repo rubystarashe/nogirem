@@ -82,4 +82,5 @@
 - architecture_gate: `PASS — process instance·5-tuple·EStats collection·single writer 경계와 독립 review 승인`
 - review_gate: `PASS — independent APPROVED, unresolved must-fix 0`
 - qa_gate: `BLOCKED — actual game·EStats·DPI·physical input mandatory manual scenarios NOT_RUN`
-- target_gate: `PENDING — local commit 전 dirty target, push·package·release 미수행`
+- target_gate: `PASS — implementation commit a1c8699c4abaf97c86b9d712f1f60e613442e669, push·package·release 미수행`
+- commit_status: `local commit complete — a1c8699c4abaf97c86b9d712f1f60e613442e669`

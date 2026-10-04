@@ -37,6 +37,14 @@
 - `ISSUE-045-003`: `RESOLVED`
 - verdict: `APPROVED`
 - unresolved_must_fix: `none`
+
+## TARGET BINDING
+
+- assessed_at: `2026-10-04T23:24:00Z`
+- assessor: `Cursor Agent coordinator`
+- committed_target: `a1c8699c4abaf97c86b9d712f1f60e613442e669`
+- applicability: `round 3 reviewed staged content와 commit tree가 byte-identical하며 commit 동작이 파일을 변경하지 않았으므로 source approval stale=false`
+- documentation_follow_up: `commit identity와 final target gate만 갱신, product·architecture behavior 변경 없음`
 - limitations: 실제 마비노기 연결, Windows EStats 실측, 채널 전환, 혼합 DPI와 물리 입력 수동 검증은 참여하지 않음
 
 ## ROUND-3 FINAL APPLICABILITY

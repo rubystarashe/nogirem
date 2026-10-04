@@ -7,11 +7,11 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-04T23:01:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base a68c85f1da24a19e19305dc1f4b058ce72c0cc29 + run 20261005-channel-quality-045 dirty target`
+- source_review_target: `source commit a1c8699c4abaf97c86b9d712f1f60e613442e669, base a68c85f1da24a19e19305dc1f4b058ce72c0cc29`
 - source_review_evidence: `channel_ping.rs, service.rs, service_windows.rs, ui.rs, overlay HTML·tests SELF_REVIEW`
 - behavior_verified_at: `2026-10-04T23:20:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base a68c85f1da24a19e19305dc1f4b058ce72c0cc29 + run 20261005-channel-quality-045 dirty target`
+- behavior_verification_target: `source commit a1c8699c4abaf97c86b9d712f1f60e613442e669`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration·Node contract·desktop compile`
 - behavior_verification_evidence: `backend 89 PASS·2 declared ignore + integration 2/2, Node 204/204, desktop cargo check --locked, diff check, independent review APPROVED`
 - freshness_status: `CURRENT`
@@ -54,11 +54,11 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-04T23:01:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base a68c85f1da24a19e19305dc1f4b058ce72c0cc29 + run 20261005-channel-quality-045 dirty target`
+- source_review_target: `source commit a1c8699c4abaf97c86b9d712f1f60e613442e669, base a68c85f1da24a19e19305dc1f4b058ce72c0cc29`
 - source_review_evidence: `run task source paths SELF_REVIEW`
 - behavior_verified_at: `2026-10-04T23:20:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base a68c85f1da24a19e19305dc1f4b058ce72c0cc29 + run 20261005-channel-quality-045 dirty target`
+- behavior_verification_target: `source commit a1c8699c4abaf97c86b9d712f1f60e613442e669`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
 - behavior_verification_evidence: `backend 89 PASS·2 declared ignore + integration 2/2, Node 204/204, desktop compile, independent review APPROVED`
 - freshness_status: `CURRENT`
