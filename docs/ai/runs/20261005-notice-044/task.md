@@ -22,8 +22,8 @@
 
 ## 상태·수용 기준
 
-- DEV: `READY_FOR_QA`
-- QA: `COMPLETE_PASS — local interactive preview 범위`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS — local interactive preview·package 범위`
 - review: `APPROVED`, `review_mode: SELF_REVIEW`
 - publishing: `IMAGE_ONLY_COMPLETED`, `NOTICE_NOT_PUBLISHED`, `LOCAL_PACKAGE_AUTHORIZED`
 
@@ -47,3 +47,15 @@
 - evidence: `evidence/notice-preview.json`, SHA-256 `ca62dea44f3acf4d0d0e77066c71611035dd8770054fe8deecaacfbb72d231fa`
 - evidence: `evidence/notice-preview.png`, SHA-256 `4ffe2ddc182c0bbb30c622a5f2a872434182acdb01bc48906d1fdea1bcbc849c`
 - limitation: 공지 본문은 아직 origin/main에 push하지 않아 사용자에게 노출되지 않음. 현재 테스트 앱 화면 확인 뒤 게시 여부를 결정함.
+
+## 최종 package
+
+- status: `COMPLETED`
+- source_target: `40a99dc1d110bb79020ba2693f4fc0bbd152fc86`
+- execution_target: `release/dioxus-0.4.4-2026-10-04T22-30-48-908Z`
+- `PASS` — signed installer·portable, manifest self-verification, packaged native service contract, packaged `NOTICE.md` source hash 일치.
+- evidence: `evidence/package-with-notice.md`
+- feature gate: `PASS for local candidate — 공지와 기존 기능 설명 일치, lifecycle PLANNED·미배포 유지`
+- architecture gate: `PASS — 기존 HTTPS image·package 경계 사용, 새 위반·예외 없음`
+- review and QA gate: `PASS for automated preview·package scope`, `review_mode: SELF_REVIEW`, 독립 reviewer 없음.
+- target and authorization gate: `PASS — 로컬 commit·artifact hash 고정, NOTICE·source·package push와 GitHub Release는 실행하지 않음`

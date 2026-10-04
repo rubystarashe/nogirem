@@ -2,20 +2,20 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `7`
-- updated_at: `2026-10-04T21:54:27Z`
+- revision: `8`
+- updated_at: `2026-10-04T22:33:05Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-04T21:54:27Z`
+- source_reviewed_at: `2026-10-04T22:33:05Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 60f9b58cea09c4d1668af56c7cfda446211b4a51, base ac3abe73a4b32785e5319e84178dd457310a66b6`
-- source_review_evidence: `run 20261005-release-044, independent review APPROVED`
-- behavior_verified_at: `2026-10-04T21:54:27Z`
+- source_review_target: `source commit 40a99dc1d110bb79020ba2693f4fc0bbd152fc86, base ac3abe73a4b32785e5319e84178dd457310a66b6`
+- source_review_evidence: `run 20261005-release-044 independent review와 run 20261005-notice-044 SELF_REVIEW`
+- behavior_verified_at: `2026-10-04T22:33:05Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 60f9b58cea09c4d1668af56c7cfda446211b4a51, local signed package dioxus-0.4.4-2026-10-04T21-52-05-572Z`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust·Node 자동 검사와 local signed package contract`
-- behavior_verification_evidence: `Node 204/204, backend 82 PASS·2 declared ignore와 parity 2/2, native integration PASS, desktop locked check, signed package·manifest self-verification와 packaged native contract PASS`
+- behavior_verification_target: `source commit 40a99dc1d110bb79020ba2693f4fc0bbd152fc86, local signed package dioxus-0.4.4-2026-10-04T22-30-48-908Z`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Rust·Node 자동 검사, production notice preview와 local signed package contract`
+- behavior_verification_evidence: `Node 204/204, Rust notice 1/1, desktop locked check, notice preview PASS, signed package·manifest self-verification와 packaged native contract PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.4 package source와 자동·package 검증 범위를 현재 로컬 후보에 일치시킴`
+- freshness_reason: `공지 포함 0.4.4 source와 자동·preview·package 검증 범위를 최신 로컬 후보에 일치시킴`
 - known_gaps: `실제 마비노기 창의 Windows 키·click-through·topmost·혼합 DPI 수동 QA, 설치·제거 종단간과 GitHub 원격 channel.csv 조회는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — endpoint 동기화, 지연시간 이동 평균, 게임 중앙 입력 연동 오버레이`
 - feature_map: `updated — 신규 기능 identity·흐름·writer·시나리오·검증 범위를 추가함`
@@ -49,20 +49,20 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 채널 핑 network·input·auxiliary window 경계.
 - record_id: `FEAT-NOGIREM-CHANNEL-PING`
 - owner: `nogirem maintainer`
-- revision: `2`
-- updated_at: `2026-10-04T21:54:27Z`
+- revision: `3`
+- updated_at: `2026-10-04T22:33:05Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-04T21:54:27Z`
+- source_reviewed_at: `2026-10-04T22:33:05Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 60f9b58cea09c4d1668af56c7cfda446211b4a51`
-- source_review_evidence: `run 20261005-release-044, independent review APPROVED`
-- behavior_verified_at: `2026-10-04T21:54:27Z`
+- source_review_target: `source commit 40a99dc1d110bb79020ba2693f4fc0bbd152fc86`
+- source_review_evidence: `run 20261005-release-044 independent review와 run 20261005-notice-044 SELF_REVIEW`
+- behavior_verified_at: `2026-10-04T22:33:05Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 60f9b58cea09c4d1668af56c7cfda446211b4a51, local signed package dioxus-0.4.4-2026-10-04T21-52-05-572Z`
-- behavior_verification_environment: `Windows 10.0.26200 x64, automated tests와 local package contract`
-- behavior_verification_evidence: `Node 204/204, backend 82 PASS·2 ignore와 parity 2/2, native integration, desktop locked check, signed package·manifest self-verification와 packaged native contract PASS`
+- behavior_verification_target: `source commit 40a99dc1d110bb79020ba2693f4fc0bbd152fc86, local signed package dioxus-0.4.4-2026-10-04T22-30-48-908Z`
+- behavior_verification_environment: `Windows 10.0.26200 x64, automated tests·production notice preview와 local package contract`
+- behavior_verification_evidence: `Node 204/204, Rust notice 1/1, desktop locked check, notice preview, signed package·manifest self-verification와 packaged native contract PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source·로컬 package에 구현·검증된 범위와 미배포·미수동검증 gap을 분리해 기록함`
+- freshness_reason: `최신 공지 포함 source·로컬 package의 구현·검증 범위와 미배포·미수동검증 gap을 분리해 기록함`
 - known_gaps: `실제 게임 전경 표시·DPI별 중앙 정렬·모든 물리 입력 down·원격 갱신·설치·제거 종단간은 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 신규 기능 전체`
 - feature_map: `updated — 이 entry를 신규 canonical identity로 추가`
