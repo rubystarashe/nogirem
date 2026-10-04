@@ -25,6 +25,9 @@ test("고급 기능에서 채널별 핑 오버레이를 켜고 끈다", () => {
   assert.doesNotMatch(backend, /GetAsyncKeyState/)
   assert.match(service, /"channel-ping" => kind == "channel-ping-overlay"/)
   assert.match(service, /prepare_channel_ping\(\)[\s\S]+InputMonitor::new\(\)/)
+  assert.match(service, /let mut overlay_visible = false/)
+  assert.match(service, /sync_overlay_window\([\s\S]+channel_ping_id\(\)/)
+  assert.match(service, /\.poll\(overlay_visible, &self\.env\)/)
   assert.match(applicationView, /application:get-channel-ping-setting/)
 })
 
@@ -38,6 +41,8 @@ test("채널별 핑 창은 클릭 통과 비활성 topmost 창으로 패키징�
   assert.match(native, /"physicalBounds"/)
   assert.match(native, /"channel-ping-overlay\.html"/)
   assert.match(overlay, /키보드 또는 마우스를 누르면 닫힙니다/)
+  assert.match(overlay, /const channelGroups = \[\[1, 15\], \[16, 29\], \[30, 38\]\]/)
+  assert.doesNotMatch(overlay, /box-shadow:/)
   assert.match(preload, /channel-ping:get-status/)
   assert.doesNotMatch(preload, /set|write|open/)
   assert.match(packager, /channel-ping-overlay\.html/)
@@ -45,6 +50,6 @@ test("채널별 핑 창은 클릭 통과 비활성 topmost 창으로 패키징�
 })
 
 test("정지 화면의 터보키 제거 버튼은 문구 양옆 여백을 유지한다", () => {
-  assert.match(styles, /button\.turbo-key-remove\s*\{[\s\S]*min-width:\s*88px/)
-  assert.match(styles, /button\.turbo-key-remove\s*\{[\s\S]*padding:\s*0 10px/)
+  assert.match(styles, /button\.turbo-key-remove\s*\{[\s\S]*min-width:\s*72px/)
+  assert.match(styles, /button\.turbo-key-remove\s*\{[\s\S]*padding:\s*0 5px/)
 })

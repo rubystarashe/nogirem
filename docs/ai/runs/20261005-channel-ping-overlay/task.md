@@ -77,7 +77,7 @@
 - reported behavior: 고급 기능에서 채널별 핑을 켜면 보조 창에 `Unknown auxiliary document`가 표시됨.
 - cause: backend 보조 창 등록과 package 입력에는 `channel-ping-overlay.html`이 있었지만 Dioxus native document 허용 목록에서 누락됨.
 - disposition: `FIXED — native 허용 목록에 문서를 추가하고 회귀 검사를 보강함`
-- related UI feedback: 부스터 정지 화면에서 `터보키 제거하기` 버튼의 흰 배경이 문구에 밀착되어 보이는 문제를 좌우 10px, 최소 너비 88px로 조정함.
+- related UI feedback: 부스터 정지 화면에서 `터보키 제거하기` 버튼의 흰 배경이 문구에 밀착되어 보이는 문제를 좌우 5px, 최소 너비 72px로 조정함.
 - validation: `PASS — node --test test/overlay-interface.test.mjs (3/3)`, `PASS — cargo check --locked --manifest-path desktop/Cargo.toml`, `PASS — 변경 파일 IDE lint 0`
 - manual verification: `NOT_RUN — 수정 빌드 재실행 후 채널 핑 활성화 및 정지 화면 버튼 시각 확인 필요`
 - review_mode: `SELF_REVIEW — native 허용 경계, 회귀 검사, CSS 선택자 범위를 작성자가 재검토했으며 독립 reviewer는 참여하지 않음`
@@ -85,6 +85,28 @@
 - feature_map: `no_change — 기존 정본 동작 정의는 정확하며 구현 누락과 시각 결함만 수정`
 - architecture_impact: `native auxiliary document allowlist의 기존 보조 창 경계 보완`
 - architecture_contract: `no_change — 기존 허용 목록을 통한 보조 문서 제한 정책을 그대로 따름`
+
+### 입력·표시 후속
+
+- feedback_id: `CP-FEEDBACK-017`
+- classification: `DEFECT`, severity: `HIGH`, must_fix: `true`, status: `READY_FOR_VERIFICATION`
+- reported behavior: 오버레이가 표시된 뒤 키보드 또는 마우스 down에도 닫히지 않음.
+- cause: 감시 루프가 비동기 보조 창 상태를 매 회 다시 읽어 표시 직후 상태 갱신 경쟁이 발생할 수 있었음.
+- disposition: `FIXED — 감시 루프가 성공한 show/hide 결정과 함께 overlay_visible을 직접 추적하고 입력 판단에 사용함`
+- feedback_id: `CP-FEEDBACK-018`
+- classification: `REQUIREMENT_CLARIFICATION`, severity: `MEDIUM`, must_fix: `true`, status: `READY_FOR_VERIFICATION`
+- requested behavior: 잘린 외곽 반투명 여백·그림자를 제거하고 채널을 `1~15`, `16~29`, `30~38` 세로 3열로 표시함.
+- disposition: `FIXED — body 외곽 여백과 box-shadow를 제거하고 세 범위별 compact list column으로 재배치함`
+- validation: `PASS — channel_ping 관련 10/10`, `PASS — overlay-interface 3/3`, `PASS — desktop locked check`, `PASS — 변경 파일 IDE lint 0`
+- manual verification: `NOT_RUN — 수정 빌드에서 물리 입력 숨김, 외곽 마감, 3열 배치 재확인 필요`
+- review_mode: `INDEPENDENT_REVIEW`
+- reviewer: `generalPurpose agent 35612e97-29bf-40a5-8cec-e6827360900f`
+- review_rounds: `CHANGES_REQUESTED 2회 — 창 파괴·재생성 시 로컬 표시 상태와 실제 ID 경쟁`, `APPROVED — 실제 표시 ID 반환·검증, tracked ID와 visible 동시 갱신 및 interleaving 회귀 검사 확인`
+- review_target: `base eb70e614a3cd90cc82986034a3dd00507b56e65a, uncommitted diff SHA-256 8cec567c3c15f773e97e8a51f77f5d553b239ddacee912e27c341809a7180092`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 입력 down 종료 신뢰성과 채널 목록 배치·외곽 시각 마감 변경`, `FEAT-NOGIREM-TURBO-KEY — 제거 버튼 여백 축소`
+- feature_map: `no_change — 기존 종료 동작과 채널 표시 기능 정의는 정확하며 결함·표현만 수정`
+- architecture_impact: `overlay visibility authority를 비동기 window state에서 input monitor loop의 로컬 상태로 이동`
+- architecture_contract: `no_change — 기존 service-owned 보조 창·입력 adapter 경계 안의 상태 추적 수정`
 
 ## 최종 상태
 

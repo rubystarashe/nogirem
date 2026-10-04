@@ -85,6 +85,20 @@ impl Drop for SaveGuard<'_> {
         self.0.store(false, Ordering::SeqCst);
     }
 }
+fn sync_overlay_window(
+    tracked: &mut Option<u64>,
+    current: Option<u64>,
+    visible: &mut bool,
+) {
+    if *tracked != current {
+        *tracked = current;
+        *visible = false;
+    }
+}
+fn mark_overlay_shown(tracked: &mut Option<u64>, visible: &mut bool, window_id: u64) {
+    *tracked = Some(window_id);
+    *visible = true;
+}
 impl Service {
     pub fn new(
         env: Environment,
@@ -373,14 +387,17 @@ impl Service {
 
     fn monitor_channel_ping_overlay(self: &Arc<Self>) {
         let mut input = None;
+        let mut overlay_visible = false;
+        let mut overlay_window_id = None;
         while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
             let enabled = self.channel_ping.enabled();
-            let visible = self.windows.channel_ping_visible();
             if !enabled {
                 input = None;
-                if visible {
+                if overlay_visible || self.windows.channel_ping_visible() {
                     self.windows.hide_channel_ping();
                 }
+                overlay_visible = false;
+                overlay_window_id = None;
                 std::thread::sleep(Duration::from_millis(250));
                 continue;
             }
@@ -404,20 +421,43 @@ impl Service {
                     }
                 }
             }
-            match input.as_mut().unwrap().poll(visible, &self.env) {
+            sync_overlay_window(
+                &mut overlay_window_id,
+                self.windows.channel_ping_id(),
+                &mut overlay_visible,
+            );
+            match input
+                .as_mut()
+                .unwrap()
+                .poll(overlay_visible, &self.env)
+            {
                 InputDecision::Show(bounds) => {
-                    if self.channel_ping.enabled()
-                        && let Err(error) = self.windows.show_channel_ping(bounds)
-                    {
-                        log(format!("채널 핑 오버레이 표시 실패: {error}"));
+                    if self.channel_ping.enabled() {
+                        match self.windows.show_channel_ping(bounds) {
+                            Ok(window_id) => mark_overlay_shown(
+                                &mut overlay_window_id,
+                                &mut overlay_visible,
+                                window_id,
+                            ),
+                            Err(error) => {
+                                overlay_visible = false;
+                                log(format!("채널 핑 오버레이 표시 실패: {error}"));
+                            }
+                        }
                     }
                     if !self.channel_ping.enabled() {
                         self.windows.destroy_channel_ping();
+                        overlay_visible = false;
+                        overlay_window_id = None;
                     }
                 }
-                InputDecision::Hide => self.windows.hide_channel_ping(),
+                InputDecision::Hide => {
+                    self.windows.hide_channel_ping();
+                    overlay_visible = false;
+                }
                 InputDecision::Unavailable => {
                     self.windows.hide_channel_ping();
+                    overlay_visible = false;
                     self.channel_ping
                         .set_input_error(Some("입력 감시 작업이 중단되었습니다".into()));
                     input = None;
@@ -1018,4 +1058,33 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
         let _ = service.finish_exit("keep");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod channel_ping_overlay_tests {
+    use super::{mark_overlay_shown, sync_overlay_window};
+
+    #[test]
+    fn 보조_창이_재생성되면_표시_상태를_초기화한다() {
+        let mut tracked = Some(2);
+        let mut visible = true;
+        sync_overlay_window(&mut tracked, Some(3), &mut visible);
+        assert_eq!(tracked, Some(3));
+        assert!(!visible);
+
+        visible = true;
+        sync_overlay_window(&mut tracked, Some(3), &mut visible);
+        assert!(visible);
+    }
+
+    #[test]
+    fn 표시_중_창이_바뀌면_실제_창_id를_추적한다() {
+        let mut tracked = Some(2);
+        let mut visible = false;
+        sync_overlay_window(&mut tracked, Some(3), &mut visible);
+        mark_overlay_shown(&mut tracked, &mut visible, 3);
+        sync_overlay_window(&mut tracked, Some(3), &mut visible);
+        assert_eq!(tracked, Some(3));
+        assert!(visible);
+    }
 }

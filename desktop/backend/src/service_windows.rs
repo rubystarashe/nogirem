@@ -90,10 +90,13 @@ impl Windows {
             .and_then(|id| self.get(id))
             .is_some_and(|window| window.state["visible"] == true)
     }
+    pub fn channel_ping_id(&self) -> Option<u64> {
+        self.id("channel-ping-overlay")
+    }
     pub fn prepare_channel_ping(self: &Arc<Self>) -> Result<()> {
         self.open("channel-ping-overlay", false).map(|_| ())
     }
-    pub fn show_channel_ping(self: &Arc<Self>, bounds: OverlayBounds) -> Result<()> {
+    pub fn show_channel_ping(self: &Arc<Self>, bounds: OverlayBounds) -> Result<u64> {
         let id = self
             .id("channel-ping-overlay")
             .ok_or("채널 핑 오버레이가 준비되지 않았습니다")?;
@@ -112,7 +115,10 @@ impl Windows {
         self.command(id, "ignoreMouseEvents", json!(true));
         self.command(id, "opacity", json!(1));
         self.command(id, "showInactive", Value::Null);
-        Ok(())
+        if self.channel_ping_id() != Some(id) {
+            return Err("채널 핑 오버레이가 표시 중 다시 생성되었습니다".into());
+        }
+        Ok(id)
     }
     pub fn hide_channel_ping(&self) {
         if let Some(id) = self.id("channel-ping-overlay") {

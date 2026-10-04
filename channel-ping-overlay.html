@@ -25,17 +25,15 @@
     body {
       display: grid;
       place-items: center;
-      padding: 12px;
       color: #f7f5f0;
     }
     main {
       width: 100%;
       height: 100%;
-      padding: 22px 24px 18px;
+      padding: 20px 24px 14px;
       border: 1px solid rgba(255, 255, 255, .18);
-      border-radius: 22px;
-      background: rgba(15, 17, 20, .82);
-      box-shadow: 0 18px 50px rgba(0, 0, 0, .3);
+      border-radius: 18px;
+      background: rgba(15, 17, 20, .84);
       backdrop-filter: blur(14px);
     }
     header {
@@ -62,27 +60,38 @@
     }
     #channels {
       display: grid;
-      grid-template-columns: repeat(8, minmax(0, 1fr));
-      gap: 8px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .channel-group {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .035);
     }
     article {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
       min-width: 0;
-      height: 50px;
-      padding: 7px 10px;
-      border: 1px solid rgba(255, 255, 255, .09);
-      border-radius: 12px;
-      background: rgba(255, 255, 255, .055);
+      height: 19px;
+      padding: 0 9px;
+      border-bottom: 1px solid rgba(255, 255, 255, .06);
+    }
+    article:last-child {
+      border-bottom: 0;
     }
     article span {
-      display: block;
-      margin-bottom: 2px;
+      flex: 0 0 auto;
       color: rgba(247, 245, 240, .58);
-      font-size: 11px;
+      font-size: 10px;
     }
     article strong {
-      display: block;
+      min-width: 0;
       overflow: hidden;
-      font-size: 15px;
+      font-size: 11px;
       font-variant-numeric: tabular-nums;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -99,10 +108,10 @@
     }
     article.waiting strong {
       color: rgba(247, 245, 240, .56);
-      font-size: 13px;
+      font-size: 10px;
     }
     footer {
-      margin-top: 14px;
+      margin-top: 10px;
       color: rgba(247, 245, 240, .48);
       font-size: 11px;
       text-align: center;
@@ -124,6 +133,7 @@
   <script>
     const channels = document.querySelector("#channels")
     const updated = document.querySelector("#updated")
+    const channelGroups = [[1, 15], [16, 29], [30, 38]]
 
     function grade(value, failed) {
       if (failed) return "failed"
@@ -134,7 +144,8 @@
     }
 
     function render(status) {
-      channels.replaceChildren(...(status.channels || []).map(item => {
+      const items = status.channels || []
+      const createCard = item => {
         const card = document.createElement("article")
         const label = document.createElement("span")
         const value = document.createElement("strong")
@@ -148,8 +159,18 @@
             : `${item.averageMs} ms`
         card.append(label, value)
         return card
+      }
+      channels.replaceChildren(...channelGroups.map(([start, end]) => {
+        const group = document.createElement("section")
+        group.className = "channel-group"
+        group.setAttribute("aria-label", `${start}채널부터 ${end}채널`)
+        for (let channel = start; channel <= end; channel += 1) {
+          const item = items.find(entry => entry.channel === channel)
+          if (item) group.append(createCard(item))
+        }
+        return group
       }))
-      const times = (status.channels || [])
+      const times = items
         .map(item => item.measuredAt)
         .filter(value => Number.isFinite(value))
       updated.textContent = times.length
