@@ -66,8 +66,9 @@
     }
     #channels {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(3, 170px);
+      justify-content: center;
+      gap: 12px;
     }
     .channel-group {
       min-width: 0;
@@ -77,11 +78,10 @@
       background: rgba(255, 255, 255, .035);
     }
     article {
-      display: grid;
-      grid-template-columns: 42px max-content;
+      display: flex;
       align-items: center;
-      justify-content: start;
-      column-gap: 6px;
+      justify-content: space-between;
+      gap: 8px;
       min-width: 0;
       height: 19px;
       padding: 0 9px;
