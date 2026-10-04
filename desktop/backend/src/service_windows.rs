@@ -110,11 +110,11 @@ impl Windows {
     pub fn show_channel_ping(self: &Arc<Self>, bounds: OverlayBounds) -> Result<(u64, isize)> {
         let id = self
             .id("channel-ping-overlay")
-            .ok_or("채널 핑 오버레이가 준비되지 않았습니다")?;
+            .ok_or("실시간 핑 창이 준비되지 않았습니다")?;
         let hwnd = self
             .get(id)
             .and_then(|window| window.state["hwnd"].as_u64())
-            .ok_or("채널 핑 오버레이의 native 창을 찾지 못했습니다")?;
+            .ok_or("실시간 핑 창의 native 창을 찾지 못했습니다")?;
         self.command(
             id,
             "physicalBounds",
@@ -137,7 +137,7 @@ impl Windows {
             window.state["visible"] = json!(true);
         }
         if self.channel_ping_id() != Some(id) {
-            return Err("채널 핑 오버레이가 표시 중 다시 생성되었습니다".into());
+            return Err("실시간 핑 창이 표시 중 다시 생성되었습니다".into());
         }
         Ok((id, hwnd as isize))
     }
@@ -593,7 +593,7 @@ impl Windows {
                 json!({"width":1100,"height":720,"minWidth":780,"minHeight":560,"title":"블랙박스 영상 추출","alwaysOnTop":true})
             }
             "channel-ping-overlay" => {
-                json!({"width":584,"height":400,"title":"채널별 핑","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":true})
+                json!({"width":584,"height":400,"title":"실시간 핑 확인","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":true})
             }
             _ => return Err("허용되지 않은 보조 창".into()),
         };

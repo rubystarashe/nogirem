@@ -654,14 +654,15 @@ fn Advanced() -> Element {
         }
         div { class: "developer-tool-row",
             div {
-                h2 { "채널별 핑" }
-                p { "마비노기가 활성화된 상태에서 Windows 키를 누르면 채널별 연결 지연시간을 게임 중앙에 표시합니다" }
+                h2 { "실시간 핑 확인" }
+                p { "게임 중 현재 채널과 실제 연결 상태를 화면 상단에 표시하고, Windows 키를 누르면 전체 채널 상태를 펼칩니다" }
                 small { class: "developer-tool-note", "이번 버전에서는 류트 서버의 채널만 확인 가능합니다." }
             }
             Action { label: if s.channel_ping["enabled"] == true { "사용 중" } else { "사용하기" }, channel: "application:set-channel-ping-setting", args: json!([s.channel_ping["enabled"] != true]), disabled: !s.channel_ping.is_object(), class: if s.channel_ping["enabled"] == true { "active" } else { "" } }
         }
         if let Some(error) = s.channel_ping["syncError"].as_str() { span { class: "developer-tool-status", "최신 채널 정보를 확인하지 못해 저장된 정보를 사용합니다: {error}" } }
-        if let Some(error) = s.channel_ping["inputError"].as_str() { span { class: "developer-tool-status", "채널 핑 입력 감시를 시작하지 못했습니다: {error}" } }
+        if let Some(error) = s.channel_ping["inputError"].as_str() { span { class: "developer-tool-status", "실시간 핑 입력 감시를 시작하지 못했습니다: {error}" } }
+        if let Some(error) = s.channel_ping["activeConnectionError"].as_str() { span { class: "developer-tool-status", "실시간 게임 연결 확인 제한: {error}" } }
         div { class: "developer-tool-row",
             div { h2 { "게임 블랙박스" } p { "메인 화면에서 게임 화면 순환 녹화와 클립 저장 기능을 사용할 수 있습니다" } }
             Action { label: if s.blackbox["featureEnabled"] == true { "사용 중" } else { "사용하기" }, channel: "application:set-blackbox-feature-enabled", args: json!([s.blackbox["featureEnabled"] != true]), disabled: !s.blackbox.is_object(), class: if s.blackbox["featureEnabled"] == true { "active" } else { "" } }

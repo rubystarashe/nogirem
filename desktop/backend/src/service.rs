@@ -2,7 +2,10 @@ use crate::{
     Result, app_services,
     blackbox::{self, Blackbox, EditorSession},
     boost::Boost,
-    channel_ping::{ChannelPing, InputDecision, InputMonitor, set_input_overlay_window},
+    channel_ping::{
+        ChannelPing, InputDecision, InputMonitor, foreground_compact_target,
+        set_input_overlay_window,
+    },
     dxvk_manager, graphics,
     inputs::Inputs,
     network_manager,
@@ -18,7 +21,7 @@ use std::{
         Arc, Mutex, OnceLock, RwLock,
         atomic::{AtomicBool, Ordering},
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 pub struct Service {
@@ -388,7 +391,10 @@ impl Service {
     fn monitor_channel_ping_overlay(self: &Arc<Self>) {
         let mut input = None;
         let mut overlay_visible = false;
+        let mut expanded = false;
         let mut overlay_window_id = None;
+        let mut compact_bounds = None;
+        let mut next_live_refresh = Instant::now();
         while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
             let enabled = self.channel_ping.enabled();
             if !enabled {
@@ -398,6 +404,9 @@ impl Service {
                     self.windows.hide_channel_ping();
                 }
                 overlay_visible = false;
+                expanded = false;
+                compact_bounds = None;
+                self.channel_ping.set_expanded(false);
                 overlay_window_id = None;
                 std::thread::sleep(Duration::from_millis(250));
                 continue;
@@ -405,7 +414,7 @@ impl Service {
             if input.is_none() {
                 if let Err(error) = self.windows.prepare_channel_ping() {
                     self.channel_ping.set_input_error(Some(error.clone()));
-                    log(format!("채널 핑 오버레이 준비 실패: {error}"));
+                    log(format!("실시간 핑 창 준비 실패: {error}"));
                     std::thread::sleep(Duration::from_secs(5));
                     continue;
                 }
@@ -416,7 +425,7 @@ impl Service {
                     }
                     Err(error) => {
                         self.channel_ping.set_input_error(Some(error.clone()));
-                        log(format!("채널 핑 입력 감시 시작 실패: {error}"));
+                        log(format!("실시간 핑 입력 감시 시작 실패: {error}"));
                         std::thread::sleep(Duration::from_secs(5));
                         continue;
                     }
@@ -427,16 +436,58 @@ impl Service {
                 self.windows.channel_ping_id(),
                 &mut overlay_visible,
             );
-            if !overlay_visible {
+            if !expanded {
                 set_input_overlay_window(None);
+            }
+            if Instant::now() >= next_live_refresh {
+                next_live_refresh = Instant::now() + Duration::from_secs(1);
+                let compact_target = foreground_compact_target(&self.env);
+                if let Some((_, game_pid)) = compact_target {
+                    self.channel_ping
+                        .refresh_active_connection(&self.env, game_pid);
+                }
+                if !expanded {
+                    let desired = compact_target
+                        .map(|(bounds, _)| bounds)
+                        .filter(|_| self.channel_ping.has_active_connection());
+                    if let Some(bounds) = desired {
+                        self.channel_ping.set_expanded(false);
+                        if !overlay_visible || compact_bounds != Some(bounds) {
+                            match self.windows.show_channel_ping(bounds) {
+                                Ok((window_id, _)) => {
+                                    mark_overlay_shown(
+                                        &mut overlay_window_id,
+                                        &mut overlay_visible,
+                                        window_id,
+                                    );
+                                    compact_bounds = Some(bounds);
+                                }
+                                Err(error) => {
+                                    overlay_visible = false;
+                                    compact_bounds = None;
+                                    log(format!("실시간 핑 표시 실패: {error}"));
+                                }
+                            }
+                        }
+                    } else if overlay_visible {
+                        self.windows.hide_channel_ping();
+                        overlay_visible = false;
+                        compact_bounds = None;
+                    }
+                }
             }
             match input
                 .as_mut()
                 .unwrap()
-                .poll(overlay_visible, &self.env)
+                .poll(expanded, &self.env)
             {
-                InputDecision::Show(bounds) => {
+                InputDecision::Show(bounds, game_pid) => {
                     if self.channel_ping.enabled() {
+                        expanded = true;
+                        compact_bounds = None;
+                        self.channel_ping.set_expanded(true);
+                        self.channel_ping
+                            .refresh_active_connection(&self.env, game_pid);
                         match self.windows.show_channel_ping(bounds) {
                             Ok((window_id, hwnd)) => {
                                 if self.windows.arm_channel_ping_input(window_id, hwnd) {
@@ -446,15 +497,19 @@ impl Service {
                                         window_id,
                                     );
                                 } else {
+                                    expanded = false;
+                                    self.channel_ping.set_expanded(false);
                                     overlay_visible = false;
                                     self.windows.hide_channel_ping();
-                                    log("채널 핑 오버레이가 표시 중 다시 생성되었습니다");
+                                    log("실시간 핑 창이 표시 중 다시 생성되었습니다");
                                 }
                             }
                             Err(error) => {
                                 set_input_overlay_window(None);
+                                expanded = false;
+                                self.channel_ping.set_expanded(false);
                                 overlay_visible = false;
-                                log(format!("채널 핑 오버레이 표시 실패: {error}"));
+                                log(format!("실시간 핑 창 표시 실패: {error}"));
                             }
                         }
                     }
@@ -462,6 +517,7 @@ impl Service {
                         set_input_overlay_window(None);
                         self.windows.destroy_channel_ping();
                         overlay_visible = false;
+                        expanded = false;
                         overlay_window_id = None;
                     }
                 }
@@ -469,11 +525,17 @@ impl Service {
                     set_input_overlay_window(None);
                     self.windows.hide_channel_ping();
                     overlay_visible = false;
+                    expanded = false;
+                    compact_bounds = None;
+                    self.channel_ping.set_expanded(false);
                 }
                 InputDecision::Unavailable => {
                     set_input_overlay_window(None);
                     self.windows.hide_channel_ping();
                     overlay_visible = false;
+                    expanded = false;
+                    compact_bounds = None;
+                    self.channel_ping.set_expanded(false);
                     self.channel_ping
                         .set_input_error(Some("입력 감시 작업이 중단되었습니다".into()));
                     input = None;
@@ -483,6 +545,7 @@ impl Service {
             }
         }
         set_input_overlay_window(None);
+        self.channel_ping.set_expanded(false);
         self.windows.hide_channel_ping();
     }
     fn check_startup_network(&self) {
