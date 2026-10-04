@@ -653,7 +653,11 @@ fn Advanced() -> Element {
             }
         }
         div { class: "developer-tool-row",
-            div { h2 { "채널별 핑" } p { "마비노기가 활성화된 상태에서 Windows 키를 누르면 채널별 연결 지연시간을 게임 중앙에 표시합니다" } }
+            div {
+                h2 { "채널별 핑" }
+                p { "마비노기가 활성화된 상태에서 Windows 키를 누르면 채널별 연결 지연시간을 게임 중앙에 표시합니다" }
+                small { class: "developer-tool-note", "이번 버전에서는 류트 서버의 채널만 확인 가능합니다." }
+            }
             Action { label: if s.channel_ping["enabled"] == true { "사용 중" } else { "사용하기" }, channel: "application:set-channel-ping-setting", args: json!([s.channel_ping["enabled"] != true]), disabled: !s.channel_ping.is_object(), class: if s.channel_ping["enabled"] == true { "active" } else { "" } }
         }
         if let Some(error) = s.channel_ping["syncError"].as_str() { span { class: "developer-tool-status", "최신 채널 정보를 확인하지 못해 저장된 정보를 사용합니다: {error}" } }

@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-05 06:00 +09:00
+Last Updated: 2026-10-05 06:39 +09:00
 
 ## Current Objective
-Rust·Dioxus 고급 기능에 채널별 TCP 지연시간 오버레이를 추가한다.
+채널별 핑 기능을 포함한 Rust·Dioxus 0.4.4 설치형·포터블 package를 생성하되 배포하지 않는다.
 
 ## Active Runs
+- `20261005-release-044`: 류트 서버 한정 안내·584×400 footer 여백, 0.4.4 버전·변경 기록, package 전 자동 검사와 독립 review를 완료했다. signed package 생성은 다음 단계이며 배포·push는 금지다. (`docs/ai/runs/20261005-release-044/task.md`)
 - `20261005-channel-ping-overlay`: startup GitHub `channel.csv` 검증·cache fallback, 1분 측정·최근 5회 평균, 실패 중 1시간 재검사, 마비노기 전경 Windows 키 표시와 모든 후속 down 숨김, click-through topmost 보조 창, 고급 기능 toggle을 구현했다. 자동 검사와 독립 review 승인, source commit `000481dbdc438729d13b54829d4653ab51824c78` 완료 (`docs/ai/runs/20261005-channel-ping-overlay/task.md`)
 - `20261002-dxvk-043-replacement`: 잘못된 게임 경로·reparse를 차단하고 handle 기반 DXVK 교체·backup 복구·보안/권한 오류 안내를 구현했다. 독립 review, 자동·서명 package·공개 재다운로드 검증, GitHub v0.4.3 자산 10개 대치와 origin/main push 완료 (`docs/ai/runs/20261002-dxvk-043-replacement/task.md`)
 - `20261002-release-043`: 게임 종료·helper 종료 뒤 stale 부스트 상태와 중단 조작 차단을 수정하고, 테스트 서버 `Mabinogi_Test\Client.exe`를 터보키 0.1.8에서 지원한다. 자동·package·공개 재다운로드 검증과 독립 review 승인 후 GitHub v0.4.3 배포 완료 (`docs/ai/runs/20261002-release-043/task.md`)
@@ -22,7 +23,7 @@ Rust·Dioxus 고급 기능에 채널별 TCP 지연시간 오버레이를 추가�
 - 기능 활성 중 endpoint가 있는 채널을 1분마다 병렬 TCP 연결하고 최근 성공 5회 평균을 메모리에 유지한다. 빈 11채널은 `정보 없음`이며 실패 갱신을 유발하지 않는다.
 - 실제 endpoint 실패가 있으면 startup 확인 뒤 최대 1시간에 한 번 원격 CSV를 다시 확인한다. 기능 비활성 중에는 TCP 측정과 저수준 input hook을 모두 중단한다.
 - 기능 활성 중에만 `WH_KEYBOARD_LL`·`WH_MOUSE_LL`을 전용 message thread에 설치한다. callback이 Windows 키 down 순간의 전경 창을 캡처하므로 지속적인 전역 키 상태 조회나 Windows shell 포커스 경쟁에 의존하지 않는다.
-- 검증된 마비노기 전경에서 좌·우 Windows 키 down 시 client rect·DPI로 중앙 위치를 계산해 720×430 반투명 click-through·비활성·topmost 창을 표시한다.
+- 검증된 마비노기 전경에서 좌·우 Windows 키 down 시 client rect·DPI로 중앙 위치를 계산해 584×400 반투명 click-through·비활성·topmost 창을 표시한다.
 - 표시 trigger 당시 눌린 입력은 release까지 무시하며 그 외 keyboard·mouse down edge에 창을 숨긴다. 고급 기능에서 상태를 저장해 켜고 끈다.
 - 수동 활성화에서 발견된 `Unknown auxiliary document`는 Dioxus native 허용 목록의 `channel-ping-overlay.html` 누락이 원인이며 수정했다. 정지 화면의 `터보키 제거하기` 버튼은 피드백에 따라 최소 너비 72px·좌우 5px 여백으로 축소했다.
 - 표시 뒤 입력이 닫히지 않던 상태 경쟁을 피하도록 input monitor loop가 성공한 show/hide 상태와 native window ID를 추적한다. 실제 QA에서 여전히 남은 문제는 검증된 `(window ID, HWND)`를 hook에 등록해 다음 down callback에서 즉시 숨기고, registry 제거 전 등록을 해제하는 방식으로 보강했다.

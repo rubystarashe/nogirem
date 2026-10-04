@@ -786,7 +786,7 @@ dependencies = [
 
 [[package]]
 name = "nogirem-backend"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "aes",
  "base64 0.22.1",

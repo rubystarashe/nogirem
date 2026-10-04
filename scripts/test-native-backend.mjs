@@ -56,7 +56,7 @@ try {
  console.log('Rust affinity worker: game absent, no user process affinity changes, native status, graceful keep/stop passed.')
 } finally {
  if(affinityWorker.exitCode===null){await writeFile(affinityControl,JSON.stringify({command:'stop'}));await Promise.race([affinityExited,delay(2000)]);if(affinityWorker.exitCode===null)affinityWorker.kill()}
- for(const name of ['config.json','status.json','control.json','status.json.lock','runtime-state.json','game-path.json','applied-marker.json'])await unlink(join(affinityDirectory,name)).catch(()=>{})
+ for(const name of ['config.json','status.json','control.json','status.json.lock','runtime-state.json','game-path.json','applied-marker.json','events.log'])await unlink(join(affinityDirectory,name)).catch(()=>{})
  await rmdir(affinityDirectory)
 }
 const {execFile}=await import('node:child_process')

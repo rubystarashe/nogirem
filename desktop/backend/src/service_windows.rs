@@ -593,7 +593,7 @@ impl Windows {
                 json!({"width":1100,"height":720,"minWidth":780,"minHeight":560,"title":"블랙박스 영상 추출","alwaysOnTop":true})
             }
             "channel-ping-overlay" => {
-                json!({"width":584,"height":430,"title":"채널별 핑","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":true})
+                json!({"width":584,"height":400,"title":"채널별 핑","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":true})
             }
             _ => return Err("허용되지 않은 보조 창".into()),
         };

@@ -1474,6 +1474,14 @@ button.direct-donation-card:hover {
   color: #666;
 }
 
+.developer-tool-note {
+  display: block;
+  margin-top: 4px;
+  color: #888;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
 .developer-tools button {
   justify-self: end;
   min-width: 104px;

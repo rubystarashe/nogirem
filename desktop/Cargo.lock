@@ -3246,7 +3246,7 @@ checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 
 [[package]]
 name = "nogirem-backend"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -3269,7 +3269,7 @@ dependencies = [
 
 [[package]]
 name = "nogirem-desktop"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "base64 0.22.1",
  "dioxus",

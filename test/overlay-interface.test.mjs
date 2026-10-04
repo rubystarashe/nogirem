@@ -16,6 +16,7 @@ const [applicationView, backend, service, windows, native, overlay, preload, pac
 
 test("고급 기능에서 채널별 핑 오버레이를 켜고 끈다", () => {
   assert.match(applicationView, /h2 \{ "채널별 핑" \}/)
+  assert.match(applicationView, /이번 버전에서는 류트 서버의 채널만 확인 가능합니다\./)
   assert.match(applicationView, /application:set-channel-ping-setting/)
   assert.match(backend, /REMOTE_URL[\s\S]+channel\.csv/)
   assert.match(backend, /MEASURE_INTERVAL[\s\S]+from_secs\(60\)/)
@@ -34,7 +35,9 @@ test("고급 기능에서 채널별 핑 오버레이를 켜고 끈다", () => {
 test("채널별 핑 창은 클릭 통과 비활성 topmost 창으로 패키징된다", () => {
   assert.match(windows, /"channel-ping-overlay"[\s\S]+transparent/)
   assert.match(windows, /"channel-ping-overlay"[\s\S]+width":584/)
+  assert.match(windows, /"channel-ping-overlay"[\s\S]+height":400/)
   assert.match(backend, /let width = 584\.0/)
+  assert.match(backend, /let height = 400\.0/)
   assert.match(windows, /"channel-ping-overlay"[\s\S]+alwaysOnTop/)
   assert.match(windows, /ignoreMouseEvents/)
   assert.match(backend, /ShowWindowAsync/)
