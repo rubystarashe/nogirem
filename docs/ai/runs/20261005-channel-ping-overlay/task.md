@@ -70,6 +70,22 @@
 - review_target: `source commit 000481dbdc438729d13b54829d4653ab51824c78, base ac3abe73a4b32785e5319e84178dd457310a66b6`
 - review_limitations: 실제 게임·혼합 DPI·물리 입력과 package는 reviewer도 실행하지 않음
 
+## 후속 피드백 2026-10-05
+
+- feedback_id: `CP-FEEDBACK-016`
+- classification: `DEFECT`, severity: `HIGH`, must_fix: `true`, status: `READY_FOR_VERIFICATION`
+- reported behavior: 고급 기능에서 채널별 핑을 켜면 보조 창에 `Unknown auxiliary document`가 표시됨.
+- cause: backend 보조 창 등록과 package 입력에는 `channel-ping-overlay.html`이 있었지만 Dioxus native document 허용 목록에서 누락됨.
+- disposition: `FIXED — native 허용 목록에 문서를 추가하고 회귀 검사를 보강함`
+- related UI feedback: 부스터 정지 화면에서 `터보키 제거하기` 버튼의 흰 배경이 문구에 밀착되어 보이는 문제를 좌우 10px, 최소 너비 88px로 조정함.
+- validation: `PASS — node --test test/overlay-interface.test.mjs (3/3)`, `PASS — cargo check --locked --manifest-path desktop/Cargo.toml`, `PASS — 변경 파일 IDE lint 0`
+- manual verification: `NOT_RUN — 수정 빌드 재실행 후 채널 핑 활성화 및 정지 화면 버튼 시각 확인 필요`
+- review_mode: `SELF_REVIEW — native 허용 경계, 회귀 검사, CSS 선택자 범위를 작성자가 재검토했으며 독립 reviewer는 참여하지 않음`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 활성화 시 보조 HTML이 실제 오버레이로 열리도록 결함 수정`, `FEAT-NOGIREM-TURBO-KEY — 정지 화면 제거 버튼 가독성 조정`
+- feature_map: `no_change — 기존 정본 동작 정의는 정확하며 구현 누락과 시각 결함만 수정`
+- architecture_impact: `native auxiliary document allowlist의 기존 보조 창 경계 보완`
+- architecture_contract: `no_change — 기존 허용 목록을 통한 보조 문서 제한 정책을 그대로 따름`
+
 ## 최종 상태
 
 - disposition: `PARTIALLY_COMPLETED — source·자동 QA·독립 review 완료, 실제 게임·package QA 미실행`

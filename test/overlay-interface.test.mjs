@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
 
-const [applicationView, backend, service, windows, native, overlay, preload, packager] = await Promise.all([
+const [applicationView, backend, service, windows, native, overlay, preload, packager, styles] = await Promise.all([
   readFile(new URL("../desktop/src/ui.rs", import.meta.url), "utf8"),
   readFile(new URL("../desktop/backend/src/channel_ping.rs", import.meta.url), "utf8"),
   readFile(new URL("../desktop/backend/src/service.rs", import.meta.url), "utf8"),
@@ -11,6 +11,7 @@ const [applicationView, backend, service, windows, native, overlay, preload, pac
   readFile(new URL("../channel-ping-overlay.html", import.meta.url), "utf8"),
   readFile(new URL("../service/channel-ping-overlay-preload.js", import.meta.url), "utf8"),
   readFile(new URL("../scripts/package-dioxus.mjs", import.meta.url), "utf8"),
+  readFile(new URL("../web/styles.css", import.meta.url), "utf8"),
 ])
 
 test("고급 기능에서 채널별 핑 오버레이를 켜고 끈다", () => {
@@ -35,9 +36,15 @@ test("채널별 핑 창은 클릭 통과 비활성 topmost 창으로 패키징�
   assert.match(windows, /physicalBounds/)
   assert.match(windows, /채널 핑 오버레이가 준비되지 않았습니다/)
   assert.match(native, /"physicalBounds"/)
+  assert.match(native, /"channel-ping-overlay\.html"/)
   assert.match(overlay, /키보드 또는 마우스를 누르면 닫힙니다/)
   assert.match(preload, /channel-ping:get-status/)
   assert.doesNotMatch(preload, /set|write|open/)
   assert.match(packager, /channel-ping-overlay\.html/)
   assert.match(packager, /channel\.csv/)
+})
+
+test("정지 화면의 터보키 제거 버튼은 문구 양옆 여백을 유지한다", () => {
+  assert.match(styles, /button\.turbo-key-remove\s*\{[\s\S]*min-width:\s*88px/)
+  assert.match(styles, /button\.turbo-key-remove\s*\{[\s\S]*padding:\s*0 10px/)
 })

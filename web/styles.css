@@ -1555,9 +1555,9 @@ button.direct-donation-card:hover {
 
 .developer-tools button.turbo-key-remove {
   width: auto;
-  min-width: 0;
-  height: auto;
-  padding: 0;
+  min-width: 88px;
+  height: 18px;
+  padding: 0 10px;
   border: 0;
   color: #b85e5e;
   background: transparent;
