@@ -22,12 +22,28 @@
 
 ## 상태·수용 기준
 
-- DEV: `IN_PROGRESS`
-- QA: `PLANNED`
-- review: `NOT_REVIEWED`
-- publishing: `IMAGE_ONLY_AUTHORIZED`
+- DEV: `READY_FOR_REVIEW`
+- QA: `COMPLETE_PASS — local interactive preview 범위`
+- review: `APPROVED`, `review_mode: SELF_REVIEW`
+- publishing: `IMAGE_ONLY_COMPLETED`, `NOTICE_NOT_PUBLISHED`
 
 - 이미지 URL은 HTTPS raw GitHub 주소이며 package script 입력에 포함되지 않는다.
 - 공지는 류트 서버 한정, 고급 기능 활성화, Windows 키 표시, 입력 시 닫기와 측정값 의미를 정확히 설명한다.
 - 제공된 이미지가 잘리지 않고 공지 폭에 맞게 표시된다.
 - 테스트 앱이 production 공지 renderer로 `NOTICE.md`를 열고 screenshot·구조 결과를 남긴다.
+
+## 구현·검증
+
+- image_remote: `https://raw.githubusercontent.com/rubystarashe/nogirem/main/docs/notices/channel-ping-0.4.4.png`
+- image_remote_commit: `05e6d59da8970a39a0cac07993f0278655b4a4c6`
+- image_remote_check: `HTTP 200`, `image/png`, `561,087 bytes`
+- notice: 0.4.4 채널별 핑 목적, 고급 기능 활성화, Windows 키 표시, 모든 후속 입력 종료, 류트 서버 한정을 안내함.
+- style: 공지 폭 100%, 원본 `958:668` 비율, `object-fit: cover`로 빈 여백 없이 표시함.
+- fixture: 신규 `application:get-channel-ping-setting` route 누락으로 첫 preview에 표시된 오류를 수정함. 실제 production IPC 오류가 아니라 smoke fixture 결손이었음.
+- `PASS` — Node application notice `2/2`
+- `PASS` — Rust notice Markdown remote image `1/1`
+- `PASS` — desktop `cargo check --locked`, lint 0, `git diff --check`
+- `PASS` — production renderer interactive preview, overflow `0`, title·본문 일치, 앱을 열린 상태로 유지함.
+- evidence: `evidence/notice-preview.json`, SHA-256 `f482b99d53ab991a4d976aa086086ac11f29f25ba6a91d0826b0055eae9a1368`
+- evidence: `evidence/notice-preview.png`, SHA-256 `83e71198b38a55a81e4185f97ce00ef0935f98699037c3257a47a9cb9640697f`
+- limitation: 공지 본문은 아직 origin/main에 push하지 않아 사용자에게 노출되지 않음. 현재 테스트 앱 화면 확인 뒤 게시 여부를 결정함.

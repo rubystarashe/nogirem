@@ -6,13 +6,14 @@ import {
   shouldDisplayApplicationNotice,
 } from "../src/application-notice.mjs"
 
-const [mainSource, preloadSource, appSource, noticeModalSource, packageInfo, noticeMarkdown] = await Promise.all([
+const [mainSource, preloadSource, appSource, noticeModalSource, packageInfo, noticeMarkdown, styles] = await Promise.all([
   readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
   readFile(new URL("../service/preload.js", import.meta.url), "utf8"),
   readFile(new URL("../desktop/src/ui.rs", import.meta.url), "utf8"),
   readFile(new URL("../desktop/src/ui.css", import.meta.url), "utf8"),
   readFile(new URL("../scripts/package-dioxus.mjs", import.meta.url), "utf8"),
   readFile(new URL("../NOTICE.md", import.meta.url), "utf8"),
+  readFile(new URL("../web/styles.css", import.meta.url), "utf8"),
 ])
 
 test("공지 내용이 바뀔 때만 새 공지로 판정한다", () => {
@@ -40,4 +41,7 @@ test("공지 조회와 닫기 상태가 메인 창 IPC 및 모달에 연결된�
   assert.match(preloadSource, /onNoticeAvailable:[\s\S]*application:notice-available/)
 
   assert.match(packageInfo, /['"]NOTICE\.md['"]/)
+  assert.doesNotMatch(packageInfo, /docs\/notices/)
+  assert.match(noticeMarkdown, /https:\/\/raw\.githubusercontent\.com\/rubystarashe\/nogirem\/main\/docs\/notices\/channel-ping-0\.4\.4\.png/)
+  assert.match(styles, /\.application-notice-content \.markdown-image[\s\S]*aspect-ratio: 958 \/ 668[\s\S]*object-fit: cover/)
 })

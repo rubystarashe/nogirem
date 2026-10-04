@@ -1,12 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-05 07:06 +09:00
+Last Updated: 2026-10-05 07:23 +09:00
 
 ## Current Objective
-0.4.4 채널별 핑 신규 기능 공지를 원격 이미지와 함께 작성하고 테스트 앱에서 확인한다. 공지 본문은 시각 확인 전 원격 공개하지 않는다.
+0.4.4 채널별 핑 신규 기능 공지를 원격 이미지와 함께 테스트 앱에 열어 두었다. 공지 본문은 사용자 화면 확인 전 원격 공개하지 않는다.
 
 ## Active Runs
-- `20261005-notice-044`: package에서 제외되는 `docs/notices/channel-ping-0.4.4.png`를 raw GitHub 이미지로 준비하고 신규 기능 공지·표시 스타일·interactive preview를 진행한다. 이미지 push만 먼저 허용되며 `NOTICE.md` 공개는 시각 확인 뒤다. (`docs/ai/runs/20261005-notice-044/task.md`)
+- `20261005-notice-044`: package에서 제외되는 공지 이미지만 origin/main `05e6d59`에 게시했고, `NOTICE.md`와 원본 비율 `cover` 스타일을 production renderer로 preview했다. fixture의 신규 channel ping getter 누락을 수정했으며 preview PASS·앱 열린 상태다. `NOTICE.md` 공개는 사용자 화면 확인 뒤다. (`docs/ai/runs/20261005-notice-044/task.md`)
 - `20261005-release-044`: source commit `60f9b58cea09c4d1668af56c7cfda446211b4a51`에서 signed 설치형·포터블과 update manifest를 생성·검증했다. 후보는 `release/dioxus-0.4.4-2026-10-04T21-52-05-572Z`; 설치형 SHA-256 `1584e3fc...`, 포터블 `6425e5d0...`. 실제 게임·설치 수동 QA는 NOT_RUN이며 배포·push·tag는 금지다. (`docs/ai/runs/20261005-release-044/task.md`)
 - `20261005-channel-ping-overlay`: startup GitHub `channel.csv` 검증·cache fallback, 1분 측정·최근 5회 평균, 실패 중 1시간 재검사, 마비노기 전경 Windows 키 표시와 모든 후속 down 숨김, click-through topmost 보조 창, 고급 기능 toggle을 구현했다. 자동 검사와 독립 review 승인, source commit `000481dbdc438729d13b54829d4653ab51824c78` 완료 (`docs/ai/runs/20261005-channel-ping-overlay/task.md`)
 - `20261002-dxvk-043-replacement`: 잘못된 게임 경로·reparse를 차단하고 handle 기반 DXVK 교체·backup 복구·보안/권한 오류 안내를 구현했다. 독립 review, 자동·서명 package·공개 재다운로드 검증, GitHub v0.4.3 자산 10개 대치와 origin/main push 완료 (`docs/ai/runs/20261002-dxvk-043-replacement/task.md`)

@@ -2790,7 +2790,9 @@ button.direct-donation-card:hover {
 .application-notice-content .markdown-image {
   display: block;
   width: 100%;
-  max-height: 126px;
+  height: auto;
+  max-height: none;
+  aspect-ratio: 958 / 668;
   border: 1px solid #d8dcde;
   border-radius: 7px;
   object-fit: cover;

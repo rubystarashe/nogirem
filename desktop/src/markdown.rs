@@ -12,12 +12,12 @@ fn safe_url(url: &str, image: bool) -> bool {
 mod tests {
     use super::*;
     #[test]
-    fn performance_notice_has_a_safe_four_column_table() {
+    fn channel_ping_notice_has_a_safe_remote_image() {
         let html = blocks(include_str!("../../NOTICE.md"), true, true);
-        assert_eq!(html.matches("<th scope=").count(), 4);
-        assert_eq!(html.matches("<td>").count(), 16);
-        assert!(html.contains("342.0MiB"));
-        assert!(!html.contains("| ---"));
+        assert!(html.contains("class=\"markdown-image\""));
+        assert!(html.contains("https://raw.githubusercontent.com/rubystarashe/nogirem/main/docs/notices/channel-ping-0.4.4.png"));
+        assert!(html.contains("<h2>이용 방법</h2>"));
+        assert!(html.contains("류트 서버의 채널만 확인할 수 있습니다."));
         let hostile = blocks("| A | B |\n| --- | --- |\n| <script>x</script> | <img onerror=x> |", true, false);
         assert!(!hostile.contains("<script>"));
         assert!(!hostile.contains("<img "));
