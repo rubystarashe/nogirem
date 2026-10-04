@@ -27,7 +27,7 @@
 - QA: `COMPLETE_PASS — 자동 source·package 범위`
 - review: `APPROVED — independent review`
 - package: `COMPLETED`
-- deployment: `NOT_AUTHORIZED`
+- deployment: `IN_PROGRESS — user authorized GitHub v0.4.4 release at 2026-10-04T22:38:00Z`
 
 1. `COMPLETED` — 안내 문구·footer 여백과 0.4.4 버전·변경 기록 반영
 2. `COMPLETED` — 자동 검사와 독립 review

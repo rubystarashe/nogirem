@@ -25,7 +25,7 @@
 - DEV: `DONE`
 - QA: `COMPLETE_PASS — local interactive preview·package 범위`
 - review: `APPROVED`, `review_mode: SELF_REVIEW`
-- publishing: `IMAGE_ONLY_COMPLETED`, `NOTICE_NOT_PUBLISHED`, `LOCAL_PACKAGE_AUTHORIZED`
+- publishing: `IN_PROGRESS — NOTICE·source push와 GitHub v0.4.4 Release authorized at 2026-10-04T22:38:00Z`
 
 - 이미지 URL은 HTTPS raw GitHub 주소이며 package script 입력에 포함되지 않는다.
 - 공지는 류트 서버 한정, 고급 기능 활성화, Windows 키 표시, 입력 시 닫기와 측정값 의미를 정확히 설명한다.
@@ -58,4 +58,10 @@
 - feature gate: `PASS for local candidate — 공지와 기존 기능 설명 일치, lifecycle PLANNED·미배포 유지`
 - architecture gate: `PASS — 기존 HTTPS image·package 경계 사용, 새 위반·예외 없음`
 - review and QA gate: `PASS for automated preview·package scope`, `review_mode: SELF_REVIEW`, 독립 reviewer 없음.
-- target and authorization gate: `PASS — 로컬 commit·artifact hash 고정, NOTICE·source·package push와 GitHub Release는 실행하지 않음`
+- target and authorization gate: `PASS at package checkpoint — 로컬 commit·artifact hash를 고정했고 당시 NOTICE·source·package push와 GitHub Release는 실행하지 않음`
+
+## 배포 승인
+
+- authorization: 사용자가 `0.4.4 패키징한거 배포하고, 공지 푸쉬 다해`라고 명시해 source·NOTICE push, GitHub v0.4.4 Release 생성·자산 업로드와 공개 검증을 승인함.
+- release_candidate: `release/dioxus-0.4.4-2026-10-04T22-30-48-908Z`
+- release_source: `40a99dc1d110bb79020ba2693f4fc0bbd152fc86`
