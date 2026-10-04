@@ -1,12 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-05 06:39 +09:00
+Last Updated: 2026-10-05 06:55 +09:00
 
 ## Current Objective
-채널별 핑 기능을 포함한 Rust·Dioxus 0.4.4 설치형·포터블 package를 생성하되 배포하지 않는다.
+채널별 핑 기능을 포함한 Rust·Dioxus 0.4.4 로컬 package를 완료했다. 배포·push·tag는 승인되지 않았다.
 
 ## Active Runs
-- `20261005-release-044`: 류트 서버 한정 안내·584×400 footer 여백, 0.4.4 버전·변경 기록, package 전 자동 검사와 독립 review를 완료했다. signed package 생성은 다음 단계이며 배포·push는 금지다. (`docs/ai/runs/20261005-release-044/task.md`)
+- `20261005-release-044`: source commit `60f9b58cea09c4d1668af56c7cfda446211b4a51`에서 signed 설치형·포터블과 update manifest를 생성·검증했다. 후보는 `release/dioxus-0.4.4-2026-10-04T21-52-05-572Z`; 설치형 SHA-256 `1584e3fc...`, 포터블 `6425e5d0...`. 실제 게임·설치 수동 QA는 NOT_RUN이며 배포·push·tag는 금지다. (`docs/ai/runs/20261005-release-044/task.md`)
 - `20261005-channel-ping-overlay`: startup GitHub `channel.csv` 검증·cache fallback, 1분 측정·최근 5회 평균, 실패 중 1시간 재검사, 마비노기 전경 Windows 키 표시와 모든 후속 down 숨김, click-through topmost 보조 창, 고급 기능 toggle을 구현했다. 자동 검사와 독립 review 승인, source commit `000481dbdc438729d13b54829d4653ab51824c78` 완료 (`docs/ai/runs/20261005-channel-ping-overlay/task.md`)
 - `20261002-dxvk-043-replacement`: 잘못된 게임 경로·reparse를 차단하고 handle 기반 DXVK 교체·backup 복구·보안/권한 오류 안내를 구현했다. 독립 review, 자동·서명 package·공개 재다운로드 검증, GitHub v0.4.3 자산 10개 대치와 origin/main push 완료 (`docs/ai/runs/20261002-dxvk-043-replacement/task.md`)
 - `20261002-release-043`: 게임 종료·helper 종료 뒤 stale 부스트 상태와 중단 조작 차단을 수정하고, 테스트 서버 `Mabinogi_Test\Client.exe`를 터보키 0.1.8에서 지원한다. 자동·package·공개 재다운로드 검증과 독립 review 승인 후 GitHub v0.4.3 배포 완료 (`docs/ai/runs/20261002-release-043/task.md`)
@@ -133,7 +133,7 @@ Last Updated: 2026-10-05 06:39 +09:00
 3. 기존 0.4.1 포터블 사용자에게 수정 EXE를 1회 직접 내려받도록 안내하고 실제 성공 여부를 확인한다.
 4. 0.4.x 무응답 사용자에게 보호 bootstrap 로그와 startup 로그를 받아 WebView 이전·이후 실패 단계를 판별한다.
 5. 실제 앱에서 고해상도 휠과 일반 휠의 스크롤 감각을 확인한다.
-6. 채널 핑 오버레이를 실제 마비노기 창과 여러 DPI에서 수동 검증하고 이후 배포 요청 시 package·release를 검증한다.
+6. 채널 핑 오버레이를 실제 마비노기 창과 여러 DPI에서 수동 검증하고 이후 배포 요청 시 release·공개 다운로드를 검증한다.
 
 ## Known Issues
 - 이미 `신뢰할 수 없는 업데이트 작업 파일입니다`에서 막힌 0.4.1 helper는 새 payload 실행 전 실패하므로 대치 0.4.2 설치형을 한 번 수동 설치해야 한다.
@@ -147,7 +147,7 @@ Last Updated: 2026-10-05 06:39 +09:00
 - 새 스크롤 보정은 자동 테스트와 빌드만 검증됐으며 실제 장치별 휠 감각 확인이 필요하다.
 - 일부 DXVK 버전은 Windows Smart App Control에서 `0xC0E90002`로 차단될 수 있다.
 - 0.3.16 설치본은 Authenticode 인증서 서명이 없어 Windows 검증 결과가 `NotSigned`다.
-- 채널 핑 source는 구현됐지만 실제 게임 수동 QA와 package·release는 완료하지 않았다.
+- 채널 핑 source·로컬 signed package는 완료했지만 실제 게임 수동 QA와 설치·제거 종단간·release는 완료하지 않았다.
 - 사용 중인 녹화 청크가 Windows 파일 잠금으로 삭제되지 않으면 정리 오류를 표시하며 해당 파일은 남는다.
 
 ## Key Files

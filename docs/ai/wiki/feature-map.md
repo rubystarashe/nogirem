@@ -2,21 +2,21 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `6`
-- updated_at: `2026-10-04T20:00:00Z`
+- revision: `7`
+- updated_at: `2026-10-04T21:54:27Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-04T20:00:00Z`
+- source_reviewed_at: `2026-10-04T21:54:27Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 000481dbdc438729d13b54829d4653ab51824c78, base ac3abe73a4b32785e5319e84178dd457310a66b6`
-- source_review_evidence: `channel_ping.rs`, `service.rs`, `service_windows.rs`, `ui.rs`, overlay HTML/preload, package script와 변경 diff SELF_REVIEW`
-- behavior_verified_at: `2026-10-04T20:00:00Z`
+- source_review_target: `source commit 60f9b58cea09c4d1668af56c7cfda446211b4a51, base ac3abe73a4b32785e5319e84178dd457310a66b6`
+- source_review_evidence: `run 20261005-release-044, independent review APPROVED`
+- behavior_verified_at: `2026-10-04T21:54:27Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 000481dbdc438729d13b54829d4653ab51824c78`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration tests와 Node source-contract tests`
-- behavior_verification_evidence: `channel ping 8/8을 기본 병렬 설정으로 10회 반복 PASS, backend 79 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check`
+- behavior_verification_target: `source commit 60f9b58cea09c4d1668af56c7cfda446211b4a51, local signed package dioxus-0.4.4-2026-10-04T21-52-05-572Z`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Rust·Node 자동 검사와 local signed package contract`
+- behavior_verification_evidence: `Node 204/204, backend 82 PASS·2 declared ignore와 parity 2/2, native integration PASS, desktop locked check, signed package·manifest self-verification와 packaged native contract PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `채널 핑 source·자동 검사 범위를 현재 working tree와 일치시킴`
-- known_gaps: `실제 마비노기 창의 Windows 키·click-through·topmost 수동 QA, package와 GitHub 원격 channel.csv 조회는 NOT_RUN`
+- freshness_reason: `0.4.4 package source와 자동·package 검증 범위를 현재 로컬 후보에 일치시킴`
+- known_gaps: `실제 마비노기 창의 Windows 키·click-through·topmost·혼합 DPI 수동 QA, 설치·제거 종단간과 GitHub 원격 channel.csv 조회는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — endpoint 동기화, 지연시간 이동 평균, 게임 중앙 입력 연동 오버레이`
 - feature_map: `updated — 신규 기능 identity·흐름·writer·시나리오·검증 범위를 추가함`
 - architecture_impact: `채널 CSV/cache writer, TCP worker, foreground input adapter, click-through auxiliary window`
@@ -32,7 +32,7 @@
 - canonical_name: `마비노기 채널별 핑 오버레이`
 - aliases: `채널 핑`, `핑 오버레이`
 - lifecycle: `PLANNED`
-- lifecycle_reason: `Rust source 구현과 자동 검사는 완료했으나 package·release와 실제 게임 수동 검증 전이므로 사용자에게 전달된 기능으로 보지 않음`
+- lifecycle_reason: `Rust source·로컬 signed package는 완료했으나 release가 금지되어 사용자에게 전달된 기능으로 보지 않음`
 - owners: `product=nogirem maintainer`, `technical=channel ping backend owner`
 - purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 TCP 연결 지연시간을 1분마다 측정하고 최근 성공 5회의 평균을 메모리에 유지한다. 마비노기가 전경일 때 좌·우 Windows 키를 누르면 게임 client 중앙에 클릭 통과·비활성·topmost 반투명 표를 표시한다.
 - exclusions: ICMP 왕복시간, 서버 내부 처리시간, 패킷 손실률, 임의 endpoint·URL 입력, Windows 키 차단, 게임 프로세스 주입은 지원하지 않는다.
@@ -45,25 +45,25 @@
 - durable_data_owner: `channel_ping.rs`가 setting과 CSV cache의 유일한 writer다. 패키지 `channel.csv`는 fallback source이며 packager만 배포 payload에 복사한다.
 - security_privacy: 고정 HTTPS URL과 IP literal·port만 허용하며 사용자 endpoint나 인증값을 받지 않는다. 전경 PID의 실제 실행 경로가 정본 게임 조건을 충족할 때만 표시한다. 공개 endpoint 외 사용자 데이터를 전송하지 않는다.
 - scenarios: `PING-001 startup 원격 갱신`, `PING-002 cache·package fallback`, `PING-003 1분 측정·5회 평균`, `PING-004 실패 중 1시간 갱신`, `PING-005 게임 전경 Win 키 표시`, `PING-006 후속 모든 down 숨김`, `PING-007 비활성 유휴`, `PING-008 package 입력`
-- observability_evidence: 고급 기능 sync fallback 문구, overlay 측정 시각·채널 상태, `channel_ping.rs` unit tests, `test/overlay-interface.test.mjs`, native IPC contract test.
+- observability_evidence: 고급 기능 sync fallback 문구, overlay 측정 경과 시간·채널 상태, `channel_ping.rs` unit tests, `test/overlay-interface.test.mjs`, native IPC contract test.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 채널 핑 network·input·auxiliary window 경계.
 - record_id: `FEAT-NOGIREM-CHANNEL-PING`
 - owner: `nogirem maintainer`
-- revision: `1`
-- updated_at: `2026-10-04T20:00:00Z`
+- revision: `2`
+- updated_at: `2026-10-04T21:54:27Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-04T20:00:00Z`
+- source_reviewed_at: `2026-10-04T21:54:27Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 000481dbdc438729d13b54829d4653ab51824c78`
-- source_review_evidence: `run 20261005-channel-ping-overlay, source diff SELF_REVIEW`
-- behavior_verified_at: `2026-10-04T20:00:00Z`
+- source_review_target: `source commit 60f9b58cea09c4d1668af56c7cfda446211b4a51`
+- source_review_evidence: `run 20261005-release-044, independent review APPROVED`
+- behavior_verified_at: `2026-10-04T21:54:27Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 000481dbdc438729d13b54829d4653ab51824c78`
-- behavior_verification_environment: `Windows 10.0.26200 x64, automated tests only`
-- behavior_verification_evidence: `channel ping 8/8을 기본 병렬 설정으로 10회 반복 PASS, backend 79 PASS·2 ignore와 integration 2/2, Node 203/203, desktop locked check`
+- behavior_verification_target: `source commit 60f9b58cea09c4d1668af56c7cfda446211b4a51, local signed package dioxus-0.4.4-2026-10-04T21-52-05-572Z`
+- behavior_verification_environment: `Windows 10.0.26200 x64, automated tests와 local package contract`
+- behavior_verification_evidence: `Node 204/204, backend 82 PASS·2 ignore와 parity 2/2, native integration, desktop locked check, signed package·manifest self-verification와 packaged native contract PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source에 구현된 범위와 미배포·미수동검증 gap을 분리해 기록함`
-- known_gaps: `실제 게임 전경 표시·DPI별 중앙 정렬·모든 물리 입력 down·원격 갱신·package 실행은 NOT_RUN`
+- freshness_reason: `현재 source·로컬 package에 구현·검증된 범위와 미배포·미수동검증 gap을 분리해 기록함`
+- known_gaps: `실제 게임 전경 표시·DPI별 중앙 정렬·모든 물리 입력 down·원격 갱신·설치·제거 종단간은 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 신규 기능 전체`
 - feature_map: `updated — 이 entry를 신규 canonical identity로 추가`
 - architecture_impact: `channel ping capability·cache writer·Win32 input·auxiliary window 경계`

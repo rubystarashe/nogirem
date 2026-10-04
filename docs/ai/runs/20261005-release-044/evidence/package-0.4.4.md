@@ -1,0 +1,25 @@
+# EVIDENCE-REL-044-PACKAGE
+
+- evidence_id: `EVIDENCE-REL-044-PACKAGE`
+- producer: `Cursor Agent`
+- created_at: `2026-10-04T21:54:27Z`
+- run_id: `20261005-release-044`
+- checkpoint_id: `CP-RELEASE-044`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 0.4.4 로컬 설치형·포터블 payload`
+- feature_map: `updated — source·package 검증 target과 미검증 범위를 기록`
+- architecture_impact: `signed package와 native service contract`
+- architecture_contract: `no_change — 기존 package·서명 경계를 그대로 검증`
+- source_target: `60f9b58cea09c4d1668af56c7cfda446211b4a51`
+- execution_target: `Windows 10.0.26200 x64, release/dioxus-0.4.4-2026-10-04T21-52-05-572Z`
+- command: `npm run package:win`
+- expected: Rust release build, native contract, WebView2 signature, NSIS `/WX`, installer budget와 Ed25519 installer·portable manifest 검증 통과.
+- actual: exit code `0`; package script가 signed manifest 생성·self-verification을 완료했고 packaged native service contract 재실행도 exit code `0`.
+- outcome: `PASS`
+- installer: `nogirem-dioxus-setup-0.4.4.exe`, `9,540,158 bytes`, SHA-256 `1584e3fca5407df9582563a93ab0fc4f25c8face2a150b2f2bd9e01d6f5174dc`
+- portable: `nogirem-dioxus-portable-0.4.4.exe`, `7,770,752 bytes`, SHA-256 `6425e5d0de3833b114511b002069706a59f11e73d803bcde5e7ec20d97954697`
+- build metadata: `build.json`, SHA-256 `5b3f068fd4daa136739f61521a326d16755a5d631075ed697dd7d85704163273`
+- installer manifest: `update.json`, SHA-256 `2d0d4876546947b2987016f4b5939f52e3e445cdba958159c47b55407307a525`
+- portable manifest: `portable-update.json`, SHA-256 `600cd526ee0751e94e772505c3e451e8e0f06332366d6fa93a78c97e0af2b326`
+- dependency_mode: local Rust/Cargo build와 기존 NSIS·WebView2 bootstrapper·로컬 Ed25519 release key 사용. 비밀 키 내용은 기록하지 않음.
+- sanitization: 개인 정보·자격 증명 없음. 절대 로컬 경로는 run 기록에서 repository-relative 경로로 축약.
+- limitations: 실제 설치·제거·포터블 UI 실행, 게임 전경 물리 입력, 혼합 DPI, GitHub 업로드·공개 다운로드는 `NOT_RUN`.
