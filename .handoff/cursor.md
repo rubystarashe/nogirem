@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-05 16:10 +09:00
+Last Updated: 2026-10-05 21:22 +09:00
 
 ## Current Objective
-0.4.5 `실시간 게임 서버 모니터링`에서 분산 안정성 판정과 실제 접속 채널 RTT를 구현하고, 게임 전경 중 상단 compact 상시 표시와 Windows 키 expanded 표를 검증한다. 배포는 승인되지 않았다.
+0.4.5 `실시간 게임 서버 모니터링` 최신 source를 서명 설치형·포터블과 signed update manifest로 패키징하고 GitHub 공개 배포·재다운로드 검증까지 완료했다.
 
 ## Active Runs
+- `20261005-release-045`: source `2fd708bee4af0513a68b21618e81e0173516c098`에서 signed 설치형·포터블을 만들고 origin/main push, v0.4.5 tag와 [GitHub v0.4.5](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.5) 자산 10개를 공개했다. 공개 10/10 hash·Ed25519 manifest·Electron 0.3.19 bridge 재검증이 통과했다. 실제 설치·게임·혼합 DPI QA는 수행하지 않았다. (`docs/ai/runs/20261005-release-045/task.md`)
 - `20261005-package-045`: source `4c11b0e42055073597d080cf59219d22cd06cfbb`에서 0.4.5 서명 설치형·포터블을 `release/dioxus-0.4.5-2026-10-05T08-21-42-249Z`에 생성하고 자동·native contract·해시·manifest 검증을 통과했다. 실제 설치·포터블 실행과 push·tag·GitHub release·배포는 수행하지 않았다. (`docs/ai/runs/20261005-package-045/final-report.md`)
 - `20261005-channel-quality-045`: source commit `cf607c8f2506a1c7a903e8ffbb5e36773a016546`에서 최근 가중 평균 절대편차 점수 목록, 실제 연결의 최근 1분 최대와 0이 아닌 1분 재전송·시간초과·중복·혼잡, `채널별 서버 지연 추측` 중앙 창과 서버 IP 구분선을 구현했다. 의심스러운 첫 연결 결과만 2회 추가 확인해 세 결과 중앙값을 기록하고 반복 지연은 유지한다. 자동 검사와 `REV-CHANNEL-QUALITY-045-R9` 독립 리뷰를 통과했으며 실제 게임 확인이 남았다. (`docs/ai/runs/20261005-channel-quality-045/task.md`)
 - `20261005-notice-044`: 최종 공지·원본 비율 `cover` 스타일·fixture getter 보완을 source `40a99dc`에서 preview·package하고 [GitHub v0.4.4](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.4)로 배포했다. 공개 자산 10/10 hash·signed update·Electron bridge와 raw NOTICE 일치를 검증했다. (`docs/ai/runs/20261005-notice-044/task.md`)
@@ -22,7 +23,7 @@ Last Updated: 2026-10-05 16:10 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
-- 0.4.5 로컬 패키지는 설치형 `9,559,488 bytes` SHA-256 `4a3aba2e...a5089`, 포터블 `7,783,890 bytes` SHA-256 `9033ba9f...4c274`로 생성됐다. Node 204/204, desktop 8/8, backend 93/93·통합 2/2, overlay 3/3과 signed manifest 자체 검증이 통과했다.
+- 0.4.5 공개 패키지는 설치형 `9,563,418 bytes` SHA-256 `aada494d...308b7`, 포터블 `7,790,592 bytes` SHA-256 `5269af6c...1bef8`이다. Node 204/204, desktop 8/8, backend integration 3/3, package contract·서명과 공개 재다운로드 자산 10/10 검증이 통과했다.
 - 기능명을 `채널별 핑`에서 `실시간 게임 서버 모니터링`으로 변경하고 중앙 전체 채널 창의 현재 제목은 `채널별 서버 지연 추측`이다. 고정 GitHub raw CSV의 검증·cache→package fallback과 설정 single writer는 유지한다.
 - endpoint가 있는 채널은 초기 3표본을 약 30초에 순차 수집한 뒤 60초 동안 하나씩 분산 측정한다. 목록은 최근 표본에 선형으로 높은 가중치를 둔 최근 20회 연결 시험의 평균 절대편차에 100을 곱한 정수 점수를 표시하고, 0.5·1.0·1.5ms 경계로 녹색·노란색·주황색·빨간색을 적용한다.
 - 정본 마비노기 전경 process handle을 조회 완료까지 유지하고 CSV IP:port와 정확히 일치하는 established 5-tuple만 현재 채널 후보로 인정한다. 동일 connection identity를 유지하고 모호한 복수 연결은 표시하지 않으며, connection-scoped Windows TCP EStats 수집 활성화·조회 결과를 반영한다.
@@ -30,18 +31,18 @@ Last Updated: 2026-10-05 16:10 +09:00
 - 상단 창은 100ms foreground 확인과 실제 HWND visibility 재확인으로 다른 앱 전환 시 숨고, 전체표 표시 중에만 Windows shell focus 전환에도 유지된다. RTT가 없는 채널 전환 중간 상태도 표시하지 않는다. 보이는 배경은 문구 `max-content`와 최소 padding만 감싸며 최대 `0~40`, `41~70`, `71~100`, `101+ms`를 녹색·노란색·주황색·빨간색으로 표시한다. 실제 TCP 조회는 게임 전경에서만 1초 주기로 수행한다.
 - 기능 활성 중에만 `WH_KEYBOARD_LL`·`WH_MOUSE_LL`을 전용 message thread에 설치한다. 두 mode 모두 click-through·비활성·topmost이며 게임 프로세스 주입·패킷 캡처는 하지 않는다.
 - 0.4.5 자동 검사는 backend 89 PASS·2 declared ignore와 integration 2/2, Node 204/204, desktop locked check, diff check를 통과했다. 독립 review에서 PID 재사용·복수 연결·EStats 오류 finding 3개를 수정해 round 2 `APPROVED`를 받았다.
-- 실제 마비노기에서 창 분리·현재 채널 식별과 목록 강조는 사용자 피드백으로 반복 확인했지만, 최신 520×30 1분 최대·발생량 표시·비전경 shell 제한·채널 전환 초기화는 재확인이 남았다. package·push·release는 수행하지 않았다.
+- 실제 마비노기에서 창 분리·현재 채널 식별과 목록 강조는 사용자 피드백으로 반복 확인했지만, 최신 520×30 1분 최대·발생량 표시·비전경 shell 제한·채널 전환 초기화의 최종 재확인은 남았다. package·push·v0.4.5 Release는 완료됐다.
 - 수동 활성화에서 발견된 `Unknown auxiliary document`는 Dioxus native 허용 목록의 `channel-ping-overlay.html` 누락이 원인이며 수정했다. 정지 화면의 `터보키 제거하기` 버튼은 피드백에 따라 최소 너비 72px·좌우 5px 여백으로 축소했다.
 - 표시 뒤 입력이 닫히지 않던 상태 경쟁을 피하도록 input monitor loop가 성공한 show/hide 상태와 native window ID를 추적한다. 실제 QA에서 여전히 남은 문제는 검증된 `(window ID, HWND)`를 hook에 등록해 다음 down callback에서 즉시 숨기고, registry 제거 전 등록을 해제하는 방식으로 보강했다.
 - expanded 표는 `1~15`, `16~29`, `30~38` 세로 3열·170px 열·584×400 크기와 endpoint 없는 채널 숨김을 유지한다. 모든 채널은 같은 연결 시험 변동 점수를 표시하고 실제 접속 채널만 별도 테두리와 `현재` 문구로 강조한다.
 - expanded 표는 각 열에서 포트를 제외한 다음 endpoint IP가 바뀌는 행 아래에 구분선과 4px 간격을 둔다. 배경색은 교차하지 않으며 전체 높이를 유지하도록 행 높이는 18px다.
-- IP 구간 간격 변경은 overlay interface 3/3, Node syntax, diff check, IDE diagnostics를 통과했고 `SELF_REVIEW APPROVED`다. 최신 debug 앱을 실행했으며 직전 0.4.5 package에는 이 후속 변경이 포함되지 않았다.
+- IP 구간 간격 변경은 overlay interface 3/3, Node syntax, diff check, IDE diagnostics를 통과했고 `SELF_REVIEW APPROVED`다. v0.4.5 공개 package에 이 변경이 포함됐다.
 - 최신 자동 검사는 channel ping 관련 22/22와 overlay-interface 3/3, desktop build, diff check, 변경 파일 lint 0을 통과했다.
 - 독립 review `REV-CHANNEL-QUALITY-045-R4`는 actual HWND 반복 숨김·평균 절대편차 단일 반올림·RTT 색상과 compact 문서 정합성을 재검토해 `APPROVED`했다.
-- 네 TCP 경로 지표 변경은 channel ping 26/26, overlay 3/3, diff check를 통과했다. 상단 native 영역은 순간·평균 제거 후 520×30으로 줄이고 모든 숫자를 `k/m/b`로 축약하되 visible 배경은 `max-content`를 유지한다. 직전 0.4.5 package에는 이 변경이 포함되지 않았다.
+- 네 TCP 경로 지표 변경은 channel ping 26/26, overlay 3/3, diff check를 통과했다. 상단 native 영역은 순간·평균 제거 후 520×30으로 줄이고 모든 숫자를 `k/m/b`로 축약하되 visible 배경은 `max-content`를 유지한다. v0.4.5 공개 package에 이 변경이 포함됐다.
 - 중앙 expanded 창의 document·heading·ARIA·native title은 현재 `채널별 서버 지연 추측`이며 최신 자동 검사·리뷰·debug 재실행 결과는 active feedback 기록을 따른다.
 - 후속 자동 검사는 channel ping 관련 11/11, overlay-interface 3/3, desktop locked check, JavaScript syntax, 변경 파일 lint 0을 통과했고 HWND 수명 경합 수정까지 독립 재리뷰 `APPROVED`를 받았다. 최신 빌드의 물리 입력 즉시 숨김과 최종 시각 확인은 남아 있다.
-- channel ping 8/8을 기본 병렬 설정으로 10회 반복했고 backend 79 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check가 통과했다. 독립 review는 모든 must-fix 해결 후 `APPROVED`다. 실제 게임·DPI·물리 입력과 package 실행은 NOT_RUN이며 push·배포는 하지 않았다.
+- channel ping 8/8을 기본 병렬 설정으로 10회 반복했고 backend 79 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check가 통과했다. 독립 review는 모든 must-fix 해결 후 `APPROVED`다. 당시 실제 게임·DPI·물리 입력은 NOT_RUN이었고, 후속 0.4.5 package·push·배포는 완료됐다.
 - DXVK install은 실제 `Client.exe`, 허용 폴더·launcher, canonical parent와 파일·상위 reparse를 다운로드 전에 확인하고, file replace 직전에 경로 변경·게임 실행을 다시 차단한다.
 - 저장소와 게임 폴더 DLL은 디렉터리·staged·기존 파일 handle identity를 유지·재확인하고 UUID 임시 파일과 기존 파일 backup을 flush·hash 검증한 뒤 staged handle의 `SetFileInformationByHandle`로 교체한다. 외부 deployment I/O 오류·불일치까지 backup을 유지하며 복구 실패 시 수동 복구용으로 보존한다.
 - 임시·최종 파일 `NotFound`는 Windows 보안·백신 격리 가능성을, access denied·sharing violation은 보안 차단·권한·파일 사용을 구분해 안내한다.
