@@ -83,9 +83,13 @@
       justify-content: space-between;
       gap: 8px;
       min-width: 0;
-      height: 19px;
+      height: 18px;
       padding: 0 9px;
       border-bottom: 1px solid rgba(255, 255, 255, .06);
+    }
+    article.ip-boundary {
+      margin-bottom: 3px;
+      border-bottom: 0;
     }
     article:last-child {
       border-bottom: 0;
@@ -179,6 +183,10 @@
       return "critical"
     }
 
+    function endpointIp(endpoint) {
+      return endpoint?.replace(/:\d+$/, "") ?? null
+    }
+
     function updateMeasurementAge() {
       if (refreshFailed) {
         measurementAge.textContent = "상태 확인 실패"
@@ -227,10 +235,17 @@
         const group = document.createElement("section")
         group.className = "channel-group"
         group.setAttribute("aria-label", `${start}채널부터 ${end}채널`)
-        for (let channel = start; channel <= end; channel += 1) {
-          const item = items.find(entry => entry.channel === channel)
-          if (item?.endpoint) group.append(createCard(item))
-        }
+        const groupItems = items
+          .filter(item => item.endpoint && item.channel >= start && item.channel <= end)
+          .sort((left, right) => left.channel - right.channel)
+        groupItems.forEach((item, index) => {
+          const card = createCard(item)
+          const nextItem = groupItems[index + 1]
+          if (nextItem && endpointIp(item.endpoint) !== endpointIp(nextItem.endpoint)) {
+            card.classList.add("ip-boundary")
+          }
+          group.append(card)
+        })
         return group
       }))
       refreshFailed = false

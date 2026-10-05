@@ -139,6 +139,24 @@
 - push_status: `NOT_RUN — 승인되지 않음`
 - deployment_status: `NOT_RUN — 승인되지 않음`
 
+## Feedback FB-CHANNEL-045-008 — 서버 IP 구간 간격
+
+- received_at: `2026-10-05T08:34:00Z`
+- classification: `ENHANCEMENT`
+- severity: `LOW`
+- must_fix: `true`
+- expected: 중앙 목록의 각 열에서 현재 endpoint와 다음 표시 endpoint의 포트를 제외한 IP가 다르면 현재 행 아래에 작은 간격을 둔다.
+- disposition: `FIXED`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 같은 서버 IP를 사용하는 연속 채널 구간의 시각적 구분`
+- feature_map: `updated — 중앙 목록 IP 구간 표시 흐름과 PING-010을 반영`
+- architecture_impact: `none — backend status, endpoint writer, IPC와 window identity는 변경하지 않음`
+- architecture_contract: `no_change — 기존 read-only expanded renderer 경계 내 표현 변경`
+- risk: `LOW — 중앙 HTML의 행 배치만 변경하며 측정·데이터·통합·구조 경계에 영향 없음`
+- automated_validation: `overlay interface 3/3 PASS, Node syntax PASS, diff check PASS, IDE diagnostics PASS`
+- review_mode: `SELF_REVIEW — IP:port에서 마지막 port를 제거한 IP 비교, endpoint 없는 행 제외, 열별 다음 표시 행 비교, 높이 보존을 검토했으며 독립 reviewer는 참여하지 않음`
+- review_verdict: `APPROVED — mandatory finding 없음`
+- manual_validation: `NOT_RUN — 최신 debug 앱을 실행했으며 사용자의 Windows 키 중앙 창 확인 필요`
+
 ## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
 
 - received_at: `2026-10-05T07:35:00Z`
