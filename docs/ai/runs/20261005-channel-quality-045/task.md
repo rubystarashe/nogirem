@@ -256,7 +256,7 @@
 - severity: `MEDIUM`
 - must_fix: `true`
 - expected: 트래픽량에 따라 표본 갱신 특성이 달라지는 순간 TCP 추정값과 평균값을 상단에서 제거하고 최근 3분 추정 표본 최대와 네 TCP 경로 누적 counter만 표시한다.
-- disposition: `READY_FOR_VERIFICATION`
+- disposition: `FIXED`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 상단 실시간 창의 대표 지연값을 최근 최대 하나로 축소`
 - feature_map: `updated — 순간·평균 제외와 최근 최대 표시·색상 의미를 반영`
 - architecture_impact: `none — backend estimator·EStats writer·status contract는 유지하고 read-only live renderer만 축소`
@@ -267,6 +267,12 @@
 - render_validation: `Chromium 520×30, 최근 최대와 네 counter를 모두 최장 축약 999m으로 표시해 pill 493.75px·right 506.88px·scrollWidth 492px, clipped=false; 순간·평균 문구 없음`
 - format_validation: `cargo fmt --all --check FAIL — 이번 변경 파일이 아닌 기존 app_services.rs 등 repository-wide format debt`
 - manual_validation: `NOT_RUN — 실제 게임 native WebView 표시 확인 필요`
+- implementation_commit: `4d7e9cc679471b36b434ba1e67e508b0498adc79`
+- review_round: `REV-CHANNEL-QUALITY-045-R7 — 1차 CHANGES_REQUESTED의 canonical target·handoff 정합성을 수정하고 최종 APPROVED`
+- review_mode: `INDEPENDENT_REVIEW`
+- review_verdict: `APPROVED — ISSUE-045-014 RESOLVED, 신규 must-fix 없음`
+- push_status: `NOT_RUN — 승인되지 않음`
+- deployment_status: `NOT_RUN — 승인되지 않음`
 
 ## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
 

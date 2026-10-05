@@ -2,21 +2,21 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `16`
-- updated_at: `2026-10-05T09:38:00Z`
+- revision: `17`
+- updated_at: `2026-10-05T10:09:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T09:38:00Z`
+- source_reviewed_at: `2026-10-05T10:09:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 37c4790100f1007b8231e5dcd8e5e5ade22b3ba7, base 901d9aca53f8116cf9d86eb4fd7064a68bc007dd`
-- source_review_evidence: `channel_ping.rs, channel-ping-live.html, service_windows.rs, overlay interface test; REV-CHANNEL-QUALITY-045-R6 INDEPENDENT_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T09:38:00Z`
+- source_review_target: `source commit 4d7e9cc679471b36b434ba1e67e508b0498adc79, base 3fafbe9ee00ce42a1bb905c18691256f2d8f7ad0`
+- source_review_evidence: `channel-ping-live.html, channel_ping.rs, service_windows.rs, overlay interface test; REV-CHANNEL-QUALITY-045-R7 INDEPENDENT_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-05T10:09:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 37c4790100f1007b8231e5dcd8e5e5ade22b3ba7`
+- behavior_verification_target: `source commit 4d7e9cc679471b36b434ba1e67e508b0498adc79`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration·Node contract·desktop compile`
-- behavior_verification_evidence: `channel ping backend 26/26, overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 640×30 u32-max clipped=false`
+- behavior_verification_evidence: `overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 520×30 999m fixture clipped=false·순간/평균 문구 없음`
 - freshness_status: `CURRENT`
 - freshness_reason: `0.4.5 실시간 게임 서버 모니터링 source 설계와 현재 미검증 상태를 구분해 반영`
-- known_gaps: `실제 게임 native WebView의 네 TCP 경로 counter 변화·actual HWND 비전경 숨김·채널 전환·혼합 DPI는 수동 NOT_RUN; 직전 0.4.5 package는 상단 TCP 경로 지표 변경 전 target`
+- known_gaps: `실제 게임 native WebView의 최근 최대 전용 표시·네 TCP 경로 counter 변화·actual HWND 비전경 숨김·채널 전환·혼합 DPI는 수동 NOT_RUN; 직전 0.4.5 package는 최신 표시 변경 전 target`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 실제 접속 채널 상시 표시, 안정성 판정, 분산 측정, 기능명 변경`
 - feature_map: `updated — 신규 기능 identity·흐름·writer·시나리오·검증 범위를 추가함`
 - architecture_impact: `채널 CSV/cache writer, TCP worker, foreground input adapter, click-through auxiliary window`
@@ -49,21 +49,21 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 채널 핑 network·input·auxiliary window 경계.
 - record_id: `FEAT-NOGIREM-CHANNEL-PING`
 - owner: `nogirem maintainer`
-- revision: `11`
-- updated_at: `2026-10-05T09:38:00Z`
+- revision: `12`
+- updated_at: `2026-10-05T10:09:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T09:38:00Z`
+- source_reviewed_at: `2026-10-05T10:09:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 37c4790100f1007b8231e5dcd8e5e5ade22b3ba7, base 901d9aca53f8116cf9d86eb4fd7064a68bc007dd`
-- source_review_evidence: `TCP path counter source paths; REV-CHANNEL-QUALITY-045-R6 INDEPENDENT_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T09:38:00Z`
+- source_review_target: `source commit 4d7e9cc679471b36b434ba1e67e508b0498adc79, base 3fafbe9ee00ce42a1bb905c18691256f2d8f7ad0`
+- source_review_evidence: `recent-maximum-only live renderer and TCP path counter source paths; REV-CHANNEL-QUALITY-045-R7 INDEPENDENT_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-05T10:09:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 37c4790100f1007b8231e5dcd8e5e5ade22b3ba7`
+- behavior_verification_target: `source commit 4d7e9cc679471b36b434ba1e67e508b0498adc79`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `channel ping backend 26/26, overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 640×30 u32-max clipped=false`
+- behavior_verification_evidence: `overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 520×30 999m fixture clipped=false·순간/평균 문구 없음`
 - freshness_status: `CURRENT`
 - freshness_reason: `0.4.5 source 의미와 QA 대기 상태를 정확히 반영`
-- known_gaps: `최신 실제 연결 평균·최대 UI와 비전경 숨김·DPI·설치·제거 종단간은 NOT_RUN`
+- known_gaps: `최신 실제 연결 최근 최대 전용 UI와 비전경 숨김·DPI·설치·제거 종단간은 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 실시간 게임 서버 모니터링 개편`
 - feature_map: `updated — 이 entry를 신규 canonical identity로 추가`
 - architecture_impact: `channel ping capability·cache writer·Win32 input·auxiliary window 경계`
