@@ -157,6 +157,42 @@
 - review_verdict: `APPROVED — mandatory finding 없음`
 - manual_validation: `NOT_RUN — 최신 debug 앱을 실행했으며 사용자의 Windows 키 중앙 창 확인 필요`
 
+## Feedback FB-CHANNEL-045-009 — IP 구간 대비 강화
+
+- received_at: `2026-10-05T08:39:00Z`
+- classification: `DEFECT`
+- severity: `MEDIUM`
+- must_fix: `true`
+- observed: IP 변경 지점의 3px 빈 간격만으로는 실제 화면에서 구간 차이가 거의 보이지 않음.
+- expected: 같은 IP 구간마다 배경 명도를 교차하고 IP 변경 마지막 행에 구분선과 더 분명한 간격을 함께 표시한다.
+- disposition: `FIXED`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 중앙 목록의 서버 IP 구간 시각 대비 강화`
+- feature_map: `updated — 교차 배경·구분선·간격 표시를 canonical scope에 반영`
+- architecture_impact: `none — read-only renderer CSS와 class 배정만 변경`
+- architecture_contract: `no_change — backend·IPC·window 경계 변경 없음`
+- automated_validation: `overlay interface 3/3 PASS, Node syntax PASS, diff check PASS`
+- review_mode: `SELF_REVIEW — IP 구간 index 증가, 교차 class, 현재·최저 점수 우선 CSS 순서, 마지막 행 구분선 조건을 검토했으며 독립 reviewer는 참여하지 않음`
+- review_verdict: `APPROVED — mandatory finding 없음`
+- manual_validation: `NOT_RUN — 최신 debug 앱을 재실행했으며 사용자 화면 확인 필요`
+
+## Feedback FB-CHANNEL-045-010 — IP 구간 배경 교차 제거
+
+- received_at: `2026-10-05T08:42:00Z`
+- classification: `REQUIREMENT_CLARIFICATION`
+- severity: `LOW`
+- must_fix: `true`
+- supersedes: `FB-CHANNEL-045-009의 교차 배경 요구만 철회`
+- expected: IP 변경 지점의 구분선과 4px 간격은 유지하고 IP 구간별 배경색 교차는 제거한다.
+- disposition: `FIXED`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 중앙 목록 IP 구간 표현을 구분선·간격으로 단순화`
+- feature_map: `updated — 철회된 교차 배경을 canonical scope에서 제거`
+- architecture_impact: `none — renderer CSS·class 표현만 축소`
+- architecture_contract: `no_change — backend·IPC·window 경계 변경 없음`
+- automated_validation: `overlay interface 3/3 PASS, Node syntax PASS, diff check PASS`
+- review_mode: `SELF_REVIEW — 교차 class·CSS 제거와 구분선·4px 간격 유지, 현재·최저 강조 우선순위를 검토했으며 독립 reviewer는 참여하지 않음`
+- review_verdict: `APPROVED — mandatory finding 없음`
+- manual_validation: `NOT_RUN — 최신 debug 앱을 재실행했으며 사용자 화면 확인 필요`
+
 ## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
 
 - received_at: `2026-10-05T07:35:00Z`

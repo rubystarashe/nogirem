@@ -34,7 +34,7 @@
 - lifecycle: `ACTIVE`
 - lifecycle_reason: `GitHub v0.4.4 정식 Release로 설치형·포터블과 signed update manifest를 공개함`
 - owners: `product=nogirem maintainer`, `technical=channel ping backend owner`
-- purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 초기 3표본을 약 30초에 순차 수집하고 이후 60초 주기로 분산 측정해 최근 20회 성공 표본의 평균 절대편차 점수와 실패율을 메모리에 유지한다. 검증된 마비노기 전경 TCP 연결이 CSV endpoint와 일치하면 별도 상단 창에 현재 채널·현재 Windows `SmoothedRtt`·최근 3분 표본 평균·표본 최대·재전송을 표시하고, 좌·우 Windows 키로 독립된 중앙 전체 채널표를 함께 펼친다. 중앙 목록은 포트를 제외한 서버 IP가 다음 행에서 바뀌는 지점에 간격을 둬 같은 IP 구간을 구분한다.
+- purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 초기 3표본을 약 30초에 순차 수집하고 이후 60초 주기로 분산 측정해 최근 20회 성공 표본의 평균 절대편차 점수와 실패율을 메모리에 유지한다. 검증된 마비노기 전경 TCP 연결이 CSV endpoint와 일치하면 별도 상단 창에 현재 채널·현재 Windows `SmoothedRtt`·최근 3분 표본 평균·표본 최대·재전송을 표시하고, 좌·우 Windows 키로 독립된 중앙 전체 채널표를 함께 펼친다. 중앙 목록은 포트를 제외한 서버 IP가 다음 행에서 바뀌는 지점에 구분선과 간격을 둔다.
 - exclusions: ICMP 왕복시간, 서버 내부 처리시간, 직접 패킷 손실 측정, 임의 endpoint·URL 입력, Windows 키 차단, 게임 프로세스 주입은 지원하지 않는다.
 - personas_permissions_accessibility_entry: Windows 사용자가 고급 기능에서 선택적으로 켜고 끈다. 목록은 정수 점수와 `측정 중`·`연결 불가`를 표시하고 현재 채널은 `현재` 문구로 구분해 색상에만 의존하지 않는다. 상단 실제 연결 창은 숫자 지표만 표시하고 현재 RTT 구간별 색상을 보조 신호로 사용한다.
 - preconditions_dependencies: Windows, 실행 중인 Rust 앱, 검증 가능한 마비노기 `Client.exe`, 저수준 keyboard·mouse hook, 고정 GitHub raw HTTPS URL, WebView2, 공개 채널 TCP endpoint.

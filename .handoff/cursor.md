@@ -34,7 +34,7 @@ Last Updated: 2026-10-05 16:10 +09:00
 - 수동 활성화에서 발견된 `Unknown auxiliary document`는 Dioxus native 허용 목록의 `channel-ping-overlay.html` 누락이 원인이며 수정했다. 정지 화면의 `터보키 제거하기` 버튼은 피드백에 따라 최소 너비 72px·좌우 5px 여백으로 축소했다.
 - 표시 뒤 입력이 닫히지 않던 상태 경쟁을 피하도록 input monitor loop가 성공한 show/hide 상태와 native window ID를 추적한다. 실제 QA에서 여전히 남은 문제는 검증된 `(window ID, HWND)`를 hook에 등록해 다음 down callback에서 즉시 숨기고, registry 제거 전 등록을 해제하는 방식으로 보강했다.
 - expanded 표는 `1~15`, `16~29`, `30~38` 세로 3열·170px 열·584×400 크기와 endpoint 없는 채널 숨김을 유지한다. 모든 채널은 같은 연결 시험 변동 점수를 표시하고 실제 접속 채널만 별도 테두리와 `현재` 문구로 강조한다.
-- expanded 표는 각 열에서 포트를 제외한 다음 endpoint IP가 바뀌는 행 아래에 3px 간격을 두고, 전체 높이를 유지하도록 행 높이를 18px로 조정한다.
+- expanded 표는 각 열에서 포트를 제외한 다음 endpoint IP가 바뀌는 행 아래에 구분선과 4px 간격을 둔다. 배경색은 교차하지 않으며 전체 높이를 유지하도록 행 높이는 18px다.
 - IP 구간 간격 변경은 overlay interface 3/3, Node syntax, diff check, IDE diagnostics를 통과했고 `SELF_REVIEW APPROVED`다. 최신 debug 앱을 실행했으며 직전 0.4.5 package에는 이 후속 변경이 포함되지 않았다.
 - 최신 자동 검사는 channel ping 관련 22/22와 overlay-interface 3/3, desktop build, diff check, 변경 파일 lint 0을 통과했다.
 - 독립 review `REV-CHANNEL-QUALITY-045-R4`는 actual HWND 반복 숨김·평균 절대편차 단일 반올림·RTT 색상과 compact 문서 정합성을 재검토해 `APPROVED`했다.
