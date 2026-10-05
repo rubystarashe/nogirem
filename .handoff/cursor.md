@@ -3,7 +3,7 @@
 Last Updated: 2026-10-05 16:10 +09:00
 
 ## Current Objective
-0.4.5 `실시간 점수 확인`에서 분산 안정성 판정과 실제 접속 채널 RTT를 구현하고, 게임 전경 중 상단 compact 상시 표시와 Windows 키 expanded 표를 검증한다. 배포는 승인되지 않았다.
+0.4.5 `실시간 게임 서버 모니터링`에서 분산 안정성 판정과 실제 접속 채널 RTT를 구현하고, 게임 전경 중 상단 compact 상시 표시와 Windows 키 expanded 표를 검증한다. 배포는 승인되지 않았다.
 
 ## Active Runs
 - `20261005-channel-quality-045`: local commit `193a0632776b5d6dd740571edad96a5c0b45b34c`에서 별도 창, foreground 100ms 숨김, 변동 점수 목록, 실제 연결의 현재·평균·표본 최대 RTT와 재전송 표시를 구현하고 자동 검사·독립 리뷰를 통과했다. 최신 표시의 실게임 시각 재확인이 남았다. (`docs/ai/runs/20261005-channel-quality-045/task.md`)
@@ -21,19 +21,19 @@ Last Updated: 2026-10-05 16:10 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
-- 기능명을 `채널별 핑`에서 `실시간 점수 확인`으로 변경했다. 고정 GitHub raw CSV의 검증·cache→package fallback과 설정 single writer는 유지한다.
-- endpoint가 있는 채널은 초기 3표본을 약 30초에 순차 수집한 뒤 60초 동안 하나씩 분산 측정한다. 목록은 최근 20회 연결 시험의 MAD에 100을 곱한 정수 점수를 표시하고, 0.5·1.0·1.5ms 경계로 녹색·노란색·주황색·빨간색을 적용한다.
+- 기능명을 `채널별 핑`에서 `실시간 게임 서버 모니터링`으로 변경했다. 전체 채널 창의 세부 제목은 `실시간 점수 확인`을 유지한다. 고정 GitHub raw CSV의 검증·cache→package fallback과 설정 single writer는 유지한다.
+- endpoint가 있는 채널은 초기 3표본을 약 30초에 순차 수집한 뒤 60초 동안 하나씩 분산 측정한다. 목록은 최근 20회 연결 시험의 평균 절대편차에 100을 곱한 정수 점수를 표시하고, 0.5·1.0·1.5ms 경계로 녹색·노란색·주황색·빨간색을 적용한다.
 - 정본 마비노기 전경 process handle을 조회 완료까지 유지하고 CSV IP:port와 정확히 일치하는 established 5-tuple만 현재 채널 후보로 인정한다. 동일 connection identity를 유지하고 모호한 복수 연결은 표시하지 않으며, connection-scoped Windows TCP EStats 수집 활성화·조회 결과를 반영한다.
-- 게임이 전경이고 실제 RTT가 확보되면 별도 `channel-ping-live` 창이 화면 상단 중앙에 `채널 · 현재 · 평균 · 최대 · 재전송 · 상태`를 표시한다. 평균과 최대는 동일 5-tuple에서 1초마다 읽은 최근 3분 Windows `SmoothedRtt` 표본 기준이며 원시 패킷 RTT 최대를 뜻하지 않는다. 연결 identity가 바뀌면 초기화한다. 좌·우 Windows 키는 독립된 `channel-ping-overlay` 전체표를 중앙에 함께 표시하며 다음 keyboard·mouse down은 전체표만 숨긴다.
-- 상단 창은 100ms foreground 확인으로 다른 앱 전환 시 숨고, 전체표 표시 중에만 Windows shell focus 전환에도 유지된다. RTT가 없는 채널 전환 중간 상태도 표시하지 않는다. 보이는 배경은 문구 `max-content`와 최소 padding만 감싸며 품질별 색상을 사용하고 실제 TCP 조회는 게임 전경에서만 1초 주기로 수행한다.
+- 게임이 전경이고 실제 RTT가 확보되면 별도 `channel-ping-live` 창이 화면 상단 중앙에 `채널 · 현재 · 평균 · 최대 · 재전송`을 표시한다. 평균과 최대는 동일 5-tuple에서 1초마다 읽은 최근 3분 Windows `SmoothedRtt` 표본 기준이며 원시 패킷 RTT 최대를 뜻하지 않는다. 연결 identity가 바뀌면 초기화한다. 좌·우 Windows 키는 독립된 `channel-ping-overlay` 전체표를 중앙에 함께 표시하며 다음 keyboard·mouse down은 전체표만 숨긴다.
+- 상단 창은 100ms foreground 확인과 실제 HWND visibility 재확인으로 다른 앱 전환 시 숨고, 전체표 표시 중에만 Windows shell focus 전환에도 유지된다. RTT가 없는 채널 전환 중간 상태도 표시하지 않는다. 보이는 배경은 문구 `max-content`와 최소 padding만 감싸며 현재 RTT `0~10`, `11~20`, `21~30`, `31+ms`를 녹색·노란색·주황색·빨간색으로 표시한다. 실제 TCP 조회는 게임 전경에서만 1초 주기로 수행한다.
 - 기능 활성 중에만 `WH_KEYBOARD_LL`·`WH_MOUSE_LL`을 전용 message thread에 설치한다. 두 mode 모두 click-through·비활성·topmost이며 게임 프로세스 주입·패킷 캡처는 하지 않는다.
 - 0.4.5 자동 검사는 backend 89 PASS·2 declared ignore와 integration 2/2, Node 204/204, desktop locked check, diff check를 통과했다. 독립 review에서 PID 재사용·복수 연결·EStats 오류 finding 3개를 수정해 round 2 `APPROVED`를 받았다.
 - 실제 마비노기에서 창 분리·현재 채널 식별과 목록 강조는 사용자 피드백으로 반복 확인했지만, 최신 420×30 평균·최대 표시의 잘림·비전경 shell 제한·채널 전환 초기화는 재확인이 남았다. package·push·release는 수행하지 않았다.
 - 수동 활성화에서 발견된 `Unknown auxiliary document`는 Dioxus native 허용 목록의 `channel-ping-overlay.html` 누락이 원인이며 수정했다. 정지 화면의 `터보키 제거하기` 버튼은 피드백에 따라 최소 너비 72px·좌우 5px 여백으로 축소했다.
 - 표시 뒤 입력이 닫히지 않던 상태 경쟁을 피하도록 input monitor loop가 성공한 show/hide 상태와 native window ID를 추적한다. 실제 QA에서 여전히 남은 문제는 검증된 `(window ID, HWND)`를 hook에 등록해 다음 down callback에서 즉시 숨기고, registry 제거 전 등록을 해제하는 방식으로 보강했다.
 - expanded 표는 `1~15`, `16~29`, `30~38` 세로 3열·170px 열·584×400 크기와 endpoint 없는 채널 숨김을 유지한다. 모든 채널은 같은 연결 시험 변동 점수를 표시하고 실제 접속 채널만 별도 테두리와 `현재` 문구로 강조한다.
-- 최신 자동 검사는 channel ping 관련 21/21과 overlay-interface 3/3, desktop build, diff check, 변경 파일 lint 0을 통과했다.
-- 독립 review `REV-CHANNEL-QUALITY-045-R3`는 표본 최대 의미·정수 점수 동률·실제 표본 span·420×30·shell foreground 제한을 재검토해 `APPROVED`했다.
+- 최신 자동 검사는 channel ping 관련 22/22와 overlay-interface 3/3, desktop build, diff check, 변경 파일 lint 0을 통과했다.
+- 독립 review `REV-CHANNEL-QUALITY-045-R4`는 actual HWND 반복 숨김·평균 절대편차 단일 반올림·RTT 색상과 compact 문서 정합성을 재검토해 `APPROVED`했다.
 - 후속 자동 검사는 channel ping 관련 11/11, overlay-interface 3/3, desktop locked check, JavaScript syntax, 변경 파일 lint 0을 통과했고 HWND 수명 경합 수정까지 독립 재리뷰 `APPROVED`를 받았다. 최신 빌드의 물리 입력 즉시 숨김과 최종 시각 확인은 남아 있다.
 - channel ping 8/8을 기본 병렬 설정으로 10회 반복했고 backend 79 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check가 통과했다. 독립 review는 모든 must-fix 해결 후 `APPROVED`다. 실제 게임·DPI·물리 입력과 package 실행은 NOT_RUN이며 push·배포는 하지 않았다.
 - DXVK install은 실제 `Client.exe`, 허용 폴더·launcher, canonical parent와 파일·상위 reparse를 다운로드 전에 확인하고, file replace 직전에 경로 변경·게임 실행을 다시 차단한다.
@@ -129,7 +129,7 @@ Last Updated: 2026-10-05 16:10 +09:00
 
 ## Constraints / Rules
 - 코드 주석은 한국어로 작성하고 JavaScript 줄 끝 세미콜론은 사용하지 않는다.
-- 실시간 점수 확인 외의 화면 복제·스킬 슬롯 오버레이는 별도 요구사항과 권한 없이는 구현하지 않는다.
+- 실시간 게임 서버 모니터링 외의 화면 복제·스킬 슬롯 오버레이는 별도 요구사항과 권한 없이는 구현하지 않는다.
 - Smart App Control 활성만으로 DXVK 설치를 막거나 DLL을 자동 삭제하지 않는다.
 - 의미 있는 변경 후 이 파일을 갱신하고 설명 본문이 포함된 semantic commit을 만든다.
 
@@ -139,7 +139,7 @@ Last Updated: 2026-10-05 16:10 +09:00
 3. 기존 0.4.1 포터블 사용자에게 수정 EXE를 1회 직접 내려받도록 안내하고 실제 성공 여부를 확인한다.
 4. 0.4.x 무응답 사용자에게 보호 bootstrap 로그와 startup 로그를 받아 WebView 이전·이후 실패 단계를 판별한다.
 5. 실제 앱에서 고해상도 휠과 일반 휠의 스크롤 감각을 확인한다.
-6. 실시간 점수 확인의 실제 채널 식별·RTT·compact/expanded 전환을 마비노기와 여러 DPI에서 수동 검증하고 이후 배포 요청 시 release·공개 다운로드를 검증한다.
+6. 실시간 게임 서버 모니터링의 실제 채널 식별·RTT·compact/expanded 전환을 마비노기와 여러 DPI에서 수동 검증하고 이후 배포 요청 시 release·공개 다운로드를 검증한다.
 
 ## Known Issues
 - 이미 `신뢰할 수 없는 업데이트 작업 파일입니다`에서 막힌 0.4.1 helper는 새 payload 실행 전 실패하므로 대치 0.4.2 설치형을 한 번 수동 설치해야 한다.

@@ -43,7 +43,7 @@ struct Measurement {
 #[derive(Debug, PartialEq)]
 struct Quality {
     median_us: Option<Microseconds>,
-    variation_us: Option<Microseconds>,
+    variation_score: Option<u32>,
     peak_variation_us: Option<Microseconds>,
     failure_percent: u32,
     score: Option<u32>,
@@ -78,7 +78,7 @@ impl Measurement {
         let Some(median_us) = median(&successes) else {
             return Quality {
                 median_us: None,
-                variation_us: None,
+                variation_score: None,
                 peak_variation_us: None,
                 failure_percent,
                 score: None,
@@ -89,30 +89,39 @@ impl Measurement {
                 },
             };
         };
-        let mut deviations = successes
+        let sample_count = successes.len() as u64;
+        let sample_sum = successes.iter().map(|value| u64::from(*value)).sum::<u64>();
+        let scaled_deviations = successes
             .iter()
-            .map(|value| value.abs_diff(median_us))
+            .map(|value| (u64::from(*value) * sample_count).abs_diff(sample_sum))
             .collect::<Vec<_>>();
-        deviations.sort_unstable();
-        let variation_us = median(&deviations).unwrap_or(0);
-        let peak_variation_us = deviations.last().copied().unwrap_or(0);
+        let score_denominator = sample_count * sample_count * 10;
+        let variation_score = ((scaled_deviations.iter().copied().sum::<u64>()
+            + score_denominator / 2)
+            / score_denominator) as u32;
+        let peak_variation_us = scaled_deviations
+            .iter()
+            .copied()
+            .max()
+            .map(|value| ((value + sample_count / 2) / sample_count) as u32)
+            .unwrap_or(0);
         let label = if self.outcomes.len() < 3 {
             "확인 중"
-        } else if failure_percent >= 20 || variation_us >= 3_000 || peak_variation_us >= 10_000 {
+        } else if failure_percent >= 20 || variation_score >= 300 || peak_variation_us >= 10_000 {
             "불안정"
-        } else if failure_percent > 0 || variation_us >= 2_000 || peak_variation_us >= 4_000 {
+        } else if failure_percent > 0 || variation_score >= 200 || peak_variation_us >= 4_000 {
             "보통"
         } else {
             "안정적"
         };
         Quality {
             median_us: Some(median_us),
-            variation_us: Some(variation_us),
+            variation_score: Some(variation_score),
             peak_variation_us: Some(peak_variation_us),
             failure_percent,
             score: (self.outcomes.len() >= 3).then_some(
                 median_us
-                    .saturating_add(variation_us.saturating_mul(2))
+                    .saturating_add(variation_score.saturating_mul(20))
                     .saturating_add(peak_variation_us / 2)
                     .saturating_add(failure_percent.saturating_mul(200)),
             ),
@@ -134,6 +143,10 @@ fn median(sorted: &[Microseconds]) -> Option<Microseconds> {
 
 fn milliseconds(microseconds: Option<Microseconds>) -> Option<f64> {
     microseconds.map(|value| f64::from(value) / 1_000.0)
+}
+
+fn hundredths_milliseconds(score: Option<u32>) -> Option<f64> {
+    score.map(|value| f64::from(value) / 100.0)
 }
 
 fn measurement_span_ms(channels: &[Measurement]) -> Option<u64> {
@@ -286,7 +299,8 @@ impl ChannelPing {
                     "endpoint": entry.endpoint.address.map(|address| address.to_string()),
                     "averageMs": milliseconds(quality.median_us),
                     "medianMs": milliseconds(quality.median_us),
-                    "variationMs": milliseconds(quality.variation_us),
+                    "variationMs": hundredths_milliseconds(quality.variation_score),
+                    "variationScore": quality.variation_score,
                     "peakVariationMs": milliseconds(quality.peak_variation_us),
                     "failurePercent": quality.failure_percent,
                     "quality": quality.label,
@@ -1516,10 +1530,10 @@ mod tests {
             measurement.quality(),
             Quality {
                 median_us: Some(5_000),
-                variation_us: Some(0),
-                peak_variation_us: Some(1_000),
+                variation_score: Some(48),
+                peak_variation_us: Some(600),
                 failure_percent: 0,
-                score: Some(5_500),
+                score: Some(6_260),
                 label: "안정적",
             }
         );
@@ -1527,6 +1541,21 @@ mod tests {
         assert_eq!(measurement.quality().label, "보통");
         measurement.record(None, 3);
         assert_eq!(measurement.quality().label, "불안정");
+    }
+
+    #[test]
+    fn 평균_절대편차_점수는_최종_단위에서_한번만_반올림한다() {
+        let measurement = Measurement {
+            endpoint: Endpoint {
+                channel: 1,
+                address: None,
+            },
+            outcomes: VecDeque::from([Some(1), Some(10)]),
+            measured_times: VecDeque::from([1, 2]),
+            failed: false,
+            measured_at: Some(2),
+        };
+        assert_eq!(measurement.quality().variation_score, Some(0));
     }
 
     #[test]

@@ -116,10 +116,10 @@
 - severity: `MEDIUM`
 - must_fix: `true`
 - observed: 전체 목록과 상단 실제 연결이 서로 다른 측정값을 구분 없이 표시했고 초기 3표본 수집에 2분 이상 걸렸다. 현재 채널 강조·전환 중 빈 통계 숨김·목록 점수 색상과 명칭도 사용자 기대와 달랐다.
-- expected: 모든 목록 행은 같은 TCP 연결 시험 MAD 점수를 표시하고 현재 채널만 테두리로 구분한다. 실제 연결은 상단 창에서만 현재 RTT·평균·최대·재전송을 표시하며 RTT 미확보 상태는 숨긴다.
+- expected: 모든 목록 행은 같은 TCP 연결 시험 평균 절대편차 점수를 표시하고 현재 채널만 테두리로 구분한다. 실제 연결은 상단 창에서만 현재 RTT·평균·최대·재전송을 숫자로 표시하며 RTT 미확보 상태는 숨긴다.
 - owner: `Cursor Agent`
 - status: `READY_FOR_VERIFICATION`
-- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 실시간 점수 확인 명칭, 연결 시험 점수 목록, 실제 연결 rolling RTT 통계`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 실시간 게임 서버 모니터링 명칭, 연결 시험 점수 목록, 실제 연결 rolling RTT 통계`
 - feature_map: `updated — 명칭과 현재/목록 측정 의미를 반영`
 - architecture_impact: `동일 TCP 5-tuple의 최근 3분 RTT 표본 소유권과 연결 교체 시 초기화 경계`
 - architecture_contract: `updated — 실제 연결 통계는 backend single writer가 계산하고 두 보조 창은 읽기 전용`
@@ -127,7 +127,7 @@
 ### 수정·검증
 
 - 초기 3표본은 채널당 최소 250ms 간격으로 약 30초에 수집하고 이후 전체 채널을 60초 주기로 순차 측정한다.
-- 목록 점수는 MAD 밀리초에 100을 곱한 정수이며 `0.5`, `1.0`, `1.5` 경계로 녹색·노란색·주황색·빨간색을 적용한다. 표본 3개 미만은 회색 `측정 중`이다.
+- 목록 점수는 평균 절대편차 밀리초에 100을 곱한 정수이며 `0.5`, `1.0`, `1.5` 경계로 녹색·노란색·주황색·빨간색을 적용한다. 표본 3개 미만은 회색 `측정 중`이다.
 - 실제 연결은 동일 identity의 최근 3분 `SmoothedRtt`를 1초마다 수집해 정수 평균과 표본 최댓값을 계산한다. 이 최대는 원시 패킷 RTT 최대를 뜻하지 않는다. 채널·5-tuple 변경 시 이력을 초기화한다.
 - 자동 결과: `cargo test --locked -p nogirem-backend channel_ping` `PASS — 21/21`, `node --test test/overlay-interface.test.mjs` `PASS — 3/3`, desktop build·diff check·IDE diagnostics `PASS`.
 - 수동 결과: 창 분리·전경 숨김·현재 채널 식별은 사용자 실행으로 반복 확인했다. 최신 평균·최대 표시의 잘림, shell foreground 제한과 연결 변경 초기화는 `NOT_RUN`이며 사용자 재확인이 필요하다.
@@ -138,3 +138,21 @@
 - implementation_commit: `193a0632776b5d6dd740571edad96a5c0b45b34c`
 - push_status: `NOT_RUN — 승인되지 않음`
 - deployment_status: `NOT_RUN — 승인되지 않음`
+
+## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
+
+- received_at: `2026-10-05T07:35:00Z`
+- classification: `DEFECT`
+- severity: `HIGH`
+- must_fix: `true`
+- expected: 목록은 최근 성공 표본의 평균 절대편차 점수를 사용한다. 상단은 현재 RTT `0~10`, `11~20`, `21~30`, `31+ms` 구간별 색상만 사용하고 안정성 문구를 표시하지 않는다. 일반 앱 전경에서는 실제 native 창이 반드시 숨는다.
+- disposition: `READY_FOR_VERIFICATION`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 평균 절대편차 점수, RTT 색상, 제품명 실시간 게임 서버 모니터링`
+- feature_map: `updated — 목록·상단 표시 의미와 제품명을 반영`
+- architecture_impact: `actual HWND visibility read와 SW_HIDE fail-safe, 최종 0.01ms 점수 단위 단일 반올림`
+- architecture_contract: `updated — 일반 앱 foreground fail-closed 숨김 경계와 backend 점수 writer를 반영`
+- automated_validation: `channel ping backend 22/22 PASS, overlay interface 3/3 PASS, desktop compile PASS, diff check PASS`
+- review_id: `REV-CHANNEL-QUALITY-045-R4`
+- review_mode: `INDEPENDENT_REVIEW`
+- review_verdict: `APPROVED — actual HWND 반복 숨김, rational 평균 절대편차 단일 반올림, compact 문서 정합성 확인`
+- manual_validation: `NOT_RUN — 최신 비전경 전환과 420×30 표시를 사용자 환경에서 재확인 필요`

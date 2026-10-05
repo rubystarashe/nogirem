@@ -654,7 +654,7 @@ fn Advanced() -> Element {
         }
         div { class: "developer-tool-row",
             div {
-                h2 { "실시간 점수 확인" }
+                h2 { "실시간 게임 서버 모니터링" }
                 p { "게임 중 현재 채널과 실제 연결 상태를 화면 상단에 표시하고, Windows 키를 누르면 전체 채널 상태를 펼칩니다" }
                 small { class: "developer-tool-note", "이번 버전에서는 류트 서버의 채널만 확인 가능합니다." }
             }

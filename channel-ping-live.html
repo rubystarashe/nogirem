@@ -75,12 +75,11 @@
   <script>
     const status = document.querySelector("#status")
 
-    function qualityClass(quality) {
-      if (quality === "안정적") return "stable"
-      if (quality === "보통") return "normal"
-      if (quality === "불안정") return "unstable"
-      if (quality === "연결 불가") return "failed"
-      return ""
+    function rttClass(rttMs) {
+      if (rttMs <= 10) return "stable"
+      if (rttMs <= 20) return "normal"
+      if (rttMs <= 30) return "unstable"
+      return "failed"
     }
 
     async function refresh() {
@@ -88,8 +87,8 @@
         const current = (await window.channelPing.getStatus()).activeConnection
         status.hidden = !current || current.rttMs == null
         if (status.hidden) return
-        status.className = qualityClass(current?.quality)
-        status.textContent = `${current.channel}채널 · 현재 ${current.rttMs} ms · 평균 ${current.averageRttMs ?? "-"} ms · 최대 ${current.maximumRttMs ?? "-"} ms · 재전송 ${current.packetsRetransmitted ?? 0} · ${current.quality}`
+        status.className = rttClass(current.rttMs)
+        status.textContent = `${current.channel}채널 · 현재 ${current.rttMs} ms · 평균 ${current.averageRttMs ?? "-"} ms · 최대 ${current.maximumRttMs ?? "-"} ms · 재전송 ${current.packetsRetransmitted ?? 0}`
       } catch {
         status.hidden = false
         status.className = "failed"

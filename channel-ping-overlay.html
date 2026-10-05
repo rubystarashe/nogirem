@@ -171,11 +171,11 @@
     let activeConnection = null
     let refreshFailed = false
 
-    function variationGrade(value, sampleCount) {
-      if (sampleCount < 3 || value == null) return "waiting"
-      if (value <= 0.5) return "good"
-      if (value <= 1) return "normal"
-      if (value <= 1.5) return "slow"
+    function variationGrade(score, sampleCount) {
+      if (sampleCount < 3 || score == null) return "waiting"
+      if (score <= 50) return "good"
+      if (score <= 100) return "normal"
+      if (score <= 150) return "slow"
       return "critical"
     }
 
@@ -198,14 +198,13 @@
       const items = status.channels || []
       activeConnection = status.activeConnection || null
       measurementSpanMs = status.measurementSpanMs ?? null
-      const variationScore = value => Math.round(Number(value) * 100)
-      const scored = items.filter(item => item.sampleCount >= 3 && Number.isFinite(item.variationMs))
+      const scored = items.filter(item => item.sampleCount >= 3 && Number.isFinite(item.variationScore))
       const bestScore = scored.length
-        ? Math.min(...scored.map(item => variationScore(item.variationMs)))
+        ? Math.min(...scored.map(item => item.variationScore))
         : null
       const createCard = item => {
         const current = activeConnection?.channel === item.channel
-        const score = item.variationMs == null ? null : variationScore(item.variationMs)
+        const score = item.variationScore ?? null
         const best = bestScore != null
           && item.sampleCount >= 3
           && score === bestScore
@@ -213,7 +212,7 @@
         const label = document.createElement("span")
         const value = document.createElement("strong")
         label.textContent = `${item.channel}채널`
-        const color = variationGrade(item.variationMs, item.sampleCount)
+        const color = variationGrade(score, item.sampleCount)
         card.className = `${color}${current ? " current" : ""}${best ? " best" : ""}`
         card.title = item.endpoint || "접속 정보 없음"
         value.textContent = item.sampleCount < 3

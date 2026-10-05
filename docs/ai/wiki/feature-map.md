@@ -15,7 +15,7 @@
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration·Node contract·desktop compile`
 - behavior_verification_evidence: `channel ping backend 21/21, overlay interface 3/3, desktop build, diff check, IDE diagnostics`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.5 실시간 점수 확인 source 설계와 현재 미검증 상태를 구분해 반영`
+- freshness_reason: `0.4.5 실시간 게임 서버 모니터링 source 설계와 현재 미검증 상태를 구분해 반영`
 - known_gaps: `최신 평균·최대 RTT 표시 잘림, shell foreground 제한, 채널 전환 초기화, 혼합 DPI·package·배포는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 실제 접속 채널 상시 표시, 안정성 판정, 분산 측정, 기능명 변경`
 - feature_map: `updated — 신규 기능 identity·흐름·writer·시나리오·검증 범위를 추가함`
@@ -29,14 +29,14 @@
 
 ## FEAT-NOGIREM-CHANNEL-PING
 
-- canonical_name: `마비노기 실시간 점수 확인`
-- aliases: `채널별 핑`, `채널 핑`, `핑 오버레이`
+- canonical_name: `마비노기 실시간 게임 서버 모니터링`
+- aliases: `실시간 점수 확인`, `채널별 핑`, `채널 핑`, `핑 오버레이`
 - lifecycle: `ACTIVE`
 - lifecycle_reason: `GitHub v0.4.4 정식 Release로 설치형·포터블과 signed update manifest를 공개함`
 - owners: `product=nogirem maintainer`, `technical=channel ping backend owner`
-- purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 초기 3표본을 약 30초에 순차 수집하고 이후 60초 주기로 분산 측정해 최근 20회 성공·실패의 변동 점수를 메모리에 유지한다. 검증된 마비노기 전경 TCP 연결이 CSV endpoint와 일치하면 별도 상단 창에 현재 채널·현재 Windows `SmoothedRtt`·최근 3분 표본 평균·표본 최대·재전송·상태를 표시하고, 좌·우 Windows 키로 독립된 중앙 전체 채널표를 함께 펼친다.
+- purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 초기 3표본을 약 30초에 순차 수집하고 이후 60초 주기로 분산 측정해 최근 20회 성공 표본의 평균 절대편차 점수와 실패율을 메모리에 유지한다. 검증된 마비노기 전경 TCP 연결이 CSV endpoint와 일치하면 별도 상단 창에 현재 채널·현재 Windows `SmoothedRtt`·최근 3분 표본 평균·표본 최대·재전송을 표시하고, 좌·우 Windows 키로 독립된 중앙 전체 채널표를 함께 펼친다.
 - exclusions: ICMP 왕복시간, 서버 내부 처리시간, 직접 패킷 손실 측정, 임의 endpoint·URL 입력, Windows 키 차단, 게임 프로세스 주입은 지원하지 않는다.
-- personas_permissions_accessibility_entry: Windows 사용자가 고급 기능에서 선택적으로 켜고 끈다. 숫자와 `안정적`·`보통`·`불안정`·`연결 불가`·`확인 중` 문구를 함께 표시해 색상이나 네트워크 전문 용어에 의존하지 않는다.
+- personas_permissions_accessibility_entry: Windows 사용자가 고급 기능에서 선택적으로 켜고 끈다. 목록은 정수 점수와 `측정 중`·`연결 불가`를 표시하고 현재 채널은 `현재` 문구로 구분해 색상에만 의존하지 않는다. 상단 실제 연결 창은 숫자 지표만 표시하고 현재 RTT 구간별 색상을 보조 신호로 사용한다.
 - preconditions_dependencies: Windows, 실행 중인 Rust 앱, 검증 가능한 마비노기 `Client.exe`, 저수준 keyboard·mouse hook, 고정 GitHub raw HTTPS URL, WebView2, 공개 채널 TCP endpoint.
 - normal_error_cancel_retry_flow: 앱 시작 시 원격 CSV를 제한 크기·UTF-8·header·연속 channel·IP·port 기준으로 검증하고 성공 시 cache에 원자 저장한다. 실패하면 마지막 유효 cache, 그다음 package CSV를 사용한다. endpoint 연결 실패가 있으면 시작 확인 이후 최대 1시간에 한 번 원격 파일을 다시 확인한다.
 - concurrency_partial_failure_recovery: CSV 갱신 operation lock이 cache 교체를 직렬화하고 RwLock snapshot이 overlay reader와 측정 worker를 분리한다. 한 채널 실패가 다른 이력을 지우지 않고 endpoint가 바뀐 채널만 이전 표본을 폐기한다. 목록 최저 점수 동률은 같은 품질 색상으로 함께 강조한다.
@@ -64,7 +64,7 @@
 - freshness_status: `CURRENT`
 - freshness_reason: `0.4.5 source 의미와 QA 대기 상태를 정확히 반영`
 - known_gaps: `최신 실제 연결 평균·최대 UI와 비전경 숨김·DPI·설치·제거 종단간은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 실시간 점수 확인 개편`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 실시간 게임 서버 모니터링 개편`
 - feature_map: `updated — 이 entry를 신규 canonical identity로 추가`
 - architecture_impact: `channel ping capability·cache writer·Win32 input·auxiliary window 경계`
 - architecture_contract: `updated — 관련 contract section과 연결`

@@ -528,8 +528,10 @@ impl Service {
                         }
                     }
                 }
-            } else if live_visible {
-                self.windows.hide_channel_ping_live();
+            } else {
+                if live_visible || self.windows.channel_ping_live_visible() {
+                    self.windows.hide_channel_ping_live();
+                }
                 live_visible = false;
                 live_bounds = None;
             }

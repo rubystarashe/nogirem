@@ -15,7 +15,7 @@
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
 - behavior_verification_evidence: `channel ping backend 21/21, overlay interface 3/3, desktop build, diff check, IDE diagnostics`
 - freshness_status: `CURRENT`
-- freshness_reason: `실시간 점수 확인의 분산 측정·실제 TCP read·compact/expanded 경계를 source와 일치시킴`
+- freshness_reason: `실시간 게임 서버 모니터링의 분산 측정·실제 TCP read·compact/expanded 경계를 source와 일치시킴`
 - known_gaps: `별도 dependency graph lint가 없고 최신 평균·최대 RTT 표시·shell foreground 제한·DPI·package 수동 QA는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 안정성 판정·실제 연결·상시 compact 오버레이`
 - feature_map: `updated — feature-map.md의 신규 채널 핑 identity와 연결됨`
@@ -85,12 +85,12 @@
 ## 실시간 핑 network·input·auxiliary window
 
 - 시작할 때 고정 GitHub raw HTTPS URL을 한 번 확인한다. 응답은 64KiB 이하 UTF-8이고 `채널,IP:포트` header, 1부터 연속된 unique channel, 공개 unicast IPv4 literal, 1~65535 port를 모두 만족해야 한다. 하나라도 어긋나면 cache를 쓰지 않고 마지막 유효 cache 또는 package fallback을 유지한다.
-- endpoint가 없는 명시 channel은 `정보 없음`이며 측정 실패가 아니다. endpoint가 있는 채널은 60초 주기 안에서 하나씩 분산 TCP 연결하고 최근 20회 성공·실패의 중앙값·MAD·최대 변동·실패율을 메모리에 보존한다. 연결 실패가 하나라도 있으면 시작 확인 시각부터 최대 1시간에 한 번만 CSV를 재검사한다.
+- endpoint가 없는 명시 channel은 `정보 없음`이며 측정 실패가 아니다. endpoint가 있는 채널은 60초 주기 안에서 하나씩 분산 TCP 연결하고 최근 20회 성공·실패의 중앙값·평균 절대편차·최대 변동·실패율을 메모리에 보존한다. 연결 실패가 하나라도 있으면 시작 확인 시각부터 최대 1시간에 한 번만 CSV를 재검사한다.
 - 정본 게임이 전경일 때만 1초 주기로 owner-PID TCP table을 읽는다. 검증 중 연 process handle을 조회 완료까지 유지해 PID 재사용을 차단하고, established remote IP:port가 CSV endpoint와 정확히 일치하는 5-tuple만 채널 후보로 인정한다. 동일한 이전 5-tuple을 우선하며 그 밖의 복수 후보가 모호하면 표시하지 않는다.
 - 선택한 connection에 한해 Windows TCP EStats 수집을 활성화하고 smoothed RTT·RTT 변동과 poll 사이 retransmit·timeout 증가를 쉬운 상태에 반영한다. EStats 활성화·조회 실패는 상태에 명시하며 패킷 캡처·게임 메모리 접근·주입은 금지한다.
 - 기능이 꺼져 있으면 TCP 측정·실제 연결 조회를 하지 않고 저수준 input hook도 설치하지 않는다. 기능이 켜진 동안 전용 message thread의 `WH_KEYBOARD_LL`·`WH_MOUSE_LL` callback은 입력을 차단하지 않고 bounded channel에 event를 전달한 뒤 즉시 `CallNextHookEx`를 호출한다.
 - 기능을 켤 때 hidden `channel-ping-live`와 `channel-ping-overlay` WebView를 각각 준비한 뒤 input hook을 설치한다. 따라서 최초 Windows 키 뒤 WebView 생성으로 event 처리가 막히지 않으며, 기능을 끄면 hook과 두 hidden WebView를 모두 제거한다.
-- 검증된 게임이 전경이고 실제 채널 연결이 있으면 client rect·DPI로 계산한 상단 중앙 420×30 live window를 표시한다. visible 배경은 `max-content`라 실제 문구와 최소 padding만 감싸고 품질별 색상을 사용한다. foreground 판정은 100ms, TCP EStats 갱신은 1초 주기로 분리하며 Windows 키 전체표 중에는 지정된 Windows shell foreground만 예외로 허용한다.
+- 검증된 게임이 전경이고 실제 채널 연결이 있으면 client rect·DPI로 계산한 상단 중앙 420×30 live window를 표시한다. visible 배경은 `max-content`라 실제 문구와 최소 padding만 감싸고 현재 RTT 구간별 색상을 사용한다. foreground 판정은 100ms, TCP EStats 갱신은 1초 주기로 분리하며 Windows 키 전체표 중에는 지정된 Windows shell foreground만 예외로 허용한다. 비전경 숨김은 cached state뿐 아니라 `IsWindowVisible`로 실제 HWND를 재확인하고 `ShowWindowAsync(SW_HIDE)`를 반복 적용한다.
 - 좌·우 Windows 키 down callback이 캡처한 같은 게임 PID로 실제 연결을 재검증하고 별도 584×400 overlay window를 중앙에 함께 표시한다. 두 창은 window ID·visible state·bounds·hide/destroy 수명주기를 공유하지 않는다.
 - expanded 표시 trigger 당시 이미 눌린 입력만 release까지 무시한다. 그 밖의 keyboard·mouse down edge는 expanded만 즉시 숨긴다. live window는 게임 전경일 때 유지하고, expanded가 표시되는 동안에는 Windows shell focus 전환에도 같은 게임 위치에 유지하되 expanded 종료 후 게임이 전경이 아니면 숨긴다. 두 창 모두 focusable=false, always-on-top, skip-taskbar, transparent, ignore-cursor-events이며 `showInactive`로 표시한다.
 - bounded input channel이 포화되면 event를 성공으로 간주하지 않고 fail-safe로 overlay를 숨긴다. backlog를 폐기한 뒤 최소 100ms의 input quiet 구간이 확인될 때까지 새 표시 trigger를 받지 않는다.

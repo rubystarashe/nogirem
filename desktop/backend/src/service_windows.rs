@@ -94,9 +94,27 @@ impl Windows {
         self.id("channel-ping-overlay")
     }
     pub fn channel_ping_live_visible(&self) -> bool {
-        self.id("channel-ping-live")
-            .and_then(|id| self.get(id))
-            .is_some_and(|window| window.state["visible"] == true)
+        let state = self.state.lock().unwrap();
+        let Some(window) = state
+            .windows
+            .values()
+            .find(|window| window.kind == "channel-ping-live")
+        else {
+            return false;
+        };
+        #[cfg(windows)]
+        {
+            let Some(hwnd) = window.state["hwnd"].as_u64() else {
+                return false;
+            };
+            return unsafe {
+                windows_sys::Win32::UI::WindowsAndMessaging::IsWindowVisible(hwnd as _) != 0
+            };
+        }
+        #[cfg(not(windows))]
+        {
+            window.state["visible"] == true
+        }
     }
     pub fn channel_ping_live_id(&self) -> Option<u64> {
         self.id("channel-ping-live")
@@ -167,7 +185,29 @@ impl Windows {
         }
     }
     pub fn hide_channel_ping_live(&self) {
-        if let Some(id) = self.id("channel-ping-live") {
+        let id = {
+            let mut state = self.state.lock().unwrap();
+            let Some(window) = state
+                .windows
+                .values_mut()
+                .find(|window| window.kind == "channel-ping-live")
+            else {
+                return;
+            };
+            #[cfg(windows)]
+            if let Some(hwnd) = window.state["hwnd"].as_u64() {
+                unsafe {
+                    windows_sys::Win32::UI::WindowsAndMessaging::ShowWindowAsync(
+                        hwnd as _,
+                        windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE,
+                    );
+                }
+            }
+            let id = window.id;
+            window.state["visible"] = json!(false);
+            id
+        };
+        if self.id("channel-ping-live") == Some(id) {
             self.command(id, "hide", Value::Null);
         }
     }
