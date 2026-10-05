@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `14`
-- updated_at: `2026-10-05T11:47:00Z`
+- revision: `15`
+- updated_at: `2026-10-05T23:54:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T11:47:00Z`
+- source_reviewed_at: `2026-10-05T23:54:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit cf607c8f2506a1c7a903e8ffbb5e36773a016546, base 3172d6d216058beef01521ce0f85077f0b15ab3d`
-- source_review_evidence: `recency weights, conditional endpoint confirmation and zero-value renderer boundaries; REV-CHANNEL-QUALITY-045-R9 INDEPENDENT_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T11:47:00Z`
+- source_review_target: `source commit 66d56b49544219fa7c8f38d5aea77a87f78bb11c, base 543064863d3316478763395929565f1fc78db27a`
+- source_review_evidence: `tray cleanup의 종류별 보존 정책과 독립 channel monitor thread·window identity 경계 검토; SELF_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-05T23:54:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit cf607c8f2506a1c7a903e8ffbb5e36773a016546`
+- behavior_verification_target: `source commit 66d56b49544219fa7c8f38d5aea77a87f78bb11c`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `channel ping backend 33/33, overlay interface 3/3, desktop check, targeted rustfmt, diff check, IDE diagnostics; Chromium all-zero·mixed-positive renderer 확인`
+- behavior_verification_evidence: `backend 105 PASS·2 declared ignore, parity 2/2, tray policy regression 1/1, overlay interface 3/3, targeted rustfmt, diff check, IDE diagnostics`
 - freshness_status: `CURRENT`
-- freshness_reason: `실시간 게임 서버 모니터링의 분산 측정·실제 TCP read·compact/expanded 경계를 source와 일치시킴`
-- known_gaps: `별도 dependency graph lint가 없고 실제 endpoint 조건부 추가 연결·native WebView 0값 숨김·actual HWND 비전경 숨김·DPI·최신 package 수동 QA는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 안정성 판정·실제 연결·상시 compact 오버레이`
-- feature_map: `updated — feature-map.md의 신규 채널 핑 identity와 연결됨`
-- architecture_impact: `channel CSV/cache single writer, staggered TCP worker, owner-PID TCP EStats collector, low-level input hooks, compact/expanded click-through window`
-- architecture_contract: `updated — 채널 핑 network·input·window 경계를 추가함`
+- freshness_reason: `트레이 전환과 독립 channel monitoring window 수명주기 경계를 최신 source와 일치시킴`
+- known_gaps: `별도 dependency graph lint가 없고 실제 tray 전환 중 Windows 키·게임 전경 compact·DPI·최신 package 수동 QA는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 트레이 상태의 채널 측정·compact·expanded 유지`
+- feature_map: `updated — feature-map.md PING-012와 연결`
+- architecture_impact: `tray auxiliary cleanup과 독립 compact/expanded click-through window 수명주기`
+- architecture_contract: `updated — channel monitor windows를 main tray visibility에서 분리하는 경계를 명시`
 
 ## 계층과 확장 경로
 
@@ -89,7 +89,7 @@
 - 정본 게임이 전경일 때만 1초 주기로 owner-PID TCP table을 읽는다. 검증 중 연 process handle을 조회 완료까지 유지해 PID 재사용을 차단하고, established remote IP:port가 CSV endpoint와 정확히 일치하는 5-tuple만 채널 후보로 인정한다. 동일한 이전 5-tuple을 우선하며 그 밖의 복수 후보가 모호하면 표시하지 않는다.
 - 선택한 connection에 한해 Windows TCP EStats 수집을 활성화하고 smoothed RTT·RTT 변동과 최근 유효 poll 사이 `PktsRetrans`·`Timeouts`·`DupAcksIn`·`CongSignals` 증가를 TCP 추정값에 반영한다. 공개 status는 누적값, poll delta와 최근 1분 합계인 `*Recent`를 분리하며 UI는 `packetsRetransmittedRecent`, `tcpTimeoutsRecent`, `duplicateAcksReceivedRecent`, `congestionSignalsRecent`만 읽는다. 일시적으로 RTT가 없는 poll은 네 counter 기준을 덮지 않고, counter 감소는 reset으로 처리해 해당 delta를 0으로 둔 뒤 새 기준을 저장한다. EStats 활성화·조회 실패는 상태에 명시하며 패킷 캡처·게임 메모리 접근·주입은 금지한다.
 - 기능이 꺼져 있으면 TCP 측정·실제 연결 조회를 하지 않고 저수준 input hook도 설치하지 않는다. 기능이 켜진 동안 전용 message thread의 `WH_KEYBOARD_LL`·`WH_MOUSE_LL` callback은 입력을 차단하지 않고 bounded channel에 event를 전달한 뒤 즉시 `CallNextHookEx`를 호출한다.
-- 기능을 켤 때 hidden `channel-ping-live`와 `channel-ping-overlay` WebView를 각각 준비한 뒤 input hook을 설치한다. 따라서 최초 Windows 키 뒤 WebView 생성으로 event 처리가 막히지 않으며, 기능을 끄면 hook과 두 hidden WebView를 모두 제거한다.
+- 기능을 켤 때 hidden `channel-ping-live`와 `channel-ping-overlay` WebView를 각각 준비한 뒤 input hook을 설치한다. 따라서 최초 Windows 키 뒤 WebView 생성으로 event 처리가 막히지 않으며, 기능을 끄면 hook과 두 hidden WebView를 모두 제거한다. 메인 창을 트레이로 숨기거나 다시 열 때 일반 보조 창은 정리하지만 두 channel monitor WebView는 제거하지 않으며, main renderer visibility와 무관하게 backend monitor thread가 표시 권한을 계속 판정한다.
 - 검증된 게임이 전경이고 실제 채널 연결이 있으면 client rect·DPI로 계산한 상단 중앙 520×30 live window에 최근 1분 TCP 추정 표본 `최대`와 값이 1 이상인 최근 1분 `재전송·시간초과·중복·혼잡` 발생량만 표시한다. 트래픽량에 따른 표본 갱신 특성을 실제 체감 개선으로 오해하지 않도록 순간값·평균값은 표시하지 않는다. 색상은 최대값 `0~40`, `41~70`, `71~100`, `101+ms`를 녹색·노란색·주황색·빨간색으로 나눈다. 모든 숫자는 `k/m/b` 고정 길이 축약을 적용하고 visible 배경은 `max-content`라 실제 문구와 최소 padding만 감싼다. foreground 판정은 100ms, TCP EStats 갱신은 1초 주기로 분리하며 Windows 키 전체표 중에는 지정된 Windows shell foreground만 예외로 허용한다. 비전경 숨김은 cached state뿐 아니라 `IsWindowVisible`로 실제 HWND를 재확인하고 `ShowWindowAsync(SW_HIDE)`를 반복 적용한다.
 - 좌·우 Windows 키 down callback이 캡처한 같은 게임 PID로 실제 연결을 재검증하고 별도 584×400 overlay window를 중앙에 함께 표시한다. 두 창은 window ID·visible state·bounds·hide/destroy 수명주기를 공유하지 않는다.
 - expanded 표시 trigger 당시 이미 눌린 입력만 release까지 무시한다. 그 밖의 keyboard·mouse down edge는 expanded만 즉시 숨긴다. live window는 게임 전경일 때 유지하고, expanded가 표시되는 동안에는 Windows shell focus 전환에도 같은 게임 위치에 유지하되 expanded 종료 후 게임이 전경이 아니면 숨긴다. 두 창 모두 focusable=false, always-on-top, skip-taskbar, transparent, ignore-cursor-events이며 `showInactive`로 표시한다.

@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-05 21:22 +09:00
+Last Updated: 2026-10-06 08:54 +09:00
 
 ## Current Objective
-0.4.5 `실시간 게임 서버 모니터링` 최신 source를 서명 설치형·포터블과 signed update manifest로 패키징하고 GitHub 공개 배포·재다운로드 검증까지 완료했다.
+메인 창을 트레이로 숨겨도 `실시간 게임 서버 모니터링`의 채널 측정, Windows 키 전체표와 게임 전경 상단 compact 창이 계속 동작하도록 channel window 수명주기를 main visibility에서 분리했다.
 
 ## Active Runs
+- `20261006-tray-channel-monitor-045`: tray cleanup이 일반 보조 창만 닫고 `channel-ping-overlay`·`channel-ping-live`를 보존하도록 source `66d56b49544219fa7c8f38d5aea77a87f78bb11c`에서 수정했다. backend 105 PASS·2 declared ignore, parity 2/2, overlay 3/3과 SELF_REVIEW가 통과했다. 실제 tray·게임·Windows 키·DPI QA와 package·push·재배포는 수행하지 않았다. (`docs/ai/runs/20261006-tray-channel-monitor-045/task.md`)
 - `20261005-release-045`: source `2fd708bee4af0513a68b21618e81e0173516c098`에서 signed 설치형·포터블을 만들고 origin/main push, v0.4.5 tag와 [GitHub v0.4.5](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.5) 자산 10개를 공개했다. 공개 10/10 hash·Ed25519 manifest·Electron 0.3.19 bridge 재검증이 통과했다. 실제 설치·게임·혼합 DPI QA는 수행하지 않았다. (`docs/ai/runs/20261005-release-045/task.md`)
 - `20261005-package-045`: source `4c11b0e42055073597d080cf59219d22cd06cfbb`에서 0.4.5 서명 설치형·포터블을 `release/dioxus-0.4.5-2026-10-05T08-21-42-249Z`에 생성하고 자동·native contract·해시·manifest 검증을 통과했다. 실제 설치·포터블 실행과 push·tag·GitHub release·배포는 수행하지 않았다. (`docs/ai/runs/20261005-package-045/final-report.md`)
 - `20261005-channel-quality-045`: source commit `cf607c8f2506a1c7a903e8ffbb5e36773a016546`에서 최근 가중 평균 절대편차 점수 목록, 실제 연결의 최근 1분 최대와 0이 아닌 1분 재전송·시간초과·중복·혼잡, `채널별 서버 지연 추측` 중앙 창과 서버 IP 구분선을 구현했다. 의심스러운 첫 연결 결과만 2회 추가 확인해 세 결과 중앙값을 기록하고 반복 지연은 유지한다. 자동 검사와 `REV-CHANNEL-QUALITY-045-R9` 독립 리뷰를 통과했으며 실제 게임 확인이 남았다. (`docs/ai/runs/20261005-channel-quality-045/task.md`)
@@ -23,6 +24,7 @@ Last Updated: 2026-10-05 21:22 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- tray 최소화와 tray에서 다시 열기는 character guide·blackbox manager 등 일반 보조 창을 정리하되 hidden `channel-ping-overlay`·`channel-ping-live`는 유지한다. 별도 backend channel monitor thread와 input hook도 main WebView visibility에 묶이지 않으므로 기능 활성 상태가 유지된다. 이 fix는 local commit `66d56b4`에 있으며 공개 v0.4.5 package에는 아직 포함되지 않았다.
 - 0.4.5 공개 패키지는 설치형 `9,563,418 bytes` SHA-256 `aada494d...308b7`, 포터블 `7,790,592 bytes` SHA-256 `5269af6c...1bef8`이다. Node 204/204, desktop 8/8, backend integration 3/3, package contract·서명과 공개 재다운로드 자산 10/10 검증이 통과했다.
 - 기능명을 `채널별 핑`에서 `실시간 게임 서버 모니터링`으로 변경하고 중앙 전체 채널 창의 현재 제목은 `채널별 서버 지연 추측`이다. 고정 GitHub raw CSV의 검증·cache→package fallback과 설정 single writer는 유지한다.
 - endpoint가 있는 채널은 초기 3표본을 약 30초에 순차 수집한 뒤 60초 동안 하나씩 분산 측정한다. 목록은 최근 표본에 선형으로 높은 가중치를 둔 최근 20회 연결 시험의 평균 절대편차에 100을 곱한 정수 점수를 표시하고, 0.5·1.0·1.5ms 경계로 녹색·노란색·주황색·빨간색을 적용한다.
