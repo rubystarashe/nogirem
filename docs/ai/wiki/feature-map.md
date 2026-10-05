@@ -2,18 +2,18 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `12`
-- updated_at: `2026-10-05T07:45:00Z`
+- revision: `13`
+- updated_at: `2026-10-05T08:15:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T07:45:00Z`
+- source_reviewed_at: `2026-10-05T08:15:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 50babda1ce80178722f0fd6b59f244934e88da36, base 193a0632776b5d6dd740571edad96a5c0b45b34c`
-- source_review_evidence: `channel_ping.rs, service.rs, service_windows.rs, ui.rs, overlay HTML·tests; REV-CHANNEL-QUALITY-045-R4 INDEPENDENT_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T07:45:00Z`
+- source_review_target: `source commit d4ff171da24cb68207ae7c35a9260ed4dc7f61d1, base 50babda1ce80178722f0fd6b59f244934e88da36`
+- source_review_evidence: `channel-ping-overlay.html, service_windows.rs, overlay interface test SELF_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-05T08:15:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 50babda1ce80178722f0fd6b59f244934e88da36`
+- behavior_verification_target: `source commit d4ff171da24cb68207ae7c35a9260ed4dc7f61d1`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration·Node contract·desktop compile`
-- behavior_verification_evidence: `channel ping backend 22/22, overlay interface 3/3, desktop build, diff check, IDE diagnostics`
+- behavior_verification_evidence: `overlay interface 3/3, desktop locked check·build, diff check, IDE diagnostics`
 - freshness_status: `CURRENT`
 - freshness_reason: `0.4.5 실시간 게임 서버 모니터링 source 설계와 현재 미검증 상태를 구분해 반영`
 - known_gaps: `최신 actual HWND 비전경 숨김, 평균·최대 RTT 표시 잘림, 채널 전환 초기화, 혼합 DPI·package·배포는 수동 NOT_RUN`
@@ -49,18 +49,18 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 채널 핑 network·input·auxiliary window 경계.
 - record_id: `FEAT-NOGIREM-CHANNEL-PING`
 - owner: `nogirem maintainer`
-- revision: `7`
-- updated_at: `2026-10-05T07:45:00Z`
+- revision: `8`
+- updated_at: `2026-10-05T08:15:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T07:45:00Z`
+- source_reviewed_at: `2026-10-05T08:15:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 50babda1ce80178722f0fd6b59f244934e88da36, base 193a0632776b5d6dd740571edad96a5c0b45b34c`
-- source_review_evidence: `run task source paths; REV-CHANNEL-QUALITY-045-R4 INDEPENDENT_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T07:45:00Z`
+- source_review_target: `source commit d4ff171da24cb68207ae7c35a9260ed4dc7f61d1, base 50babda1ce80178722f0fd6b59f244934e88da36`
+- source_review_evidence: `central expanded title source paths SELF_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-05T08:15:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 50babda1ce80178722f0fd6b59f244934e88da36`
+- behavior_verification_target: `source commit d4ff171da24cb68207ae7c35a9260ed4dc7f61d1`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `channel ping backend 22/22, overlay interface 3/3, desktop build, diff check, IDE diagnostics`
+- behavior_verification_evidence: `overlay interface 3/3, desktop locked check·build, diff check, IDE diagnostics`
 - freshness_status: `CURRENT`
 - freshness_reason: `0.4.5 source 의미와 QA 대기 상태를 정확히 반영`
 - known_gaps: `최신 실제 연결 평균·최대 UI와 비전경 숨김·DPI·설치·제거 종단간은 NOT_RUN`

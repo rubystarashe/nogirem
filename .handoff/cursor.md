@@ -6,7 +6,7 @@ Last Updated: 2026-10-05 16:10 +09:00
 0.4.5 `실시간 게임 서버 모니터링`에서 분산 안정성 판정과 실제 접속 채널 RTT를 구현하고, 게임 전경 중 상단 compact 상시 표시와 Windows 키 expanded 표를 검증한다. 배포는 승인되지 않았다.
 
 ## Active Runs
-- `20261005-channel-quality-045`: local commit `50babda1ce80178722f0fd6b59f244934e88da36`에서 별도 창, actual HWND 기반 foreground 100ms 숨김, 평균 절대편차 점수 목록, 실제 연결의 현재·평균·표본 최대 RTT와 재전송 표시를 구현하고 자동 검사·독립 리뷰를 통과했다. 최신 표시의 실게임 시각 재확인이 남았다. (`docs/ai/runs/20261005-channel-quality-045/task.md`)
+- `20261005-channel-quality-045`: local commit `d4ff171da24cb68207ae7c35a9260ed4dc7f61d1`에서 별도 창, actual HWND 기반 foreground 100ms 숨김, 평균 절대편차 점수 목록, 실제 연결의 현재·평균·표본 최대 RTT와 재전송 표시, `채널별 서버 점수` 중앙 창 제목을 구현하고 자동 검사를 통과했다. 최신 표시의 실게임 시각 재확인이 남았다. (`docs/ai/runs/20261005-channel-quality-045/task.md`)
 - `20261005-notice-044`: 최종 공지·원본 비율 `cover` 스타일·fixture getter 보완을 source `40a99dc`에서 preview·package하고 [GitHub v0.4.4](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.4)로 배포했다. 공개 자산 10/10 hash·signed update·Electron bridge와 raw NOTICE 일치를 검증했다. (`docs/ai/runs/20261005-notice-044/task.md`)
 - `20261005-release-044`: source commit `60f9b58cea09c4d1668af56c7cfda446211b4a51`에서 signed 설치형·포터블과 update manifest를 생성·검증했다. 후보는 `release/dioxus-0.4.4-2026-10-04T21-52-05-572Z`; 설치형 SHA-256 `1584e3fc...`, 포터블 `6425e5d0...`. 실제 게임·설치 수동 QA는 NOT_RUN이며 배포·push·tag는 금지다. (`docs/ai/runs/20261005-release-044/task.md`)
 - `20261005-channel-ping-overlay`: startup GitHub `channel.csv` 검증·cache fallback, 1분 측정·최근 5회 평균, 실패 중 1시간 재검사, 마비노기 전경 Windows 키 표시와 모든 후속 down 숨김, click-through topmost 보조 창, 고급 기능 toggle을 구현했다. 자동 검사와 독립 review 승인, source commit `000481dbdc438729d13b54829d4653ab51824c78` 완료 (`docs/ai/runs/20261005-channel-ping-overlay/task.md`)

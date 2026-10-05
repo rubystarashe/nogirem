@@ -173,3 +173,6 @@
 - review_mode: `SELF_REVIEW — HTML document·heading·aria label과 native expanded title, 테스트·문서를 검토했으며 독립 reviewer는 참여하지 않음`
 - review_verdict: `APPROVED — 제목 외 동작·경계 변경 없음`
 - manual_validation: `NOT_RUN — 실행 중인 최신 debug 앱에서 Windows 키 중앙 창을 사용자가 확인 가능`
+- implementation_commit: `d4ff171da24cb68207ae7c35a9260ed4dc7f61d1`
+- push_status: `NOT_RUN — 승인되지 않음`
+- deployment_status: `NOT_RUN — 승인되지 않음`
