@@ -6,7 +6,7 @@ Last Updated: 2026-10-05 16:10 +09:00
 0.4.5 `실시간 게임 서버 모니터링`에서 분산 안정성 판정과 실제 접속 채널 RTT를 구현하고, 게임 전경 중 상단 compact 상시 표시와 Windows 키 expanded 표를 검증한다. 배포는 승인되지 않았다.
 
 ## Active Runs
-- `20261005-package-045`: source `e83136ca07c2a7258e4011f7b4900ba201aee2ca`에서 0.4.5 서명 설치형·포터블 로컬 패키징과 검증을 진행한다. push·tag·GitHub release·배포는 승인되지 않았다. (`docs/ai/runs/20261005-package-045/task.md`)
+- `20261005-package-045`: source `4c11b0e42055073597d080cf59219d22cd06cfbb`에서 0.4.5 서명 설치형·포터블을 `release/dioxus-0.4.5-2026-10-05T08-21-42-249Z`에 생성하고 자동·native contract·해시·manifest 검증을 통과했다. 실제 설치·포터블 실행과 push·tag·GitHub release·배포는 수행하지 않았다. (`docs/ai/runs/20261005-package-045/final-report.md`)
 - `20261005-channel-quality-045`: local commit `d4ff171da24cb68207ae7c35a9260ed4dc7f61d1`에서 별도 창, actual HWND 기반 foreground 100ms 숨김, 평균 절대편차 점수 목록, 실제 연결의 현재·평균·표본 최대 RTT와 재전송 표시, `채널별 서버 점수` 중앙 창 제목을 구현하고 자동 검사를 통과했다. 최신 표시의 실게임 시각 재확인이 남았다. (`docs/ai/runs/20261005-channel-quality-045/task.md`)
 - `20261005-notice-044`: 최종 공지·원본 비율 `cover` 스타일·fixture getter 보완을 source `40a99dc`에서 preview·package하고 [GitHub v0.4.4](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.4)로 배포했다. 공개 자산 10/10 hash·signed update·Electron bridge와 raw NOTICE 일치를 검증했다. (`docs/ai/runs/20261005-notice-044/task.md`)
 - `20261005-release-044`: source commit `60f9b58cea09c4d1668af56c7cfda446211b4a51`에서 signed 설치형·포터블과 update manifest를 생성·검증했다. 후보는 `release/dioxus-0.4.4-2026-10-04T21-52-05-572Z`; 설치형 SHA-256 `1584e3fc...`, 포터블 `6425e5d0...`. 실제 게임·설치 수동 QA는 NOT_RUN이며 배포·push·tag는 금지다. (`docs/ai/runs/20261005-release-044/task.md`)
@@ -22,6 +22,7 @@ Last Updated: 2026-10-05 16:10 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- 0.4.5 로컬 패키지는 설치형 `9,559,488 bytes` SHA-256 `4a3aba2e...a5089`, 포터블 `7,783,890 bytes` SHA-256 `9033ba9f...4c274`로 생성됐다. Node 204/204, desktop 8/8, backend 93/93·통합 2/2, overlay 3/3과 signed manifest 자체 검증이 통과했다.
 - 기능명을 `채널별 핑`에서 `실시간 게임 서버 모니터링`으로 변경하고 중앙 전체 채널 창의 제목은 `채널별 서버 점수`로 지정했다. 고정 GitHub raw CSV의 검증·cache→package fallback과 설정 single writer는 유지한다.
 - endpoint가 있는 채널은 초기 3표본을 약 30초에 순차 수집한 뒤 60초 동안 하나씩 분산 측정한다. 목록은 최근 20회 연결 시험의 평균 절대편차에 100을 곱한 정수 점수를 표시하고, 0.5·1.0·1.5ms 경계로 녹색·노란색·주황색·빨간색을 적용한다.
 - 정본 마비노기 전경 process handle을 조회 완료까지 유지하고 CSV IP:port와 정확히 일치하는 established 5-tuple만 현재 채널 후보로 인정한다. 동일 connection identity를 유지하고 모호한 복수 연결은 표시하지 않으며, connection-scoped Windows TCP EStats 수집 활성화·조회 결과를 반영한다.
