@@ -2,18 +2,18 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `17`
-- updated_at: `2026-10-05T10:09:00Z`
+- revision: `18`
+- updated_at: `2026-10-05T10:42:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T10:09:00Z`
+- source_reviewed_at: `2026-10-05T10:42:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 4d7e9cc679471b36b434ba1e67e508b0498adc79, base 3fafbe9ee00ce42a1bb905c18691256f2d8f7ad0`
-- source_review_evidence: `channel-ping-live.html, channel_ping.rs, service_windows.rs, overlay interface test; REV-CHANNEL-QUALITY-045-R7 INDEPENDENT_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T10:09:00Z`
+- source_review_target: `source commit 92766bad923257aaa71552b56fb16825bfe472dc, base e4bfe61f93660df3f245f8b0bea2c5853d48acda`
+- source_review_evidence: `one-minute latency/path queues, compact renderer, expanded titles and tests; REV-CHANNEL-QUALITY-045-R8 INDEPENDENT_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-05T10:42:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 4d7e9cc679471b36b434ba1e67e508b0498adc79`
+- behavior_verification_target: `source commit 92766bad923257aaa71552b56fb16825bfe472dc`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration·Node contract·desktop compile`
-- behavior_verification_evidence: `overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 520×30 999m fixture clipped=false·순간/평균 문구 없음`
+- behavior_verification_evidence: `channel ping backend 28/28, overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 520×30 999m fixture clipped=false·40/41/70/71/100/101 class 확인`
 - freshness_status: `CURRENT`
 - freshness_reason: `0.4.5 실시간 게임 서버 모니터링 source 설계와 현재 미검증 상태를 구분해 반영`
 - known_gaps: `실제 게임 native WebView의 1분 최대 전용 표시·네 TCP 경로 counter 변화·actual HWND 비전경 숨김·채널 전환·혼합 DPI는 수동 NOT_RUN; 직전 0.4.5 package는 최신 표시 변경 전 target`
@@ -49,18 +49,18 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 채널 핑 network·input·auxiliary window 경계.
 - record_id: `FEAT-NOGIREM-CHANNEL-PING`
 - owner: `nogirem maintainer`
-- revision: `12`
-- updated_at: `2026-10-05T10:09:00Z`
+- revision: `13`
+- updated_at: `2026-10-05T10:42:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T10:09:00Z`
+- source_reviewed_at: `2026-10-05T10:42:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 4d7e9cc679471b36b434ba1e67e508b0498adc79, base 3fafbe9ee00ce42a1bb905c18691256f2d8f7ad0`
-- source_review_evidence: `recent-maximum-only live renderer and TCP path counter source paths; REV-CHANNEL-QUALITY-045-R7 INDEPENDENT_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T10:09:00Z`
+- source_review_target: `source commit 92766bad923257aaa71552b56fb16825bfe472dc, base e4bfe61f93660df3f245f8b0bea2c5853d48acda`
+- source_review_evidence: `one-minute maximum and path recent fields, reset boundaries, renderer/title contracts; REV-CHANNEL-QUALITY-045-R8 INDEPENDENT_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-05T10:42:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 4d7e9cc679471b36b434ba1e67e508b0498adc79`
+- behavior_verification_target: `source commit 92766bad923257aaa71552b56fb16825bfe472dc`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 520×30 999m fixture clipped=false·순간/평균 문구 없음`
+- behavior_verification_evidence: `channel ping backend 28/28, overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 520×30 999m fixture clipped=false·40/41/70/71/100/101 class 확인`
 - freshness_status: `CURRENT`
 - freshness_reason: `0.4.5 source 의미와 QA 대기 상태를 정확히 반영`
 - known_gaps: `최신 실제 연결 1분 최대 전용 UI와 비전경 숨김·DPI·설치·제거 종단간은 NOT_RUN`

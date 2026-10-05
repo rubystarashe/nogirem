@@ -2,18 +2,18 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `12`
-- updated_at: `2026-10-05T10:09:00Z`
+- revision: `13`
+- updated_at: `2026-10-05T10:42:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T10:09:00Z`
+- source_reviewed_at: `2026-10-05T10:42:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 4d7e9cc679471b36b434ba1e67e508b0498adc79, base 3fafbe9ee00ce42a1bb905c18691256f2d8f7ad0`
-- source_review_evidence: `recent-maximum-only 520×30 live window and TCP path counter source; REV-CHANNEL-QUALITY-045-R7 INDEPENDENT_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T10:09:00Z`
+- source_review_target: `source commit 92766bad923257aaa71552b56fb16825bfe472dc, base e4bfe61f93660df3f245f8b0bea2c5853d48acda`
+- source_review_evidence: `one-minute maximum/path queue, recent status fields, 520×30 renderer and expanded title source; REV-CHANNEL-QUALITY-045-R8 INDEPENDENT_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-05T10:42:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 4d7e9cc679471b36b434ba1e67e508b0498adc79`
+- behavior_verification_target: `source commit 92766bad923257aaa71552b56fb16825bfe472dc`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 520×30 999m fixture clipped=false·순간/평균 문구 없음`
+- behavior_verification_evidence: `channel ping backend 28/28, overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 520×30 999m fixture clipped=false·40/41/70/71/100/101 class 확인`
 - freshness_status: `CURRENT`
 - freshness_reason: `실시간 게임 서버 모니터링의 분산 측정·실제 TCP read·compact/expanded 경계를 source와 일치시킴`
 - known_gaps: `별도 dependency graph lint가 없고 실제 게임 native WebView 최근 최대 전용 표시·counter 변화·actual HWND 비전경 숨김·DPI·최신 package 수동 QA는 NOT_RUN`
