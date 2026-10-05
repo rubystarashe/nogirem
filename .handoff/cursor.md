@@ -21,7 +21,7 @@ Last Updated: 2026-10-05 16:10 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
-- 기능명을 `채널별 핑`에서 `실시간 게임 서버 모니터링`으로 변경했다. 전체 채널 창의 세부 제목은 `실시간 점수 확인`을 유지한다. 고정 GitHub raw CSV의 검증·cache→package fallback과 설정 single writer는 유지한다.
+- 기능명을 `채널별 핑`에서 `실시간 게임 서버 모니터링`으로 변경하고 중앙 전체 채널 창의 제목은 `채널별 서버 점수`로 지정했다. 고정 GitHub raw CSV의 검증·cache→package fallback과 설정 single writer는 유지한다.
 - endpoint가 있는 채널은 초기 3표본을 약 30초에 순차 수집한 뒤 60초 동안 하나씩 분산 측정한다. 목록은 최근 20회 연결 시험의 평균 절대편차에 100을 곱한 정수 점수를 표시하고, 0.5·1.0·1.5ms 경계로 녹색·노란색·주황색·빨간색을 적용한다.
 - 정본 마비노기 전경 process handle을 조회 완료까지 유지하고 CSV IP:port와 정확히 일치하는 established 5-tuple만 현재 채널 후보로 인정한다. 동일 connection identity를 유지하고 모호한 복수 연결은 표시하지 않으며, connection-scoped Windows TCP EStats 수집 활성화·조회 결과를 반영한다.
 - 게임이 전경이고 실제 RTT가 확보되면 별도 `channel-ping-live` 창이 화면 상단 중앙에 `채널 · 현재 · 평균 · 최대 · 재전송`을 표시한다. 평균과 최대는 동일 5-tuple에서 1초마다 읽은 최근 3분 Windows `SmoothedRtt` 표본 기준이며 원시 패킷 RTT 최대를 뜻하지 않는다. 연결 identity가 바뀌면 초기화한다. 좌·우 Windows 키는 독립된 `channel-ping-overlay` 전체표를 중앙에 함께 표시하며 다음 keyboard·mouse down은 전체표만 숨긴다.
@@ -34,6 +34,7 @@ Last Updated: 2026-10-05 16:10 +09:00
 - expanded 표는 `1~15`, `16~29`, `30~38` 세로 3열·170px 열·584×400 크기와 endpoint 없는 채널 숨김을 유지한다. 모든 채널은 같은 연결 시험 변동 점수를 표시하고 실제 접속 채널만 별도 테두리와 `현재` 문구로 강조한다.
 - 최신 자동 검사는 channel ping 관련 22/22와 overlay-interface 3/3, desktop build, diff check, 변경 파일 lint 0을 통과했다.
 - 독립 review `REV-CHANNEL-QUALITY-045-R4`는 actual HWND 반복 숨김·평균 절대편차 단일 반올림·RTT 색상과 compact 문서 정합성을 재검토해 `APPROVED`했다.
+- 중앙 expanded 창의 document·heading·native title을 `채널별 서버 점수`로 변경했고 overlay interface 3/3, desktop locked check·build, diff check·IDE diagnostics가 통과했다. 제목 변경은 `SELF_REVIEW APPROVED`이며 최신 debug 앱을 다시 실행했다.
 - 후속 자동 검사는 channel ping 관련 11/11, overlay-interface 3/3, desktop locked check, JavaScript syntax, 변경 파일 lint 0을 통과했고 HWND 수명 경합 수정까지 독립 재리뷰 `APPROVED`를 받았다. 최신 빌드의 물리 입력 즉시 숨김과 최종 시각 확인은 남아 있다.
 - channel ping 8/8을 기본 병렬 설정으로 10회 반복했고 backend 79 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check가 통과했다. 독립 review는 모든 must-fix 해결 후 `APPROVED`다. 실제 게임·DPI·물리 입력과 package 실행은 NOT_RUN이며 push·배포는 하지 않았다.
 - DXVK install은 실제 `Client.exe`, 허용 폴더·launcher, canonical parent와 파일·상위 reparse를 다운로드 전에 확인하고, file replace 직전에 경로 변경·게임 실행을 다시 차단한다.

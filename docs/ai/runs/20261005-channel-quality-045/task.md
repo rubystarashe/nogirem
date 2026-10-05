@@ -156,3 +156,20 @@
 - review_mode: `INDEPENDENT_REVIEW`
 - review_verdict: `APPROVED — actual HWND 반복 숨김, rational 평균 절대편차 단일 반올림, compact 문서 정합성 확인`
 - manual_validation: `NOT_RUN — 최신 비전경 전환과 420×30 표시를 사용자 환경에서 재확인 필요`
+
+## Feedback FB-CHANNEL-045-007 — 중앙 창 제목 변경
+
+- received_at: `2026-10-05T08:12:00Z`
+- classification: `REQUIREMENT_CLARIFICATION`
+- severity: `LOW`
+- must_fix: `true`
+- expected: 중앙 전체 채널 창의 document·heading·native window title을 `채널별 서버 점수`로 표시한다.
+- disposition: `READY_FOR_VERIFICATION`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 중앙 전체 채널 창의 사용자 노출 제목 변경`
+- feature_map: `updated — 채널별 서버 점수를 기능 alias로 기록`
+- architecture_impact: `none — window identity, IPC, 측정 writer와 dependency boundary는 변경하지 않음`
+- architecture_contract: `no_change — 기존 compact/expanded 경계가 그대로 정확함`
+- automated_validation: `overlay interface 3/3 PASS, desktop locked check·build PASS, diff check·IDE diagnostics PASS`
+- review_mode: `SELF_REVIEW — HTML document·heading·aria label과 native expanded title, 테스트·문서를 검토했으며 독립 reviewer는 참여하지 않음`
+- review_verdict: `APPROVED — 제목 외 동작·경계 변경 없음`
+- manual_validation: `NOT_RUN — 실행 중인 최신 debug 앱에서 Windows 키 중앙 창을 사용자가 확인 가능`

@@ -30,7 +30,7 @@
 ## FEAT-NOGIREM-CHANNEL-PING
 
 - canonical_name: `마비노기 실시간 게임 서버 모니터링`
-- aliases: `실시간 점수 확인`, `채널별 핑`, `채널 핑`, `핑 오버레이`
+- aliases: `채널별 서버 점수`, `실시간 점수 확인`, `채널별 핑`, `채널 핑`, `핑 오버레이`
 - lifecycle: `ACTIVE`
 - lifecycle_reason: `GitHub v0.4.4 정식 Release로 설치형·포터블과 signed update manifest를 공개함`
 - owners: `product=nogirem maintainer`, `technical=channel ping backend owner`
