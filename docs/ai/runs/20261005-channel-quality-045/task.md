@@ -326,7 +326,7 @@
 - severity: `MEDIUM`
 - must_fix: `true`
 - expected: 오래된 연결 시험보다 최근 값을 더 신뢰하고, 비정상적으로 큰 첫 결과는 통계식으로 즉시 버리지 말고 같은 endpoint를 추가 측정해 반복 여부를 확인한다. 상단 재전송·시간초과·중복·혼잡은 최근 1분 값이 0인 항목을 숨긴다.
-- disposition: `IN_PROGRESS`
+- disposition: `FIXED`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 채널 점수의 시간 가중·의심 결과 확인 절차와 상단 0값 표시 축소`
 - feature_map: `updated — 최근 가중식·조건부 3회 확인·0값 숨김을 반영`
 - architecture_impact: `channel_ping worker가 의심 결과에서만 동일 endpoint를 2회 추가 연결하고 중앙값 하나를 authoritative 표본으로 기록`
@@ -336,8 +336,13 @@
 - score_rule: `최근 20회 전체 결과 중 성공 표본에 오래된 성공 weight 1부터 최신 성공 weight N까지 선형 가중한 평균 절대편차×100; 실패율은 같은 20회 창`
 - automated_validation: `channel ping backend 33/33 PASS, overlay interface 3/3 PASS, desktop locked check PASS, diff check PASS, IDE diagnostics PASS`
 - render_validation: `Chromium에서 네 recent 값 0이면 38채널 · 최대 55 ms만 표시; 재전송2·중복3 fixture는 양수 두 항목만 표시`
-- review_round: `REV-CHANNEL-QUALITY-045-R9 — ISSUE-045-R9-001 최근 20회 창 의미·회귀 검사와 ISSUE-045-R9-002 freshness 수정 후 rereview 대기`
+- review_round: `REV-CHANNEL-QUALITY-045-R9 — ISSUE-045-R9-001~003 수정 후 최종 APPROVED`
+- review_mode: `INDEPENDENT_REVIEW`
+- review_verdict: `APPROVED — 이전 must-fix 3건 RESOLVED, 신규 must-fix 없음`
 - manual_validation: `NOT_RUN — 실제 endpoint의 조건부 추가 연결과 상단 0값 숨김 확인 필요`
+- implementation_commit: `cf607c8f2506a1c7a903e8ffbb5e36773a016546`
+- push_status: `NOT_RUN — 승인되지 않음`
+- deployment_status: `NOT_RUN — 승인되지 않음`
 
 ## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
 

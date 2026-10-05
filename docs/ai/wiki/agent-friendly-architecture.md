@@ -2,21 +2,21 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `13`
-- updated_at: `2026-10-05T10:42:00Z`
+- revision: `14`
+- updated_at: `2026-10-05T11:47:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T10:42:00Z`
+- source_reviewed_at: `2026-10-05T11:47:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 92766bad923257aaa71552b56fb16825bfe472dc, base e4bfe61f93660df3f245f8b0bea2c5853d48acda`
-- source_review_evidence: `one-minute maximum/path queue, recent status fields, 520×30 renderer and expanded title source; REV-CHANNEL-QUALITY-045-R8 INDEPENDENT_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T10:42:00Z`
+- source_review_target: `source commit cf607c8f2506a1c7a903e8ffbb5e36773a016546, base 3172d6d216058beef01521ce0f85077f0b15ab3d`
+- source_review_evidence: `recency weights, conditional endpoint confirmation and zero-value renderer boundaries; REV-CHANNEL-QUALITY-045-R9 INDEPENDENT_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-05T11:47:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 92766bad923257aaa71552b56fb16825bfe472dc`
+- behavior_verification_target: `source commit cf607c8f2506a1c7a903e8ffbb5e36773a016546`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `channel ping backend 28/28, overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 520×30 999m fixture clipped=false·40/41/70/71/100/101 class 확인`
+- behavior_verification_evidence: `channel ping backend 33/33, overlay interface 3/3, desktop check, targeted rustfmt, diff check, IDE diagnostics; Chromium all-zero·mixed-positive renderer 확인`
 - freshness_status: `CURRENT`
 - freshness_reason: `실시간 게임 서버 모니터링의 분산 측정·실제 TCP read·compact/expanded 경계를 source와 일치시킴`
-- known_gaps: `별도 dependency graph lint가 없고 실제 게임 native WebView 최근 최대 전용 표시·counter 변화·actual HWND 비전경 숨김·DPI·최신 package 수동 QA는 NOT_RUN`
+- known_gaps: `별도 dependency graph lint가 없고 실제 endpoint 조건부 추가 연결·native WebView 0값 숨김·actual HWND 비전경 숨김·DPI·최신 package 수동 QA는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 안정성 판정·실제 연결·상시 compact 오버레이`
 - feature_map: `updated — feature-map.md의 신규 채널 핑 identity와 연결됨`
 - architecture_impact: `channel CSV/cache single writer, staggered TCP worker, owner-PID TCP EStats collector, low-level input hooks, compact/expanded click-through window`
