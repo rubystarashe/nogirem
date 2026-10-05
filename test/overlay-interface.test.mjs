@@ -118,6 +118,8 @@ test("실시간 점수 창은 초소형·전체 모드 모두 클릭 통과 topm
   assert.match(live, /시간초과[\s\S]+current\.tcpTimeoutsRecent/)
   assert.match(live, /중복[\s\S]+current\.duplicateAcksReceivedRecent/)
   assert.match(live, /혼잡[\s\S]+current\.congestionSignalsRecent/)
+  assert.match(live, /\.filter\(\(\[, value\]\) => Number\(value\) > 0\)/)
+  assert.match(live, /details \? ` · \$\{details\}` : ""/)
   assert.match(backend, /ACTIVE_LATENCY_WINDOW: Duration = Duration::from_secs\(60\)/)
   assert.match(live, /function compactNumber[\s\S]+number < 1000[\s\S]+toFixed\(1\).*k[\s\S]+toFixed\(1\).*m[\s\S]+toFixed\(1\).*b/)
   assert.match(live, /number < 999500[\s\S]+number < 999500000/)

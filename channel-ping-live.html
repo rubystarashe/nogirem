@@ -100,7 +100,14 @@
         status.hidden = !current || current.maximumLatencyMs == null
         if (status.hidden) return
         status.className = latencyClass(current.maximumLatencyMs)
-        status.textContent = `${current.channel}채널 · 최대 ${compactNumber(current.maximumLatencyMs)} ms · 재전송 ${compactNumber(current.packetsRetransmittedRecent)} · 시간초과 ${compactNumber(current.tcpTimeoutsRecent)} · 중복 ${compactNumber(current.duplicateAcksReceivedRecent)} · 혼잡 ${compactNumber(current.congestionSignalsRecent)}`
+        const metrics = [
+          ["재전송", current.packetsRetransmittedRecent],
+          ["시간초과", current.tcpTimeoutsRecent],
+          ["중복", current.duplicateAcksReceivedRecent],
+          ["혼잡", current.congestionSignalsRecent],
+        ].filter(([, value]) => Number(value) > 0)
+        const details = metrics.map(([label, value]) => `${label} ${compactNumber(value)}`).join(" · ")
+        status.textContent = `${current.channel}채널 · 최대 ${compactNumber(current.maximumLatencyMs)} ms${details ? ` · ${details}` : ""}`
       } catch {
         status.hidden = false
         status.className = "failed"

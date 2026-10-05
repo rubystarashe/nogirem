@@ -63,11 +63,12 @@ impl Measurement {
     }
 
     fn quality(&self) -> Quality {
-        let mut successes = self
+        let successful_samples = self
             .outcomes
             .iter()
             .filter_map(|value| *value)
             .collect::<Vec<_>>();
+        let mut successes = successful_samples.clone();
         successes.sort_unstable();
         let failures = self.outcomes.len().saturating_sub(successes.len());
         let failure_percent = if self.outcomes.is_empty() {
@@ -95,10 +96,7 @@ impl Measurement {
             .iter()
             .map(|value| (u64::from(*value) * sample_count).abs_diff(sample_sum))
             .collect::<Vec<_>>();
-        let score_denominator = sample_count * sample_count * 10;
-        let variation_score = ((scaled_deviations.iter().copied().sum::<u64>()
-            + score_denominator / 2)
-            / score_denominator) as u32;
+        let variation_score = recency_weighted_variation_score(&successful_samples);
         let peak_variation_us = scaled_deviations
             .iter()
             .copied()
@@ -128,6 +126,26 @@ impl Measurement {
             label,
         }
     }
+}
+
+fn recency_weighted_variation_score(ordered: &[Microseconds]) -> u32 {
+    let retained = ordered
+        .iter()
+        .enumerate()
+        .map(|(index, value)| (index as u64 + 1, u64::from(*value)))
+        .collect::<Vec<_>>();
+    let total_weight = retained.iter().map(|(weight, _)| *weight).sum::<u64>();
+    let weighted_sum = retained
+        .iter()
+        .map(|(weight, value)| weight * value)
+        .sum::<u64>();
+    let score_denominator = total_weight * total_weight * 10;
+    ((retained
+        .iter()
+        .map(|(weight, value)| weight * (value * total_weight).abs_diff(weighted_sum))
+        .sum::<u64>()
+        + score_denominator / 2)
+        / score_denominator) as u32
 }
 
 fn median(sorted: &[Microseconds]) -> Option<Microseconds> {
@@ -506,11 +524,23 @@ impl ChannelPing {
         let address = endpoint
             .address
             .expect("필터링된 채널에는 주소가 있어야 합니다");
-        let started = Instant::now();
-        let result = TcpStream::connect_timeout(&address, CONNECT_TIMEOUT)
-            .is_ok()
-            .then(|| started.elapsed().as_micros())
-            .map(|microseconds| microseconds.max(1).min(u128::from(u32::MAX)) as u32);
+        let first = measure_tcp_connection(address);
+        let should_confirm = self
+            .runtime
+            .read()
+            .unwrap()
+            .channels
+            .iter()
+            .find(|entry| entry.endpoint == endpoint)
+            .is_some_and(|entry| should_confirm_outlier(entry, first));
+        let result = if should_confirm {
+            std::thread::sleep(Duration::from_millis(50));
+            let second = measure_tcp_connection(address);
+            std::thread::sleep(Duration::from_millis(50));
+            consolidate_confirmation([first, second, measure_tcp_connection(address)])
+        } else {
+            first
+        };
         let measured_at = crate::now_ms();
         let mut runtime = self.runtime.write().unwrap();
         if let Some(entry) = runtime
@@ -522,6 +552,49 @@ impl ChannelPing {
         }
         (result.is_none(), count)
     }
+}
+
+fn measure_tcp_connection(address: SocketAddr) -> Option<Microseconds> {
+    let started = Instant::now();
+    TcpStream::connect_timeout(&address, CONNECT_TIMEOUT)
+        .is_ok()
+        .then(|| started.elapsed().as_micros())
+        .map(|microseconds| microseconds.max(1).min(u128::from(u32::MAX)) as u32)
+}
+
+fn should_confirm_outlier(measurement: &Measurement, result: Option<Microseconds>) -> bool {
+    let Some(result) = result else {
+        return false;
+    };
+    let mut successes = measurement
+        .outcomes
+        .iter()
+        .filter_map(|value| *value)
+        .collect::<Vec<_>>();
+    if successes.len() < 3 {
+        return false;
+    }
+    successes.sort_unstable();
+    let center = median(&successes).unwrap_or(result);
+    if result <= center {
+        return false;
+    }
+    let deviation = result - center;
+    let previous_max = successes
+        .iter()
+        .map(|value| value.abs_diff(center))
+        .max()
+        .unwrap_or(0);
+    deviation >= 500 && deviation > previous_max.saturating_mul(3)
+}
+
+fn consolidate_confirmation(results: [Option<Microseconds>; 3]) -> Option<Microseconds> {
+    let mut successes = results.into_iter().flatten().collect::<Vec<_>>();
+    if successes.len() < 2 {
+        return None;
+    }
+    successes.sort_unstable();
+    median(&successes)
 }
 
 fn measurement_spacing(count: usize, warming_up: bool) -> Duration {
@@ -1651,10 +1724,10 @@ mod tests {
             measurement.quality(),
             Quality {
                 median_us: Some(5_000),
-                variation_score: Some(48),
+                variation_score: Some(50),
                 peak_variation_us: Some(600),
                 failure_percent: 0,
-                score: Some(6_260),
+                score: Some(6_300),
                 label: "안정적",
             }
         );
@@ -1680,7 +1753,7 @@ mod tests {
     }
 
     #[test]
-    fn 드문_큰_지연도_안정적으로_표시하지_않는다() {
+    fn 기록된_최근_큰_지연은_가중_점수에_반영한다() {
         let measurement = Measurement {
             endpoint: Endpoint {
                 channel: 1,
@@ -1697,7 +1770,101 @@ mod tests {
             failed: false,
             measured_at: Some(1),
         };
-        assert_eq!(measurement.quality().label, "불안정");
+        let quality = measurement.quality();
+        assert_eq!(quality.variation_score, Some(1_111));
+        assert_eq!(quality.label, "불안정");
+    }
+
+    #[test]
+    fn 반복되는_큰_지연은_변동_점수에_반영한다() {
+        let measurement = Measurement {
+            endpoint: Endpoint {
+                channel: 1,
+                address: None,
+            },
+            outcomes: VecDeque::from([
+                Some(5_000),
+                Some(5_000),
+                Some(5_000),
+                Some(30_000),
+                Some(30_000),
+            ]),
+            measured_times: VecDeque::from([1, 2, 3, 4, 5]),
+            failed: false,
+            measured_at: Some(1),
+        };
+        assert_eq!(measurement.quality().variation_score, Some(1_200));
+    }
+
+    #[test]
+    fn 최근_표본일수록_변동_점수_가중치가_높다() {
+        let old_spikes = recency_weighted_variation_score(&[30_000, 30_000, 5_000, 5_000, 5_000]);
+        let recent_spikes =
+            recency_weighted_variation_score(&[5_000, 5_000, 5_000, 30_000, 30_000]);
+        assert!(recent_spikes > old_spikes);
+    }
+
+    #[test]
+    fn 최근_20회_전체_결과에서_성공_표본과_실패율을_계산한다() {
+        let mut measurement = Measurement {
+            endpoint: Endpoint {
+                channel: 1,
+                address: None,
+            },
+            outcomes: VecDeque::new(),
+            measured_times: VecDeque::new(),
+            failed: false,
+            measured_at: None,
+        };
+        for index in 0..5 {
+            measurement.record(Some(30_000), index);
+        }
+        for index in 5..15 {
+            measurement.record(None, index);
+        }
+        for index in 15..25 {
+            measurement.record(Some(5_000), index);
+        }
+        let quality = measurement.quality();
+        assert_eq!(measurement.outcomes.len(), 20);
+        assert_eq!(quality.median_us, Some(5_000));
+        assert_eq!(quality.variation_score, Some(0));
+        assert_eq!(quality.failure_percent, 50);
+    }
+
+    #[test]
+    fn 기존_표본과_크게_다른_첫_결과만_추가_확인한다() {
+        let stable = Measurement {
+            endpoint: Endpoint {
+                channel: 1,
+                address: None,
+            },
+            outcomes: VecDeque::from([Some(5_000), Some(5_000), Some(5_100)]),
+            measured_times: VecDeque::from([1, 2, 3]),
+            failed: false,
+            measured_at: Some(3),
+        };
+        assert!(should_confirm_outlier(&stable, Some(30_000)));
+        assert!(!should_confirm_outlier(&stable, Some(5_300)));
+
+        let repeated = Measurement {
+            outcomes: VecDeque::from([Some(5_000), Some(5_000), Some(5_000), Some(30_000)]),
+            ..stable
+        };
+        assert!(!should_confirm_outlier(&repeated, Some(30_000)));
+    }
+
+    #[test]
+    fn 의심_표본은_세번_결과의_중앙값으로_확정한다() {
+        assert_eq!(
+            consolidate_confirmation([Some(30_000), Some(5_000), Some(5_000)]),
+            Some(5_000)
+        );
+        assert_eq!(
+            consolidate_confirmation([Some(30_000), Some(30_000), Some(5_000)]),
+            Some(30_000)
+        );
+        assert_eq!(consolidate_confirmation([Some(30_000), None, None]), None);
     }
 
     #[test]

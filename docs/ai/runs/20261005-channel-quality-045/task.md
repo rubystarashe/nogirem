@@ -319,6 +319,26 @@
 - push_status: `NOT_RUN — 승인되지 않음`
 - deployment_status: `NOT_RUN — 승인되지 않음`
 
+## Feedback FB-CHANNEL-045-016 — 최근 가중 점수·의심 표본 재확인·0값 숨김
+
+- received_at: `2026-10-05T11:23:00Z`
+- classification: `ENHANCEMENT`
+- severity: `MEDIUM`
+- must_fix: `true`
+- expected: 오래된 연결 시험보다 최근 값을 더 신뢰하고, 비정상적으로 큰 첫 결과는 통계식으로 즉시 버리지 말고 같은 endpoint를 추가 측정해 반복 여부를 확인한다. 상단 재전송·시간초과·중복·혼잡은 최근 1분 값이 0인 항목을 숨긴다.
+- disposition: `IN_PROGRESS`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 채널 점수의 시간 가중·의심 결과 확인 절차와 상단 0값 표시 축소`
+- feature_map: `updated — 최근 가중식·조건부 3회 확인·0값 숨김을 반영`
+- architecture_impact: `channel_ping worker가 의심 결과에서만 동일 endpoint를 2회 추가 연결하고 중앙값 하나를 authoritative 표본으로 기록`
+- architecture_contract: `updated — 조건부 재측정과 평상시 단일 연결 경계를 반영`
+- risk: `MEDIUM — 의심 결과에서만 최대 2회 추가 TCP 연결이 발생하고 점수 의미가 바뀌지만 durable data·외부 contract·권한 경계는 유지`
+- confirmation_rule: `기존 성공 3개 이상, 새 결과가 중앙값보다 0.5ms 이상 높고 기존 최대 편차의 3배 초과 시 50ms 간격 2회 추가 측정; 3개 결과 중앙값 기록`
+- score_rule: `최근 20회 전체 결과 중 성공 표본에 오래된 성공 weight 1부터 최신 성공 weight N까지 선형 가중한 평균 절대편차×100; 실패율은 같은 20회 창`
+- automated_validation: `channel ping backend 33/33 PASS, overlay interface 3/3 PASS, desktop locked check PASS, diff check PASS, IDE diagnostics PASS`
+- render_validation: `Chromium에서 네 recent 값 0이면 38채널 · 최대 55 ms만 표시; 재전송2·중복3 fixture는 양수 두 항목만 표시`
+- review_round: `REV-CHANNEL-QUALITY-045-R9 — ISSUE-045-R9-001 최근 20회 창 의미·회귀 검사와 ISSUE-045-R9-002 freshness 수정 후 rereview 대기`
+- manual_validation: `NOT_RUN — 실제 endpoint의 조건부 추가 연결과 상단 0값 숨김 확인 필요`
+
 ## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
 
 - received_at: `2026-10-05T07:35:00Z`
