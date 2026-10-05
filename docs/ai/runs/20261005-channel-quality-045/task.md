@@ -196,6 +196,28 @@
 - push_status: `NOT_RUN — 승인되지 않음`
 - deployment_status: `NOT_RUN — 승인되지 않음`
 
+## Feedback FB-CHANNEL-045-011 — 전투 중 TCP 지연 추정 보강
+
+- received_at: `2026-10-05T08:50:00Z`
+- classification: `ENHANCEMENT`
+- severity: `MEDIUM`
+- must_fix: `true`
+- expected: 상단 실시간 수치가 raw `SmoothedRtt`만 표시하지 않고 RTT 변동과 최근 재전송·타임아웃 증가를 반영하되 게임 전체 체감 지연으로 오해되지 않게 표시한다.
+- disposition: `FIXED`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 상단 수치를 TCP 추정 현재·최근 3분 평균·최대로 변경`
+- feature_map: `updated — 추정식, 제외 범위, counter baseline, PING-011을 반영`
+- architecture_impact: `실제 5-tuple별 최근 유효 EStats counter baseline과 TCP 추정 writer 의미 변경`
+- architecture_contract: `updated — SRTT+RTTVAR, 손실 시 SRTT+4×RTTVAR, invalid/reset 처리 경계를 반영`
+- risk: `MEDIUM — 사용자 표시 숫자와 3분 통계 의미가 바뀌지만 durable data·외부 contract·패킷 접근 방식은 변경하지 않음`
+- formula: `기본 SmoothedRtt + RttVar; 최근 유효 poll 대비 retransmit 또는 timeout 증가 시 SmoothedRtt + 4×RttVar; saturating arithmetic`
+- invalid_counter_flow: `RTT 없는 poll은 baseline을 유지하고 counter 감소는 reset으로 간주해 delta 0 후 새 기준 저장`
+- ui_semantics: `TCP 추정 — 게임 서버 처리·입력·렌더링을 포함한 체감 지연으로 주장하지 않음`
+- automated_validation: `channel ping backend 25/25 PASS, overlay interface 3/3 PASS, desktop check PASS, diff check PASS`
+- review_id: `REV-CHANNEL-QUALITY-045-R5`
+- review_mode: `INDEPENDENT_REVIEW`
+- review_verdict: `APPROVED — click-through 표현, invalid baseline, reset·overflow, 추정 통계 의미와 canonical 문서 정합성 확인`
+- manual_validation: `NOT_RUN — 실제 전투 중 TCP 추정값과 420×30 표시를 사용자 환경에서 확인 필요`
+
 ## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
 
 - received_at: `2026-10-05T07:35:00Z`

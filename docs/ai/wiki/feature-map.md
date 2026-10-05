@@ -34,18 +34,18 @@
 - lifecycle: `ACTIVE`
 - lifecycle_reason: `GitHub v0.4.4 정식 Release로 설치형·포터블과 signed update manifest를 공개함`
 - owners: `product=nogirem maintainer`, `technical=channel ping backend owner`
-- purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 초기 3표본을 약 30초에 순차 수집하고 이후 60초 주기로 분산 측정해 최근 20회 성공 표본의 평균 절대편차 점수와 실패율을 메모리에 유지한다. 검증된 마비노기 전경 TCP 연결이 CSV endpoint와 일치하면 별도 상단 창에 현재 채널·현재 Windows `SmoothedRtt`·최근 3분 표본 평균·표본 최대·재전송을 표시하고, 좌·우 Windows 키로 독립된 중앙 전체 채널표를 함께 펼친다. 중앙 목록은 포트를 제외한 서버 IP가 다음 행에서 바뀌는 지점에 구분선과 간격을 둔다.
-- exclusions: ICMP 왕복시간, 서버 내부 처리시간, 직접 패킷 손실 측정, 임의 endpoint·URL 입력, Windows 키 차단, 게임 프로세스 주입은 지원하지 않는다.
-- personas_permissions_accessibility_entry: Windows 사용자가 고급 기능에서 선택적으로 켜고 끈다. 목록은 정수 점수와 `측정 중`·`연결 불가`를 표시하고 현재 채널은 `현재` 문구로 구분해 색상에만 의존하지 않는다. 상단 실제 연결 창은 숫자 지표만 표시하고 현재 RTT 구간별 색상을 보조 신호로 사용한다.
+- purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 초기 3표본을 약 30초에 순차 수집하고 이후 60초 주기로 분산 측정해 최근 20회 성공 표본의 평균 절대편차 점수와 실패율을 메모리에 유지한다. 검증된 마비노기 전경 TCP 연결이 CSV endpoint와 일치하면 별도 상단 창에 현재 채널과 TCP 지연 추정값·최근 3분 추정 표본 평균·추정 표본 최대·누적 재전송을 표시한다. 기본 추정값은 Windows `SmoothedRtt + RttVar`이며 동일 5-tuple의 최근 유효 표본보다 재전송·타임아웃이 증가하면 `SmoothedRtt + 4×RttVar`를 해당 표본에 적용한다. 좌·우 Windows 키로 독립된 중앙 전체 채널표를 함께 펼치며, 중앙 목록은 포트를 제외한 서버 IP가 다음 행에서 바뀌는 지점에 구분선과 간격을 둔다.
+- exclusions: TCP 추정값은 ICMP 왕복시간, 개별 패킷 원시 RTT, 게임 서버 처리시간, 입력·렌더링 지연, 직접 패킷 손실 측정이 아니다. 임의 endpoint·URL 입력, Windows 키 차단, 게임 프로세스 주입은 지원하지 않는다.
+- personas_permissions_accessibility_entry: Windows 사용자가 고급 기능에서 선택적으로 켜고 끈다. 목록은 정수 점수와 `측정 중`·`연결 불가`를 표시하고 현재 채널은 `현재` 문구로 구분해 색상에만 의존하지 않는다. 상단 창은 `TCP 추정`으로 측정 성격을 명시하고 추정값 구간별 색상을 보조 신호로 사용한다.
 - preconditions_dependencies: Windows, 실행 중인 Rust 앱, 검증 가능한 마비노기 `Client.exe`, 저수준 keyboard·mouse hook, 고정 GitHub raw HTTPS URL, WebView2, 공개 채널 TCP endpoint.
 - normal_error_cancel_retry_flow: 앱 시작 시 원격 CSV를 제한 크기·UTF-8·header·연속 channel·IP·port 기준으로 검증하고 성공 시 cache에 원자 저장한다. 실패하면 마지막 유효 cache, 그다음 package CSV를 사용한다. endpoint 연결 실패가 있으면 시작 확인 이후 최대 1시간에 한 번 원격 파일을 다시 확인한다.
 - concurrency_partial_failure_recovery: CSV 갱신 operation lock이 cache 교체를 직렬화하고 RwLock snapshot이 overlay reader와 측정 worker를 분리한다. 한 채널 실패가 다른 이력을 지우지 않고 endpoint가 바뀐 채널만 이전 표본을 폐기한다. 목록 최저 점수 동률은 같은 품질 색상으로 함께 강조한다.
-- state_side_effects_limits: `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv` cache만 지속한다. 채널 표본과 실제 연결의 최근 3분 `SmoothedRtt` 표본·창 mode는 메모리에만 있으며 앱 종료·기능 해제 시 폐기된다. 실제 연결 identity가 바뀌면 평균·표본 최대 이력을 초기화한다. 표본 최대는 원시 패킷 RTT 최대를 보장하지 않는다. 검증된 게임이 전경일 때만 1초마다 TCP table을 읽고 해당 connection의 Windows EStats 수집을 활성화·조회한다.
+- state_side_effects_limits: `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv` cache만 지속한다. 채널 표본과 실제 연결의 최근 3분 TCP 추정 표본·최근 유효 EStats counter 기준·창 mode는 메모리에만 있으며 앱 종료·기능 해제 시 폐기된다. 실제 연결 identity가 바뀌면 추정 평균·최대와 counter 기준을 초기화한다. 추정 표본 최대는 원시 패킷 RTT 최대나 게임 체감 지연을 보장하지 않는다. 검증된 게임이 전경일 때만 1초마다 TCP table을 읽고 해당 connection의 Windows EStats 수집을 활성화·조회한다.
 - modules_contracts: `desktop/src/ui.rs` → `service.rs` → `channel_ping.rs`; `service_windows.rs`와 `desktop/src/native.rs`가 `channel-ping-live`·`channel-ping-overlay`의 독립 window identity를 중계하고 두 preload는 같은 읽기 전용 status IPC 하나만 노출한다.
 - durable_data_owner: `channel_ping.rs`가 setting과 CSV cache의 유일한 writer다. 패키지 `channel.csv`는 fallback source이며 packager만 배포 payload에 복사한다.
 - security_privacy: 고정 HTTPS URL과 공개 IPv4 literal·port만 허용하며 사용자 endpoint나 인증값을 받지 않는다. 실행 경로가 정본 게임 조건을 충족한 전경 process instance가 소유하고 CSV endpoint와 정확히 일치하는 established 5-tuple만 처리한다. 게임 메모리·패킷을 읽거나 주입하지 않고 공개 endpoint 외 사용자 데이터를 전송하지 않는다.
-- scenarios: `PING-001 startup 원격 갱신`, `PING-002 cache·package fallback`, `PING-003 초기 가속·분산 측정·20회 변동 점수`, `PING-004 실패 중 1시간 갱신`, `PING-005 게임 전경 compact 표시·비전경 숨김`, `PING-006 독립 Win 키 expanded·후속 down은 expanded만 숨김`, `PING-007 실제 PID·endpoint TCP EStats`, `PING-008 비활성·비전경 유휴`, `PING-009 두 HTML·preload package 입력`, `PING-010 점수 색상·최저 강조·IP 구간 간격`, `PING-011 실제 연결 평균·최대·재전송과 identity 초기화`
-- observability_evidence: 고급 기능 sync fallback 문구, overlay 측정 경과 시간·채널 상태, `channel_ping.rs` unit tests, `test/overlay-interface.test.mjs`, native IPC contract test.
+- scenarios: `PING-001 startup 원격 갱신`, `PING-002 cache·package fallback`, `PING-003 초기 가속·분산 측정·20회 변동 점수`, `PING-004 실패 중 1시간 갱신`, `PING-005 게임 전경 compact 표시·비전경 숨김`, `PING-006 독립 Win 키 expanded·후속 down은 expanded만 숨김`, `PING-007 실제 PID·endpoint TCP EStats`, `PING-008 비활성·비전경 유휴`, `PING-009 두 HTML·preload package 입력`, `PING-010 점수 색상·최저 강조·IP 구간 간격`, `PING-011 TCP 추정 평균·최대·재전송/타임아웃 delta와 identity 초기화`
+- observability_evidence: 고급 기능 sync fallback 문구, 상단 `TCP 추정` 수치·누적 재전송, overlay 측정 경과 시간·채널 상태, `channel_ping.rs` unit tests, `test/overlay-interface.test.mjs`, native IPC contract test.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 채널 핑 network·input·auxiliary window 경계.
 - record_id: `FEAT-NOGIREM-CHANNEL-PING`
 - owner: `nogirem maintainer`

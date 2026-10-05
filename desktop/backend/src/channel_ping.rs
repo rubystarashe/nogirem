@@ -22,7 +22,7 @@ const MEASURE_INTERVAL: Duration = Duration::from_secs(60);
 const WARMUP_MEASURE_INTERVAL: Duration = Duration::from_secs(10);
 const FAILURE_SYNC_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(900);
-const ACTIVE_RTT_WINDOW: Duration = Duration::from_secs(3 * 60);
+const ACTIVE_LATENCY_WINDOW: Duration = Duration::from_secs(3 * 60);
 type Microseconds = u32;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -165,7 +165,7 @@ fn measurement_span_ms(channels: &[Measurement]) -> Option<u64> {
 struct Runtime {
     channels: Vec<Measurement>,
     active_connection: Option<ActiveConnection>,
-    active_rtt_history: ActiveRttHistory,
+    active_latency_history: ActiveLatencyHistory,
     active_error: Option<String>,
     source: String,
     synced_at: Option<u64>,
@@ -179,19 +179,24 @@ struct ActiveConnection {
     channel: u16,
     rtt_ms: Option<u32>,
     variation_ms: Option<u32>,
-    average_rtt_ms: Option<u32>,
-    maximum_rtt_ms: Option<u32>,
+    estimated_latency_ms: Option<u32>,
+    average_latency_ms: Option<u32>,
+    maximum_latency_ms: Option<u32>,
     quality: &'static str,
     packets_retransmitted: u32,
+    packets_retransmitted_delta: u32,
     timeouts: u32,
+    timeouts_delta: u32,
     probe_error: Option<String>,
     measured_at: u64,
 }
 
 #[derive(Debug, Default)]
-struct ActiveRttHistory {
+struct ActiveLatencyHistory {
     identity: Option<TcpConnectionIdentity>,
     samples: VecDeque<(Instant, u32)>,
+    packets_retransmitted: Option<u32>,
+    timeouts: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -230,7 +235,7 @@ impl ChannelPing {
             runtime: RwLock::new(Runtime {
                 channels: measurements(channels, &[]),
                 active_connection: None,
-                active_rtt_history: ActiveRttHistory::default(),
+                active_latency_history: ActiveLatencyHistory::default(),
                 active_error: None,
                 source,
                 synced_at: None,
@@ -256,7 +261,7 @@ impl ChannelPing {
             self.expanded.store(false, Ordering::SeqCst);
             let mut runtime = self.runtime.write().unwrap();
             runtime.active_connection = None;
-            runtime.active_rtt_history = ActiveRttHistory::default();
+            runtime.active_latency_history = ActiveLatencyHistory::default();
             runtime.active_error = None;
         }
         Ok(self.status())
@@ -282,10 +287,13 @@ impl ChannelPing {
                 "channel": active.channel,
                 "rttMs": active.rtt_ms,
                 "variationMs": active.variation_ms,
-                "averageRttMs": active.average_rtt_ms,
-                "maximumRttMs": active.maximum_rtt_ms,
+                "estimatedLatencyMs": active.estimated_latency_ms,
+                "averageLatencyMs": active.average_latency_ms,
+                "maximumLatencyMs": active.maximum_latency_ms,
                 "packetsRetransmitted": active.packets_retransmitted,
+                "packetsRetransmittedDelta": active.packets_retransmitted_delta,
                 "timeouts": active.timeouts,
+                "timeoutsDelta": active.timeouts_delta,
                 "quality": active.quality,
                 "measuredAt": active.measured_at
             })),
@@ -371,14 +379,10 @@ impl ChannelPing {
         {
             current.quality = label;
         }
-        if let (Some(previous), Some(current)) = (runtime.active_connection.as_ref(), next.as_mut())
-        {
-            apply_connection_delta(previous, current);
-        }
         if let Some(current) = next.as_mut() {
-            update_active_rtt_history(&mut runtime.active_rtt_history, current);
+            update_active_latency_history(&mut runtime.active_latency_history, current);
         } else {
-            runtime.active_rtt_history = ActiveRttHistory::default();
+            runtime.active_latency_history = ActiveLatencyHistory::default();
         }
         runtime.active_error = next
             .as_ref()
@@ -688,11 +692,14 @@ fn active_game_connection(
                 channel,
                 rtt_ms: Some(rtt),
                 variation_ms: Some(variation),
-                average_rtt_ms: None,
-                maximum_rtt_ms: None,
+                estimated_latency_ms: Some(estimate_latency(rtt, variation, false)),
+                average_latency_ms: None,
+                maximum_latency_ms: None,
                 quality,
                 packets_retransmitted: path.PktsRetrans,
+                packets_retransmitted_delta: 0,
                 timeouts: path.Timeouts,
+                timeouts_delta: 0,
                 probe_error: None,
                 measured_at: crate::now_ms(),
             });
@@ -723,11 +730,14 @@ fn active_game_connection(
             channel,
             rtt_ms: None,
             variation_ms: None,
-            average_rtt_ms: None,
-            maximum_rtt_ms: None,
+            estimated_latency_ms: None,
+            average_latency_ms: None,
+            maximum_latency_ms: None,
             quality: "확인 중",
             packets_retransmitted: 0,
+            packets_retransmitted_delta: 0,
             timeouts: 0,
+            timeouts_delta: 0,
             probe_error,
             measured_at: crate::now_ms(),
         });
@@ -791,35 +801,50 @@ fn select_active_candidate(
     Err("현재 채널 연결이 여러 개라 안전하게 구분하지 못했습니다".into())
 }
 
-fn apply_connection_delta(previous: &ActiveConnection, current: &mut ActiveConnection) {
-    if previous.identity == current.identity
-        && previous.rtt_ms.is_some()
-        && (current.packets_retransmitted > previous.packets_retransmitted
-            || current.timeouts > previous.timeouts)
-    {
-        current.quality = "불안정";
-    }
+fn estimate_latency(rtt_ms: u32, variation_ms: u32, degraded: bool) -> u32 {
+    rtt_ms.saturating_add(variation_ms.saturating_mul(if degraded { 4 } else { 1 }))
 }
 
-fn update_active_rtt_history(history: &mut ActiveRttHistory, current: &mut ActiveConnection) {
+fn update_active_latency_history(
+    history: &mut ActiveLatencyHistory,
+    current: &mut ActiveConnection,
+) {
     if history.identity != Some(current.identity) {
         history.identity = Some(current.identity);
         history.samples.clear();
+        history.packets_retransmitted = None;
+        history.timeouts = None;
     }
     let now = Instant::now();
     while history
         .samples
         .front()
-        .is_some_and(|(measured_at, _)| now.duration_since(*measured_at) > ACTIVE_RTT_WINDOW)
+        .is_some_and(|(measured_at, _)| now.duration_since(*measured_at) > ACTIVE_LATENCY_WINDOW)
     {
         history.samples.pop_front();
     }
-    if let Some(rtt_ms) = current.rtt_ms {
-        history.samples.push_back((now, rtt_ms));
+    if let (Some(rtt_ms), Some(variation_ms)) = (current.rtt_ms, current.variation_ms) {
+        current.packets_retransmitted_delta = history
+            .packets_retransmitted
+            .map(|previous| current.packets_retransmitted.saturating_sub(previous))
+            .unwrap_or(0);
+        current.timeouts_delta = history
+            .timeouts
+            .map(|previous| current.timeouts.saturating_sub(previous))
+            .unwrap_or(0);
+        history.packets_retransmitted = Some(current.packets_retransmitted);
+        history.timeouts = Some(current.timeouts);
+        let degraded = current.packets_retransmitted_delta > 0 || current.timeouts_delta > 0;
+        let latency_ms = estimate_latency(rtt_ms, variation_ms, degraded);
+        current.estimated_latency_ms = Some(latency_ms);
+        if degraded {
+            current.quality = "불안정";
+        }
+        history.samples.push_back((now, latency_ms));
     }
     if history.samples.is_empty() {
-        current.average_rtt_ms = None;
-        current.maximum_rtt_ms = None;
+        current.average_latency_ms = None;
+        current.maximum_latency_ms = None;
         return;
     }
     let sum = history
@@ -827,9 +852,9 @@ fn update_active_rtt_history(history: &mut ActiveRttHistory, current: &mut Activ
         .iter()
         .map(|(_, value)| u64::from(*value))
         .sum::<u64>();
-    current.average_rtt_ms =
+    current.average_latency_ms =
         Some(((sum + history.samples.len() as u64 / 2) / history.samples.len() as u64) as u32);
-    current.maximum_rtt_ms = history.samples.iter().map(|(_, value)| *value).max();
+    current.maximum_latency_ms = history.samples.iter().map(|(_, value)| *value).max();
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -1606,18 +1631,21 @@ mod tests {
             channel,
             rtt_ms,
             variation_ms: rtt_ms.map(|_| 1),
-            average_rtt_ms: None,
-            maximum_rtt_ms: None,
+            estimated_latency_ms: rtt_ms,
+            average_latency_ms: None,
+            maximum_latency_ms: None,
             quality: "안정적",
             packets_retransmitted: 0,
+            packets_retransmitted_delta: 0,
             timeouts: 0,
+            timeouts_delta: 0,
             probe_error: None,
             measured_at: 1,
         }
     }
 
     #[test]
-    fn 실제_연결_rtt는_최근_창의_평균과_최대를_계산하고_연결별로_초기화한다() {
+    fn tcp_지연_추정치는_최근_창의_평균과_최대를_계산하고_연결별로_초기화한다() {
         let first = TcpConnectionIdentity {
             pid: 1,
             local_address: 1,
@@ -1625,23 +1653,24 @@ mod tests {
             remote_address: 1,
             remote_port: 1,
         };
-        let mut history = ActiveRttHistory::default();
+        let mut history = ActiveLatencyHistory::default();
         let mut current = active_candidate(first, 1, Some(0));
         for rtt in [10, 20, 30, 40] {
             current.rtt_ms = Some(rtt);
-            update_active_rtt_history(&mut history, &mut current);
+            current.estimated_latency_ms = Some(rtt);
+            update_active_latency_history(&mut history, &mut current);
         }
-        assert_eq!(current.average_rtt_ms, Some(25));
-        assert_eq!(current.maximum_rtt_ms, Some(40));
+        assert_eq!(current.average_latency_ms, Some(26));
+        assert_eq!(current.maximum_latency_ms, Some(41));
 
         let second = TcpConnectionIdentity {
             remote_port: 2,
             ..first
         };
         let mut replaced = active_candidate(second, 2, Some(5));
-        update_active_rtt_history(&mut history, &mut replaced);
-        assert_eq!(replaced.average_rtt_ms, Some(5));
-        assert_eq!(replaced.maximum_rtt_ms, Some(5));
+        update_active_latency_history(&mut history, &mut replaced);
+        assert_eq!(replaced.average_latency_ms, Some(6));
+        assert_eq!(replaced.maximum_latency_ms, Some(6));
         assert_eq!(history.samples.len(), 1);
     }
 
@@ -1706,11 +1735,15 @@ mod tests {
             remote_address: 3,
             remote_port: 4,
         };
-        let previous = active_candidate(identity, 1, Some(5));
+        let mut history = ActiveLatencyHistory::default();
+        let mut previous = active_candidate(identity, 1, Some(5));
+        update_active_latency_history(&mut history, &mut previous);
         let mut same = active_candidate(identity, 1, Some(5));
         same.packets_retransmitted = 1;
-        apply_connection_delta(&previous, &mut same);
+        update_active_latency_history(&mut history, &mut same);
         assert_eq!(same.quality, "불안정");
+        assert_eq!(same.packets_retransmitted_delta, 1);
+        assert_eq!(same.estimated_latency_ms, Some(9));
 
         let mut replaced = active_candidate(
             TcpConnectionIdentity {
@@ -1721,8 +1754,69 @@ mod tests {
             Some(5),
         );
         replaced.packets_retransmitted = 1;
-        apply_connection_delta(&previous, &mut replaced);
+        update_active_latency_history(&mut history, &mut replaced);
         assert_eq!(replaced.quality, "안정적");
+        assert_eq!(replaced.packets_retransmitted_delta, 0);
+    }
+
+    #[test]
+    fn 일시적_무효_표본은_최근_유효_counter_기준을_끊지_않는다() {
+        let identity = TcpConnectionIdentity {
+            pid: 1,
+            local_address: 1,
+            local_port: 2,
+            remote_address: 3,
+            remote_port: 4,
+        };
+        let mut history = ActiveLatencyHistory::default();
+        let mut first = active_candidate(identity, 1, Some(5));
+        first.packets_retransmitted = 10;
+        first.timeouts = 2;
+        update_active_latency_history(&mut history, &mut first);
+
+        let mut invalid = active_candidate(identity, 1, None);
+        update_active_latency_history(&mut history, &mut invalid);
+
+        let mut recovered = active_candidate(identity, 1, Some(5));
+        recovered.packets_retransmitted = 12;
+        recovered.timeouts = 3;
+        update_active_latency_history(&mut history, &mut recovered);
+        assert_eq!(recovered.packets_retransmitted_delta, 2);
+        assert_eq!(recovered.timeouts_delta, 1);
+        assert_eq!(recovered.estimated_latency_ms, Some(9));
+    }
+
+    #[test]
+    fn tcp_counter_감소는_reset으로_처리하고_다음_증가부터_반영한다() {
+        let identity = TcpConnectionIdentity {
+            pid: 1,
+            local_address: 1,
+            local_port: 2,
+            remote_address: 3,
+            remote_port: 4,
+        };
+        let mut history = ActiveLatencyHistory::default();
+        let mut first = active_candidate(identity, 1, Some(5));
+        first.packets_retransmitted = 10;
+        update_active_latency_history(&mut history, &mut first);
+
+        let mut reset = active_candidate(identity, 1, Some(5));
+        reset.packets_retransmitted = 3;
+        update_active_latency_history(&mut history, &mut reset);
+        assert_eq!(reset.packets_retransmitted_delta, 0);
+
+        let mut increased = active_candidate(identity, 1, Some(5));
+        increased.packets_retransmitted = 4;
+        update_active_latency_history(&mut history, &mut increased);
+        assert_eq!(increased.packets_retransmitted_delta, 1);
+        assert_eq!(increased.estimated_latency_ms, Some(9));
+    }
+
+    #[test]
+    fn tcp_지연은_변동을_더하고_손실시_rto_계수로_추정한다() {
+        assert_eq!(estimate_latency(10, 3, false), 13);
+        assert_eq!(estimate_latency(10, 3, true), 22);
+        assert_eq!(estimate_latency(u32::MAX, 10, true), u32::MAX);
     }
 
     #[test]

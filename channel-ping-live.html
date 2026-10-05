@@ -75,20 +75,20 @@
   <script>
     const status = document.querySelector("#status")
 
-    function rttClass(rttMs) {
-      if (rttMs <= 10) return "stable"
-      if (rttMs <= 20) return "normal"
-      if (rttMs <= 30) return "unstable"
+    function latencyClass(latencyMs) {
+      if (latencyMs <= 10) return "stable"
+      if (latencyMs <= 20) return "normal"
+      if (latencyMs <= 30) return "unstable"
       return "failed"
     }
 
     async function refresh() {
       try {
         const current = (await window.channelPing.getStatus()).activeConnection
-        status.hidden = !current || current.rttMs == null
+        status.hidden = !current || current.estimatedLatencyMs == null
         if (status.hidden) return
-        status.className = rttClass(current.rttMs)
-        status.textContent = `${current.channel}채널 · 현재 ${current.rttMs} ms · 평균 ${current.averageRttMs ?? "-"} ms · 최대 ${current.maximumRttMs ?? "-"} ms · 재전송 ${current.packetsRetransmitted ?? 0}`
+        status.className = latencyClass(current.estimatedLatencyMs)
+        status.textContent = `${current.channel}채널 · TCP 추정 ${current.estimatedLatencyMs} ms · 평균 ${current.averageLatencyMs ?? "-"} ms · 최대 ${current.maximumLatencyMs ?? "-"} ms · 재전송 ${current.packetsRetransmitted ?? 0}`
       } catch {
         status.hidden = false
         status.className = "failed"
