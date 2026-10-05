@@ -44,7 +44,8 @@
 ## Remaining and publication state
 
 - 실제 설치·제거·포터블 실행·업데이트·게임·혼합 DPI QA는 `NOT_RUN`.
-- commit: `패키징 결과 기록 commit은 본 보고서 이후 생성`
+- packaging_intake_commit: `4c11b0e42055073597d080cf59219d22cd06cfbb`
+- packaging_result_commit: `14924b74874f38d49af7d4bbc4f2557f732eefbf`
 - push: `NOT_RUN`
 - tag: `NOT_RUN`
 - GitHub release: `NOT_RUN`
