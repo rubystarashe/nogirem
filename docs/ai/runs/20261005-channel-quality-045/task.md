@@ -135,3 +135,6 @@
 - review_mode: `INDEPENDENT_REVIEW`
 - reviewer: `generalPurpose agent b1e2a31d-d22a-44e7-983e-1b333855a2c5`
 - review_verdict: `APPROVED — SmoothedRtt 표본 최대의 의미, 정수 점수 동률, 실제 표본 span, 420×30 계약과 shell foreground 제한 재검토 완료`
+- implementation_commit: `193a0632776b5d6dd740571edad96a5c0b45b34c`
+- push_status: `NOT_RUN — 승인되지 않음`
+- deployment_status: `NOT_RUN — 승인되지 않음`

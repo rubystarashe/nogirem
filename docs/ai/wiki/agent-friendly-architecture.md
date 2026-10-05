@@ -7,11 +7,11 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-05T07:07:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `working tree based on 5282e4bdff91602f91dae7630ccead12dae91106; exact local commit pending`
+- source_review_target: `source commit 193a0632776b5d6dd740571edad96a5c0b45b34c, base 5282e4bdff91602f91dae7630ccead12dae91106`
 - source_review_evidence: `실시간 핑 source·Win32 TCP EStats·window mode SELF_REVIEW`
 - behavior_verified_at: `2026-10-05T07:07:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `working tree based on 5282e4bdff91602f91dae7630ccead12dae91106`
+- behavior_verification_target: `source commit 193a0632776b5d6dd740571edad96a5c0b45b34c`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
 - behavior_verification_evidence: `channel ping backend 21/21, overlay interface 3/3, desktop build, diff check, IDE diagnostics`
 - freshness_status: `CURRENT`
