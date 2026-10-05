@@ -46,6 +46,12 @@ pub struct Windows {
 fn n(v: &Value, k: &str, default: f64) -> f64 {
     v[k].as_f64().filter(|n| n.is_finite()).unwrap_or(default)
 }
+fn close_when_main_moves_to_tray(kind: &str) -> bool {
+    !matches!(
+        kind,
+        "notice" | "update-notice" | "channel-ping-overlay" | "channel-ping-live"
+    )
+}
 impl Windows {
     pub fn new(env: Environment, rpc: Rpc, displays: Value) -> Self {
         Self {
@@ -529,7 +535,7 @@ impl Windows {
             .unwrap()
             .windows
             .values()
-            .filter(|w| w.id != 1 && !matches!(w.kind.as_str(), "notice" | "update-notice"))
+            .filter(|w| w.id != 1 && close_when_main_moves_to_tray(&w.kind))
             .map(|w| w.id)
             .collect();
         for id in ids {
@@ -887,8 +893,19 @@ fn update_notice_options(area: &Value) -> Value {
     json!({"x":n(area,"x",0.)+n(area,"width",1920.)-width-24.,"y":n(area,"y",0.)+n(area,"height",1080.)-88.-24.,"width":width,"height":88,"show":false,"opacity":1,"frame":false,"transparent":true,"resizable":false,"movable":false,"focusable":false,"skipTaskbar":true,"alwaysOnTop":true,"hasShadow":false})
 }
 #[cfg(test)]
-mod update_notice_tests {
+mod tests {
     use super::*;
+
+    #[test]
+    fn tray_cleanup_preserves_channel_monitoring_windows() {
+        assert!(!close_when_main_moves_to_tray("notice"));
+        assert!(!close_when_main_moves_to_tray("update-notice"));
+        assert!(!close_when_main_moves_to_tray("channel-ping-overlay"));
+        assert!(!close_when_main_moves_to_tray("channel-ping-live"));
+        assert!(close_when_main_moves_to_tray("character-guide"));
+        assert!(close_when_main_moves_to_tray("blackbox-manager"));
+    }
+
     #[test]
     fn bottom_right_respects_secondary_monitor_and_taskbar() {
         let o = update_notice_options(&json!({"x":-1920,"y":-200,"width":1920,"height":1040}));
