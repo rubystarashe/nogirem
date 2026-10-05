@@ -97,10 +97,10 @@
     async function refresh() {
       try {
         const current = (await window.channelPing.getStatus()).activeConnection
-        status.hidden = !current || current.estimatedLatencyMs == null
+        status.hidden = !current || current.maximumLatencyMs == null
         if (status.hidden) return
-        status.className = latencyClass(current.estimatedLatencyMs)
-        status.textContent = `${current.channel}채널 · TCP 추정 ${compactNumber(current.estimatedLatencyMs)} ms · 평균 ${compactNumber(current.averageLatencyMs)} ms · 최대 ${compactNumber(current.maximumLatencyMs)} ms · 재전송 ${compactNumber(current.packetsRetransmitted)} · TCP 시간초과 ${compactNumber(current.tcpTimeouts)} · 수신 중복 ACK ${compactNumber(current.duplicateAcksReceived)} · 혼잡 신호 ${compactNumber(current.congestionSignals)}`
+        status.className = latencyClass(current.maximumLatencyMs)
+        status.textContent = `${current.channel}채널 · 최근 최대 ${compactNumber(current.maximumLatencyMs)} ms · 재전송 ${compactNumber(current.packetsRetransmitted)} · TCP 시간초과 ${compactNumber(current.tcpTimeouts)} · 수신 중복 ACK ${compactNumber(current.duplicateAcksReceived)} · 혼잡 신호 ${compactNumber(current.congestionSignals)}`
       } catch {
         status.hidden = false
         status.className = "failed"

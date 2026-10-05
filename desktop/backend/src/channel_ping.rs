@@ -1228,7 +1228,7 @@ fn game_bounds(env: &Environment, window: usize) -> Option<(OverlayBounds, u32)>
 pub fn foreground_compact_target(env: &Environment) -> Option<(OverlayBounds, u32)> {
     let window =
         unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } as usize;
-    overlay_bounds(env, window, 640.0, 30.0, Some(12.0))
+    overlay_bounds(env, window, 520.0, 30.0, Some(12.0))
 }
 
 #[cfg(windows)]
