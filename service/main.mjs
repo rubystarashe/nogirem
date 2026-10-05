@@ -5211,7 +5211,7 @@ function registerIpc() {
   })
   // Rust 전용 오버레이 preload가 레거시 호스트에서 무응답으로 남지 않게 명시적으로 거부한다
   ipcMain.handle("channel-ping:get-status", () => {
-    throw new Error("실시간 핑 확인은 Rust 앱에서만 지원합니다")
+    throw new Error("실시간 점수 확인은 Rust 앱에서만 지원합니다")
   })
   ipcMain.handle("application:set-input-guard-setting", (event, setting) => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {

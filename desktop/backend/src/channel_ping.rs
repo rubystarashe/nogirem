@@ -19,8 +19,11 @@ const REMOTE_URL: &str = "https://raw.githubusercontent.com/rubystarashe/nogirem
 const MAX_CSV_BYTES: usize = 64 * 1024;
 const SAMPLE_LIMIT: usize = 20;
 const MEASURE_INTERVAL: Duration = Duration::from_secs(60);
+const WARMUP_MEASURE_INTERVAL: Duration = Duration::from_secs(10);
 const FAILURE_SYNC_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(900);
+const ACTIVE_RTT_WINDOW: Duration = Duration::from_secs(3 * 60);
+type Microseconds = u32;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Endpoint {
@@ -31,28 +34,31 @@ struct Endpoint {
 #[derive(Clone, Debug)]
 struct Measurement {
     endpoint: Endpoint,
-    outcomes: VecDeque<Option<u32>>,
+    outcomes: VecDeque<Option<Microseconds>>,
+    measured_times: VecDeque<u64>,
     failed: bool,
     measured_at: Option<u64>,
 }
 
 #[derive(Debug, PartialEq)]
 struct Quality {
-    median_ms: Option<u32>,
-    variation_ms: Option<u32>,
-    peak_variation_ms: Option<u32>,
+    median_us: Option<Microseconds>,
+    variation_us: Option<Microseconds>,
+    peak_variation_us: Option<Microseconds>,
     failure_percent: u32,
     score: Option<u32>,
     label: &'static str,
 }
 
 impl Measurement {
-    fn record(&mut self, result: Option<u32>, measured_at: u64) {
+    fn record(&mut self, result: Option<Microseconds>, measured_at: u64) {
         self.failed = result.is_none();
         self.measured_at = Some(measured_at);
         self.outcomes.push_back(result);
+        self.measured_times.push_back(measured_at);
         while self.outcomes.len() > SAMPLE_LIMIT {
             self.outcomes.pop_front();
+            self.measured_times.pop_front();
         }
     }
 
@@ -67,14 +73,13 @@ impl Measurement {
         let failure_percent = if self.outcomes.is_empty() {
             0
         } else {
-            (failures as u32 * 100 + self.outcomes.len() as u32 / 2)
-                / self.outcomes.len() as u32
+            (failures as u32 * 100 + self.outcomes.len() as u32 / 2) / self.outcomes.len() as u32
         };
-        let Some(median_ms) = median(&successes) else {
+        let Some(median_us) = median(&successes) else {
             return Quality {
-                median_ms: None,
-                variation_ms: None,
-                peak_variation_ms: None,
+                median_us: None,
+                variation_us: None,
+                peak_variation_us: None,
                 failure_percent,
                 score: None,
                 label: if self.outcomes.is_empty() {
@@ -86,37 +91,37 @@ impl Measurement {
         };
         let mut deviations = successes
             .iter()
-            .map(|value| value.abs_diff(median_ms))
+            .map(|value| value.abs_diff(median_us))
             .collect::<Vec<_>>();
         deviations.sort_unstable();
-        let variation_ms = median(&deviations).unwrap_or(0);
-        let peak_variation_ms = deviations.last().copied().unwrap_or(0);
+        let variation_us = median(&deviations).unwrap_or(0);
+        let peak_variation_us = deviations.last().copied().unwrap_or(0);
         let label = if self.outcomes.len() < 3 {
             "확인 중"
-        } else if failure_percent >= 20 || variation_ms >= 3 || peak_variation_ms >= 10 {
+        } else if failure_percent >= 20 || variation_us >= 3_000 || peak_variation_us >= 10_000 {
             "불안정"
-        } else if failure_percent > 0 || variation_ms >= 2 || peak_variation_ms >= 4 {
+        } else if failure_percent > 0 || variation_us >= 2_000 || peak_variation_us >= 4_000 {
             "보통"
         } else {
             "안정적"
         };
         Quality {
-            median_ms: Some(median_ms),
-            variation_ms: Some(variation_ms),
-            peak_variation_ms: Some(peak_variation_ms),
+            median_us: Some(median_us),
+            variation_us: Some(variation_us),
+            peak_variation_us: Some(peak_variation_us),
             failure_percent,
             score: (self.outcomes.len() >= 3).then_some(
-                median_ms
-                    .saturating_add(variation_ms.saturating_mul(2))
-                    .saturating_add(peak_variation_ms / 2)
-                    .saturating_add(failure_percent / 5),
+                median_us
+                    .saturating_add(variation_us.saturating_mul(2))
+                    .saturating_add(peak_variation_us / 2)
+                    .saturating_add(failure_percent.saturating_mul(200)),
             ),
             label,
         }
     }
 }
 
-fn median(sorted: &[u32]) -> Option<u32> {
+fn median(sorted: &[Microseconds]) -> Option<Microseconds> {
     let middle = sorted.len() / 2;
     match sorted.len() {
         0 => None,
@@ -127,10 +132,27 @@ fn median(sorted: &[u32]) -> Option<u32> {
     }
 }
 
+fn milliseconds(microseconds: Option<Microseconds>) -> Option<f64> {
+    microseconds.map(|value| f64::from(value) / 1_000.0)
+}
+
+fn measurement_span_ms(channels: &[Measurement]) -> Option<u64> {
+    channels
+        .iter()
+        .filter_map(|entry| {
+            entry
+                .measured_times
+                .back()?
+                .checked_sub(*entry.measured_times.front()?)
+        })
+        .max()
+}
+
 #[derive(Debug)]
 struct Runtime {
     channels: Vec<Measurement>,
     active_connection: Option<ActiveConnection>,
+    active_rtt_history: ActiveRttHistory,
     active_error: Option<String>,
     source: String,
     synced_at: Option<u64>,
@@ -144,11 +166,19 @@ struct ActiveConnection {
     channel: u16,
     rtt_ms: Option<u32>,
     variation_ms: Option<u32>,
+    average_rtt_ms: Option<u32>,
+    maximum_rtt_ms: Option<u32>,
     quality: &'static str,
     packets_retransmitted: u32,
     timeouts: u32,
     probe_error: Option<String>,
     measured_at: u64,
+}
+
+#[derive(Debug, Default)]
+struct ActiveRttHistory {
+    identity: Option<TcpConnectionIdentity>,
+    samples: VecDeque<(Instant, u32)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -187,6 +217,7 @@ impl ChannelPing {
             runtime: RwLock::new(Runtime {
                 channels: measurements(channels, &[]),
                 active_connection: None,
+                active_rtt_history: ActiveRttHistory::default(),
                 active_error: None,
                 source,
                 synced_at: None,
@@ -212,6 +243,7 @@ impl ChannelPing {
             self.expanded.store(false, Ordering::SeqCst);
             let mut runtime = self.runtime.write().unwrap();
             runtime.active_connection = None;
+            runtime.active_rtt_history = ActiveRttHistory::default();
             runtime.active_error = None;
         }
         Ok(self.status())
@@ -224,6 +256,7 @@ impl ChannelPing {
             .iter()
             .filter_map(|entry| entry.quality().score)
             .min();
+        let measurement_span_ms = measurement_span_ms(&runtime.channels);
         json!({
             "enabled": self.enabled(),
             "expanded": self.expanded.load(Ordering::SeqCst),
@@ -236,25 +269,32 @@ impl ChannelPing {
                 "channel": active.channel,
                 "rttMs": active.rtt_ms,
                 "variationMs": active.variation_ms,
+                "averageRttMs": active.average_rtt_ms,
+                "maximumRttMs": active.maximum_rtt_ms,
+                "packetsRetransmitted": active.packets_retransmitted,
+                "timeouts": active.timeouts,
                 "quality": active.quality,
                 "measuredAt": active.measured_at
             })),
             "measurementIntervalSeconds": MEASURE_INTERVAL.as_secs(),
+            "warmupMeasurementIntervalSeconds": WARMUP_MEASURE_INTERVAL.as_secs(),
+            "measurementSpanMs": measurement_span_ms,
             "channels": runtime.channels.iter().map(|entry| {
                 let quality = entry.quality();
                 json!({
                     "channel": entry.endpoint.channel,
                     "endpoint": entry.endpoint.address.map(|address| address.to_string()),
-                    "averageMs": quality.median_ms,
-                    "medianMs": quality.median_ms,
-                    "variationMs": quality.variation_ms,
+                    "averageMs": milliseconds(quality.median_us),
+                    "medianMs": milliseconds(quality.median_us),
+                    "variationMs": milliseconds(quality.variation_us),
+                    "peakVariationMs": milliseconds(quality.peak_variation_us),
                     "failurePercent": quality.failure_percent,
                     "quality": quality.label,
                     "sampleCount": entry.outcomes.len(),
                     "failed": entry.failed,
                     "measuredAt": entry.measured_at,
                     "recommended": quality.score.zip(best_score)
-                        .is_some_and(|(score, best)| score <= best.saturating_add(2))
+                        .is_some_and(|(score, best)| score <= best.saturating_add(2_000))
                 })
             }).collect::<Vec<_>>()
         })
@@ -317,10 +357,14 @@ impl ChannelPing {
         {
             current.quality = label;
         }
-        if let (Some(previous), Some(current)) =
-            (runtime.active_connection.as_ref(), next.as_mut())
+        if let (Some(previous), Some(current)) = (runtime.active_connection.as_ref(), next.as_mut())
         {
             apply_connection_delta(previous, current);
+        }
+        if let Some(current) = next.as_mut() {
+            update_active_rtt_history(&mut runtime.active_rtt_history, current);
+        } else {
+            runtime.active_rtt_history = ActiveRttHistory::default();
         }
         runtime.active_error = next
             .as_ref()
@@ -339,12 +383,8 @@ impl ChannelPing {
             if self.enabled() && Instant::now() >= next_measurement {
                 let (failed, count) = self.measure_next(measurement_cursor);
                 measurement_cursor = measurement_cursor.saturating_add(1);
-                let spacing = if count == 0 {
-                    MEASURE_INTERVAL
-                } else {
-                    MEASURE_INTERVAL / count as u32
-                };
-                next_measurement = Instant::now() + spacing.max(Duration::from_millis(250));
+                next_measurement =
+                    Instant::now() + measurement_spacing(count, self.is_warming_up());
                 if failed
                     && last_failure_sync.is_none_or(|last| last.elapsed() >= FAILURE_SYNC_INTERVAL)
                 {
@@ -356,6 +396,15 @@ impl ChannelPing {
             }
             std::thread::sleep(Duration::from_millis(250));
         }
+    }
+
+    fn is_warming_up(&self) -> bool {
+        self.runtime
+            .read()
+            .unwrap()
+            .channels
+            .iter()
+            .any(|entry| entry.endpoint.address.is_some() && entry.outcomes.len() < 3)
     }
 
     fn refresh_remote(&self) -> Result<()> {
@@ -409,17 +458,14 @@ impl ChannelPing {
         let Some(endpoint) = endpoints.get(cursor % count.max(1)).cloned() else {
             return (false, 0);
         };
-        let address = endpoint.address.expect("필터링된 채널에는 주소가 있어야 합니다");
+        let address = endpoint
+            .address
+            .expect("필터링된 채널에는 주소가 있어야 합니다");
         let started = Instant::now();
         let result = TcpStream::connect_timeout(&address, CONNECT_TIMEOUT)
             .is_ok()
-            .then(|| {
-                started
-                    .elapsed()
-                    .as_millis()
-                    .max(1)
-                    .min(u128::from(u32::MAX)) as u32
-            });
+            .then(|| started.elapsed().as_micros())
+            .map(|microseconds| microseconds.max(1).min(u128::from(u32::MAX)) as u32);
         let measured_at = crate::now_ms();
         let mut runtime = self.runtime.write().unwrap();
         if let Some(entry) = runtime
@@ -433,6 +479,18 @@ impl ChannelPing {
     }
 }
 
+fn measurement_spacing(count: usize, warming_up: bool) -> Duration {
+    if count == 0 {
+        return MEASURE_INTERVAL;
+    }
+    let interval = if warming_up {
+        WARMUP_MEASURE_INTERVAL
+    } else {
+        MEASURE_INTERVAL
+    };
+    (interval / count as u32).max(Duration::from_millis(250))
+}
+
 #[cfg(windows)]
 fn active_game_connection(
     env: &Environment,
@@ -444,10 +502,10 @@ fn active_game_connection(
     use windows_sys::Win32::{
         Foundation::{CloseHandle, HANDLE},
         NetworkManagement::IpHelper::{
-            GetExtendedTcpTable, GetPerTcpConnectionEStats, MIB_TCPROW_LH,
-            MIB_TCPROW_LH_0, MIB_TCPROW_OWNER_PID, MIB_TCP_STATE_ESTAB,
-            SetPerTcpConnectionEStats, TCP_ESTATS_PATH_ROD_v0, TCP_ESTATS_PATH_RW_v0,
-            TCP_TABLE_OWNER_PID_CONNECTIONS, TcpConnectionEstatsPath,
+            GetExtendedTcpTable, GetPerTcpConnectionEStats, MIB_TCP_STATE_ESTAB, MIB_TCPROW_LH,
+            MIB_TCPROW_LH_0, MIB_TCPROW_OWNER_PID, SetPerTcpConnectionEStats,
+            TCP_ESTATS_PATH_ROD_v0, TCP_ESTATS_PATH_RW_v0, TCP_TABLE_OWNER_PID_CONNECTIONS,
+            TcpConnectionEstatsPath,
         },
         Networking::WinSock::AF_INET,
         System::Threading::{
@@ -483,12 +541,7 @@ fn active_game_connection(
     let mut path_data = vec![0u16; 32768];
     let mut path_length = path_data.len() as u32;
     if unsafe {
-        QueryFullProcessImageNameW(
-            game_handle.0,
-            0,
-            path_data.as_mut_ptr(),
-            &mut path_length,
-        )
+        QueryFullProcessImageNameW(game_handle.0, 0, path_data.as_mut_ptr(), &mut path_length)
     } == 0
     {
         return Err(format!(
@@ -557,10 +610,7 @@ fn active_game_connection(
         return Err("TCP 연결 목록 크기가 올바르지 않습니다".into());
     }
     let rows = unsafe {
-        std::slice::from_raw_parts(
-            table.as_ptr().add(1).cast::<MIB_TCPROW_OWNER_PID>(),
-            count,
-        )
+        std::slice::from_raw_parts(table.as_ptr().add(1).cast::<MIB_TCPROW_OWNER_PID>(), count)
     };
     let mut candidates = Vec::new();
     for owner in rows {
@@ -624,6 +674,8 @@ fn active_game_connection(
                 channel,
                 rtt_ms: Some(rtt),
                 variation_ms: Some(variation),
+                average_rtt_ms: None,
+                maximum_rtt_ms: None,
                 quality,
                 packets_retransmitted: path.PktsRetrans,
                 timeouts: path.Timeouts,
@@ -657,6 +709,8 @@ fn active_game_connection(
             channel,
             rtt_ms: None,
             variation_ms: None,
+            average_rtt_ms: None,
+            maximum_rtt_ms: None,
             quality: "확인 중",
             packets_retransmitted: 0,
             timeouts: 0,
@@ -731,6 +785,37 @@ fn apply_connection_delta(previous: &ActiveConnection, current: &mut ActiveConne
     {
         current.quality = "불안정";
     }
+}
+
+fn update_active_rtt_history(history: &mut ActiveRttHistory, current: &mut ActiveConnection) {
+    if history.identity != Some(current.identity) {
+        history.identity = Some(current.identity);
+        history.samples.clear();
+    }
+    let now = Instant::now();
+    while history
+        .samples
+        .front()
+        .is_some_and(|(measured_at, _)| now.duration_since(*measured_at) > ACTIVE_RTT_WINDOW)
+    {
+        history.samples.pop_front();
+    }
+    if let Some(rtt_ms) = current.rtt_ms {
+        history.samples.push_back((now, rtt_ms));
+    }
+    if history.samples.is_empty() {
+        current.average_rtt_ms = None;
+        current.maximum_rtt_ms = None;
+        return;
+    }
+    let sum = history
+        .samples
+        .iter()
+        .map(|(_, value)| u64::from(*value))
+        .sum::<u64>();
+    current.average_rtt_ms =
+        Some(((sum + history.samples.len() as u64 / 2) / history.samples.len() as u64) as u32);
+    current.maximum_rtt_ms = history.samples.iter().map(|(_, value)| *value).max();
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -1071,7 +1156,35 @@ fn game_bounds(env: &Environment, window: usize) -> Option<(OverlayBounds, u32)>
 pub fn foreground_compact_target(env: &Environment) -> Option<(OverlayBounds, u32)> {
     let window =
         unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } as usize;
-    overlay_bounds(env, window, 236.0, 30.0, Some(12.0))
+    overlay_bounds(env, window, 420.0, 30.0, Some(12.0))
+}
+
+#[cfg(windows)]
+pub fn foreground_is_windows_shell() -> bool {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetForegroundWindow, GetWindowThreadProcessId,
+    };
+    let window = unsafe { GetForegroundWindow() };
+    if window.is_null() {
+        return false;
+    }
+    let mut pid = 0;
+    unsafe {
+        GetWindowThreadProcessId(window, &mut pid);
+    }
+    let Ok(path) = crate::process::path(pid) else {
+        return false;
+    };
+    let Some(name) = Path::new(&path).file_name() else {
+        return false;
+    };
+    matches!(
+        name.to_string_lossy().to_ascii_lowercase().as_str(),
+        "startmenuexperiencehost.exe"
+            | "shellexperiencehost.exe"
+            | "searchhost.exe"
+            | "searchapp.exe"
+    )
 }
 
 #[cfg(windows)]
@@ -1099,10 +1212,7 @@ fn overlay_bounds(
     let path = crate::process::path(pid).ok()?;
     let process = crate::process::Process {
         pid,
-        name: Path::new(&path)
-            .file_name()?
-            .to_string_lossy()
-            .into_owned(),
+        name: Path::new(&path).file_name()?.to_string_lossy().into_owned(),
         path: Some(path),
         start_time: None,
         session_id: None,
@@ -1152,6 +1262,11 @@ pub fn foreground_compact_target(_env: &Environment) -> Option<(OverlayBounds, u
 }
 
 #[cfg(not(windows))]
+pub fn foreground_is_windows_shell() -> bool {
+    false
+}
+
+#[cfg(not(windows))]
 fn input_hook_loop(
     _events: SyncSender<InputEvent>,
     _stopping: Arc<AtomicBool>,
@@ -1190,6 +1305,7 @@ fn measurements(endpoints: Vec<Endpoint>, previous: &[Measurement]) -> Vec<Measu
                 .unwrap_or(Measurement {
                     endpoint,
                     outcomes: VecDeque::new(),
+                    measured_times: VecDeque::new(),
                     failed: false,
                     measured_at: None,
                 })
@@ -1320,6 +1436,15 @@ mod tests {
     static INPUT_TEST_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
+    fn 초기_세_표본은_빠르게_순차_측정한다() {
+        let warmup = measurement_spacing(38, true);
+        assert!(warmup >= Duration::from_millis(250));
+        assert!(warmup < Duration::from_millis(300));
+        assert!(measurement_spacing(38, false) > warmup);
+        assert_eq!(measurement_spacing(0, true), MEASURE_INTERVAL);
+    }
+
+    #[test]
     fn csv는_빈_endpoint와_주소를_검증한다() {
         let channels = parse_csv(
             "\u{feff}채널,IP:포트\r\n1,211.218.233.210:11020\r\n2,\r\n3,211.218.233.211:11021\r\n",
@@ -1348,14 +1473,13 @@ mod tests {
         let previous = vec![Measurement {
             endpoint: endpoint.clone(),
             outcomes: VecDeque::from([Some(10), Some(20)]),
+            measured_times: VecDeque::from([1, 2]),
             failed: false,
             measured_at: Some(1),
         }];
         let retained = measurements(vec![endpoint.clone()], &previous);
-        assert_eq!(
-            retained[0].outcomes,
-            VecDeque::from([Some(10), Some(20)])
-        );
+        assert_eq!(retained[0].outcomes, VecDeque::from([Some(10), Some(20)]));
+        assert_eq!(measurement_span_ms(&retained), Some(1));
         let changed = measurements(
             vec![Endpoint {
                 channel: 1,
@@ -1364,6 +1488,7 @@ mod tests {
             &previous,
         );
         assert!(changed[0].outcomes.is_empty());
+        assert_eq!(measurement_span_ms(&changed), None);
     }
 
     #[test]
@@ -1374,20 +1499,27 @@ mod tests {
                 address: None,
             },
             outcomes: VecDeque::new(),
+            measured_times: VecDeque::new(),
             failed: false,
             measured_at: None,
         };
-        for value in [Some(5), Some(5), Some(6), Some(5), Some(6)] {
+        for value in [
+            Some(5_000),
+            Some(5_000),
+            Some(6_000),
+            Some(5_000),
+            Some(6_000),
+        ] {
             measurement.record(value, 1);
         }
         assert_eq!(
             measurement.quality(),
             Quality {
-                median_ms: Some(5),
-                variation_ms: Some(0),
-                peak_variation_ms: Some(1),
+                median_us: Some(5_000),
+                variation_us: Some(0),
+                peak_variation_us: Some(1_000),
                 failure_percent: 0,
-                score: Some(5),
+                score: Some(5_500),
                 label: "안정적",
             }
         );
@@ -1404,7 +1536,14 @@ mod tests {
                 channel: 1,
                 address: None,
             },
-            outcomes: VecDeque::from([Some(5), Some(5), Some(5), Some(5), Some(30)]),
+            outcomes: VecDeque::from([
+                Some(5_000),
+                Some(5_000),
+                Some(5_000),
+                Some(5_000),
+                Some(30_000),
+            ]),
+            measured_times: VecDeque::from([1, 2, 3, 4, 5]),
             failed: false,
             measured_at: Some(1),
         };
@@ -1419,12 +1558,13 @@ mod tests {
                 address: None,
             },
             outcomes: VecDeque::new(),
+            measured_times: VecDeque::new(),
             failed: false,
             measured_at: None,
         };
         measurement.record(None, 1);
         assert_eq!(measurement.quality().label, "연결 불가");
-        assert_eq!(measurement.quality().median_ms, None);
+        assert_eq!(measurement.quality().median_us, None);
     }
 
     fn active_candidate(
@@ -1437,6 +1577,8 @@ mod tests {
             channel,
             rtt_ms,
             variation_ms: rtt_ms.map(|_| 1),
+            average_rtt_ms: None,
+            maximum_rtt_ms: None,
             quality: "안정적",
             packets_retransmitted: 0,
             timeouts: 0,
@@ -1446,15 +1588,41 @@ mod tests {
     }
 
     #[test]
+    fn 실제_연결_rtt는_최근_창의_평균과_최대를_계산하고_연결별로_초기화한다() {
+        let first = TcpConnectionIdentity {
+            pid: 1,
+            local_address: 1,
+            local_port: 1,
+            remote_address: 1,
+            remote_port: 1,
+        };
+        let mut history = ActiveRttHistory::default();
+        let mut current = active_candidate(first, 1, Some(0));
+        for rtt in [10, 20, 30, 40] {
+            current.rtt_ms = Some(rtt);
+            update_active_rtt_history(&mut history, &mut current);
+        }
+        assert_eq!(current.average_rtt_ms, Some(25));
+        assert_eq!(current.maximum_rtt_ms, Some(40));
+
+        let second = TcpConnectionIdentity {
+            remote_port: 2,
+            ..first
+        };
+        let mut replaced = active_candidate(second, 2, Some(5));
+        update_active_rtt_history(&mut history, &mut replaced);
+        assert_eq!(replaced.average_rtt_ms, Some(5));
+        assert_eq!(replaced.maximum_rtt_ms, Some(5));
+        assert_eq!(history.samples.len(), 1);
+    }
+
+    #[test]
     fn windows_tcp_주소와_port의_network_byte_order를_변환한다() {
         assert_eq!(
             mib_ipv4_octets(u32::from_ne_bytes([211, 218, 233, 210])),
             [211, 218, 233, 210]
         );
-        assert_eq!(
-            mib_port(u32::from_ne_bytes([0x2b, 0x0c, 0, 0])),
-            11020
-        );
+        assert_eq!(mib_port(u32::from_ne_bytes([0x2b, 0x0c, 0, 0])), 11020);
     }
 
     #[test]

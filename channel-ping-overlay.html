@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>실시간 핑 확인</title>
+  <title>실시간 점수 확인</title>
   <style>
     :root {
       color-scheme: dark;
@@ -26,28 +26,6 @@
       display: grid;
       place-items: center;
       color: #f7f5f0;
-    }
-    #compact-status {
-      display: none;
-      width: 100%;
-      height: 100%;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid rgba(255, 255, 255, .16);
-      border-radius: 8px;
-      background: rgba(15, 17, 20, .76);
-      color: rgba(247, 245, 240, .9);
-      font-size: 11px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      letter-spacing: -.02em;
-      backdrop-filter: blur(8px);
-    }
-    body.compact main {
-      display: none;
-    }
-    body.compact #compact-status {
-      display: flex;
     }
     main {
       position: relative;
@@ -112,13 +90,30 @@
     article:last-child {
       border-bottom: 0;
     }
-    article.best {
-      background: rgba(131, 217, 160, .12);
+    article.current {
+      background: rgba(247, 245, 240, .16);
+      box-shadow: inset 0 0 0 1px rgba(247, 245, 240, .72), inset 4px 0 #f7f5f0;
+    }
+    article.current span::after {
+      content: " 현재";
+      color: #f7f5f0;
+      font-weight: 800;
+    }
+    article.best.good {
+      background: rgba(131, 217, 160, .14);
       box-shadow: inset 3px 0 #83d9a0;
     }
-    article.best span,
-    article.best strong {
-      font-weight: 800;
+    article.best.normal {
+      background: rgba(241, 209, 123, .14);
+      box-shadow: inset 3px 0 #f1d17b;
+    }
+    article.best.slow {
+      background: rgba(239, 159, 99, .15);
+      box-shadow: inset 3px 0 #ef9f63;
+    }
+    article.best.critical {
+      background: rgba(240, 142, 129, .15);
+      box-shadow: inset 3px 0 #f08e81;
     }
     article span {
       flex: 0 0 auto;
@@ -159,34 +154,28 @@
   </style>
 </head>
 <body>
-  <aside id="compact-status" aria-label="현재 채널 실시간 핑">연결 확인 중</aside>
-  <main aria-label="실시간 핑 확인">
+  <main aria-label="실시간 점수 확인">
     <img class="watermark" src="./logo2-white-transparent.png" alt="" draggable="false">
     <header>
-      <h1>실시간 핑 확인</h1>
+      <h1>실시간 점수 확인</h1>
       <p id="measurement-age">측정 준비 중</p>
     </header>
     <section id="channels" aria-live="polite"></section>
-    <footer>키보드 또는 마우스를 누르면 작게 돌아갑니다</footer>
+    <footer>채널 점수는 연결 시험 변동값을 기준으로 측정합니다</footer>
   </main>
   <script>
     const channels = document.querySelector("#channels")
     const measurementAge = document.querySelector("#measurement-age")
-    const compactStatus = document.querySelector("#compact-status")
     const channelGroups = [[1, 15], [16, 29], [30, 38]]
-    let latestMeasuredAt = null
+    let measurementSpanMs = null
     let activeConnection = null
     let refreshFailed = false
 
-    function grade(quality, value) {
-      if (quality === "안정적") return "good"
-      if (quality === "보통") return "normal"
-      if (quality === "불안정") return "slow"
-      if (quality === "연결 불가") return "failed"
-      if (value == null) return "waiting"
-      if (value < 5) return "good"
-      if (value < 10) return "normal"
-      if (value < 15) return "slow"
+    function variationGrade(value, sampleCount) {
+      if (sampleCount < 3 || value == null) return "waiting"
+      if (value <= 0.5) return "good"
+      if (value <= 1) return "normal"
+      if (value <= 1.5) return "slow"
       return "critical"
     }
 
@@ -195,31 +184,43 @@
         measurementAge.textContent = "상태 확인 실패"
         return
       }
-      const age = latestMeasuredAt == null
-        ? "측정 준비 중"
-        : `${Math.max(0, Math.floor((Date.now() - latestMeasuredAt) / 1000))}초 전에 측정했습니다`
-      const active = activeConnection
-        ? ` · 현재 ${activeConnection.channel}채널 ${activeConnection.rttMs == null ? activeConnection.quality : `${activeConnection.rttMs} ms · ${activeConnection.quality}`}`
-        : ""
-      measurementAge.textContent = age + active
+      if (measurementSpanMs == null) {
+        measurementAge.textContent = "측정 준비 중"
+        return
+      }
+      const measuredMinutes = Math.floor(measurementSpanMs / 60000)
+      measurementAge.textContent = measuredMinutes < 1
+        ? "1분 미만 측정한 데이터입니다"
+        : `${Math.min(20, measuredMinutes)}분간 측정한 데이터입니다`
     }
 
     function render(status) {
       const items = status.channels || []
-      document.body.classList.toggle("compact", !status.expanded)
-      compactStatus.textContent = status.activeConnection
-        ? `${status.activeConnection.channel}채널 · ${status.activeConnection.rttMs == null ? status.activeConnection.quality : `${status.activeConnection.rttMs} ms · ${status.activeConnection.quality}`}`
-        : "연결 확인 중"
+      activeConnection = status.activeConnection || null
+      measurementSpanMs = status.measurementSpanMs ?? null
+      const variationScore = value => Math.round(Number(value) * 100)
+      const scored = items.filter(item => item.sampleCount >= 3 && Number.isFinite(item.variationMs))
+      const bestScore = scored.length
+        ? Math.min(...scored.map(item => variationScore(item.variationMs)))
+        : null
       const createCard = item => {
+        const current = activeConnection?.channel === item.channel
+        const score = item.variationMs == null ? null : variationScore(item.variationMs)
+        const best = bestScore != null
+          && item.sampleCount >= 3
+          && score === bestScore
         const card = document.createElement("article")
         const label = document.createElement("span")
         const value = document.createElement("strong")
         label.textContent = `${item.channel}채널`
-        card.className = `${grade(item.quality, item.medianMs)}${item.recommended ? " best" : ""}`
+        const color = variationGrade(item.variationMs, item.sampleCount)
+        card.className = `${color}${current ? " current" : ""}${best ? " best" : ""}`
         card.title = item.endpoint || "접속 정보 없음"
-        value.textContent = item.medianMs == null
-          ? item.endpoint ? item.quality || "확인 중" : "정보 없음"
-          : `${item.medianMs} ms · ${item.quality || "확인 중"}`
+        value.textContent = item.sampleCount < 3
+          ? "측정 중"
+          : item.variationMs == null
+            ? item.endpoint ? item.quality || "확인 중" : "정보 없음"
+            : `${score}`
         card.append(label, value)
         return card
       }
@@ -233,11 +234,6 @@
         }
         return group
       }))
-      const times = items
-        .map(item => item.measuredAt)
-        .filter(value => Number.isFinite(value))
-      latestMeasuredAt = times.length ? Math.max(...times) : null
-      activeConnection = status.activeConnection || null
       refreshFailed = false
       updateMeasurementAge()
     }

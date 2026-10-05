@@ -93,6 +93,14 @@ impl Windows {
     pub fn channel_ping_id(&self) -> Option<u64> {
         self.id("channel-ping-overlay")
     }
+    pub fn channel_ping_live_visible(&self) -> bool {
+        self.id("channel-ping-live")
+            .and_then(|id| self.get(id))
+            .is_some_and(|window| window.state["visible"] == true)
+    }
+    pub fn channel_ping_live_id(&self) -> Option<u64> {
+        self.id("channel-ping-live")
+    }
     pub fn arm_channel_ping_input(&self, id: u64, hwnd: isize) -> bool {
         let state = self.state.lock().unwrap();
         let valid = state.windows.get(&id).is_some_and(|window| {
@@ -105,16 +113,28 @@ impl Windows {
         valid
     }
     pub fn prepare_channel_ping(self: &Arc<Self>) -> Result<()> {
-        self.open("channel-ping-overlay", false).map(|_| ())
+        self.open("channel-ping-overlay", false)?;
+        self.open("channel-ping-live", false).map(|_| ())
     }
     pub fn show_channel_ping(self: &Arc<Self>, bounds: OverlayBounds) -> Result<(u64, isize)> {
+        self.show_channel_ping_window("channel-ping-overlay", bounds, "전체 채널 상태 창")
+    }
+    pub fn show_channel_ping_live(self: &Arc<Self>, bounds: OverlayBounds) -> Result<(u64, isize)> {
+        self.show_channel_ping_window("channel-ping-live", bounds, "상단 실시간 핑 창")
+    }
+    fn show_channel_ping_window(
+        &self,
+        kind: &str,
+        bounds: OverlayBounds,
+        label: &str,
+    ) -> Result<(u64, isize)> {
         let id = self
-            .id("channel-ping-overlay")
-            .ok_or("실시간 핑 창이 준비되지 않았습니다")?;
+            .id(kind)
+            .ok_or_else(|| format!("{label}이 준비되지 않았습니다"))?;
         let hwnd = self
             .get(id)
             .and_then(|window| window.state["hwnd"].as_u64())
-            .ok_or("실시간 핑 창의 native 창을 찾지 못했습니다")?;
+            .ok_or_else(|| format!("{label}의 native 창을 찾지 못했습니다"))?;
         self.command(
             id,
             "physicalBounds",
@@ -136,8 +156,8 @@ impl Windows {
         if let Some(window) = self.state.lock().unwrap().windows.get_mut(&id) {
             window.state["visible"] = json!(true);
         }
-        if self.channel_ping_id() != Some(id) {
-            return Err("실시간 핑 창이 표시 중 다시 생성되었습니다".into());
+        if self.id(kind) != Some(id) {
+            return Err(format!("{label}이 표시 중 다시 생성되었습니다"));
         }
         Ok((id, hwnd as isize))
     }
@@ -146,13 +166,23 @@ impl Windows {
             self.command(id, "hide", Value::Null);
         }
     }
+    pub fn hide_channel_ping_live(&self) {
+        if let Some(id) = self.id("channel-ping-live") {
+            self.command(id, "hide", Value::Null);
+        }
+    }
     pub fn destroy_channel_ping(&self) {
+        for kind in ["channel-ping-overlay", "channel-ping-live"] {
+            self.destroy_channel_ping_window(kind);
+        }
+    }
+    fn destroy_channel_ping_window(&self, kind: &str) {
         let removed = {
             let mut state = self.state.lock().unwrap();
             let id = state
                 .windows
                 .values()
-                .find(|window| window.kind == "channel-ping-overlay")
+                .find(|window| window.kind == kind)
                 .map(|window| window.id);
             id.and_then(|id| {
                 clear_input_overlay_window(id);
@@ -263,27 +293,48 @@ impl Windows {
             .unwrap_or(json!({"x":0,"y":0,"width":1920,"height":1080}))
     }
 
-    pub fn update_notice(self:&Arc<Self>,version:&str)->Result<()> {
-        let _opening=self.open_operation.lock().unwrap();
-        if version.is_empty() || self.state.lock().unwrap().update_notified.as_deref()==Some(version){return Ok(());}
-        if let Some(id)=self.id("update-notice"){self.destroy(id);}
-        let bounds=self.get(1).map(|w|w.state).unwrap_or_else(||{
-            let cursor=self.state.lock().unwrap().cursor.clone();
+    pub fn update_notice(self: &Arc<Self>, version: &str) -> Result<()> {
+        let _opening = self.open_operation.lock().unwrap();
+        if version.is_empty()
+            || self.state.lock().unwrap().update_notified.as_deref() == Some(version)
+        {
+            return Ok(());
+        }
+        if let Some(id) = self.id("update-notice") {
+            self.destroy(id);
+        }
+        let bounds = self.get(1).map(|w| w.state).unwrap_or_else(|| {
+            let cursor = self.state.lock().unwrap().cursor.clone();
             json!({"x":cursor["x"],"y":cursor["y"],"width":0,"height":0})
         });
-        let options=update_notice_options(&self.work_area(&bounds));
-        let id=self.sequence.fetch_add(1,Ordering::SeqCst);
-        self.state.lock().unwrap().windows.insert(id,Window{id,kind:"update-notice".into(),state:options.clone(),loaded:false,ready:true,reveal:false,closing:false,animation:0,drag:None});
-        let html=include_str!("update-notice.html");
+        let options = update_notice_options(&self.work_area(&bounds));
+        let id = self.sequence.fetch_add(1, Ordering::SeqCst);
+        self.state.lock().unwrap().windows.insert(
+            id,
+            Window {
+                id,
+                kind: "update-notice".into(),
+                state: options.clone(),
+                loaded: false,
+                ready: true,
+                reveal: false,
+                closing: false,
+                animation: 0,
+                drag: None,
+            },
+        );
+        let html = include_str!("update-notice.html");
         if let Err(e)=self.rpc.request("window.open",json!({"windowId":id,"file":format!("data:text/html;charset=utf-8,{}",urlencoding::encode(html)),"options":options})) {
             self.destroy(id);return Err(e);
         }
-        self.command(id,"ignoreMouseEvents",json!(true));
-        self.command(id,"allWorkspaces",json!(true));
-        self.command(id,"showInactive",Value::Null);
-        self.state.lock().unwrap().update_notified=Some(version.into());
-        let this=self.clone();std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(4800));this.destroy(id);
+        self.command(id, "ignoreMouseEvents", json!(true));
+        self.command(id, "allWorkspaces", json!(true));
+        self.command(id, "showInactive", Value::Null);
+        self.state.lock().unwrap().update_notified = Some(version.into());
+        let this = self.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(4800));
+            this.destroy(id);
         });
         Ok(())
     }
@@ -438,7 +489,7 @@ impl Windows {
             .unwrap()
             .windows
             .values()
-            .filter(|w| w.id != 1 && !matches!(w.kind.as_str(),"notice"|"update-notice"))
+            .filter(|w| w.id != 1 && !matches!(w.kind.as_str(), "notice" | "update-notice"))
             .map(|w| w.id)
             .collect();
         for id in ids {
@@ -593,7 +644,10 @@ impl Windows {
                 json!({"width":1100,"height":720,"minWidth":780,"minHeight":560,"title":"블랙박스 영상 추출","alwaysOnTop":true})
             }
             "channel-ping-overlay" => {
-                json!({"width":584,"height":400,"title":"실시간 핑 확인","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":true})
+                json!({"width":584,"height":400,"title":"실시간 점수 확인 — 전체 채널","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":true})
+            }
+            "channel-ping-live" => {
+                json!({"width":420,"height":30,"title":"실시간 점수 확인","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":false})
             }
             _ => return Err("허용되지 않은 보조 창".into()),
         };
@@ -788,17 +842,22 @@ impl Windows {
     }
 }
 
-fn update_notice_options(area:&Value)->Value {
-    let width=(n(area,"width",1920.)-24.).min(680.);
+fn update_notice_options(area: &Value) -> Value {
+    let width = (n(area, "width", 1920.) - 24.).min(680.);
     json!({"x":n(area,"x",0.)+n(area,"width",1920.)-width-24.,"y":n(area,"y",0.)+n(area,"height",1080.)-88.-24.,"width":width,"height":88,"show":false,"opacity":1,"frame":false,"transparent":true,"resizable":false,"movable":false,"focusable":false,"skipTaskbar":true,"alwaysOnTop":true,"hasShadow":false})
 }
 #[cfg(test)]
 mod update_notice_tests {
     use super::*;
-    #[test]fn bottom_right_respects_secondary_monitor_and_taskbar(){
-        let o=update_notice_options(&json!({"x":-1920,"y":-200,"width":1920,"height":1040}));
-        assert_eq!(o["x"],json!(-704.));assert_eq!(o["y"],json!(728.));
-        assert_eq!(o["width"],json!(680.));assert_eq!(o["focusable"],false);assert_eq!(o["skipTaskbar"],true);
-        let narrow=update_notice_options(&json!({"x":0,"y":0,"width":640,"height":480}));assert_eq!(narrow["width"],json!(616.));
+    #[test]
+    fn bottom_right_respects_secondary_monitor_and_taskbar() {
+        let o = update_notice_options(&json!({"x":-1920,"y":-200,"width":1920,"height":1040}));
+        assert_eq!(o["x"], json!(-704.));
+        assert_eq!(o["y"], json!(728.));
+        assert_eq!(o["width"], json!(680.));
+        assert_eq!(o["focusable"], false);
+        assert_eq!(o["skipTaskbar"], true);
+        let narrow = update_notice_options(&json!({"x":0,"y":0,"width":640,"height":480}));
+        assert_eq!(narrow["width"], json!(616.));
     }
 }

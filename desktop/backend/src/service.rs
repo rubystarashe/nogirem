@@ -4,7 +4,7 @@ use crate::{
     boost::Boost,
     channel_ping::{
         ChannelPing, InputDecision, InputMonitor, foreground_compact_target,
-        set_input_overlay_window,
+        foreground_is_windows_shell, set_input_overlay_window,
     },
     dxvk_manager, graphics,
     inputs::Inputs,
@@ -88,11 +88,7 @@ impl Drop for SaveGuard<'_> {
         self.0.store(false, Ordering::SeqCst);
     }
 }
-fn sync_overlay_window(
-    tracked: &mut Option<u64>,
-    current: Option<u64>,
-    visible: &mut bool,
-) {
+fn sync_overlay_window(tracked: &mut Option<u64>, current: Option<u64>, visible: &mut bool) {
     if *tracked != current {
         *tracked = current;
         *visible = false;
@@ -101,6 +97,24 @@ fn sync_overlay_window(
 fn mark_overlay_shown(tracked: &mut Option<u64>, visible: &mut bool, window_id: u64) {
     *tracked = Some(window_id);
     *visible = true;
+}
+fn desired_live_bounds(
+    foreground: Option<(crate::channel_ping::OverlayBounds, u32)>,
+    last_game: Option<(crate::channel_ping::OverlayBounds, u32)>,
+    expanded: bool,
+    foreground_is_shell: bool,
+    active_connection: bool,
+) -> Option<crate::channel_ping::OverlayBounds> {
+    if !active_connection {
+        return None;
+    }
+    foreground
+        .or_else(|| {
+            (expanded && foreground_is_shell)
+                .then_some(last_game)
+                .flatten()
+        })
+        .map(|(bounds, _)| bounds)
 }
 impl Service {
     pub fn new(
@@ -133,14 +147,23 @@ impl Service {
             let channel_ping = Arc::new(ChannelPing::new(&env));
             let clips = blackbox.clips();
             let updates = rpc.clone();
-            let update_service=weak.clone();
-            let updater = crate::updater::Updater::new(env.portable,Arc::new(move |value| {
-                updates.event(1,"application:update-state-changed",json!([value]));
-                if value["phase"]=="available" {if let Some(service)=update_service.upgrade() {
-                    let version=value["version"].as_str().unwrap_or("").to_owned();
-                    std::thread::spawn(move || {if let Err(e)=service.windows.update_notice(&version){log(e);}});
-                }}
-            }));
+            let update_service = weak.clone();
+            let updater = crate::updater::Updater::new(
+                env.portable,
+                Arc::new(move |value| {
+                    updates.event(1, "application:update-state-changed", json!([value]));
+                    if value["phase"] == "available" {
+                        if let Some(service) = update_service.upgrade() {
+                            let version = value["version"].as_str().unwrap_or("").to_owned();
+                            std::thread::spawn(move || {
+                                if let Err(e) = service.windows.update_notice(&version) {
+                                    log(e);
+                                }
+                            });
+                        }
+                    }
+                }),
+            );
             Self {
                 windows: Arc::new(Windows::new(env.clone(), rpc.clone(), displays)),
                 boost: Boost::new(env.clone()),
@@ -171,7 +194,9 @@ impl Service {
         *self.media.write().unwrap() = (b.clips(), b.session.clone());
     }
     fn save_guard(&self) -> Result<SaveGuard<'_>> {
-        if self.updater.state()["phase"]=="installing" {return Err("업데이트 설치를 준비하고 있습니다".into());}
+        if self.updater.state()["phase"] == "installing" {
+            return Err("업데이트 설치를 준비하고 있습니다".into());
+        }
         if self.saving.swap(true, Ordering::SeqCst) {
             Err("이전 클립을 저장하고 있습니다".into())
         } else {
@@ -224,7 +249,9 @@ impl Service {
     fn prepare(self: &Arc<Self>) {
         self.preparation.get_or_init(|| {
             if self.env.packaged {
-                if let Err(error)=app_services::startup(&self.env.exe,true,None){log(error);}
+                if let Err(error) = app_services::startup(&self.env.exe, true, None) {
+                    log(error);
+                }
             }
             {
                 let mut b = self.blackbox.lock().unwrap();
@@ -325,21 +352,21 @@ impl Service {
                 scope.spawn(move || service.prepare())
             };
             let music = scope.spawn(|| {
-                app_services::preference(
-                    &self.env.user,
-                    "get-startup-music-setting",
-                    &Value::Null,
-                )
+                app_services::preference(&self.env.user, "get-startup-music-setting", &Value::Null)
             });
             let optimization = scope.spawn(|| self.optimization());
-            preparation.join().map_err(|_| "시작 준비 작업이 중단되었습니다")?;
+            preparation
+                .join()
+                .map_err(|_| "시작 준비 작업이 중단되었습니다")?;
             let music = music
                 .join()
                 .map_err(|_| "시작 음악 설정 조회가 중단되었습니다")??;
             let optimization = optimization
                 .join()
                 .map_err(|_| "최적화 상태 조회가 중단되었습니다")?;
-            Ok(json!({"startupTray":self.startup_tray,"startupMusicMuted":music["muted"],"optimizationStatus":optimization,"dxvk":self.dxvk_runtime.read().unwrap().clone(),"blackboxSetting":self.blackbox.lock().unwrap().status().ok()}))
+            Ok(
+                json!({"startupTray":self.startup_tray,"startupMusicMuted":music["muted"],"optimizationStatus":optimization,"dxvk":self.dxvk_runtime.read().unwrap().clone(),"blackboxSetting":self.blackbox.lock().unwrap().status().ok()}),
+            )
         })
     }
     pub fn start(self: &Arc<Self>) -> Result<()> {
@@ -377,11 +404,15 @@ impl Service {
         let service = self.clone();
         std::thread::spawn(move || service.check_startup_network());
         if self.env.packaged {
-            let service=self.clone();std::thread::spawn(move || {
-                std::thread::sleep(Duration::from_millis(crate::updater::STARTUP_CHECK_DELAY_MS));
+            let service = self.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(
+                    crate::updater::STARTUP_CHECK_DELAY_MS,
+                ));
                 if !service.rpc.closed() && !service.boost.exiting.load(Ordering::SeqCst) {
-                    let announcements=service.clone();std::thread::spawn(move || announcements.refresh_announcements());
-                    let _=service.updater.request();
+                    let announcements = service.clone();
+                    std::thread::spawn(move || announcements.refresh_announcements());
+                    let _ = service.updater.request();
                 }
             });
         }
@@ -391,10 +422,16 @@ impl Service {
     fn monitor_channel_ping_overlay(self: &Arc<Self>) {
         let mut input = None;
         let mut overlay_visible = false;
+        let mut live_visible = false;
         let mut expanded = false;
         let mut overlay_window_id = None;
-        let mut compact_bounds = None;
-        let mut next_live_refresh = Instant::now();
+        let mut live_window_id = None;
+        let mut live_bounds = None;
+        let mut foreground_target = None;
+        let mut foreground_is_shell = false;
+        let mut last_game_target = None;
+        let mut next_foreground_refresh = Instant::now();
+        let mut next_telemetry_refresh = Instant::now();
         while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
             let enabled = self.channel_ping.enabled();
             if !enabled {
@@ -403,11 +440,19 @@ impl Service {
                 if overlay_visible || self.windows.channel_ping_visible() {
                     self.windows.hide_channel_ping();
                 }
+                if live_visible || self.windows.channel_ping_live_visible() {
+                    self.windows.hide_channel_ping_live();
+                }
                 overlay_visible = false;
+                live_visible = false;
                 expanded = false;
-                compact_bounds = None;
+                live_bounds = None;
+                foreground_target = None;
+                foreground_is_shell = false;
+                last_game_target = None;
                 self.channel_ping.set_expanded(false);
                 overlay_window_id = None;
+                live_window_id = None;
                 std::thread::sleep(Duration::from_millis(250));
                 continue;
             }
@@ -436,55 +481,63 @@ impl Service {
                 self.windows.channel_ping_id(),
                 &mut overlay_visible,
             );
+            sync_overlay_window(
+                &mut live_window_id,
+                self.windows.channel_ping_live_id(),
+                &mut live_visible,
+            );
             if !expanded {
                 set_input_overlay_window(None);
             }
-            if Instant::now() >= next_live_refresh {
-                next_live_refresh = Instant::now() + Duration::from_secs(1);
-                let compact_target = foreground_compact_target(&self.env);
-                if let Some((_, game_pid)) = compact_target {
+
+            let now = Instant::now();
+            if now >= next_foreground_refresh {
+                next_foreground_refresh = now + Duration::from_millis(100);
+                foreground_target = foreground_compact_target(&self.env);
+                foreground_is_shell = foreground_target.is_none() && foreground_is_windows_shell();
+                if foreground_target.is_some() {
+                    last_game_target = foreground_target;
+                }
+            }
+            if now >= next_telemetry_refresh {
+                next_telemetry_refresh = now + Duration::from_secs(1);
+                if let Some((_, game_pid)) = foreground_target {
                     self.channel_ping
                         .refresh_active_connection(&self.env, game_pid);
                 }
-                if !expanded {
-                    let desired = compact_target
-                        .map(|(bounds, _)| bounds)
-                        .filter(|_| self.channel_ping.has_active_connection());
-                    if let Some(bounds) = desired {
-                        self.channel_ping.set_expanded(false);
-                        if !overlay_visible || compact_bounds != Some(bounds) {
-                            match self.windows.show_channel_ping(bounds) {
-                                Ok((window_id, _)) => {
-                                    mark_overlay_shown(
-                                        &mut overlay_window_id,
-                                        &mut overlay_visible,
-                                        window_id,
-                                    );
-                                    compact_bounds = Some(bounds);
-                                }
-                                Err(error) => {
-                                    overlay_visible = false;
-                                    compact_bounds = None;
-                                    log(format!("실시간 핑 표시 실패: {error}"));
-                                }
-                            }
+            }
+
+            let desired_live_bounds = desired_live_bounds(
+                foreground_target,
+                last_game_target,
+                expanded,
+                foreground_is_shell,
+                self.channel_ping.has_active_connection(),
+            );
+            if let Some(bounds) = desired_live_bounds {
+                if !live_visible || live_bounds != Some(bounds) {
+                    match self.windows.show_channel_ping_live(bounds) {
+                        Ok((window_id, _)) => {
+                            mark_overlay_shown(&mut live_window_id, &mut live_visible, window_id);
+                            live_bounds = Some(bounds);
                         }
-                    } else if overlay_visible {
-                        self.windows.hide_channel_ping();
-                        overlay_visible = false;
-                        compact_bounds = None;
+                        Err(error) => {
+                            live_visible = false;
+                            live_bounds = None;
+                            log(format!("상단 실시간 핑 표시 실패: {error}"));
+                        }
                     }
                 }
+            } else if live_visible {
+                self.windows.hide_channel_ping_live();
+                live_visible = false;
+                live_bounds = None;
             }
-            match input
-                .as_mut()
-                .unwrap()
-                .poll(expanded, &self.env)
-            {
+
+            match input.as_mut().unwrap().poll(expanded, &self.env) {
                 InputDecision::Show(bounds, game_pid) => {
                     if self.channel_ping.enabled() {
                         expanded = true;
-                        compact_bounds = None;
                         self.channel_ping.set_expanded(true);
                         self.channel_ping
                             .refresh_active_connection(&self.env, game_pid);
@@ -501,7 +554,7 @@ impl Service {
                                     self.channel_ping.set_expanded(false);
                                     overlay_visible = false;
                                     self.windows.hide_channel_ping();
-                                    log("실시간 핑 창이 표시 중 다시 생성되었습니다");
+                                    log("전체 채널 상태 창이 표시 중 다시 생성되었습니다");
                                 }
                             }
                             Err(error) => {
@@ -509,7 +562,7 @@ impl Service {
                                 expanded = false;
                                 self.channel_ping.set_expanded(false);
                                 overlay_visible = false;
-                                log(format!("실시간 핑 창 표시 실패: {error}"));
+                                log(format!("전체 채널 상태 창 표시 실패: {error}"));
                             }
                         }
                     }
@@ -517,8 +570,10 @@ impl Service {
                         set_input_overlay_window(None);
                         self.windows.destroy_channel_ping();
                         overlay_visible = false;
+                        live_visible = false;
                         expanded = false;
                         overlay_window_id = None;
+                        live_window_id = None;
                     }
                 }
                 InputDecision::Hide => {
@@ -526,7 +581,6 @@ impl Service {
                     self.windows.hide_channel_ping();
                     overlay_visible = false;
                     expanded = false;
-                    compact_bounds = None;
                     self.channel_ping.set_expanded(false);
                 }
                 InputDecision::Unavailable => {
@@ -534,7 +588,6 @@ impl Service {
                     self.windows.hide_channel_ping();
                     overlay_visible = false;
                     expanded = false;
-                    compact_bounds = None;
                     self.channel_ping.set_expanded(false);
                     self.channel_ping
                         .set_input_error(Some("입력 감시 작업이 중단되었습니다".into()));
@@ -547,6 +600,7 @@ impl Service {
         set_input_overlay_window(None);
         self.channel_ping.set_expanded(false);
         self.windows.hide_channel_ping();
+        self.windows.hide_channel_ping_live();
     }
     fn check_startup_network(&self) {
         let path = self.env.user.join("network/fast-ping-original.json");
@@ -630,10 +684,16 @@ impl Service {
                     service.notify_dxvk();
                 });
             }
-            if crate::now_ms().saturating_sub(announcements_at) >= crate::updater::CHECK_INTERVAL_MS {
+            if crate::now_ms().saturating_sub(announcements_at) >= crate::updater::CHECK_INTERVAL_MS
+            {
                 announcements_at = crate::now_ms();
                 let service = self.clone();
-                std::thread::spawn(move || { if service.env.packaged { service.updater.check(); } service.refresh_announcements(); });
+                std::thread::spawn(move || {
+                    if service.env.packaged {
+                        service.updater.check();
+                    }
+                    service.refresh_announcements();
+                });
             }
             std::thread::sleep(Duration::from_millis(200));
         }
@@ -800,7 +860,9 @@ impl Service {
         let allowed = match prefix {
             "application" | "optimization" | "smoke" => kind == "main",
             "dxvk" => kind == "dxvk-manager",
-            "channel-ping" => kind == "channel-ping-overlay",
+            "channel-ping" => {
+                matches!(kind.as_str(), "channel-ping-overlay" | "channel-ping-live")
+            }
             prefix => prefix == kind,
         };
         if !allowed {
@@ -887,24 +949,50 @@ impl Service {
   }
     }
     fn install_update(&self) -> Result<Value> {
-        if self.updater.state()["phase"]!="downloaded" {return Ok(json!(false));}
-        let guard=self.save_guard()?;
+        if self.updater.state()["phase"] != "downloaded" {
+            return Ok(json!(false));
+        }
+        let guard = self.save_guard()?;
         self.blackbox.lock().unwrap().flush_for_update()?;
-        let (_,envelope,file)=self.updater.prepared()?;
-        let mut pids=vec![std::process::id()];
-        if let Ok(pid)=std::env::var("NOGIREM_DESKTOP_PID").unwrap_or_default().parse::<u32>() {pids.push(pid);}
-        if let Some(pid)=std::env::args().find_map(|arg|arg.strip_prefix("--portable-launcher-pid=").and_then(|value|value.parse::<u32>().ok())){pids.push(pid);}
-        let dir=crate::update_install::prepare(&self.env.exe,&self.env.user,&envelope,&file,pids,self.env.portable)?;
+        let (_, envelope, file) = self.updater.prepared()?;
+        let mut pids = vec![std::process::id()];
+        if let Ok(pid) = std::env::var("NOGIREM_DESKTOP_PID")
+            .unwrap_or_default()
+            .parse::<u32>()
+        {
+            pids.push(pid);
+        }
+        if let Some(pid) = std::env::args().find_map(|arg| {
+            arg.strip_prefix("--portable-launcher-pid=")
+                .and_then(|value| value.parse::<u32>().ok())
+        }) {
+            pids.push(pid);
+        }
+        let dir = crate::update_install::prepare(
+            &self.env.exe,
+            &self.env.user,
+            &envelope,
+            &file,
+            pids,
+            self.env.portable,
+        )?;
         self.updater.installing();
         drop(guard);
-        if let Err(e)=std::fs::write(dir.join("commit"),b"install") {self.updater.failed(e.to_string());return Err(e.to_string());}
+        if let Err(e) = std::fs::write(dir.join("commit"), b"install") {
+            self.updater.failed(e.to_string());
+            return Err(e.to_string());
+        }
         self.finish_exit("keep")
     }
     fn notice(&self) -> Result<Value> {
         let value = app_services::notice(&self.env.root, &self.env.user).unwrap_or_else(|error| {
-            log(format!("공지사항 확인 실패: {error}")); Value::Null
+            log(format!("공지사항 확인 실패: {error}"));
+            Value::Null
         });
-        if !value.is_null() { self.rpc.event(1, "application:notice-available", json!([value])); }
+        if !value.is_null() {
+            self.rpc
+                .event(1, "application:notice-available", json!([value]));
+        }
         Ok(value)
     }
     fn refresh_announcements(&self) {
@@ -926,7 +1014,11 @@ impl Service {
             .cloned()
             .collect();
         if !replies.is_empty() {
-            self.rpc.event(1, "application:report-responses-available", json!([replies]));
+            self.rpc.event(
+                1,
+                "application:report-responses-available",
+                json!([replies]),
+            );
         }
         Ok(json!(replies))
     }
@@ -1142,7 +1234,8 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
 
 #[cfg(test)]
 mod channel_ping_overlay_tests {
-    use super::{mark_overlay_shown, sync_overlay_window};
+    use super::{desired_live_bounds, mark_overlay_shown, sync_overlay_window};
+    use crate::channel_ping::OverlayBounds;
 
     #[test]
     fn 보조_창이_재생성되면_표시_상태를_초기화한다() {
@@ -1166,5 +1259,35 @@ mod channel_ping_overlay_tests {
         sync_overlay_window(&mut tracked, Some(3), &mut visible);
         assert_eq!(tracked, Some(3));
         assert!(visible);
+    }
+
+    #[test]
+    fn 상단_창은_게임_전경에서만_유지하고_전체표와_별도로_계속_표시한다() {
+        let bounds = OverlayBounds {
+            x: 10.0,
+            y: 20.0,
+            width: 420.0,
+            height: 30.0,
+        };
+        assert_eq!(
+            desired_live_bounds(Some((bounds, 7)), None, false, false, true),
+            Some(bounds)
+        );
+        assert_eq!(
+            desired_live_bounds(None, Some((bounds, 7)), false, false, true),
+            None
+        );
+        assert_eq!(
+            desired_live_bounds(None, Some((bounds, 7)), true, true, true),
+            Some(bounds)
+        );
+        assert_eq!(
+            desired_live_bounds(None, Some((bounds, 7)), true, false, true),
+            None
+        );
+        assert_eq!(
+            desired_live_bounds(Some((bounds, 7)), None, false, false, false),
+            None
+        );
     }
 }

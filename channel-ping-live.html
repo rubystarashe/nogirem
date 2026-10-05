@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>실시간 점수</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Pretendard", "Malgun Gothic", sans-serif;
+      background: transparent;
+    }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+    }
+    body {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      color: #f7f5f0;
+    }
+    #status {
+      display: inline-flex;
+      width: max-content;
+      max-width: 100%;
+      height: 20px;
+      align-items: center;
+      justify-content: center;
+      padding: 0 7px;
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-radius: 7px;
+      background: rgba(15, 17, 20, .82);
+      color: rgba(247, 245, 240, .9);
+      font-size: 10px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.02em;
+      line-height: 1;
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+    }
+    #status.stable {
+      border-color: rgba(131, 217, 160, .48);
+      background: rgba(18, 50, 31, .86);
+      color: #9ae6b1;
+    }
+    #status.normal {
+      border-color: rgba(241, 209, 123, .48);
+      background: rgba(57, 47, 20, .86);
+      color: #f1d17b;
+    }
+    #status.unstable {
+      border-color: rgba(239, 159, 99, .52);
+      background: rgba(61, 35, 18, .88);
+      color: #ef9f63;
+    }
+    #status.failed {
+      border-color: rgba(240, 142, 129, .52);
+      background: rgba(62, 25, 24, .88);
+      color: #f08e81;
+    }
+  </style>
+</head>
+<body>
+  <output id="status" aria-live="polite" hidden></output>
+  <script>
+    const status = document.querySelector("#status")
+
+    function qualityClass(quality) {
+      if (quality === "안정적") return "stable"
+      if (quality === "보통") return "normal"
+      if (quality === "불안정") return "unstable"
+      if (quality === "연결 불가") return "failed"
+      return ""
+    }
+
+    async function refresh() {
+      try {
+        const current = (await window.channelPing.getStatus()).activeConnection
+        status.hidden = !current || current.rttMs == null
+        if (status.hidden) return
+        status.className = qualityClass(current?.quality)
+        status.textContent = `${current.channel}채널 · 현재 ${current.rttMs} ms · 평균 ${current.averageRttMs ?? "-"} ms · 최대 ${current.maximumRttMs ?? "-"} ms · 재전송 ${current.packetsRetransmitted ?? 0} · ${current.quality}`
+      } catch {
+        status.hidden = false
+        status.className = "failed"
+        status.textContent = "상태 확인 실패"
+      }
+    }
+
+    refresh()
+    setInterval(refresh, 250)
+  </script>
+</body>
+</html>

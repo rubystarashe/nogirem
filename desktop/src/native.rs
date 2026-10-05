@@ -419,6 +419,7 @@ impl Host {
                         "blackbox-manager.html",
                         "blackbox-editor.html",
                         "channel-ping-overlay.html",
+                        "channel-ping-live.html",
                     ]
                     .iter()
                     .any(|n| name == *n)

@@ -2,21 +2,21 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `7`
-- updated_at: `2026-10-04T23:01:00Z`
+- revision: `8`
+- updated_at: `2026-10-05T07:07:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-04T23:01:00Z`
+- source_reviewed_at: `2026-10-05T07:07:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit a1c8699c4abaf97c86b9d712f1f60e613442e669, base a68c85f1da24a19e19305dc1f4b058ce72c0cc29`
+- source_review_target: `working tree based on 5282e4bdff91602f91dae7630ccead12dae91106; exact local commit pending`
 - source_review_evidence: `실시간 핑 source·Win32 TCP EStats·window mode SELF_REVIEW`
-- behavior_verified_at: `2026-10-04T23:20:00Z`
+- behavior_verified_at: `2026-10-05T07:07:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit a1c8699c4abaf97c86b9d712f1f60e613442e669`
+- behavior_verification_target: `working tree based on 5282e4bdff91602f91dae7630ccead12dae91106`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `backend 89 PASS·2 declared ignore + integration 2/2, Node 204/204, desktop cargo check --locked, diff check, independent review APPROVED`
+- behavior_verification_evidence: `channel ping backend 21/21, overlay interface 3/3, desktop build, diff check, IDE diagnostics`
 - freshness_status: `CURRENT`
-- freshness_reason: `실시간 핑 확인의 분산 측정·실제 TCP read·compact/expanded 경계를 source와 일치시킴`
-- known_gaps: `별도 dependency graph lint가 없고 실제 게임 RTT·채널 전환·DPI·물리 입력·package 수동 QA는 NOT_RUN`
+- freshness_reason: `실시간 점수 확인의 분산 측정·실제 TCP read·compact/expanded 경계를 source와 일치시킴`
+- known_gaps: `별도 dependency graph lint가 없고 최신 평균·최대 RTT 표시·shell foreground 제한·DPI·package 수동 QA는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 안정성 판정·실제 연결·상시 compact 오버레이`
 - feature_map: `updated — feature-map.md의 신규 채널 핑 identity와 연결됨`
 - architecture_impact: `channel CSV/cache single writer, staggered TCP worker, owner-PID TCP EStats collector, low-level input hooks, compact/expanded click-through window`
@@ -49,7 +49,7 @@
 - 터보키는 임의의 `Client.exe` 이름만으로 입력하지 않는다. 정본 설정과 동일한 명시적 게임 폴더 또는 sibling launcher를 검증해야 한다.
 - DXVK는 확인되지 않은 게임 경로나 임의 URL에 파일을 쓰지 않는다. manager가 실제 `Client.exe`와 게임 미실행 상태를 확인하고 capability module이 digest·x64 PE·최종 파일 hash를 검증해야 한다.
 - 채널 핑은 사용자 URL·hostname·endpoint를 받지 않는다. 고정 HTTPS source의 제한 크기 CSV를 전부 검증한 뒤에만 cache와 runtime endpoint를 교체한다.
-- 실시간 핑 창은 게임 프로세스에 주입하거나 Windows 키를 차단하지 않는다. 실제 실행 경로가 정본 게임 조건을 충족한 전경 PID가 소유하고 CSV endpoint와 일치하는 established TCP 연결만 조회하며 비활성·click-through 상태를 유지한다.
+- 실시간 점수 창은 게임 프로세스에 주입하거나 Windows 키를 차단하지 않는다. 실제 실행 경로가 정본 게임 조건을 충족한 전경 PID가 소유하고 CSV endpoint와 일치하는 established TCP 연결만 조회하며 비활성·click-through 상태를 유지한다. 상단 창은 게임 전경 또는 전체표가 열린 Windows shell 전경에서만 표시하고 일반 앱 전경에서는 마지막 게임 bounds를 재사용하지 않는다.
 
 ## durable data와 single writer
 
@@ -62,7 +62,7 @@
 - game path state: affinity helper만 `%APPDATA%\마비노기 렘 부스터\game\path.json`을 쓰며 `Environment`와 입력 기능이 읽는다. 터보키의 허용 판단에는 사용하지 않는다.
 - turbo helper installation: `inputs.rs`가 helper version·manifest·binary 교체를 조정하고 native helper는 전달받은 설정과 game path state를 소비한다.
 - DXVK state와 DLL: `dxvk.rs` install/apply 경로만 `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 검증된 게임 폴더의 `d3d9_dxvk.dll`을 쓴다.
-- channel ping setting·cache: `channel_ping.rs`만 `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv`를 쓴다. overlay·UI는 status IPC로만 읽으며 rolling outcomes·실제 연결·window mode는 지속하지 않는다.
+- channel ping setting·cache: `channel_ping.rs`만 `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv`를 쓴다. 동일 module이 연결 시험 표본과 실제 5-tuple별 최근 3분 Windows `SmoothedRtt` 표본 평균·표본 최대를 메모리에서 계산하며 overlay·UI는 status IPC로만 읽는다. 표본 최대는 원시 패킷 RTT 최대를 뜻하지 않는다. rolling outcomes·실제 연결·window mode는 지속하지 않는다.
 
 ## 실시간 helper 상태와 게임 경로
 
@@ -89,12 +89,13 @@
 - 정본 게임이 전경일 때만 1초 주기로 owner-PID TCP table을 읽는다. 검증 중 연 process handle을 조회 완료까지 유지해 PID 재사용을 차단하고, established remote IP:port가 CSV endpoint와 정확히 일치하는 5-tuple만 채널 후보로 인정한다. 동일한 이전 5-tuple을 우선하며 그 밖의 복수 후보가 모호하면 표시하지 않는다.
 - 선택한 connection에 한해 Windows TCP EStats 수집을 활성화하고 smoothed RTT·RTT 변동과 poll 사이 retransmit·timeout 증가를 쉬운 상태에 반영한다. EStats 활성화·조회 실패는 상태에 명시하며 패킷 캡처·게임 메모리 접근·주입은 금지한다.
 - 기능이 꺼져 있으면 TCP 측정·실제 연결 조회를 하지 않고 저수준 input hook도 설치하지 않는다. 기능이 켜진 동안 전용 message thread의 `WH_KEYBOARD_LL`·`WH_MOUSE_LL` callback은 입력을 차단하지 않고 bounded channel에 event를 전달한 뒤 즉시 `CallNextHookEx`를 호출한다.
-- 기능을 켤 때 hidden overlay WebView 준비가 끝난 뒤 input hook을 설치한다. 따라서 최초 Windows 키 뒤 WebView 생성으로 event 처리가 막히지 않으며, 기능을 끄면 hook과 hidden WebView를 모두 제거한다.
-- 검증된 게임이 전경이고 실제 채널 연결이 있으면 client rect·DPI로 계산한 상단 중앙 236×30 compact 창을 계속 표시한다. 좌·우 Windows 키 down callback이 캡처한 같은 게임 PID로 실제 연결을 재검증하고 중앙 584×400 전체 채널표로 확장한다.
-- expanded 표시 trigger 당시 이미 눌린 입력만 release까지 무시한다. 그 밖의 keyboard·mouse down edge는 expanded를 즉시 숨기고 조건이 유지되면 compact로 복귀한다. compact 입력은 숨김 조건이 아니다. 두 mode 모두 focusable=false, always-on-top, skip-taskbar, transparent, ignore-cursor-events이며 `showInactive`로 표시한다.
+- 기능을 켤 때 hidden `channel-ping-live`와 `channel-ping-overlay` WebView를 각각 준비한 뒤 input hook을 설치한다. 따라서 최초 Windows 키 뒤 WebView 생성으로 event 처리가 막히지 않으며, 기능을 끄면 hook과 두 hidden WebView를 모두 제거한다.
+- 검증된 게임이 전경이고 실제 채널 연결이 있으면 client rect·DPI로 계산한 상단 중앙 420×30 live window를 표시한다. visible 배경은 `max-content`라 실제 문구와 최소 padding만 감싸고 품질별 색상을 사용한다. foreground 판정은 100ms, TCP EStats 갱신은 1초 주기로 분리하며 Windows 키 전체표 중에는 지정된 Windows shell foreground만 예외로 허용한다.
+- 좌·우 Windows 키 down callback이 캡처한 같은 게임 PID로 실제 연결을 재검증하고 별도 584×400 overlay window를 중앙에 함께 표시한다. 두 창은 window ID·visible state·bounds·hide/destroy 수명주기를 공유하지 않는다.
+- expanded 표시 trigger 당시 이미 눌린 입력만 release까지 무시한다. 그 밖의 keyboard·mouse down edge는 expanded만 즉시 숨긴다. live window는 게임 전경일 때 유지하고, expanded가 표시되는 동안에는 Windows shell focus 전환에도 같은 게임 위치에 유지하되 expanded 종료 후 게임이 전경이 아니면 숨긴다. 두 창 모두 focusable=false, always-on-top, skip-taskbar, transparent, ignore-cursor-events이며 `showInactive`로 표시한다.
 - bounded input channel이 포화되면 event를 성공으로 간주하지 않고 fail-safe로 overlay를 숨긴다. backlog를 폐기한 뒤 최소 100ms의 input quiet 구간이 확인될 때까지 새 표시 trigger를 받지 않는다.
-- overlay preload는 `channel-ping:get-status` 읽기 하나만 노출한다. 설정 쓰기와 창 command는 main renderer의 application channel과 backend service만 수행한다.
-- package fallback source는 저장소 root `channel.csv` 하나이며 `scripts/package-dioxus.mjs`가 HTML·preload와 함께 복사한다. Electron 0.3.x 호환 host는 preload 요청을 명시적으로 거부하고 두 번째 writer나 기능 구현이 되지 않는다.
+- 두 preload는 `channel-ping:get-status` 읽기 하나만 노출한다. 설정 쓰기와 창 command는 main renderer의 application channel과 backend service만 수행한다.
+- package fallback source는 저장소 root `channel.csv` 하나이며 `scripts/package-dioxus.mjs`가 두 HTML·두 preload와 함께 복사한다. Electron 0.3.x 호환 host는 preload 요청을 명시적으로 거부하고 두 번째 writer나 기능 구현이 되지 않는다.
 
 ## update·설치 transaction과 호환성
 

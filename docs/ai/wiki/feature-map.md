@@ -2,21 +2,21 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `10`
-- updated_at: `2026-10-04T23:01:00Z`
+- revision: `11`
+- updated_at: `2026-10-05T07:07:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-04T23:01:00Z`
+- source_reviewed_at: `2026-10-05T07:07:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit a1c8699c4abaf97c86b9d712f1f60e613442e669, base a68c85f1da24a19e19305dc1f4b058ce72c0cc29`
+- source_review_target: `working tree based on 5282e4bdff91602f91dae7630ccead12dae91106; exact local commit pending`
 - source_review_evidence: `channel_ping.rs, service.rs, service_windows.rs, ui.rs, overlay HTML·tests SELF_REVIEW`
-- behavior_verified_at: `2026-10-04T23:20:00Z`
+- behavior_verified_at: `2026-10-05T07:07:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit a1c8699c4abaf97c86b9d712f1f60e613442e669`
+- behavior_verification_target: `working tree based on 5282e4bdff91602f91dae7630ccead12dae91106`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration·Node contract·desktop compile`
-- behavior_verification_evidence: `backend 89 PASS·2 declared ignore + integration 2/2, Node 204/204, desktop cargo check --locked, diff check, independent review APPROVED`
+- behavior_verification_evidence: `channel ping backend 21/21, overlay interface 3/3, desktop build, diff check, IDE diagnostics`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.5 실시간 핑 확인 source 설계와 현재 미검증 상태를 구분해 반영`
-- known_gaps: `실제 게임 TCP EStats RTT·채널 식별, 상단 compact·Windows 키 expanded 전환, 혼합 DPI 수동 QA와 package·배포는 NOT_RUN`
+- freshness_reason: `0.4.5 실시간 점수 확인 source 설계와 현재 미검증 상태를 구분해 반영`
+- known_gaps: `최신 평균·최대 RTT 표시 잘림, shell foreground 제한, 채널 전환 초기화, 혼합 DPI·package·배포는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 실제 접속 채널 상시 표시, 안정성 판정, 분산 측정, 기능명 변경`
 - feature_map: `updated — 신규 기능 identity·흐름·writer·시나리오·검증 범위를 추가함`
 - architecture_impact: `채널 CSV/cache writer, TCP worker, foreground input adapter, click-through auxiliary window`
@@ -29,42 +29,42 @@
 
 ## FEAT-NOGIREM-CHANNEL-PING
 
-- canonical_name: `마비노기 실시간 핑 확인`
+- canonical_name: `마비노기 실시간 점수 확인`
 - aliases: `채널별 핑`, `채널 핑`, `핑 오버레이`
 - lifecycle: `ACTIVE`
 - lifecycle_reason: `GitHub v0.4.4 정식 Release로 설치형·포터블과 signed update manifest를 공개함`
 - owners: `product=nogirem maintainer`, `technical=channel ping backend owner`
-- purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint를 60초에 걸쳐 분산 측정하고 최근 20회 성공·실패의 중앙값·변동·실패율을 메모리에 유지한다. 검증된 마비노기 전경 TCP 연결이 CSV endpoint와 일치하면 상단 중앙에 현재 채널·실제 RTT·쉬운 상태를 상시 표시하고, 좌·우 Windows 키로 중앙 전체 채널표를 펼친다.
+- purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 초기 3표본을 약 30초에 순차 수집하고 이후 60초 주기로 분산 측정해 최근 20회 성공·실패의 변동 점수를 메모리에 유지한다. 검증된 마비노기 전경 TCP 연결이 CSV endpoint와 일치하면 별도 상단 창에 현재 채널·현재 Windows `SmoothedRtt`·최근 3분 표본 평균·표본 최대·재전송·상태를 표시하고, 좌·우 Windows 키로 독립된 중앙 전체 채널표를 함께 펼친다.
 - exclusions: ICMP 왕복시간, 서버 내부 처리시간, 직접 패킷 손실 측정, 임의 endpoint·URL 입력, Windows 키 차단, 게임 프로세스 주입은 지원하지 않는다.
 - personas_permissions_accessibility_entry: Windows 사용자가 고급 기능에서 선택적으로 켜고 끈다. 숫자와 `안정적`·`보통`·`불안정`·`연결 불가`·`확인 중` 문구를 함께 표시해 색상이나 네트워크 전문 용어에 의존하지 않는다.
 - preconditions_dependencies: Windows, 실행 중인 Rust 앱, 검증 가능한 마비노기 `Client.exe`, 저수준 keyboard·mouse hook, 고정 GitHub raw HTTPS URL, WebView2, 공개 채널 TCP endpoint.
 - normal_error_cancel_retry_flow: 앱 시작 시 원격 CSV를 제한 크기·UTF-8·header·연속 channel·IP·port 기준으로 검증하고 성공 시 cache에 원자 저장한다. 실패하면 마지막 유효 cache, 그다음 package CSV를 사용한다. endpoint 연결 실패가 있으면 시작 확인 이후 최대 1시간에 한 번 원격 파일을 다시 확인한다.
-- concurrency_partial_failure_recovery: CSV 갱신 operation lock이 cache 교체를 직렬화하고 RwLock snapshot이 overlay reader와 측정 worker를 분리한다. 채널 측정은 60초 동안 하나씩 분산하며 한 채널 실패가 다른 이력을 지우지 않는다. endpoint가 바뀐 채널만 이전 표본을 폐기하고 2ms 이내 종합 점수는 공동 추천한다.
-- state_side_effects_limits: `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv` cache만 지속한다. 표본·실제 연결·창 mode는 메모리에만 있으며 앱 종료 시 폐기된다. 기능을 끄면 input hook·TCP 측정·실제 연결 조회·창 표시를 중단한다. 검증된 게임이 전경일 때만 1초마다 TCP table을 읽고 해당 connection의 Windows EStats 수집을 활성화·조회한다.
-- modules_contracts: `desktop/src/ui.rs` → `service.rs` → `channel_ping.rs`; `service_windows.rs`와 `desktop/src/native.rs`가 제한된 auxiliary window command를 중계하고 overlay preload는 읽기 전용 status IPC 하나만 노출한다.
+- concurrency_partial_failure_recovery: CSV 갱신 operation lock이 cache 교체를 직렬화하고 RwLock snapshot이 overlay reader와 측정 worker를 분리한다. 한 채널 실패가 다른 이력을 지우지 않고 endpoint가 바뀐 채널만 이전 표본을 폐기한다. 목록 최저 점수 동률은 같은 품질 색상으로 함께 강조한다.
+- state_side_effects_limits: `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv` cache만 지속한다. 채널 표본과 실제 연결의 최근 3분 `SmoothedRtt` 표본·창 mode는 메모리에만 있으며 앱 종료·기능 해제 시 폐기된다. 실제 연결 identity가 바뀌면 평균·표본 최대 이력을 초기화한다. 표본 최대는 원시 패킷 RTT 최대를 보장하지 않는다. 검증된 게임이 전경일 때만 1초마다 TCP table을 읽고 해당 connection의 Windows EStats 수집을 활성화·조회한다.
+- modules_contracts: `desktop/src/ui.rs` → `service.rs` → `channel_ping.rs`; `service_windows.rs`와 `desktop/src/native.rs`가 `channel-ping-live`·`channel-ping-overlay`의 독립 window identity를 중계하고 두 preload는 같은 읽기 전용 status IPC 하나만 노출한다.
 - durable_data_owner: `channel_ping.rs`가 setting과 CSV cache의 유일한 writer다. 패키지 `channel.csv`는 fallback source이며 packager만 배포 payload에 복사한다.
 - security_privacy: 고정 HTTPS URL과 공개 IPv4 literal·port만 허용하며 사용자 endpoint나 인증값을 받지 않는다. 실행 경로가 정본 게임 조건을 충족한 전경 process instance가 소유하고 CSV endpoint와 정확히 일치하는 established 5-tuple만 처리한다. 게임 메모리·패킷을 읽거나 주입하지 않고 공개 endpoint 외 사용자 데이터를 전송하지 않는다.
-- scenarios: `PING-001 startup 원격 갱신`, `PING-002 cache·package fallback`, `PING-003 분산 측정·20회 안정성`, `PING-004 실패 중 1시간 갱신`, `PING-005 게임 전경 compact 상시 표시`, `PING-006 Win 키 expanded·후속 down compact 복귀`, `PING-007 실제 PID·endpoint TCP EStats`, `PING-008 비활성·비전경 유휴`, `PING-009 package 입력`
+- scenarios: `PING-001 startup 원격 갱신`, `PING-002 cache·package fallback`, `PING-003 초기 가속·분산 측정·20회 변동 점수`, `PING-004 실패 중 1시간 갱신`, `PING-005 게임 전경 compact 표시·비전경 숨김`, `PING-006 독립 Win 키 expanded·후속 down은 expanded만 숨김`, `PING-007 실제 PID·endpoint TCP EStats`, `PING-008 비활성·비전경 유휴`, `PING-009 두 HTML·preload package 입력`, `PING-010 점수 색상·최저 강조`, `PING-011 실제 연결 평균·최대·재전송과 identity 초기화`
 - observability_evidence: 고급 기능 sync fallback 문구, overlay 측정 경과 시간·채널 상태, `channel_ping.rs` unit tests, `test/overlay-interface.test.mjs`, native IPC contract test.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 채널 핑 network·input·auxiliary window 경계.
 - record_id: `FEAT-NOGIREM-CHANNEL-PING`
 - owner: `nogirem maintainer`
-- revision: `5`
-- updated_at: `2026-10-04T23:01:00Z`
+- revision: `6`
+- updated_at: `2026-10-05T07:07:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-04T23:01:00Z`
+- source_reviewed_at: `2026-10-05T07:07:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit a1c8699c4abaf97c86b9d712f1f60e613442e669, base a68c85f1da24a19e19305dc1f4b058ce72c0cc29`
+- source_review_target: `working tree based on 5282e4bdff91602f91dae7630ccead12dae91106; exact local commit pending`
 - source_review_evidence: `run task source paths SELF_REVIEW`
-- behavior_verified_at: `2026-10-04T23:20:00Z`
+- behavior_verified_at: `2026-10-05T07:07:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit a1c8699c4abaf97c86b9d712f1f60e613442e669`
+- behavior_verification_target: `working tree based on 5282e4bdff91602f91dae7630ccead12dae91106`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `backend 89 PASS·2 declared ignore + integration 2/2, Node 204/204, desktop compile, independent review APPROVED`
+- behavior_verification_evidence: `channel ping backend 21/21, overlay interface 3/3, desktop build, diff check, IDE diagnostics`
 - freshness_status: `CURRENT`
 - freshness_reason: `0.4.5 source 의미와 QA 대기 상태를 정확히 반영`
-- known_gaps: `실게임 actual RTT·compact 위치·mode 전환·DPI·원격 갱신·설치·제거 종단간은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 실시간 핑 확인 개편`
+- known_gaps: `최신 실제 연결 평균·최대 UI와 비전경 숨김·DPI·설치·제거 종단간은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 실시간 점수 확인 개편`
 - feature_map: `updated — 이 entry를 신규 canonical identity로 추가`
 - architecture_impact: `channel ping capability·cache writer·Win32 input·auxiliary window 경계`
 - architecture_contract: `updated — 관련 contract section과 연결`
