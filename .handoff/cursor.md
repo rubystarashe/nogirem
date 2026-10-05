@@ -26,7 +26,7 @@ Last Updated: 2026-10-05 16:10 +09:00
 - 기능명을 `채널별 핑`에서 `실시간 게임 서버 모니터링`으로 변경하고 중앙 전체 채널 창의 제목은 `채널별 서버 점수`로 지정했다. 고정 GitHub raw CSV의 검증·cache→package fallback과 설정 single writer는 유지한다.
 - endpoint가 있는 채널은 초기 3표본을 약 30초에 순차 수집한 뒤 60초 동안 하나씩 분산 측정한다. 목록은 최근 20회 연결 시험의 평균 절대편차에 100을 곱한 정수 점수를 표시하고, 0.5·1.0·1.5ms 경계로 녹색·노란색·주황색·빨간색을 적용한다.
 - 정본 마비노기 전경 process handle을 조회 완료까지 유지하고 CSV IP:port와 정확히 일치하는 established 5-tuple만 현재 채널 후보로 인정한다. 동일 connection identity를 유지하고 모호한 복수 연결은 표시하지 않으며, connection-scoped Windows TCP EStats 수집 활성화·조회 결과를 반영한다.
-- 게임이 전경이고 실제 RTT가 확보되면 별도 `channel-ping-live` 창이 화면 상단 중앙에 `채널 · TCP 추정 · 평균 · 최대 · 재전송`을 표시한다. 기본 TCP 추정은 `SmoothedRtt + RttVar`, 최근 유효 표본보다 재전송·타임아웃이 증가한 표본은 `SmoothedRtt + 4×RttVar`다. 평균과 최대는 동일 5-tuple에서 1초마다 계산한 최근 3분 TCP 추정 표본 기준이며 원시 패킷 RTT 최대나 게임 처리·입력·렌더링 지연을 뜻하지 않는다. 일시 무효 표본은 counter 기준을 유지하고 연결 identity가 바뀌면 초기화한다. 좌·우 Windows 키는 독립된 `channel-ping-overlay` 전체표를 중앙에 함께 표시하며 다음 keyboard·mouse down은 전체표만 숨긴다.
+- 게임이 전경이고 실제 RTT가 확보되면 별도 `channel-ping-live` 창이 화면 상단 중앙에 `채널 · TCP 추정 · 평균 · 최대 · 재전송 · TCP 시간초과 · 수신 중복 ACK · 혼잡 신호`를 표시한다. 기본 TCP 추정은 `SmoothedRtt + RttVar`, 최근 유효 표본보다 네 TCP 경로 counter 중 하나라도 증가한 표본은 `SmoothedRtt + 4×RttVar`다. 평균과 최대는 동일 5-tuple에서 1초마다 계산한 최근 3분 TCP 추정 표본 기준이며 원시 패킷 RTT 최대나 게임 처리·입력·렌더링 지연을 뜻하지 않는다. 일시 무효 표본은 counter 기준을 유지하고 연결 identity가 바뀌면 초기화한다. 좌·우 Windows 키는 독립된 `channel-ping-overlay` 전체표를 중앙에 함께 표시하며 다음 keyboard·mouse down은 전체표만 숨긴다.
 - 상단 창은 100ms foreground 확인과 실제 HWND visibility 재확인으로 다른 앱 전환 시 숨고, 전체표 표시 중에만 Windows shell focus 전환에도 유지된다. RTT가 없는 채널 전환 중간 상태도 표시하지 않는다. 보이는 배경은 문구 `max-content`와 최소 padding만 감싸며 TCP 추정 `0~10`, `11~20`, `21~30`, `31+ms`를 녹색·노란색·주황색·빨간색으로 표시한다. 실제 TCP 조회는 게임 전경에서만 1초 주기로 수행한다.
 - 기능 활성 중에만 `WH_KEYBOARD_LL`·`WH_MOUSE_LL`을 전용 message thread에 설치한다. 두 mode 모두 click-through·비활성·topmost이며 게임 프로세스 주입·패킷 캡처는 하지 않는다.
 - 0.4.5 자동 검사는 backend 89 PASS·2 declared ignore와 integration 2/2, Node 204/204, desktop locked check, diff check를 통과했다. 독립 review에서 PID 재사용·복수 연결·EStats 오류 finding 3개를 수정해 round 2 `APPROVED`를 받았다.
@@ -38,7 +38,7 @@ Last Updated: 2026-10-05 16:10 +09:00
 - IP 구간 간격 변경은 overlay interface 3/3, Node syntax, diff check, IDE diagnostics를 통과했고 `SELF_REVIEW APPROVED`다. 최신 debug 앱을 실행했으며 직전 0.4.5 package에는 이 후속 변경이 포함되지 않았다.
 - 최신 자동 검사는 channel ping 관련 22/22와 overlay-interface 3/3, desktop build, diff check, 변경 파일 lint 0을 통과했다.
 - 독립 review `REV-CHANNEL-QUALITY-045-R4`는 actual HWND 반복 숨김·평균 절대편차 단일 반올림·RTT 색상과 compact 문서 정합성을 재검토해 `APPROVED`했다.
-- TCP 추정 변경은 channel ping 25/25, overlay 3/3, desktop check·build, diff check, IDE diagnostics를 통과했다. 독립 review `REV-CHANNEL-QUALITY-045-R5`는 click-through 표현·최근 유효 counter baseline·reset/overflow·canonical 문서 의미를 재검토해 `APPROVED`했다.
+- TCP 추정과 네 TCP 경로 지표 변경은 channel ping 26/26, overlay 3/3, diff check를 통과했다. 상단 native 영역은 640×30으로 넓히고 모든 숫자를 `k/m/b`로 축약하되 visible 배경은 `max-content`를 유지한다. 직전 0.4.5 package에는 이 변경이 포함되지 않았다.
 - 중앙 expanded 창의 document·heading·native title을 `채널별 서버 점수`로 변경했고 overlay interface 3/3, desktop locked check·build, diff check·IDE diagnostics가 통과했다. 제목 변경은 `SELF_REVIEW APPROVED`이며 최신 debug 앱을 다시 실행했다.
 - 후속 자동 검사는 channel ping 관련 11/11, overlay-interface 3/3, desktop locked check, JavaScript syntax, 변경 파일 lint 0을 통과했고 HWND 수명 경합 수정까지 독립 재리뷰 `APPROVED`를 받았다. 최신 빌드의 물리 입력 즉시 숨김과 최종 시각 확인은 남아 있다.
 - channel ping 8/8을 기본 병렬 설정으로 10회 반복했고 backend 79 PASS·2 declared ignore와 integration 2/2, Node 203/203, desktop locked check가 통과했다. 독립 review는 모든 must-fix 해결 후 `APPROVED`다. 실제 게임·DPI·물리 입력과 package 실행은 NOT_RUN이며 push·배포는 하지 않았다.

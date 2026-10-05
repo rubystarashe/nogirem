@@ -687,7 +687,7 @@ impl Windows {
                 json!({"width":584,"height":400,"title":"채널별 서버 점수","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":true})
             }
             "channel-ping-live" => {
-                json!({"width":420,"height":30,"title":"실시간 점수 확인","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":false})
+                json!({"width":640,"height":30,"title":"실시간 점수 확인","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":false})
             }
             _ => return Err("허용되지 않은 보조 창".into()),
         };

@@ -82,13 +82,25 @@
       return "failed"
     }
 
+    function compactNumber(value) {
+      if (value == null) return "-"
+      const number = Number(value)
+      if (!Number.isFinite(number) || number < 0) return "-"
+      if (number < 1000) return `${Math.round(number)}`
+      if (number < 10000) return `${(number / 1000).toFixed(1)}k`
+      if (number < 1000000) return `${Math.round(number / 1000)}k`
+      if (number < 10000000) return `${(number / 1000000).toFixed(1)}m`
+      if (number < 1000000000) return `${Math.round(number / 1000000)}m`
+      return `${(number / 1000000000).toFixed(1)}b`
+    }
+
     async function refresh() {
       try {
         const current = (await window.channelPing.getStatus()).activeConnection
         status.hidden = !current || current.estimatedLatencyMs == null
         if (status.hidden) return
         status.className = latencyClass(current.estimatedLatencyMs)
-        status.textContent = `${current.channel}채널 · TCP 추정 ${current.estimatedLatencyMs} ms · 평균 ${current.averageLatencyMs ?? "-"} ms · 최대 ${current.maximumLatencyMs ?? "-"} ms · 재전송 ${current.packetsRetransmitted ?? 0}`
+        status.textContent = `${current.channel}채널 · TCP 추정 ${compactNumber(current.estimatedLatencyMs)} ms · 평균 ${compactNumber(current.averageLatencyMs)} ms · 최대 ${compactNumber(current.maximumLatencyMs)} ms · 재전송 ${compactNumber(current.packetsRetransmitted)} · TCP 시간초과 ${compactNumber(current.tcpTimeouts)} · 수신 중복 ACK ${compactNumber(current.duplicateAcksReceived)} · 혼잡 신호 ${compactNumber(current.congestionSignals)}`
       } catch {
         status.hidden = false
         status.className = "failed"

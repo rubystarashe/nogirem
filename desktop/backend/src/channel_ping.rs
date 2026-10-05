@@ -185,8 +185,12 @@ struct ActiveConnection {
     quality: &'static str,
     packets_retransmitted: u32,
     packets_retransmitted_delta: u32,
-    timeouts: u32,
-    timeouts_delta: u32,
+    tcp_timeouts: u32,
+    tcp_timeouts_delta: u32,
+    duplicate_acks_received: u32,
+    duplicate_acks_received_delta: u32,
+    congestion_signals: u32,
+    congestion_signals_delta: u32,
     probe_error: Option<String>,
     measured_at: u64,
 }
@@ -196,7 +200,9 @@ struct ActiveLatencyHistory {
     identity: Option<TcpConnectionIdentity>,
     samples: VecDeque<(Instant, u32)>,
     packets_retransmitted: Option<u32>,
-    timeouts: Option<u32>,
+    tcp_timeouts: Option<u32>,
+    duplicate_acks_received: Option<u32>,
+    congestion_signals: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -292,8 +298,12 @@ impl ChannelPing {
                 "maximumLatencyMs": active.maximum_latency_ms,
                 "packetsRetransmitted": active.packets_retransmitted,
                 "packetsRetransmittedDelta": active.packets_retransmitted_delta,
-                "timeouts": active.timeouts,
-                "timeoutsDelta": active.timeouts_delta,
+                "tcpTimeouts": active.tcp_timeouts,
+                "tcpTimeoutsDelta": active.tcp_timeouts_delta,
+                "duplicateAcksReceived": active.duplicate_acks_received,
+                "duplicateAcksReceivedDelta": active.duplicate_acks_received_delta,
+                "congestionSignals": active.congestion_signals,
+                "congestionSignalsDelta": active.congestion_signals_delta,
                 "quality": active.quality,
                 "measuredAt": active.measured_at
             })),
@@ -698,8 +708,12 @@ fn active_game_connection(
                 quality,
                 packets_retransmitted: path.PktsRetrans,
                 packets_retransmitted_delta: 0,
-                timeouts: path.Timeouts,
-                timeouts_delta: 0,
+                tcp_timeouts: path.Timeouts,
+                tcp_timeouts_delta: 0,
+                duplicate_acks_received: path.DupAcksIn,
+                duplicate_acks_received_delta: 0,
+                congestion_signals: path.CongSignals,
+                congestion_signals_delta: 0,
                 probe_error: None,
                 measured_at: crate::now_ms(),
             });
@@ -736,8 +750,12 @@ fn active_game_connection(
             quality: "확인 중",
             packets_retransmitted: 0,
             packets_retransmitted_delta: 0,
-            timeouts: 0,
-            timeouts_delta: 0,
+            tcp_timeouts: 0,
+            tcp_timeouts_delta: 0,
+            duplicate_acks_received: 0,
+            duplicate_acks_received_delta: 0,
+            congestion_signals: 0,
+            congestion_signals_delta: 0,
             probe_error,
             measured_at: crate::now_ms(),
         });
@@ -813,7 +831,9 @@ fn update_active_latency_history(
         history.identity = Some(current.identity);
         history.samples.clear();
         history.packets_retransmitted = None;
-        history.timeouts = None;
+        history.tcp_timeouts = None;
+        history.duplicate_acks_received = None;
+        history.congestion_signals = None;
     }
     let now = Instant::now();
     while history
@@ -828,13 +848,26 @@ fn update_active_latency_history(
             .packets_retransmitted
             .map(|previous| current.packets_retransmitted.saturating_sub(previous))
             .unwrap_or(0);
-        current.timeouts_delta = history
-            .timeouts
-            .map(|previous| current.timeouts.saturating_sub(previous))
+        current.tcp_timeouts_delta = history
+            .tcp_timeouts
+            .map(|previous| current.tcp_timeouts.saturating_sub(previous))
+            .unwrap_or(0);
+        current.duplicate_acks_received_delta = history
+            .duplicate_acks_received
+            .map(|previous| current.duplicate_acks_received.saturating_sub(previous))
+            .unwrap_or(0);
+        current.congestion_signals_delta = history
+            .congestion_signals
+            .map(|previous| current.congestion_signals.saturating_sub(previous))
             .unwrap_or(0);
         history.packets_retransmitted = Some(current.packets_retransmitted);
-        history.timeouts = Some(current.timeouts);
-        let degraded = current.packets_retransmitted_delta > 0 || current.timeouts_delta > 0;
+        history.tcp_timeouts = Some(current.tcp_timeouts);
+        history.duplicate_acks_received = Some(current.duplicate_acks_received);
+        history.congestion_signals = Some(current.congestion_signals);
+        let degraded = current.packets_retransmitted_delta > 0
+            || current.tcp_timeouts_delta > 0
+            || current.duplicate_acks_received_delta > 0
+            || current.congestion_signals_delta > 0;
         let latency_ms = estimate_latency(rtt_ms, variation_ms, degraded);
         current.estimated_latency_ms = Some(latency_ms);
         if degraded {
@@ -1195,7 +1228,7 @@ fn game_bounds(env: &Environment, window: usize) -> Option<(OverlayBounds, u32)>
 pub fn foreground_compact_target(env: &Environment) -> Option<(OverlayBounds, u32)> {
     let window =
         unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } as usize;
-    overlay_bounds(env, window, 420.0, 30.0, Some(12.0))
+    overlay_bounds(env, window, 640.0, 30.0, Some(12.0))
 }
 
 #[cfg(windows)]
@@ -1637,8 +1670,12 @@ mod tests {
             quality: "안정적",
             packets_retransmitted: 0,
             packets_retransmitted_delta: 0,
-            timeouts: 0,
-            timeouts_delta: 0,
+            tcp_timeouts: 0,
+            tcp_timeouts_delta: 0,
+            duplicate_acks_received: 0,
+            duplicate_acks_received_delta: 0,
+            congestion_signals: 0,
+            congestion_signals_delta: 0,
             probe_error: None,
             measured_at: 1,
         }
@@ -1771,7 +1808,9 @@ mod tests {
         let mut history = ActiveLatencyHistory::default();
         let mut first = active_candidate(identity, 1, Some(5));
         first.packets_retransmitted = 10;
-        first.timeouts = 2;
+        first.tcp_timeouts = 2;
+        first.duplicate_acks_received = 4;
+        first.congestion_signals = 2;
         update_active_latency_history(&mut history, &mut first);
 
         let mut invalid = active_candidate(identity, 1, None);
@@ -1779,11 +1818,43 @@ mod tests {
 
         let mut recovered = active_candidate(identity, 1, Some(5));
         recovered.packets_retransmitted = 12;
-        recovered.timeouts = 3;
+        recovered.tcp_timeouts = 3;
+        recovered.duplicate_acks_received = 6;
+        recovered.congestion_signals = 3;
         update_active_latency_history(&mut history, &mut recovered);
         assert_eq!(recovered.packets_retransmitted_delta, 2);
-        assert_eq!(recovered.timeouts_delta, 1);
+        assert_eq!(recovered.tcp_timeouts_delta, 1);
+        assert_eq!(recovered.duplicate_acks_received_delta, 2);
+        assert_eq!(recovered.congestion_signals_delta, 1);
         assert_eq!(recovered.estimated_latency_ms, Some(9));
+    }
+
+    #[test]
+    fn 중복_ack와_혼잡_신호_증가도_tcp_추정에_반영한다() {
+        let identity = TcpConnectionIdentity {
+            pid: 1,
+            local_address: 1,
+            local_port: 2,
+            remote_address: 3,
+            remote_port: 4,
+        };
+        let mut history = ActiveLatencyHistory::default();
+        let mut first = active_candidate(identity, 1, Some(5));
+        update_active_latency_history(&mut history, &mut first);
+
+        let mut duplicate_ack = active_candidate(identity, 1, Some(5));
+        duplicate_ack.duplicate_acks_received = 1;
+        update_active_latency_history(&mut history, &mut duplicate_ack);
+        assert_eq!(duplicate_ack.duplicate_acks_received_delta, 1);
+        assert_eq!(duplicate_ack.estimated_latency_ms, Some(9));
+
+        let mut congestion = active_candidate(identity, 1, Some(5));
+        congestion.duplicate_acks_received = 1;
+        congestion.congestion_signals = 1;
+        update_active_latency_history(&mut history, &mut congestion);
+        assert_eq!(congestion.duplicate_acks_received_delta, 0);
+        assert_eq!(congestion.congestion_signals_delta, 1);
+        assert_eq!(congestion.estimated_latency_ms, Some(9));
     }
 
     #[test]

@@ -221,6 +221,28 @@
 - push_status: `NOT_RUN — 승인되지 않음`
 - deployment_status: `NOT_RUN — 승인되지 않음`
 
+## Feedback FB-CHANNEL-045-012 — 상단 혼잡 counter 표시
+
+- received_at: `2026-10-05T09:18:00Z`
+- classification: `ENHANCEMENT`
+- severity: `MEDIUM`
+- must_fix: `true`
+- expected: 상단 창에 누적 재전송·TCP 시간초과·수신 중복 ACK·혼잡 신호를 함께 표시하고 최근 유효 poll 대비 네 counter 증가를 TCP 추정에 반영한다.
+- disposition: `READY_FOR_VERIFICATION`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 상단 TCP 경로 관측 지표 4종과 추정식 입력 확대`
+- feature_map: `updated — 표시 지표·관측 신호·추정 조건과 640×30 pending QA를 반영`
+- architecture_impact: `5-tuple별 DupAcksIn·CongSignals baseline과 status contract 추가`
+- architecture_contract: `updated — 네 counter의 invalid/reset 처리와 read-only UI 경계를 반영`
+- risk: `MEDIUM — status contract와 사용자 표시가 확장되지만 durable data·패킷 캡처·외부 통신은 변경하지 않음`
+- formula: `PktsRetrans·Timeouts·DupAcksIn·CongSignals delta 중 하나라도 양수면 SmoothedRtt + 4×RttVar`
+- status_contract: `packetsRetransmitted·tcpTimeouts·duplicateAcksReceived·congestionSignals와 각 Delta`
+- window_contract: `native 640×30, 모든 숫자 k/m/b 고정 길이 축약, visible pill max-content, click-through`
+- automated_validation: `channel ping backend 26/26 PASS, overlay interface 3/3 PASS, desktop locked check PASS, diff check PASS, IDE diagnostics PASS`
+- render_validation: `Chromium 640×30, 모든 수치 u32::MAX fixture에서 pill 597.59px·right 618.80px·scrollWidth 596px, clipped=false`
+- render_evidence: `tcp-indicators-640.png — Cursor 임시 screenshot, 장기 보존 미보장`
+- review_round: `REV-CHANNEL-QUALITY-045-R6 — 1차 CHANGES_REQUESTED의 clipping·status 의미·canonical freshness 수정 후 rereview 대기`
+- manual_validation: `NOT_RUN — 실제 게임 native WebView와 전투 중 counter 변화 확인 필요`
+
 ## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
 
 - received_at: `2026-10-05T07:35:00Z`
