@@ -245,6 +245,7 @@
 - review_verdict: `APPROVED — 이전 must-fix 3건 RESOLVED, 신규 must-fix 없음`
 - manual_validation: `NOT_RUN — 실제 게임 native WebView와 전투 중 counter 변화 확인 필요`
 - implementation_commit: `e028b61b2c4989ad42375626455de1a79019eb08`
+- clipping_followup_commit: `37c4790100f1007b8231e5dcd8e5e5ade22b3ba7`
 - push_status: `NOT_RUN — 승인되지 않음`
 - deployment_status: `NOT_RUN — 승인되지 않음`
 
