@@ -2,21 +2,21 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `10`
-- updated_at: `2026-10-05T08:58:00Z`
+- revision: `11`
+- updated_at: `2026-10-05T09:32:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T08:58:00Z`
+- source_reviewed_at: `2026-10-05T09:32:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 92d0db9b8087bcd680054ca3f7bb87b504e5ca46, base 0015ce5b77716b064e432335dd61f4ccd8f560e8`
-- source_review_evidence: `TCP estimate·Win32 TCP EStats counter baseline·live window source; REV-CHANNEL-QUALITY-045-R5 INDEPENDENT_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T08:58:00Z`
+- source_review_target: `source commit e028b61b2c4989ad42375626455de1a79019eb08, base 901d9aca53f8116cf9d86eb4fd7064a68bc007dd`
+- source_review_evidence: `TCP path counter semantics·baseline·640×30 live window source; REV-CHANNEL-QUALITY-045-R6 INDEPENDENT_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-05T09:32:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 92d0db9b8087bcd680054ca3f7bb87b504e5ca46`
+- behavior_verification_target: `source commit e028b61b2c4989ad42375626455de1a79019eb08`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `channel ping backend 25/25, overlay interface 3/3, desktop check·build, diff check, IDE diagnostics`
+- behavior_verification_evidence: `channel ping backend 26/26, overlay interface 3/3, desktop check, diff check, IDE diagnostics; Chromium 640×30 u32-max clipped=false`
 - freshness_status: `CURRENT`
 - freshness_reason: `실시간 게임 서버 모니터링의 분산 측정·실제 TCP read·compact/expanded 경계를 source와 일치시킴`
-- known_gaps: `별도 dependency graph lint가 없고 실제 전투 TCP 추정·actual HWND 비전경 숨김·DPI·최신 package 수동 QA는 NOT_RUN`
+- known_gaps: `별도 dependency graph lint가 없고 실제 게임 native WebView counter 변화·actual HWND 비전경 숨김·DPI·최신 package 수동 QA는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 안정성 판정·실제 연결·상시 compact 오버레이`
 - feature_map: `updated — feature-map.md의 신규 채널 핑 identity와 연결됨`
 - architecture_impact: `channel CSV/cache single writer, staggered TCP worker, owner-PID TCP EStats collector, low-level input hooks, compact/expanded click-through window`

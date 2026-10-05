@@ -115,6 +115,7 @@ test("실시간 점수 창은 초소형·전체 모드 모두 클릭 통과 topm
   assert.match(live, /수신 중복 ACK[\s\S]+current\.duplicateAcksReceived/)
   assert.match(live, /혼잡 신호[\s\S]+current\.congestionSignals/)
   assert.match(live, /function compactNumber[\s\S]+number < 1000[\s\S]+toFixed\(1\).*k[\s\S]+toFixed\(1\).*m[\s\S]+toFixed\(1\).*b/)
+  assert.match(live, /number < 999500[\s\S]+number < 999500000/)
   assert.doesNotMatch(live, /status\.title/)
   assert.doesNotMatch(live, /\$\{current\.quality\}/)
   assert.match(backend, /ACTIVE_LATENCY_WINDOW[\s\S]+3 \* 60/)

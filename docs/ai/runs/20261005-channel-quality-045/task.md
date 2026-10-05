@@ -228,7 +228,7 @@
 - severity: `MEDIUM`
 - must_fix: `true`
 - expected: 상단 창에 누적 재전송·TCP 시간초과·수신 중복 ACK·혼잡 신호를 함께 표시하고 최근 유효 poll 대비 네 counter 증가를 TCP 추정에 반영한다.
-- disposition: `READY_FOR_VERIFICATION`
+- disposition: `FIXED`
 - feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 상단 TCP 경로 관측 지표 4종과 추정식 입력 확대`
 - feature_map: `updated — 표시 지표·관측 신호·추정 조건과 640×30 pending QA를 반영`
 - architecture_impact: `5-tuple별 DupAcksIn·CongSignals baseline과 status contract 추가`
@@ -238,10 +238,15 @@
 - status_contract: `packetsRetransmitted·tcpTimeouts·duplicateAcksReceived·congestionSignals와 각 Delta`
 - window_contract: `native 640×30, 모든 숫자 k/m/b 고정 길이 축약, visible pill max-content, click-through`
 - automated_validation: `channel ping backend 26/26 PASS, overlay interface 3/3 PASS, desktop locked check PASS, diff check PASS, IDE diagnostics PASS`
-- render_validation: `Chromium 640×30, 모든 수치 u32::MAX fixture에서 pill 597.59px·right 618.80px·scrollWidth 596px, clipped=false`
+- render_validation: `Chromium 640×30, 축약 경계 999500000 fixture에서 pill 597.59px·right 618.80px·scrollWidth 596px, clipped=false; reviewer의 최장 999m fixture도 scrollWidth/clientWidth 638px, clipped=false`
 - render_evidence: `tcp-indicators-640.png — Cursor 임시 screenshot, 장기 보존 미보장`
-- review_round: `REV-CHANNEL-QUALITY-045-R6 — 1차 CHANGES_REQUESTED의 clipping·status 의미·canonical freshness 수정 후 rereview 대기`
+- review_round: `REV-CHANNEL-QUALITY-045-R6 — 1차 CHANGES_REQUESTED의 clipping·status 의미·canonical freshness를 수정하고 최종 APPROVED`
+- review_mode: `INDEPENDENT_REVIEW`
+- review_verdict: `APPROVED — 이전 must-fix 3건 RESOLVED, 신규 must-fix 없음`
 - manual_validation: `NOT_RUN — 실제 게임 native WebView와 전투 중 counter 변화 확인 필요`
+- implementation_commit: `e028b61b2c4989ad42375626455de1a79019eb08`
+- push_status: `NOT_RUN — 승인되지 않음`
+- deployment_status: `NOT_RUN — 승인되지 않음`
 
 ## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
 

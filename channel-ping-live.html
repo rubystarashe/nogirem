@@ -88,9 +88,9 @@
       if (!Number.isFinite(number) || number < 0) return "-"
       if (number < 1000) return `${Math.round(number)}`
       if (number < 10000) return `${(number / 1000).toFixed(1)}k`
-      if (number < 1000000) return `${Math.round(number / 1000)}k`
+      if (number < 999500) return `${Math.round(number / 1000)}k`
       if (number < 10000000) return `${(number / 1000000).toFixed(1)}m`
-      if (number < 1000000000) return `${Math.round(number / 1000000)}m`
+      if (number < 999500000) return `${Math.round(number / 1000000)}m`
       return `${(number / 1000000000).toFixed(1)}b`
     }
 
