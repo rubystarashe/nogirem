@@ -217,6 +217,9 @@
 - review_mode: `INDEPENDENT_REVIEW`
 - review_verdict: `APPROVED — click-through 표현, invalid baseline, reset·overflow, 추정 통계 의미와 canonical 문서 정합성 확인`
 - manual_validation: `NOT_RUN — 실제 전투 중 TCP 추정값과 420×30 표시를 사용자 환경에서 확인 필요`
+- implementation_commit: `92d0db9b8087bcd680054ca3f7bb87b504e5ca46`
+- push_status: `NOT_RUN — 승인되지 않음`
+- deployment_status: `NOT_RUN — 승인되지 않음`
 
 ## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
 
