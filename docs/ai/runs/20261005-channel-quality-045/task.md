@@ -274,6 +274,41 @@
 - push_status: `NOT_RUN — 승인되지 않음`
 - deployment_status: `NOT_RUN — 승인되지 않음`
 
+## Feedback FB-CHANNEL-045-014 — 1분 지표·문구·색상
+
+- received_at: `2026-10-05T10:27:00Z`
+- classification: `REQUIREMENT_CLARIFICATION`
+- severity: `MEDIUM`
+- must_fix: `true`
+- expected: 상단의 최대와 재전송·시간초과·중복·혼잡 발생량을 모두 최근 1분 기준으로 표시하고 문구를 축약한다. 최대 색상은 `0~40` 녹색, `41~70` 노란색, `71~100` 주황색, `101+ms` 빨간색을 사용한다.
+- disposition: `IN_PROGRESS`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 상단 지표 기간·문구·색상 의미 변경`
+- feature_map: `updated — 1분 최대·발생량과 새 색상 구간을 반영`
+- architecture_impact: `5-tuple별 최근 1분 EStats delta queue와 read-only status recent fields 추가`
+- architecture_contract: `updated — rolling counter writer·reset·UI reader 경계를 반영`
+- risk: `MEDIUM — 사용자 표시와 status contract가 확장되지만 durable data·외부 통신·패킷 접근 방식은 변경하지 않음`
+- status_contract: `packetsRetransmittedRecent·tcpTimeoutsRecent·duplicateAcksReceivedRecent·congestionSignalsRecent`
+- automated_validation: `channel ping backend 28/28 PASS, overlay interface 3/3 PASS, desktop locked check PASS, diff check PASS, IDE diagnostics PASS`
+- render_validation: `Chromium 520×30, 최대와 네 recent 지표를 999m으로 표시해 pill 381.89px·right 450.94px·scrollWidth 380px, clipped=false; 40/41/70/71/100/101 경계 class 확인`
+- review_round: `REV-CHANNEL-QUALITY-045-R8 — ISSUE-045-016 canonical freshness와 ISSUE-045-017 rolling·reset·identity·ARIA 회귀 검사 수정 후 rereview 대기`
+- manual_validation: `NOT_RUN — 실제 게임에서 1분 만료·채널 변경 초기화·색상 확인 필요`
+
+## Feedback FB-CHANNEL-045-015 — 중앙 창 제목 변경
+
+- received_at: `2026-10-05T10:31:00Z`
+- classification: `REQUIREMENT_CLARIFICATION`
+- severity: `LOW`
+- must_fix: `true`
+- expected: 중앙 전체 채널 창의 document·heading·ARIA·native title을 `채널별 서버 지연 추측`으로 표시한다.
+- disposition: `IN_PROGRESS`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 중앙 창 사용자 노출 제목 변경`
+- feature_map: `updated — 새 제목을 canonical alias와 scope에 반영`
+- architecture_impact: `none — window identity·IPC·측정 writer는 변경하지 않음`
+- architecture_contract: `no_change — 기존 expanded renderer와 native registration 경계 유지`
+- risk: `LOW — 표시 문자열만 변경하며 behavioral data·integration·structure 영향 없음`
+- automated_validation: `overlay interface 3/3 PASS, desktop locked check PASS, diff check PASS, IDE diagnostics PASS`
+- manual_validation: `NOT_RUN — 실제 중앙 창 제목 확인 필요`
+
 ## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
 
 - received_at: `2026-10-05T07:35:00Z`

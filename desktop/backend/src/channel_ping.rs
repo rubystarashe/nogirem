@@ -22,7 +22,7 @@ const MEASURE_INTERVAL: Duration = Duration::from_secs(60);
 const WARMUP_MEASURE_INTERVAL: Duration = Duration::from_secs(10);
 const FAILURE_SYNC_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(900);
-const ACTIVE_LATENCY_WINDOW: Duration = Duration::from_secs(3 * 60);
+const ACTIVE_LATENCY_WINDOW: Duration = Duration::from_secs(60);
 type Microseconds = u32;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -185,12 +185,16 @@ struct ActiveConnection {
     quality: &'static str,
     packets_retransmitted: u32,
     packets_retransmitted_delta: u32,
+    packets_retransmitted_recent: u32,
     tcp_timeouts: u32,
     tcp_timeouts_delta: u32,
+    tcp_timeouts_recent: u32,
     duplicate_acks_received: u32,
     duplicate_acks_received_delta: u32,
+    duplicate_acks_received_recent: u32,
     congestion_signals: u32,
     congestion_signals_delta: u32,
+    congestion_signals_recent: u32,
     probe_error: Option<String>,
     measured_at: u64,
 }
@@ -199,10 +203,19 @@ struct ActiveConnection {
 struct ActiveLatencyHistory {
     identity: Option<TcpConnectionIdentity>,
     samples: VecDeque<(Instant, u32)>,
+    path_samples: VecDeque<(Instant, TcpPathDeltas)>,
     packets_retransmitted: Option<u32>,
     tcp_timeouts: Option<u32>,
     duplicate_acks_received: Option<u32>,
     congestion_signals: Option<u32>,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct TcpPathDeltas {
+    packets_retransmitted: u32,
+    tcp_timeouts: u32,
+    duplicate_acks_received: u32,
+    congestion_signals: u32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -298,12 +311,16 @@ impl ChannelPing {
                 "maximumLatencyMs": active.maximum_latency_ms,
                 "packetsRetransmitted": active.packets_retransmitted,
                 "packetsRetransmittedDelta": active.packets_retransmitted_delta,
+                "packetsRetransmittedRecent": active.packets_retransmitted_recent,
                 "tcpTimeouts": active.tcp_timeouts,
                 "tcpTimeoutsDelta": active.tcp_timeouts_delta,
+                "tcpTimeoutsRecent": active.tcp_timeouts_recent,
                 "duplicateAcksReceived": active.duplicate_acks_received,
                 "duplicateAcksReceivedDelta": active.duplicate_acks_received_delta,
+                "duplicateAcksReceivedRecent": active.duplicate_acks_received_recent,
                 "congestionSignals": active.congestion_signals,
                 "congestionSignalsDelta": active.congestion_signals_delta,
+                "congestionSignalsRecent": active.congestion_signals_recent,
                 "quality": active.quality,
                 "measuredAt": active.measured_at
             })),
@@ -708,12 +725,16 @@ fn active_game_connection(
                 quality,
                 packets_retransmitted: path.PktsRetrans,
                 packets_retransmitted_delta: 0,
+                packets_retransmitted_recent: 0,
                 tcp_timeouts: path.Timeouts,
                 tcp_timeouts_delta: 0,
+                tcp_timeouts_recent: 0,
                 duplicate_acks_received: path.DupAcksIn,
                 duplicate_acks_received_delta: 0,
+                duplicate_acks_received_recent: 0,
                 congestion_signals: path.CongSignals,
                 congestion_signals_delta: 0,
+                congestion_signals_recent: 0,
                 probe_error: None,
                 measured_at: crate::now_ms(),
             });
@@ -750,12 +771,16 @@ fn active_game_connection(
             quality: "확인 중",
             packets_retransmitted: 0,
             packets_retransmitted_delta: 0,
+            packets_retransmitted_recent: 0,
             tcp_timeouts: 0,
             tcp_timeouts_delta: 0,
+            tcp_timeouts_recent: 0,
             duplicate_acks_received: 0,
             duplicate_acks_received_delta: 0,
+            duplicate_acks_received_recent: 0,
             congestion_signals: 0,
             congestion_signals_delta: 0,
+            congestion_signals_recent: 0,
             probe_error,
             measured_at: crate::now_ms(),
         });
@@ -830,6 +855,7 @@ fn update_active_latency_history(
     if history.identity != Some(current.identity) {
         history.identity = Some(current.identity);
         history.samples.clear();
+        history.path_samples.clear();
         history.packets_retransmitted = None;
         history.tcp_timeouts = None;
         history.duplicate_acks_received = None;
@@ -842,6 +868,13 @@ fn update_active_latency_history(
         .is_some_and(|(measured_at, _)| now.duration_since(*measured_at) > ACTIVE_LATENCY_WINDOW)
     {
         history.samples.pop_front();
+    }
+    while history
+        .path_samples
+        .front()
+        .is_some_and(|(measured_at, _)| now.duration_since(*measured_at) > ACTIVE_LATENCY_WINDOW)
+    {
+        history.path_samples.pop_front();
     }
     if let (Some(rtt_ms), Some(variation_ms)) = (current.rtt_ms, current.variation_ms) {
         current.packets_retransmitted_delta = history
@@ -864,6 +897,15 @@ fn update_active_latency_history(
         history.tcp_timeouts = Some(current.tcp_timeouts);
         history.duplicate_acks_received = Some(current.duplicate_acks_received);
         history.congestion_signals = Some(current.congestion_signals);
+        history.path_samples.push_back((
+            now,
+            TcpPathDeltas {
+                packets_retransmitted: current.packets_retransmitted_delta,
+                tcp_timeouts: current.tcp_timeouts_delta,
+                duplicate_acks_received: current.duplicate_acks_received_delta,
+                congestion_signals: current.congestion_signals_delta,
+            },
+        ));
         let degraded = current.packets_retransmitted_delta > 0
             || current.tcp_timeouts_delta > 0
             || current.duplicate_acks_received_delta > 0
@@ -875,6 +917,27 @@ fn update_active_latency_history(
         }
         history.samples.push_back((now, latency_ms));
     }
+    let recent =
+        history
+            .path_samples
+            .iter()
+            .fold(TcpPathDeltas::default(), |mut total, (_, sample)| {
+                total.packets_retransmitted = total
+                    .packets_retransmitted
+                    .saturating_add(sample.packets_retransmitted);
+                total.tcp_timeouts = total.tcp_timeouts.saturating_add(sample.tcp_timeouts);
+                total.duplicate_acks_received = total
+                    .duplicate_acks_received
+                    .saturating_add(sample.duplicate_acks_received);
+                total.congestion_signals = total
+                    .congestion_signals
+                    .saturating_add(sample.congestion_signals);
+                total
+            });
+    current.packets_retransmitted_recent = recent.packets_retransmitted;
+    current.tcp_timeouts_recent = recent.tcp_timeouts;
+    current.duplicate_acks_received_recent = recent.duplicate_acks_received;
+    current.congestion_signals_recent = recent.congestion_signals;
     if history.samples.is_empty() {
         current.average_latency_ms = None;
         current.maximum_latency_ms = None;
@@ -1670,12 +1733,16 @@ mod tests {
             quality: "안정적",
             packets_retransmitted: 0,
             packets_retransmitted_delta: 0,
+            packets_retransmitted_recent: 0,
             tcp_timeouts: 0,
             tcp_timeouts_delta: 0,
+            tcp_timeouts_recent: 0,
             duplicate_acks_received: 0,
             duplicate_acks_received_delta: 0,
+            duplicate_acks_received_recent: 0,
             congestion_signals: 0,
             congestion_signals_delta: 0,
+            congestion_signals_recent: 0,
             probe_error: None,
             measured_at: 1,
         }
@@ -1709,6 +1776,40 @@ mod tests {
         assert_eq!(replaced.average_latency_ms, Some(6));
         assert_eq!(replaced.maximum_latency_ms, Some(6));
         assert_eq!(history.samples.len(), 1);
+    }
+
+    #[test]
+    fn tcp_지연_추정치는_1분이_지난_표본을_제외한다() {
+        let identity = TcpConnectionIdentity {
+            pid: 1,
+            local_address: 1,
+            local_port: 2,
+            remote_address: 3,
+            remote_port: 4,
+        };
+        let mut history = ActiveLatencyHistory {
+            identity: Some(identity),
+            samples: VecDeque::from([(Instant::now() - Duration::from_secs(61), 999)]),
+            path_samples: VecDeque::from([(
+                Instant::now() - Duration::from_secs(61),
+                TcpPathDeltas {
+                    packets_retransmitted: 999,
+                    tcp_timeouts: 999,
+                    duplicate_acks_received: 999,
+                    congestion_signals: 999,
+                },
+            )]),
+            ..Default::default()
+        };
+        let mut current = active_candidate(identity, 1, Some(5));
+        update_active_latency_history(&mut history, &mut current);
+        assert_eq!(current.maximum_latency_ms, Some(6));
+        assert_eq!(current.packets_retransmitted_recent, 0);
+        assert_eq!(current.tcp_timeouts_recent, 0);
+        assert_eq!(current.duplicate_acks_received_recent, 0);
+        assert_eq!(current.congestion_signals_recent, 0);
+        assert_eq!(history.samples.len(), 1);
+        assert_eq!(history.path_samples.len(), 1);
     }
 
     #[test]
@@ -1794,6 +1895,8 @@ mod tests {
         update_active_latency_history(&mut history, &mut replaced);
         assert_eq!(replaced.quality, "안정적");
         assert_eq!(replaced.packets_retransmitted_delta, 0);
+        assert_eq!(replaced.packets_retransmitted_recent, 0);
+        assert_eq!(history.path_samples.len(), 1);
     }
 
     #[test]
@@ -1826,7 +1929,22 @@ mod tests {
         assert_eq!(recovered.tcp_timeouts_delta, 1);
         assert_eq!(recovered.duplicate_acks_received_delta, 2);
         assert_eq!(recovered.congestion_signals_delta, 1);
+        assert_eq!(recovered.packets_retransmitted_recent, 2);
+        assert_eq!(recovered.tcp_timeouts_recent, 1);
+        assert_eq!(recovered.duplicate_acks_received_recent, 2);
+        assert_eq!(recovered.congestion_signals_recent, 1);
         assert_eq!(recovered.estimated_latency_ms, Some(9));
+
+        let mut next = active_candidate(identity, 1, Some(5));
+        next.packets_retransmitted = 13;
+        next.tcp_timeouts = 5;
+        next.duplicate_acks_received = 7;
+        next.congestion_signals = 5;
+        update_active_latency_history(&mut history, &mut next);
+        assert_eq!(next.packets_retransmitted_recent, 3);
+        assert_eq!(next.tcp_timeouts_recent, 3);
+        assert_eq!(next.duplicate_acks_received_recent, 3);
+        assert_eq!(next.congestion_signals_recent, 3);
     }
 
     #[test]
@@ -1875,12 +1993,49 @@ mod tests {
         reset.packets_retransmitted = 3;
         update_active_latency_history(&mut history, &mut reset);
         assert_eq!(reset.packets_retransmitted_delta, 0);
+        assert_eq!(reset.packets_retransmitted_recent, 0);
 
         let mut increased = active_candidate(identity, 1, Some(5));
         increased.packets_retransmitted = 4;
         update_active_latency_history(&mut history, &mut increased);
         assert_eq!(increased.packets_retransmitted_delta, 1);
+        assert_eq!(increased.packets_retransmitted_recent, 1);
         assert_eq!(increased.estimated_latency_ms, Some(9));
+    }
+
+    #[test]
+    fn 최근_tcp_counter_합계는_u32_범위에서_포화한다() {
+        let identity = TcpConnectionIdentity {
+            pid: 1,
+            local_address: 1,
+            local_port: 2,
+            remote_address: 3,
+            remote_port: 4,
+        };
+        let now = Instant::now();
+        let mut history = ActiveLatencyHistory {
+            identity: Some(identity),
+            path_samples: VecDeque::from([
+                (
+                    now,
+                    TcpPathDeltas {
+                        packets_retransmitted: u32::MAX,
+                        ..Default::default()
+                    },
+                ),
+                (
+                    now,
+                    TcpPathDeltas {
+                        packets_retransmitted: 1,
+                        ..Default::default()
+                    },
+                ),
+            ]),
+            ..Default::default()
+        };
+        let mut current = active_candidate(identity, 1, None);
+        update_active_latency_history(&mut history, &mut current);
+        assert_eq!(current.packets_retransmitted_recent, u32::MAX);
     }
 
     #[test]

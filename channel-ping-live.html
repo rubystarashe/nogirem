@@ -76,9 +76,9 @@
     const status = document.querySelector("#status")
 
     function latencyClass(latencyMs) {
-      if (latencyMs <= 10) return "stable"
-      if (latencyMs <= 20) return "normal"
-      if (latencyMs <= 30) return "unstable"
+      if (latencyMs <= 40) return "stable"
+      if (latencyMs <= 70) return "normal"
+      if (latencyMs <= 100) return "unstable"
       return "failed"
     }
 
@@ -100,7 +100,7 @@
         status.hidden = !current || current.maximumLatencyMs == null
         if (status.hidden) return
         status.className = latencyClass(current.maximumLatencyMs)
-        status.textContent = `${current.channel}채널 · 최근 최대 ${compactNumber(current.maximumLatencyMs)} ms · 재전송 ${compactNumber(current.packetsRetransmitted)} · TCP 시간초과 ${compactNumber(current.tcpTimeouts)} · 수신 중복 ACK ${compactNumber(current.duplicateAcksReceived)} · 혼잡 신호 ${compactNumber(current.congestionSignals)}`
+        status.textContent = `${current.channel}채널 · 최대 ${compactNumber(current.maximumLatencyMs)} ms · 재전송 ${compactNumber(current.packetsRetransmittedRecent)} · 시간초과 ${compactNumber(current.tcpTimeoutsRecent)} · 중복 ${compactNumber(current.duplicateAcksReceivedRecent)} · 혼잡 ${compactNumber(current.congestionSignalsRecent)}`
       } catch {
         status.hidden = false
         status.className = "failed"
