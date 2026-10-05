@@ -192,6 +192,9 @@
 - review_mode: `SELF_REVIEW — 교차 class·CSS 제거와 구분선·4px 간격 유지, 현재·최저 강조 우선순위를 검토했으며 독립 reviewer는 참여하지 않음`
 - review_verdict: `APPROVED — mandatory finding 없음`
 - manual_validation: `NOT_RUN — 최신 debug 앱을 재실행했으며 사용자 화면 확인 필요`
+- implementation_commit: `fec5fc536f6dbff5219dadbeb994b07c48cd0f10`
+- push_status: `NOT_RUN — 승인되지 않음`
+- deployment_status: `NOT_RUN — 승인되지 않음`
 
 ## Feedback FB-CHANNEL-045-006 — 평균 절대편차·RTT 색상·비전경 강제 숨김
 
