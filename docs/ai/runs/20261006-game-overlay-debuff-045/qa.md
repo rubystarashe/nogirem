@@ -24,12 +24,15 @@
 - `PASS` — targeted rustfmt, diff check, IDE diagnostics.
 - `PASS` — follow-up: toggle-independent detection, 700px no-scroll window contract, fade path, foreground UI-thread attachment compile and detector 5/5.
 - `PASS` — follow-up: composited screen DC client crop과 bitmap deselect compile, detector 5/5, diff check, IDE diagnostics.
+- `PASS` — follow-up: 실제 렌더링 허용오차·상단/세로선 fallback detector 9/9, backend 전체, Clippy `-D warnings`, diff check, IDE diagnostics.
+- `PASS` — `OVERLAY-003`: 사용자가 3440×1440 실제 마비노기 보스 화면에서 체력바 영역 인식 성공을 확인함.
+- `PASS` — `OVERLAY-003 retry`: 기존 preview를 제거하고 monitor를 직렬화한 재인식 source path를 검증함.
 - `FAIL after primary PASS` — full smoke's later isolated creator-prompt process reported `visual=false`; primary overlay UI report remained `passed:true`.
 
 ## Not run
 
-- 실제 game HWND foreground 전환·복원과 pixel capture.
-- 실제 보스 체력바 positive·negative 검출.
+- 실제 foreground 복원 결과의 별도 영상 증거.
+- 실제 보스 체력바 negative 검출.
 - preview 위치·click-through·Alt+Tab hide.
 - 100~200% DPI, 보조 모니터, 창모드·무테두리·독점 전체화면.
 - 일반·테스트 client 동시 실행의 ambiguity 오류.
@@ -37,5 +40,5 @@
 ## Assessment
 
 - automated source acceptance: `PASS`
-- actual game behavioral acceptance: `BLOCKED — 실행 가능한 fixture와 실제 보스 전투 화면 없음`
+- actual game behavioral acceptance: `PARTIAL_PASS — 실제 3440×1440 positive 검출은 사용자 확인, negative·DPI·다중 모니터는 NOT_RUN`
 - evidence limitation: `제공 crop은 하단 17 line이 잘려 있어 상단·55 line·좌우선 값만 실제 pixel로 확인했고 17 line은 사용자 규칙대로 synthetic fixture에서 검증`

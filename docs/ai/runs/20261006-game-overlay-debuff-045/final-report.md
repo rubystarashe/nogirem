@@ -28,3 +28,18 @@
 - push: `NOT_RUN`
 - deployment: `NOT_RUN`
 - remaining_owner: `사용자/DEV — 실제 게임에서 자동인식 실행 후 검출 결과 확인과 필요 허용오차 조정`
+
+## Actual-game follow-up
+
+- status: `PARTIALLY_COMPLETED`
+- source_base: `15d425d9c35b25dd3a1836027d5ba6acf66d70d9`
+- implemented: `실제 렌더링 endpoint·세로 연속률·하단 색상·상단 부분 단절 허용과 재인식 preview capture race 제거`
+- automated-test-passing: `detector 9/9, backend 전체, Clippy -D warnings, diff check, IDE diagnostics`
+- manually_exercised: `사용자가 3440×1440 실제 마비노기 보스 화면에서 체력바 영역 positive 검출 성공 확인`
+- not-run: `negative 보스 화면, click-through 직접 입력, 다중 DPI·보조 모니터·전체화면`
+- review_mode: `SELF_REVIEW`
+- review_verdict: `APPROVED for current source scope`
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 실제 게임 체력바 검출·재인식 안정화`
+- feature_map: `updated — 실제 positive evidence와 잔여 gap 반영`
+- architecture_impact: `detector tolerance와 preview/capture lifecycle gate`
+- architecture_contract: `updated — capture 중 preview 제거·재생성 직렬화`

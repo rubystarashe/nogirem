@@ -2,21 +2,21 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `18`
-- updated_at: `2026-10-06T01:42:00Z`
+- revision: `19`
+- updated_at: `2026-10-06T02:25:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-06T01:42:00Z`
+- source_reviewed_at: `2026-10-06T02:25:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 9aec27b98bee117cc6d14999449a149c9239549c, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
-- source_review_evidence: `game overlay setting writer·capture trust·focus restoration·detector·window/IPC/package 경계 SELF_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-06T01:05:00Z`
+- source_review_target: `uncommitted target based on 15d425d9c35b25dd3a1836027d5ba6acf66d70d9`
+- source_review_evidence: `실제 렌더링 detector tolerance·fallback과 preview/capture gate SELF_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-06T02:25:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 9aec27b98bee117cc6d14999449a149c9239549c`
-- behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `Node 207/207, backend 110 PASS·2 declared ignore, parity 2/2, desktop 8/8, detector 5/5, overlay contract 4/4, primary native UI smoke PASS`
+- behavior_verification_target: `uncommitted target based on 15d425d9c35b25dd3a1836027d5ba6acf66d70d9`
+- behavior_verification_environment: `Windows 10.0.26200 x64, 3440×1440 실제 Mabinogi와 자동 검사`
+- behavior_verification_evidence: `사용자 실제 positive 검출 확인, detector 9/9, backend 전체, Clippy -D warnings, diff check, IDE diagnostics`
 - freshness_status: `CURRENT`
 - freshness_reason: `게임 client foreground capture와 독립 settings/preview window 경계를 최신 source에 맞게 추가`
-- known_gaps: `별도 dependency graph lint가 없고 실제 게임 capture·focus restore·preview·DPI·전체화면 QA는 NOT_RUN`
+- known_gaps: `별도 dependency graph lint가 없고 negative·click-through·DPI·보조 모니터·전체화면 QA는 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 설정과 디버프 영역 자동인식 preview`
 - feature_map: `updated — FEAT-NOGIREM-GAME-OVERLAY와 연결`
 - architecture_impact: `verified game capture, pure pixel detector, setting single writer, interactive/preview native windows`
@@ -107,6 +107,7 @@
 - foreground GDI capture는 기존 foreground HWND 저장, capture worker와 foreground·target UI thread의 임시 `AttachThreadInput`, 검증된 game foreground 전환, thread detach, 짧은 render 대기, client origin·size 계산, composited screen DC에서 해당 rectangle만 BitBlt, bitmap deselect 후 BGRA read, 같은 방식의 기존 foreground 복원 순서다. DirectX window DC는 빈 화면·stale surface 위험 때문에 지원 capture source가 아니다. attach는 성공 여부와 무관하게 즉시 해제하고 포커스 복원도 capture 성공 여부와 무관하게 수행한다.
 - detector는 압축 이미지·OCR·내부 체력 색상에 의존하지 않는다. 회색 이중 하단선, 가변 거리 상단선, 검은 좌우선과 aspect를 순수 BGRA 입력에서 판정하며 허용오차 변경은 synthetic positive·negative fixture를 동반한다.
 - `overlay-settings`는 main-owned interactive window라 tray 이동 시 닫는다. `debuff-region-overlay`는 focusable=false·click-through·transparent·always-on-top인 별도 identity이고 기능 상태 보존을 위해 tray cleanup에서 제거하지 않지만, 검증된 같은 game HWND가 foreground가 아니면 숨긴다.
+- 재인식은 preview monitor와 같은 gate를 획득하고 기존 preview window를 제거한 상태에서만 capture한다. monitor가 이전 detection으로 preview를 다시 표시하는 동안 screen DC를 읽어서는 안 되며, 검출 완료 뒤 새 좌표로 window를 재생성한다.
 - settings preload만 get·set·detect·close IPC를 노출하고 preview preload는 제품 IPC를 노출하지 않는다. 두 HTML과 preload는 native allowlist·service contract·packager 입력을 함께 갱신한다. Electron 0.3.x host는 Rust 전용 요청을 명시적으로 거부한다.
 - 화면 pixel·게임 경로·사용자 식별 정보는 setting, log, evidence, screenshot 또는 외부 서비스로 보내지 않는다. 수동 QA 증거가 필요하면 사용자가 제공한 비식별 crop이나 synthetic fixture만 보존한다.
 

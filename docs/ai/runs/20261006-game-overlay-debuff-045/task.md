@@ -85,3 +85,16 @@
 - feature_map: `updated — 최신 target과 실제 재검증 대기 반영`
 - architecture_impact: `foreground-only screen DC crop adapter`
 - architecture_contract: `updated — DirectX window DC 금지와 screen DC crop 경계`
+
+## Follow-up 2026-10-06T02:25:00Z
+
+- feedback: `3440×1440 실제 게임에서 선 endpoint·세로 연속률·상단선 부분 단절 변화와 재인식 중 기존 preview 간섭 발생`
+- disposition: `FIXED in uncommitted target based on 15d425d9c35b25dd3a1836027d5ba6acf66d70d9`
+- changes: `상·하단 양쪽 endpoint 기반 세로선 탐색, 90% 세로 연속률, 하단 색상 비의존 상단·세로선 fallback, 한쪽 상단선 최대 32px 단절 허용, 재인식 중 preview monitor gate와 기존 preview 제거`
+- validation: `game overlay detector 9/9, backend 전체 PASS, Clippy -D warnings, diff check, IDE diagnostics PASS; 사용자가 실제 게임에서 체력바 영역 인식 성공을 확인함`
+- review_mode: `SELF_REVIEW — 같은 agent가 capture race·positive/negative fixture·허용오차 범위를 검토함`
+- review_verdict: `APPROVED — unresolved mandatory source finding 0`
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 실제 게임 체력바 인식과 안전한 재인식`
+- feature_map: `updated — 실제 3440×1440 수동 evidence와 남은 DPI gap 반영`
+- architecture_impact: `pure detector tolerance와 preview/capture window lifecycle 직렬화`
+- architecture_contract: `updated — 재인식 중 preview가 capture source에 포함되지 않는 경계 추가`

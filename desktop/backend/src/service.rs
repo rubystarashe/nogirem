@@ -6,8 +6,9 @@ use crate::{
         ChannelPing, InputDecision, InputMonitor, foreground_compact_target,
         foreground_is_windows_shell, set_input_overlay_window,
     },
-    dxvk_manager, graphics,
+    dxvk_manager,
     game_overlay::GameOverlay,
+    graphics,
     inputs::Inputs,
     network_manager,
     overlay_geometry::OverlayBounds,
@@ -43,6 +44,7 @@ pub struct Service {
     reports_notified: Mutex<std::collections::HashSet<String>>,
     media: RwLock<(PathBuf, Option<EditorSession>)>,
     saving: AtomicBool,
+    debuff_preview_gate: Mutex<()>,
     network: Mutex<()>,
     pub fixture: bool,
     pub fixture_state: Mutex<Value>,
@@ -187,6 +189,7 @@ impl Service {
                 prompt: Mutex::new(()),
                 reports_notified: Mutex::new(std::collections::HashSet::new()),
                 saving: AtomicBool::new(false),
+                debuff_preview_gate: Mutex::new(()),
                 network: Mutex::new(()),
                 fixture,
                 fixture_state: Mutex::new(crate::service_fixture::initial()),
@@ -616,6 +619,7 @@ impl Service {
         let mut visible = false;
         let mut bounds = None;
         while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
+            let _preview_guard = self.debuff_preview_gate.lock().unwrap();
             let target = self.game_overlay.lock().unwrap().preview_bounds(&self.env);
             let current_id = self.windows.id("debuff-region-overlay");
             if window_id != current_id {
@@ -974,8 +978,8 @@ impl Service {
                     Ok(status)
                 }
                 "detect-debuff-region" => {
-                    self.windows.prepare_debuff_preview()?;
-                    self.windows.hide_debuff_preview();
+                    let _preview_guard = self.debuff_preview_gate.lock().unwrap();
+                    self.windows.destroy_debuff_preview();
                     let result = self
                         .game_overlay
                         .lock()

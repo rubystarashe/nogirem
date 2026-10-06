@@ -564,14 +564,101 @@ fn vertical_black_ratio(frame: &Frame, x: u32, top: u32, bottom: u32) -> f64 {
     f64::from(black) / f64::from(total)
 }
 
-fn vertical_edge(frame: &Frame, expected: u32, top: u32, bottom: u32) -> Option<(u32, f64)> {
-    (expected.saturating_sub(2)
-        ..=expected
+fn vertical_edge(
+    frame: &Frame,
+    first: u32,
+    second: u32,
+    top: u32,
+    bottom: u32,
+) -> Option<(u32, f64)> {
+    (first.min(second).saturating_sub(2)
+        ..=first
+            .max(second)
             .saturating_add(2)
             .min(frame.width.saturating_sub(1)))
         .map(|x| (x, vertical_black_ratio(frame, x, top, bottom)))
-        .filter(|(_, ratio)| *ratio >= 0.95)
+        .filter(|(_, ratio)| *ratio >= 0.90)
         .max_by(|a, b| a.1.total_cmp(&b.1))
+}
+
+fn vertical_black_span(frame: &Frame, x: u32, top: u32) -> Option<(u32, f64)> {
+    let maximum_bottom = top.saturating_add(119).min(frame.height.saturating_sub(1));
+    let mut black = 0u32;
+    let mut last_black = None;
+    let mut consecutive_gap = 0u32;
+    for y in top..=maximum_bottom {
+        if pixel(frame, x, y).is_some_and(|value| gray(value, 0, 2, 2)) {
+            black += 1;
+            last_black = Some(y);
+            consecutive_gap = 0;
+        } else {
+            consecutive_gap += 1;
+            if y >= top.saturating_add(20) && consecutive_gap >= 4 {
+                break;
+            }
+        }
+    }
+    let bottom = last_black?;
+    let total = bottom - top + 1;
+    let ratio = f64::from(black) / f64::from(total);
+    (total >= 20 && ratio >= 0.90).then_some((bottom, ratio))
+}
+
+fn vertical_span_near(frame: &Frame, expected: u32, top: u32) -> Option<(u32, u32, f64)> {
+    (expected.saturating_sub(4)
+        ..=expected
+            .saturating_add(4)
+            .min(frame.width.saturating_sub(1)))
+        .filter_map(|x| {
+            vertical_black_span(frame, x, top).map(|(bottom, ratio)| (x, bottom, ratio))
+        })
+        .max_by(|left, right| {
+            left.1
+                .cmp(&right.1)
+                .then_with(|| left.2.total_cmp(&right.2))
+        })
+}
+
+fn detect_from_upper_edges(frame: &Frame) -> Option<PixelRect> {
+    let mut candidates = Vec::new();
+    for top in 0..frame.height.saturating_sub(19) {
+        for upper in runs(frame, top, 0, 32, 150) {
+            if upper.start < 5
+                || upper.end.saturating_add(5) >= frame.width
+                || upper.width() > frame.width / 2
+            {
+                continue;
+            }
+            let Some(left) = vertical_span_near(frame, upper.start, top) else {
+                continue;
+            };
+            let Some(right) = vertical_span_near(frame, upper.end, top) else {
+                continue;
+            };
+            if right.0 <= left.0 || left.1.abs_diff(right.1) > 4 {
+                continue;
+            }
+            let width = right.0 - left.0 + 1;
+            let bottom = left.1.max(right.1);
+            let height = bottom - top + 1;
+            if width < height.saturating_mul(5) {
+                continue;
+            }
+            candidates.push((
+                left.2 + right.2 + f64::from(width) / f64::from(frame.width),
+                PixelRect {
+                    x: left.0,
+                    y: top,
+                    width,
+                    height,
+                },
+            ));
+        }
+    }
+    candidates
+        .into_iter()
+        .max_by(|left, right| left.0.total_cmp(&right.0))
+        .map(|(_, rect)| rect)
 }
 
 fn detector_diagnostics(frame: &Frame) -> String {
@@ -705,16 +792,19 @@ pub fn detect_boss_health_bar(frame: &Frame) -> Option<PixelRect> {
                 let maximum_top = bottom.saturating_sub(20);
                 for top in minimum_top..=maximum_top {
                     for upper in runs(frame, top, 0, 32, 150) {
-                        if !close(lower.start, upper.start, 2)
-                            || !close(lower.end, upper.end, 2)
-                            || lower.width().abs_diff(upper.width()) > 2
+                        if (!close(lower.start, upper.start, 4) && !close(lower.end, upper.end, 4))
+                            || lower.width().abs_diff(upper.width()) > 32
                         {
                             continue;
                         }
-                        let Some(left) = vertical_edge(frame, lower.start, top, bottom + 1) else {
+                        let Some(left) =
+                            vertical_edge(frame, lower.start, upper.start, top, bottom + 1)
+                        else {
                             continue;
                         };
-                        let Some(right) = vertical_edge(frame, lower.end, top, bottom + 1) else {
+                        let Some(right) =
+                            vertical_edge(frame, lower.end, upper.end, top, bottom + 1)
+                        else {
                             continue;
                         };
                         if right.0 <= left.0 {
@@ -747,6 +837,7 @@ pub fn detect_boss_health_bar(frame: &Frame) -> Option<PixelRect> {
         .into_iter()
         .max_by(|a, b| a.0.total_cmp(&b.0))
         .map(|(_, rect)| rect)
+        .or_else(|| detect_from_upper_edges(frame))
 }
 
 #[cfg(test)]
@@ -829,6 +920,76 @@ mod tests {
     }
 
     #[test]
+    fn 상단선_한쪽이_일부_끊겨도_세로선으로_경계를_확정한다() {
+        let expected = PixelRect {
+            x: 80,
+            y: 40,
+            width: 302,
+            height: 38,
+        };
+        let mut frame = fixture(640, 180, expected);
+        let right = expected.x + expected.width - 1;
+        for x in right - 15..=right {
+            let index = (expected.y as usize * frame.width as usize + x as usize) * 4;
+            frame.bgra[index..index + 3].fill(100);
+        }
+        assert_eq!(detect_boss_health_bar(&frame), Some(expected));
+    }
+
+    #[test]
+    fn 상하단_끝점_차이와_세로선_일부_간격을_허용한다() {
+        let expected = PixelRect {
+            x: 80,
+            y: 40,
+            width: 302,
+            height: 38,
+        };
+        let mut frame = fixture(640, 180, expected);
+        let bottom = expected.y + expected.height - 1;
+        for y in [bottom - 1, bottom] {
+            for x in expected.x + 1..=expected.x + 2 {
+                let index = (y as usize * frame.width as usize + x as usize) * 4;
+                frame.bgra[index..index + 3].fill(100);
+            }
+        }
+        let right = expected.x + expected.width - 1;
+        for x in [expected.x, right] {
+            let index = (expected.y as usize * frame.width as usize + x as usize) * 4;
+            frame.bgra[index..index + 3].fill(100);
+        }
+        for y in expected.y + 5..=expected.y + 6 {
+            let index = (y as usize * frame.width as usize + right as usize) * 4;
+            frame.bgra[index..index + 3].fill(100);
+        }
+        assert_eq!(
+            detect_boss_health_bar(&frame),
+            Some(expected),
+            "{}",
+            detector_diagnostics(&frame)
+        );
+    }
+
+    #[test]
+    fn 하단선_색상이_바뀌어도_상단과_세로선으로_찾는다() {
+        let expected = PixelRect {
+            x: 80,
+            y: 40,
+            width: 302,
+            height: 38,
+        };
+        let mut frame = fixture(640, 180, expected);
+        let right = expected.x + expected.width - 1;
+        let bottom = expected.y + expected.height - 1;
+        for y in [bottom - 1, bottom] {
+            for x in expected.x + 1..right {
+                let index = (y as usize * frame.width as usize + x as usize) * 4;
+                frame.bgra[index..index + 3].copy_from_slice(&[120, 20, 90]);
+            }
+        }
+        assert_eq!(detect_boss_health_bar(&frame), Some(expected));
+    }
+
+    #[test]
     fn 제공된_체력바의_비대칭_rgb와_상단_경계_gap을_허용한다() {
         let expected = PixelRect {
             x: 0,
@@ -861,7 +1022,7 @@ mod tests {
     }
 
     #[test]
-    fn 이중선이나_검은_세로선이_없으면_거부한다() {
+    fn 하단선_변경은_허용하지만_검은_세로선이_없으면_거부한다() {
         let expected = PixelRect {
             x: 80,
             y: 40,
@@ -870,11 +1031,11 @@ mod tests {
         };
         let mut no_double = fixture(640, 180, expected);
         let bottom = expected.y + expected.height - 1;
-        for x in expected.x..expected.x + expected.width {
+        for x in expected.x + 1..expected.x + expected.width - 1 {
             let index = (bottom as usize * no_double.width as usize + x as usize) * 4;
             no_double.bgra[index..index + 3].fill(80);
         }
-        assert_eq!(detect_boss_health_bar(&no_double), None);
+        assert_eq!(detect_boss_health_bar(&no_double), Some(expected));
 
         let mut no_sides = fixture(640, 180, expected);
         for y in expected.y..expected.y + expected.height {
