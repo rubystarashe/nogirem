@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-ANTIVIRUS-FALSE-POSITIVE-045`
 - owner: `Cursor Agent`
 - created_at: `2026-10-06T04:13:00Z`
-- updated_at: `2026-10-06T06:00:56Z`
+- updated_at: `2026-10-06T06:21:19Z`
 - repository: `rubystarashe/nogirem`
 - branch: `main`
 - source_base: `9ce107f97cdbafad0c228777bb49b84d9256d059`
@@ -133,7 +133,9 @@
 - `PASS` — IDE diagnostics 0, owned source `git diff --check`.
 - `NOT_RUN` — 실제 설치·업데이트·제거: 임시 `/D=` 설치 시도의 reliable process exit와 target 생성이 확인되지 않아 실제 설치 경로를 보호하기 위해 중단했다. 기존 `C:\Program Files\Nogirem\nogirem.exe` hash와 timestamp는 final package와 달라 변경되지 않았음을 확인했다.
 - `NOT_RUN` — signed updater rollback: unsigned candidate에는 검증 가능한 update envelope가 없음.
-- `BLOCKED` — VirusTotal 재검사: 브라우저 file picker에서 사용자가 final installer를 선택해야 함.
+- `PASS` — commit `5d68346158193e8fbab2bb1e7e3cfc66b52a7433` package installer VirusTotal 재분석 `3/71`.
+- `PASS` — 비정상 판정: Bkav `W32.Malware.9FC5E30`, CrowdStrike Falcon `Win/grayware_confidence_90% (D)`, Microsoft `Trojan:Win32/Wacatac.B!ml`.
+- `PASS` — 임베디드 PowerShell 제거 여부와 별개로 이전 PE metadata 개선본 `2/70`보다 Bkav generic 탐지 하나가 늘었고 CrowdStrike·Microsoft는 남아, 탐지 수 추가 개선은 확인되지 않음.
 
 ### Independent review exchange
 
@@ -152,11 +154,12 @@
 
 - status: `PARTIALLY_COMPLETED`
 - current_source_base: `aa2e6a8121720d8a9aa1e12a4949c14046929220`
+- current_source_target: `5d68346158193e8fbab2bb1e7e3cfc66b52a7433`
 - current_execution_target: `release/dioxus-0.4.5-2026-10-06T06-00-25-179Z`
 - completed: native helper 구현, PowerShell 제거, regression·package·size·PE resource·independent review.
-- pending: final installer VirusTotal 업로드·결과 확인, 실제 lifecycle QA, canonical architecture contract와 `.handoff/cursor.md` 병합.
-- blocker_owner: `VirusTotal file selection=사용자; shared documentation ownership=game overlay coordinator`
-- next_authorized_action: final installer를 VirusTotal에 업로드한 뒤 결과를 기록하고, 공유 문서 소유권이 해소되면 package contract/handoff를 갱신한다.
+- pending: 실제 lifecycle QA, canonical architecture contract와 `.handoff/cursor.md` 병합.
+- blocker_owner: `shared documentation ownership=game overlay coordinator; actual lifecycle executor=coordinator`
+- next_authorized_action: 공유 문서 소유권이 해소되면 package contract/handoff를 갱신하고, 격리된 Windows 대상에서 실제 install/update/uninstall/rollback QA를 수행한다.
 - push_status: `NOT_RUN — 미승인`
 - release_status: `NOT_RUN — 미승인`
 - deployment_status: `NOT_RUN — 미승인`
