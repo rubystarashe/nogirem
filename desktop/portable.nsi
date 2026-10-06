@@ -38,10 +38,8 @@ Section
   FileClose $4
   StrCmp $7 "${PORTABLE_CACHE_ID}" cache_ready
 
-  InitPluginsDir
-  SetOutPath "$PLUGINSDIR"
-  File /oname=installer-cleanup.exe "${CLEANUP_HELPER}"
-  nsExec::ExecToStack '"$PLUGINSDIR\installer-cleanup.exe" --portable-cache-in-use "$0\nogirem.exe"'
+  System::Call 'Kernel32::SetEnvironmentVariable(t "NOGIREM_PORTABLE_CACHE_EXE", t "$0\nogirem.exe")'
+  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$target=$$env:NOGIREM_PORTABLE_CACHE_EXE; $$found=@([Diagnostics.Process]::GetProcesses() | Where-Object { try { $$_.MainModule.FileName -eq $$target } catch { $$false } }); if ($$found.Count -gt 0) { exit 2 }"'
   Pop $8
   Pop $9
   StrCmp $8 2 cache_in_use

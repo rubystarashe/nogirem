@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-ANTIVIRUS-FALSE-POSITIVE-045`
 - owner: `Cursor Agent`
 - created_at: `2026-10-06T04:13:00Z`
-- updated_at: `2026-10-06T06:21:19Z`
+- updated_at: `2026-10-06T06:37:18Z`
 - repository: `rubystarashe/nogirem`
 - branch: `main`
 - source_base: `9ce107f97cdbafad0c228777bb49b84d9256d059`
@@ -82,6 +82,50 @@
 - review_qa_gate: `PASS for automated source/package and installer VirusTotal comparison scope`
 - target_authorization_gate: `PASS — local source·package만 변경/생성; push·release·배포 없음`
 - remaining_risk: 설치형 탐지는 4개에서 2개로 감소했지만 미서명·관리자 권한·solid NSIS·포함 helper의 민감 동작 때문에 CrowdStrike grayware와 Microsoft Wacatac ML 탐지가 남음
+- push_status: `NOT_RUN — 미승인`
+- release_status: `NOT_RUN — 미승인`
+- deployment_status: `NOT_RUN — 미승인`
+
+## Native helper rollback
+
+- checkpoint_id: `CP-ANTIVIRUS-NATIVE-ROLLBACK-045`
+- requested_at: `2026-10-06T06:30:00Z`
+- request: native helper 적용본이 `2/70 → 3/71`로 악화했으므로 이전 PowerShell cleanup 구현으로 되돌리고 0.4.4와 overlay 영향을 비교한다.
+- decision: `ROLLBACK — AV 탐지 완화 목표를 달성하지 못했고 Bkav generic 탐지가 새로 발생함`
+- dev_state: `DONE`
+- qa_state: `COMPLETE_PASS`
+- review_mode: `SELF_REVIEW`
+- review_verdict: `APPROVED`
+- feature_impact: `none — 설치·제거·포터블 cleanup을 직전 검증된 구현으로 복원하며 제품 capability는 변경하지 않음`
+- feature_map: `no_change — observable 제품 기능과 lifecycle 변화 없음`
+- architecture_impact: `package cleanup boundary — 별도 native helper를 제거하고 commit aa2e6a8의 NSIS·PowerShell 경계로 복원`
+- architecture_contract: `no_change — concurrent game overlay owner의 canonical 문서를 수정하지 않고 기존 기록과 일치하는 구현으로 복원`
+
+### Rollback evidence
+
+- native helper crate·package wiring·계약 변경을 제거하고 `desktop/installer.nsi`, `desktop/portable.nsi`, `scripts/package-dioxus.mjs`, `scripts/stop-installed-app.ps1`, installer·portable tests와 `.gitignore`를 `aa2e6a8121720d8a9aa1e12a4949c14046929220` 상태로 복원했다.
+- `PASS` — `node --test test/installer.test.mjs test/portable-release.test.mjs`: 14/14.
+- `PASS` — `npm test`: 209/209.
+- `PASS` — rollback package `npm run package:win:unsigned`, NSIS `/WX`, native contract와 10MB gate.
+- `PASS` — rollback installer `9,701,745 bytes`, SHA-256 `361b62786781c28a0a97fdcc0266323c20d883a95be4e4b0af89410c1255dbe5`.
+- `PASS` — rollback portable `7,929,476 bytes`, SHA-256 `2e1381b5624480e4d9c6fe68913840fd535ba6c81ee48d94ba45900d56a7ad14`.
+- `PASS` — 공개 0.4.4 installer를 GitHub Release에서 다시 받아 SHA-256 `a92caa5878a12a7ba3697ab054978f39c2da9fed7a11bf093879d2bd5c61b368`, `9,542,395 bytes`로 release evidence와 일치함을 확인했다.
+- `PASS` — Microsoft Defender local custom scan에서 공개 0.4.4와 rollback 0.4.5 모두 위협 없음.
+- `BLOCKED` — 공개 0.4.4 hash는 VirusTotal에 등록되지 않았고 API는 인증 없이 HTTP 401이다. 현재 browser tool은 로컬 file input 설정을 지원하지 않아 사용자가 없는 동안 직접 업로드할 수 없음.
+
+### Overlay causality assessment
+
+- `af703e21f976d888cafe2ea1805a98b3b6816659` 개선본은 parent `9ce107f97cdbafad0c228777bb49b84d9256d059`까지의 game overlay capture·boss-bar detector를 포함한 상태에서 VirusTotal `2/70`이었다.
+- `b905ec7fccfbe9342c87fca72340df30c7b1d430`은 missing-debuff alert와 package assets를 추가했지만 process termination·task cleanup API를 추가하지 않았다.
+- `5d68346158193e8fbab2bb1e7e3cfc66b52a7433`에서 별도 unsigned helper와 Toolhelp/OpenProcess/TerminateProcess/schtasks 조합을 추가한 직후 Bkav `W32.Malware.9FC5E30`이 새로 발생했다.
+- conclusion: `게임 overlay 자체보다 native cleanup helper가 Bkav 증가 원인일 가능성이 높음`. 다만 동일 엔진 시점의 overlay 포함 rollback package VirusTotal 업로드 전에는 인과를 확정하지 않는다.
+
+### Rollback disposition
+
+- status: `PARTIALLY_COMPLETED`
+- completed: native helper source rollback, full automated regression, unsigned package, 0.4.4 artifact provenance와 local Defender 비교.
+- pending: rollback 0.4.5와 공개 0.4.4 VirusTotal 업로드·동일 시점 결과 비교.
+- blocker_owner: `VirusTotal file selection/API key=사용자`
 - push_status: `NOT_RUN — 미승인`
 - release_status: `NOT_RUN — 미승인`
 - deployment_status: `NOT_RUN — 미승인`
