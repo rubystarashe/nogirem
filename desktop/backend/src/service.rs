@@ -7,8 +7,10 @@ use crate::{
         foreground_is_windows_shell, set_input_overlay_window,
     },
     dxvk_manager, graphics,
+    game_overlay::GameOverlay,
     inputs::Inputs,
     network_manager,
+    overlay_geometry::OverlayBounds,
     rpc::Rpc,
     service_windows::Windows,
     settings, storage,
@@ -32,6 +34,7 @@ pub struct Service {
     pub blackbox: Mutex<Blackbox>,
     pub inputs: Mutex<Inputs>,
     pub channel_ping: Arc<ChannelPing>,
+    pub game_overlay: Mutex<GameOverlay>,
     pub dxvk: Mutex<dxvk_manager::Manager>,
     pub dxvk_runtime: RwLock<Value>,
     startup: OnceLock<()>,
@@ -99,12 +102,12 @@ fn mark_overlay_shown(tracked: &mut Option<u64>, visible: &mut bool, window_id: 
     *visible = true;
 }
 fn desired_live_bounds(
-    foreground: Option<(crate::channel_ping::OverlayBounds, u32)>,
-    last_game: Option<(crate::channel_ping::OverlayBounds, u32)>,
+    foreground: Option<(OverlayBounds, u32)>,
+    last_game: Option<(OverlayBounds, u32)>,
     expanded: bool,
     foreground_is_shell: bool,
     active_connection: bool,
-) -> Option<crate::channel_ping::OverlayBounds> {
+) -> Option<OverlayBounds> {
     if !active_connection {
         return None;
     }
@@ -145,6 +148,7 @@ impl Service {
             });
             let blackbox = Blackbox::new(env.clone(), event);
             let channel_ping = Arc::new(ChannelPing::new(&env));
+            let game_overlay = Mutex::new(GameOverlay::new(&env));
             let clips = blackbox.clips();
             let updates = rpc.clone();
             let update_service = weak.clone();
@@ -169,6 +173,7 @@ impl Service {
                 boost: Boost::new(env.clone()),
                 inputs: Mutex::new(Inputs::new(env.clone())),
                 channel_ping,
+                game_overlay,
                 dxvk: Mutex::new(dxvk_manager::Manager::new(env.clone())),
                 dxvk_runtime: RwLock::new(
                     json!({"state":"checking","latestVersion":null,"error":null}),
@@ -402,6 +407,8 @@ impl Service {
         let service = self.clone();
         std::thread::spawn(move || service.monitor_channel_ping_overlay());
         let service = self.clone();
+        std::thread::spawn(move || service.monitor_debuff_preview());
+        let service = self.clone();
         std::thread::spawn(move || service.check_startup_network());
         if self.env.packaged {
             let service = self.clone();
@@ -603,6 +610,49 @@ impl Service {
         self.channel_ping.set_expanded(false);
         self.windows.hide_channel_ping();
         self.windows.hide_channel_ping_live();
+    }
+    fn monitor_debuff_preview(self: &Arc<Self>) {
+        let mut window_id = None;
+        let mut visible = false;
+        let mut bounds = None;
+        while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
+            let target = self.game_overlay.lock().unwrap().preview_bounds(&self.env);
+            let current_id = self.windows.id("debuff-region-overlay");
+            if window_id != current_id {
+                window_id = current_id;
+                visible = false;
+                bounds = None;
+            }
+            if let Some(target) = target {
+                if current_id.is_none() {
+                    if let Err(error) = self.windows.prepare_debuff_preview() {
+                        log(format!("디버프 영역 미리보기 준비 실패: {error}"));
+                        std::thread::sleep(Duration::from_secs(1));
+                        continue;
+                    }
+                }
+                if !visible || bounds != Some(target) {
+                    match self.windows.show_debuff_preview(target) {
+                        Ok((id, _)) => {
+                            window_id = Some(id);
+                            visible = true;
+                            bounds = Some(target);
+                        }
+                        Err(error) => {
+                            visible = false;
+                            bounds = None;
+                            log(format!("디버프 영역 미리보기 표시 실패: {error}"));
+                        }
+                    }
+                }
+            } else if visible {
+                self.windows.hide_debuff_preview();
+                visible = false;
+                bounds = None;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        self.windows.hide_debuff_preview();
     }
     fn check_startup_network(&self) {
         let path = self.env.user.join("network/fast-ping-original.json");
@@ -896,6 +946,7 @@ impl Service {
                     | "dxvk-manager"
                     | "blackbox-manager"
                     | "blackbox-editor"
+                    | "overlay-settings"
             ) {
                 self.windows.open(kind, true)?;
                 return Ok(json!(true));
@@ -911,6 +962,32 @@ impl Service {
         }
         if channel.starts_with("blackbox-manager:") || channel.starts_with("blackbox-editor:") {
             return self.blackbox_invoke(id, action, args);
+        }
+        if channel.starts_with("overlay-settings:") {
+            return match action {
+                "get-status" => Ok(self.game_overlay.lock().unwrap().status()),
+                "set-setting" => {
+                    let status = self.game_overlay.lock().unwrap().set(v)?;
+                    if status["debuffNotifications"] != true {
+                        self.windows.destroy_debuff_preview();
+                    }
+                    Ok(status)
+                }
+                "detect-debuff-region" => {
+                    self.windows.prepare_debuff_preview()?;
+                    self.windows.hide_debuff_preview();
+                    let result = self
+                        .game_overlay
+                        .lock()
+                        .unwrap()
+                        .detect_debuff_region(&self.env);
+                    if result.is_err() {
+                        self.windows.hide_debuff_preview();
+                    }
+                    result
+                }
+                _ => Err("지원하지 않는 오버레이 설정 요청입니다".into()),
+            };
         }
         match channel{
    "application:begin-startup-reveal"=>{if !self.startup_tray{self.windows.reveal_main();}Ok(json!(true))},
@@ -1237,7 +1314,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
 #[cfg(test)]
 mod channel_ping_overlay_tests {
     use super::{desired_live_bounds, mark_overlay_shown, sync_overlay_window};
-    use crate::channel_ping::OverlayBounds;
+    use crate::overlay_geometry::OverlayBounds;
 
     #[test]
     fn 보조_창이_재생성되면_표시_상태를_초기화한다() {

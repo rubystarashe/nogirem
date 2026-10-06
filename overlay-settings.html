@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>게임 오버레이 설정</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Pretendard", "Malgun Gothic", sans-serif;
+      color: #f4f5f7;
+      background: #17191e;
+    }
+    * { box-sizing: border-box }
+    body { margin: 0; min-height: 100vh; background: #17191e }
+    button, input { font: inherit }
+    .titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 52px;
+      padding: 0 18px;
+      border-bottom: 1px solid #30333b;
+      background: #1d2026;
+    }
+    h1 { margin: 0; font-size: 16px; font-weight: 700 }
+    .close {
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: 4px;
+      color: #c8cbd2;
+      background: transparent;
+      cursor: pointer;
+    }
+    .close:hover { color: #fff; background: #343842 }
+    main { padding: 18px }
+    .description { margin: 0 0 14px; color: #aeb3be; font-size: 12px; line-height: 1.55 }
+    .list { overflow: hidden; border: 1px solid #30333b; border-radius: 6px }
+    .item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      min-height: 68px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #2a2d34;
+      background: #20232a;
+    }
+    .item:last-child { border-bottom: 0 }
+    .item h2 { margin: 0 0 4px; font-size: 14px }
+    .item p { margin: 0; color: #959ba7; font-size: 11px }
+    .switch { position: relative; width: 40px; height: 22px }
+    .switch input { position: absolute; opacity: 0 }
+    .track {
+      position: absolute;
+      inset: 0;
+      border-radius: 11px;
+      background: #484d58;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+    .track::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: .15s ease;
+    }
+    input:checked + .track { background: #318dd2 }
+    input:checked + .track::after { transform: translateX(18px) }
+    input:disabled + .track { opacity: .45; cursor: default }
+    .detect-panel {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid #30333b;
+      border-radius: 6px;
+      background: #20232a;
+    }
+    .detect-panel strong { display: block; margin-bottom: 5px; font-size: 13px }
+    .detect-panel p { margin: 0 0 12px; color: #959ba7; font-size: 11px; line-height: 1.5 }
+    .detect {
+      width: 100%;
+      height: 36px;
+      border: 0;
+      border-radius: 4px;
+      color: #fff;
+      background: #2f80bd;
+      cursor: pointer;
+    }
+    .detect:hover:not(:disabled) { background: #3a91ce }
+    .detect:disabled { color: #777d88; background: #32363e; cursor: default }
+    .status { min-height: 34px; margin: 10px 2px 0; color: #aeb3be; font-size: 11px; line-height: 1.45 }
+    .status.error { color: #ff829f }
+    .status.success { color: #69c99a }
+  </style>
+</head>
+<body>
+  <header class="titlebar">
+    <h1>게임 오버레이 설정</h1>
+    <button class="close" type="button" aria-label="닫기">✕</button>
+  </header>
+  <main>
+    <p class="description">게임 화면 위에 표시할 알림을 선택합니다. 현재는 디버프 영역 자동인식 미리보기만 지원합니다.</p>
+    <section class="list" aria-label="오버레이 알림 설정"></section>
+    <section class="detect-panel">
+      <strong>디버프 영역 자동인식</strong>
+      <p>마비노기 창을 잠시 전경으로 전환해 보스 체력바 외곽을 찾은 뒤 원래 창으로 돌아옵니다.</p>
+      <button class="detect" type="button">인터페이스 자동인식</button>
+      <div class="status" role="status" aria-live="polite"></div>
+    </section>
+  </main>
+  <script>
+    const fields = [
+      ["debuffNotifications", "디버프 알림", "보스 체력바 영역을 기준으로 디버프 알림을 표시합니다"],
+      ["tuarimNotifications", "투아림 알림", "투아림 상태 알림을 표시합니다"],
+      ["collapseNotifications", "붕괴 알림", "붕괴 관련 알림을 표시합니다"],
+      ["buffNotifications", "버프 알림", "버프 상태 알림을 표시합니다"],
+      ["skillNotifications", "스킬 알림", "스킬 사용 알림을 표시합니다"],
+    ]
+    const list = document.querySelector(".list")
+    const detect = document.querySelector(".detect")
+    const status = document.querySelector(".status")
+    let current = {}
+    let busy = false
+
+    function render() {
+      list.replaceChildren(...fields.map(([key, title, description]) => {
+        const row = document.createElement("label")
+        row.className = "item"
+        row.innerHTML = `<span><h2>${title}</h2><p>${description}</p></span><span class="switch"><input type="checkbox" data-key="${key}"><span class="track"></span></span>`
+        const input = row.querySelector("input")
+        input.checked = current[key] === true
+        input.disabled = busy
+        input.addEventListener("change", () => update(key, input.checked))
+        return row
+      }))
+      detect.disabled = busy || current.debuffNotifications !== true
+    }
+
+    function showStatus(message, kind = "") {
+      status.textContent = message
+      status.className = `status ${kind}`.trim()
+    }
+
+    async function update(key, value) {
+      busy = true
+      render()
+      try {
+        current = await window.overlaySettings.setSetting({ [key]: value })
+        showStatus(key === "debuffNotifications" && !value ? "디버프 영역 미리보기를 숨겼습니다." : "설정을 저장했습니다.", "success")
+      } catch (error) {
+        showStatus(error?.message || String(error), "error")
+        current = await window.overlaySettings.getStatus()
+      } finally {
+        busy = false
+        render()
+      }
+    }
+
+    detect.addEventListener("click", async () => {
+      busy = true
+      render()
+      showStatus("마비노기 창을 확인하고 있습니다.")
+      try {
+        current = await window.overlaySettings.detectDebuffRegion()
+        showStatus("보스 체력바 영역을 찾았습니다. 게임 창에서 표시 위치를 확인해 주세요.", "success")
+      } catch (error) {
+        showStatus(error?.message || String(error), "error")
+        current = await window.overlaySettings.getStatus()
+      } finally {
+        busy = false
+        render()
+      }
+    })
+
+    document.querySelector(".close").addEventListener("click", () => window.overlaySettings.requestClose())
+    window.addEventListener("keydown", event => {
+      if (event.key === "Escape") window.overlaySettings.requestClose()
+    })
+
+    window.overlaySettings.getStatus().then(value => {
+      current = value
+      render()
+      if (current.detectionError) showStatus(current.detectionError, "error")
+      else if (current.debuffRegionDetected) showStatus("자동인식된 디버프 영역이 저장되어 있습니다.", "success")
+    }).catch(error => showStatus(error?.message || String(error), "error"))
+  </script>
+</body>
+</html>

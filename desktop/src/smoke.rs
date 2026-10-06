@@ -219,6 +219,22 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     )
     .await?;
     tokio::time::sleep(Duration::from_millis(200)).await;
+    let mut creator_ready = false;
+    for _ in 0..20 {
+        creator_ready = inspect(
+            &main,
+            "document.querySelector('.creator-credit')?.disabled===false",
+        )
+        .await?
+            == true;
+        if creator_ready {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    if !creator_ready {
+        return Err("Creator view did not become interactive after tray restore".into());
+    }
     inspect(
         &main,
         "document.querySelector('.creator-credit').click(); true",
@@ -229,7 +245,7 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     tokio::time::sleep(Duration::from_millis(900)).await;
 
     tokio::time::sleep(Duration::from_millis(900)).await;
-    let advanced = inspect(&main, r#"(()=>{const panel=document.querySelector('.creator-content');return {headings:[...panel.querySelectorAll('h2')].map(e=>e.textContent),scrollable:panel.scrollHeight>panel.clientHeight,icons:document.querySelectorAll('.window-controls svg').length}})()"#).await?;
+    let advanced = inspect(&main, r#"(()=>{const panel=document.querySelector('.creator-content');return {panel:!!panel,headings:panel?[...panel.querySelectorAll('h2')].map(e=>e.textContent):[],scrollable:panel?panel.scrollHeight>panel.clientHeight:false,icons:document.querySelectorAll('.window-controls svg').length,tabs:[...document.querySelectorAll('.creator-tabs button')].map(e=>e.textContent),body:document.body.innerText.slice(0,500)}})()"#).await?;
     if advanced["scrollable"] != true || advanced["icons"] != 4 {
         return Err(format!("Advanced structure failed: {advanced}"));
     }
@@ -257,6 +273,42 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     if state.peek().turbo["intervalMs"] != 5 || state.peek().turbo["enabled"] != true {
         return Err("Turbo save did not reach service".into());
     }
+
+    client
+        .invoke(1, "application:open-overlay-settings", json!([]))
+        .await?;
+    tokio::time::sleep(Duration::from_millis(900)).await;
+    let overlay_settings = host
+        .0
+        .borrow()
+        .windows
+        .iter()
+        .find(|(id, _)| **id != 1)
+        .map(|(_, window)| window.clone())
+        .ok_or("Overlay settings window not created")?;
+    let overlay_result = inspect(
+        &overlay_settings,
+        "({bridge:typeof window.overlaySettings, errors:window.__nogiremErrors, text:document.body.innerText})",
+    )
+    .await?;
+    if overlay_result["bridge"] != "object"
+        || overlay_result["errors"]
+            .as_array()
+            .is_none_or(|items| !items.is_empty())
+        || !overlay_result["text"]
+            .as_str()
+            .unwrap_or("")
+            .contains("인터페이스 자동인식")
+    {
+        return Err(format!("overlay-settings: {overlay_result}"));
+    }
+    auxiliary_results.push(json!({"window":"overlay-settings","result":overlay_result}));
+    inspect(
+        &overlay_settings,
+        "setTimeout(()=>window.overlaySettings.requestClose(),50); true",
+    )
+    .await?;
+    tokio::time::sleep(Duration::from_millis(300)).await;
 
     tokio::time::sleep(Duration::from_millis(300)).await;
     inspect(

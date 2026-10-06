@@ -664,6 +664,10 @@ fn Advanced() -> Element {
         if let Some(error) = s.channel_ping["inputError"].as_str() { span { class: "developer-tool-status", "실시간 핑 입력 감시를 시작하지 못했습니다: {error}" } }
         if let Some(error) = s.channel_ping["activeConnectionError"].as_str() { span { class: "developer-tool-status", "실시간 게임 연결 확인 제한: {error}" } }
         div { class: "developer-tool-row",
+            div { h2 { "게임 오버레이" } p { "디버프·투아림·붕괴·버프·스킬 알림과 게임 인터페이스 자동인식을 설정합니다" } }
+            Action { label: "설정", channel: "application:open-overlay-settings" }
+        }
+        div { class: "developer-tool-row",
             div { h2 { "게임 블랙박스" } p { "메인 화면에서 게임 화면 순환 녹화와 클립 저장 기능을 사용할 수 있습니다" } }
             Action { label: if s.blackbox["featureEnabled"] == true { "사용 중" } else { "사용하기" }, channel: "application:set-blackbox-feature-enabled", args: json!([s.blackbox["featureEnabled"] != true]), disabled: !s.blackbox.is_object(), class: if s.blackbox["featureEnabled"] == true { "active" } else { "" } }
         }

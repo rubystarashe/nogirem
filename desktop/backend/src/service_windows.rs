@@ -1,6 +1,7 @@
 use crate::{
     Result,
-    channel_ping::{OverlayBounds, clear_input_overlay_window, set_input_overlay_window},
+    channel_ping::{clear_input_overlay_window, set_input_overlay_window},
+    overlay_geometry::OverlayBounds,
     rpc::Rpc,
     storage,
     workers::{Environment, read},
@@ -49,7 +50,11 @@ fn n(v: &Value, k: &str, default: f64) -> f64 {
 fn close_when_main_moves_to_tray(kind: &str) -> bool {
     !matches!(
         kind,
-        "notice" | "update-notice" | "channel-ping-overlay" | "channel-ping-live"
+        "notice"
+            | "update-notice"
+            | "channel-ping-overlay"
+            | "channel-ping-live"
+            | "debuff-region-overlay"
     )
 }
 impl Windows {
@@ -145,6 +150,25 @@ impl Windows {
     }
     pub fn show_channel_ping_live(self: &Arc<Self>, bounds: OverlayBounds) -> Result<(u64, isize)> {
         self.show_channel_ping_window("channel-ping-live", bounds, "상단 실시간 핑 창")
+    }
+    pub fn prepare_debuff_preview(self: &Arc<Self>) -> Result<()> {
+        self.open("debuff-region-overlay", false).map(|_| ())
+    }
+    pub fn show_debuff_preview(
+        self: &Arc<Self>,
+        bounds: OverlayBounds,
+    ) -> Result<(u64, isize)> {
+        self.show_channel_ping_window("debuff-region-overlay", bounds, "디버프 영역 미리보기")
+    }
+    pub fn hide_debuff_preview(&self) {
+        if let Some(id) = self.id("debuff-region-overlay") {
+            self.command(id, "hide", Value::Null);
+        }
+    }
+    pub fn destroy_debuff_preview(&self) {
+        if let Some(id) = self.id("debuff-region-overlay") {
+            self.destroy(id);
+        }
     }
     fn show_channel_ping_window(
         &self,
@@ -689,11 +713,17 @@ impl Windows {
             "blackbox-editor" => {
                 json!({"width":1100,"height":720,"minWidth":780,"minHeight":560,"title":"블랙박스 영상 추출","alwaysOnTop":true})
             }
+            "overlay-settings" => {
+                json!({"width":520,"height":560,"minWidth":460,"minHeight":500,"title":"게임 오버레이 설정","skipTaskbar":true,"resizable":false,"parent":1})
+            }
             "channel-ping-overlay" => {
                 json!({"width":584,"height":400,"title":"채널별 서버 지연 추측","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":true})
             }
             "channel-ping-live" => {
                 json!({"width":520,"height":30,"title":"실시간 점수 확인","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":false})
+            }
+            "debuff-region-overlay" => {
+                json!({"width":520,"height":70,"title":"디버프 영역 미리보기","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":false})
             }
             _ => return Err("허용되지 않은 보조 창".into()),
         };
@@ -751,7 +781,7 @@ impl Windows {
         if let Some(w) = self.state.lock().unwrap().windows.get_mut(&id) {
             w.closing = true;
         }
-        if w.kind == "blackbox-editor" {
+        if matches!(w.kind.as_str(), "blackbox-editor" | "overlay-settings") {
             self.destroy(id);
             self.focus_main();
         } else {
@@ -902,7 +932,9 @@ mod tests {
         assert!(!close_when_main_moves_to_tray("update-notice"));
         assert!(!close_when_main_moves_to_tray("channel-ping-overlay"));
         assert!(!close_when_main_moves_to_tray("channel-ping-live"));
+        assert!(!close_when_main_moves_to_tray("debuff-region-overlay"));
         assert!(close_when_main_moves_to_tray("character-guide"));
+        assert!(close_when_main_moves_to_tray("overlay-settings"));
         assert!(close_when_main_moves_to_tray("blackbox-manager"));
     }
 

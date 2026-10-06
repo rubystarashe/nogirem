@@ -420,6 +420,8 @@ impl Host {
                         "blackbox-editor.html",
                         "channel-ping-overlay.html",
                         "channel-ping-live.html",
+                        "overlay-settings.html",
+                        "debuff-region-overlay.html",
                     ]
                     .iter()
                     .any(|n| name == *n)

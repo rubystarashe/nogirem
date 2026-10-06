@@ -1,4 +1,4 @@
-use crate::{Result, storage, workers::Environment};
+use crate::{Result, overlay_geometry::OverlayBounds, storage, workers::Environment};
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -1024,14 +1024,6 @@ fn update_active_latency_history(
     current.average_latency_ms =
         Some(((sum + history.samples.len() as u64 / 2) / history.samples.len() as u64) as u32);
     current.maximum_latency_ms = history.samples.iter().map(|(_, value)| *value).max();
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct OverlayBounds {
-    pub x: f64,
-    pub y: f64,
-    pub width: f64,
-    pub height: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
