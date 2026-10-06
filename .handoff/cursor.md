@@ -1,12 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-06 10:29 +09:00
+Last Updated: 2026-10-06 10:42 +09:00
 
 ## Current Objective
 신규 `게임 오버레이` 설정창과 첫 디버프 영역 자동인식 checkpoint를 구현했다. 실제 디버프 판독 전 단계로 검증된 마비노기 client의 보스 체력바 외곽을 one-shot 캡처·검출해 click-through 테두리와 라벨로 표시한다.
 
 ## Active Runs
-- `20261006-game-overlay-debuff-045`: source `20ae67c9f20426dbd1f0139d64fb2b408dd817f5`에서 5종 persistent toggle, toggle-independent 자동인식, 700px no-scroll 설정창과 fade close, UI-thread 연결형 foreground GDI capture, 순수 BGRA detector와 독립 preview를 구현했다. 자동 source 검사와 primary native UI smoke가 통과했다. 실제 게임에서 최초 `SetForegroundWindow` 거부 feedback 후 thread attachment를 추가했으며 수정 target의 재검증은 사용자 PC에서 대기한다. (`docs/ai/runs/20261006-game-overlay-debuff-045/task.md`)
+- `20261006-game-overlay-debuff-045`: source `9aec27b98bee117cc6d14999449a149c9239549c`에서 5종 persistent toggle, toggle-independent 자동인식, no-scroll·fade UX와 foreground GDI capture를 구현했다. 실제 게임의 최초 foreground 거부는 thread attachment로, 후속 영역 미검출은 DirectX window DC 대신 client 좌표의 composited screen DC crop으로 수정했다. 자동 검사는 통과했고 최신 관리자 테스트 앱 PID 51960에서 실제 재확인을 기다린다. (`docs/ai/runs/20261006-game-overlay-debuff-045/task.md`)
 - `20261006-tray-channel-monitor-045`: tray cleanup이 일반 보조 창만 닫고 `channel-ping-overlay`·`channel-ping-live`를 보존하도록 source `66d56b49544219fa7c8f38d5aea77a87f78bb11c`에서 수정했다. backend 105 PASS·2 declared ignore, parity 2/2, overlay 3/3과 SELF_REVIEW가 통과했다. 실제 tray·게임·Windows 키·DPI QA와 package·push·재배포는 수행하지 않았다. (`docs/ai/runs/20261006-tray-channel-monitor-045/task.md`)
 - `20261005-release-045`: source `2fd708bee4af0513a68b21618e81e0173516c098`에서 signed 설치형·포터블을 만들고 origin/main push, v0.4.5 tag와 [GitHub v0.4.5](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.5) 자산 10개를 공개했다. 공개 10/10 hash·Ed25519 manifest·Electron 0.3.19 bridge 재검증이 통과했다. 실제 설치·게임·혼합 DPI QA는 수행하지 않았다. (`docs/ai/runs/20261005-release-045/task.md`)
 - `20261005-package-045`: source `4c11b0e42055073597d080cf59219d22cd06cfbb`에서 0.4.5 서명 설치형·포터블을 `release/dioxus-0.4.5-2026-10-05T08-21-42-249Z`에 생성하고 자동·native contract·해시·manifest 검증을 통과했다. 실제 설치·포터블 실행과 push·tag·GitHub release·배포는 수행하지 않았다. (`docs/ai/runs/20261005-package-045/final-report.md`)
@@ -28,6 +28,7 @@ Last Updated: 2026-10-06 10:29 +09:00
 - 고급 기능의 `게임 오버레이` 버튼은 별도 520×560 settings window를 열고 5개 알림 boolean을 `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`에 원자 저장한다. 디버프 알림을 켜야 자동인식 버튼이 활성화되며 나머지 4종은 설정 UI만 구현됐다.
 - 자동인식은 정본 path를 만족하는 visible non-minimized game HWND 하나를 선택하고 기존 foreground를 저장한 뒤 게임을 180ms foreground로 전환해 client BGRA를 한 번 캡처한다. 복수 후보는 canonical game path 단일 일치가 없으면 거부하고 capture 전·후 PID·start identity를 재확인하며 성공·실패 모두 기존 foreground를 복원한다.
 - 자동인식 버튼은 디버프 알림 toggle과 무관하게 사용할 수 있다. Windows의 foreground 제한을 통과하도록 capture worker를 현재 foreground·target UI thread에 임시 연결하고, 전환 직후 반드시 detach한다. 설정창은 높이 700px로 scrollbar를 제거했고 닫을 때 표준 300ms fade-out 후 메인 창을 focus한다.
+- DirectX window DC의 blank·stale frame 문제를 피하려고 전경 게임의 client origin·size를 계산하고 composited screen DC에서 그 rectangle만 캡처한다. compatible bitmap은 memory DC에서 해제한 뒤 `GetDIBits`로 읽는다.
 - detector는 `55±2`와 바로 아래 `17±2` 하단선, 20~120px 위 `7~12` 상단선, endpoint ±2px, RGB spread ≤2, 95% 검은 좌우선과 5:1 aspect를 사용한다. 제공 523×40 crop의 9/10/10 상단·55 하단·상단 2px edge gap을 synthetic test에 반영했으며 crop 밖 17 line은 사용자 규칙을 따른다.
 - 검출 좌표는 client-local physical pixel로 메모리에만 보존한다. `debuff-region-overlay`는 같은 game HWND가 foreground일 때만 screen origin을 다시 계산해 정확한 영역 위에 `디버프 영역` 테두리·라벨을 표시하며 다른 앱에서는 숨는다. 실제 게임에서의 capture·preview는 아직 확인하지 않았다.
 - tray 최소화와 tray에서 다시 열기는 character guide·blackbox manager 등 일반 보조 창을 정리하되 hidden `channel-ping-overlay`·`channel-ping-live`는 유지한다. 별도 backend channel monitor thread와 input hook도 main WebView visibility에 묶이지 않으므로 기능 활성 상태가 유지된다. 이 fix는 local commit `66d56b4`에 있으며 공개 v0.4.5 package에는 아직 포함되지 않았다.

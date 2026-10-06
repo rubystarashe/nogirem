@@ -2,16 +2,16 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `22`
-- updated_at: `2026-10-06T01:29:00Z`
+- revision: `23`
+- updated_at: `2026-10-06T01:42:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-06T01:29:00Z`
+- source_reviewed_at: `2026-10-06T01:42:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 20ae67c9f20426dbd1f0139d64fb2b408dd817f5, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
+- source_review_target: `source commit 9aec27b98bee117cc6d14999449a149c9239549c, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
 - source_review_evidence: `게임 오버레이 setting·capture·detector·preview·IPC/package 경계 SELF_REVIEW APPROVED`
 - behavior_verified_at: `2026-10-06T01:05:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 20ae67c9f20426dbd1f0139d64fb2b408dd817f5`
+- behavior_verification_target: `source commit 9aec27b98bee117cc6d14999449a149c9239549c`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration·Node contract·desktop compile`
 - behavior_verification_evidence: `Node 207/207, backend 110 PASS·2 declared ignore, parity 2/2, desktop 8/8, detector 5/5, overlay contract 4/4, primary native UI smoke PASS`
 - freshness_status: `CURRENT`
@@ -98,16 +98,16 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-06T01:05:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 20ae67c9f20426dbd1f0139d64fb2b408dd817f5, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
+- source_review_target: `source commit 9aec27b98bee117cc6d14999449a149c9239549c, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
 - source_review_evidence: `capture trust·focus restoration·pure detector·setting writer·window/IPC/package diff SELF_REVIEW APPROVED`
 - behavior_verified_at: `2026-10-06T01:05:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 20ae67c9f20426dbd1f0139d64fb2b408dd817f5`
+- behavior_verification_target: `source commit 9aec27b98bee117cc6d14999449a149c9239549c`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target, synthetic BGRA and native smoke fixture`
 - behavior_verification_evidence: `detector 5/5, overlay contract 4/4, Node 207/207, backend 110 PASS·2 ignored, parity 2/2, desktop 8/8, primary UI smoke PASS`
 - freshness_status: `CURRENT`
 - freshness_reason: `현재 source 구현 범위와 실제 게임 미검증·미배포 상태를 명시함`
-- known_gaps: `실제 Mabinogi capture·focus restore·보스 체력바 검출·preview·click-through·DPI·전체화면 NOT_RUN; 투아림·붕괴·버프·스킬과 실제 디버프 알림 미구현`
+- known_gaps: `screen DC capture fix 후 실제 Mabinogi 보스 체력바 재검출·preview·click-through·DPI·전체화면 확인 대기; 투아림·붕괴·버프·스킬과 실제 디버프 알림 미구현`
 - feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 신규 설정과 디버프 영역 자동인식 preview`
 - feature_map: `updated — 신규 canonical identity 예약·추가`
 - architecture_impact: `foreground capture adapter, pure detector, setting single writer, interactive/preview windows`

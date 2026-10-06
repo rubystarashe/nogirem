@@ -6,7 +6,7 @@
 - completed_at: `2026-10-06T01:05:00Z`
 - requested_scope: `5종 알림 설정 UI와 디버프 보스 체력바 영역 자동인식·오버레이 preview`
 - delivered_scope: `요청 source 구현 완료; 실제 게임 종단간 검증·package·배포 제외`
-- source_target: `20ae67c9f20426dbd1f0139d64fb2b408dd817f5`
+- source_target: `9aec27b98bee117cc6d14999449a149c9239549c`
 - feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 신규 설정과 디버프 영역 자동인식 preview`
 - feature_map: `updated — 신규 PLANNED identity·flows·scenarios·freshness 추가`
 - architecture_impact: `verified foreground capture, pure detector, setting writer, interactive/preview native windows`

@@ -2,16 +2,16 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `17`
-- updated_at: `2026-10-06T01:29:00Z`
+- revision: `18`
+- updated_at: `2026-10-06T01:42:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-06T01:29:00Z`
+- source_reviewed_at: `2026-10-06T01:42:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 20ae67c9f20426dbd1f0139d64fb2b408dd817f5, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
+- source_review_target: `source commit 9aec27b98bee117cc6d14999449a149c9239549c, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
 - source_review_evidence: `game overlay setting writer·capture trust·focus restoration·detector·window/IPC/package 경계 SELF_REVIEW APPROVED`
 - behavior_verified_at: `2026-10-06T01:05:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 20ae67c9f20426dbd1f0139d64fb2b408dd817f5`
+- behavior_verification_target: `source commit 9aec27b98bee117cc6d14999449a149c9239549c`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
 - behavior_verification_evidence: `Node 207/207, backend 110 PASS·2 declared ignore, parity 2/2, desktop 8/8, detector 5/5, overlay contract 4/4, primary native UI smoke PASS`
 - freshness_status: `CURRENT`
@@ -104,7 +104,7 @@
 - `game_overlay.rs`는 overlay 설정, 검증된 게임 window 선택, one-shot client capture와 순수 보스 체력바 외곽 검출을 소유한다. `service.rs`는 IPC와 preview monitor만 조정하고 pixel 판정 조건을 복제하지 않는다.
 - 여러 capability가 사용하는 physical rectangle은 `overlay_geometry.rs`의 `OverlayBounds` 하나를 사용한다. game overlay가 channel ping capability 내부 type에 의존하거나 서로의 window ID·visible state를 공유해서는 안 된다.
 - 게임 window 후보는 `process::matches_game`을 통과해야 한다. 후보가 여러 개면 persisted canonical game path와 정확히 일치하는 하나만 선택하고, 그렇지 않으면 fail closed한다. capture 전·후 PID와 process start identity가 달라지면 결과를 폐기한다.
-- foreground GDI capture는 기존 foreground HWND 저장, capture worker와 foreground·target UI thread의 임시 `AttachThreadInput`, 검증된 game foreground 전환, thread detach, 짧은 render 대기, client BGRA read, 같은 방식의 기존 foreground 복원 순서다. attach는 성공 여부와 무관하게 즉시 해제하고 포커스 복원도 capture 성공 여부와 무관하게 수행한다. `PrintWindow`나 Windows Graphics Capture background adapter는 실제 GPU 호환성 검증 전 지원 경로로 간주하지 않는다.
+- foreground GDI capture는 기존 foreground HWND 저장, capture worker와 foreground·target UI thread의 임시 `AttachThreadInput`, 검증된 game foreground 전환, thread detach, 짧은 render 대기, client origin·size 계산, composited screen DC에서 해당 rectangle만 BitBlt, bitmap deselect 후 BGRA read, 같은 방식의 기존 foreground 복원 순서다. DirectX window DC는 빈 화면·stale surface 위험 때문에 지원 capture source가 아니다. attach는 성공 여부와 무관하게 즉시 해제하고 포커스 복원도 capture 성공 여부와 무관하게 수행한다.
 - detector는 압축 이미지·OCR·내부 체력 색상에 의존하지 않는다. 회색 이중 하단선, 가변 거리 상단선, 검은 좌우선과 aspect를 순수 BGRA 입력에서 판정하며 허용오차 변경은 synthetic positive·negative fixture를 동반한다.
 - `overlay-settings`는 main-owned interactive window라 tray 이동 시 닫는다. `debuff-region-overlay`는 focusable=false·click-through·transparent·always-on-top인 별도 identity이고 기능 상태 보존을 위해 tray cleanup에서 제거하지 않지만, 검증된 같은 game HWND가 foreground가 아니면 숨긴다.
 - settings preload만 get·set·detect·close IPC를 노출하고 preview preload는 제품 IPC를 노출하지 않는다. 두 HTML과 preload는 native allowlist·service contract·packager 입력을 함께 갱신한다. Electron 0.3.x host는 Rust 전용 요청을 명시적으로 거부한다.
