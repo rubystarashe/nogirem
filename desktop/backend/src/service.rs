@@ -412,6 +412,8 @@ impl Service {
         let service = self.clone();
         std::thread::spawn(move || service.monitor_debuff_preview());
         let service = self.clone();
+        std::thread::spawn(move || service.monitor_debuff_alert());
+        let service = self.clone();
         std::thread::spawn(move || service.check_startup_network());
         if self.env.packaged {
             let service = self.clone();
@@ -619,7 +621,6 @@ impl Service {
         let mut visible = false;
         let mut bounds = None;
         while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
-            let _preview_guard = self.debuff_preview_gate.lock().unwrap();
             let target = self.game_overlay.lock().unwrap().preview_bounds(&self.env);
             let current_id = self.windows.id("debuff-region-overlay");
             if window_id != current_id {
@@ -650,13 +651,64 @@ impl Service {
                     }
                 }
             } else if visible {
-                self.windows.hide_debuff_preview();
+                self.windows.destroy_debuff_preview();
+                window_id = None;
                 visible = false;
                 bounds = None;
             }
             std::thread::sleep(Duration::from_millis(100));
         }
-        self.windows.hide_debuff_preview();
+        self.windows.destroy_debuff_preview();
+    }
+    fn monitor_debuff_alert(self: &Arc<Self>) {
+        let mut visible = false;
+        let mut bounds = None;
+        let mut configuring = false;
+        while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
+            let (target, should_show, next_configuring) = {
+                let mut overlay = self.game_overlay.lock().unwrap();
+                let _ = overlay.scan_debuffs(&self.env);
+                (
+                    overlay.alert_bounds(&self.env),
+                    overlay.should_show_alert(),
+                    overlay.alert_configuring(),
+                )
+            };
+            if should_show {
+                if let Some(target) = target {
+                    if self.windows.id("debuff-alert-overlay").is_none()
+                        && self.windows.prepare_debuff_alert().is_err()
+                    {
+                        std::thread::sleep(Duration::from_secs(1));
+                        continue;
+                    }
+                    if !visible || bounds != Some(target) || configuring != next_configuring {
+                        match self.windows.show_debuff_alert(target, next_configuring) {
+                            Ok(_) => {
+                                visible = true;
+                                bounds = Some(target);
+                                configuring = next_configuring;
+                            }
+                            Err(error) => {
+                                visible = false;
+                                bounds = None;
+                                log(format!("디버프 누락 알림 표시 실패: {error}"));
+                            }
+                        }
+                    }
+                } else if visible {
+                    self.windows.destroy_debuff_alert();
+                    visible = false;
+                    bounds = None;
+                }
+            } else if visible {
+                self.windows.destroy_debuff_alert();
+                visible = false;
+                bounds = None;
+            }
+            std::thread::sleep(Duration::from_millis(250));
+        }
+        self.windows.destroy_debuff_alert();
     }
     fn check_startup_network(&self) {
         let path = self.env.user.join("network/fast-ping-original.json");
@@ -887,10 +939,19 @@ impl Service {
                 {
                     self.windows.content_ready(id);
                 } else if let Some((kind, action)) = channel.split_once(':') {
-                    if matches!(kind, "character-guide" | "dxvk-guide")
-                        && self.windows.kind(id).as_deref() == Some(kind)
+                    let expected_kind = if kind == "debuff-alert" {
+                        "debuff-alert-overlay"
+                    } else {
+                        kind
+                    };
+                    if matches!(kind, "character-guide" | "dxvk-guide" | "debuff-alert")
+                        && self.windows.kind(id).as_deref() == Some(expected_kind)
                     {
-                        self.windows.drag(id, action, &p["args"][0]);
+                        if kind == "debuff-alert" && action == "drag-start" {
+                            self.windows.begin_native_drag(id);
+                        } else {
+                            self.windows.drag(id, action, &p["args"][0]);
+                        }
                     }
                 }
             }
@@ -919,6 +980,7 @@ impl Service {
             "channel-ping" => {
                 matches!(kind.as_str(), "channel-ping-overlay" | "channel-ping-live")
             }
+            "debuff-alert" => kind == "debuff-alert-overlay",
             prefix => prefix == kind,
         };
         if !allowed {
@@ -974,23 +1036,67 @@ impl Service {
                     let status = self.game_overlay.lock().unwrap().set(v)?;
                     if status["debuffNotifications"] != true {
                         self.windows.destroy_debuff_preview();
+                        self.windows.destroy_debuff_alert();
+                        self.windows.destroy_overlay_configuration();
                     }
                     Ok(status)
                 }
                 "detect-debuff-region" => {
                     let _preview_guard = self.debuff_preview_gate.lock().unwrap();
                     self.windows.destroy_debuff_preview();
+                    self.windows.destroy_debuff_alert();
+                    self.windows.destroy_overlay_configuration();
+                    let _ = self.game_overlay.lock().unwrap().configure_alert(false);
                     let result = self
                         .game_overlay
                         .lock()
                         .unwrap()
                         .detect_debuff_region(&self.env);
                     if result.is_err() {
-                        self.windows.hide_debuff_preview();
+                        self.windows.destroy_debuff_preview();
                     }
                     result
                 }
+                "configure-debuff-alert" => {
+                    let status = self.game_overlay.lock().unwrap().configure_alert(true)?;
+                    if let Err(error) = self.windows.show_overlay_configuration() {
+                        let _ = self.game_overlay.lock().unwrap().configure_alert(false);
+                        return Err(error);
+                    }
+                    Ok(status)
+                }
                 _ => Err("지원하지 않는 오버레이 설정 요청입니다".into()),
+            };
+        }
+        if channel.starts_with("debuff-alert:") {
+            if self.windows.kind(id).as_deref() != Some("debuff-alert-overlay") {
+                return Err("디버프 누락 알림 창 요청자가 올바르지 않습니다".into());
+            }
+            return match action {
+                "get-status" => Ok(self.game_overlay.lock().unwrap().status()),
+                _ => Err("지원하지 않는 디버프 알림 요청입니다".into()),
+            };
+        }
+        if channel.starts_with("overlay-configuration:") {
+            if self.windows.kind(id).as_deref() != Some("overlay-configuration") {
+                return Err("인터페이스 구성 창 요청자가 올바르지 않습니다".into());
+            }
+            return match action {
+                "finish" => {
+                    if let Some(alert_id) = self.windows.id("debuff-alert-overlay")
+                        && let Some((x, y)) = self.windows.physical_position(alert_id)
+                    {
+                        self.game_overlay
+                            .lock()
+                            .unwrap()
+                            .save_alert_position(&self.env, x, y)?;
+                    }
+                    let status = self.game_overlay.lock().unwrap().configure_alert(false)?;
+                    self.windows.destroy_debuff_preview();
+                    self.windows.destroy_overlay_configuration();
+                    Ok(status)
+                }
+                _ => Err("지원하지 않는 인터페이스 구성 요청입니다".into()),
             };
         }
         match channel{

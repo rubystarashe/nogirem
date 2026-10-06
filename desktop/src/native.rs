@@ -86,7 +86,9 @@ fn icon(path: &Path) -> Result<Icon, String> {
 }
 
 fn window_icon() -> desktop::tao::window::Icon {
-    let rgba = image::load_from_memory(include_bytes!("../../icon.ico")).expect("embedded app icon").into_rgba8();
+    let rgba = image::load_from_memory(include_bytes!("../../icon.ico"))
+        .expect("embedded app icon")
+        .into_rgba8();
     let (w, h) = rgba.dimensions();
     desktop::tao::window::Icon::from_rgba(rgba.into_raw(), w, h).expect("valid app icon")
 }
@@ -302,6 +304,7 @@ fn auxiliary() -> Element {
                         Err("이 창에 허용되지 않은 요청입니다".into())
                     } else if channel == "character-guide:drag-start"
                         || channel == "dxvk-guide:drag-start"
+                        || channel == "overlay-configuration:drag-start"
                     {
                         window.drag();
                         Ok(Value::Null)
@@ -422,6 +425,8 @@ impl Host {
                         "channel-ping-live.html",
                         "overlay-settings.html",
                         "debuff-region-overlay.html",
+                        "debuff-alert-overlay.html",
+                        "overlay-configuration.html",
                     ]
                     .iter()
                     .any(|n| name == *n)
@@ -571,6 +576,7 @@ impl Host {
                     "ignoreMouseEvents" => window
                         .set_ignore_cursor_events(enabled)
                         .map_err(|e| e.to_string())?,
+                    "dragWindow" => window.drag_window().map_err(|e| e.to_string())?,
                     "position" => window.set_outer_position(LogicalPosition::new(
                         value["x"].as_f64().unwrap_or(0.0),
                         value["y"].as_f64().unwrap_or(0.0),

@@ -5,18 +5,22 @@ use crate::{
     storage,
     workers::{Environment, read},
 };
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(default)]
 pub struct OverlaySettings {
     pub debuff_notifications: bool,
     pub tuarim_notifications: bool,
     pub collapse_notifications: bool,
     pub buff_notifications: bool,
     pub skill_notifications: bool,
+    pub debuff_alert_offset_x: Option<i32>,
+    pub debuff_alert_offset_y: Option<i32>,
 }
 
 impl Default for OverlaySettings {
@@ -27,6 +31,8 @@ impl Default for OverlaySettings {
             collapse_notifications: false,
             buff_notifications: false,
             skill_notifications: false,
+            debuff_alert_offset_x: None,
+            debuff_alert_offset_y: None,
         }
     }
 }
@@ -54,11 +60,29 @@ struct Detection {
     rect: PixelRect,
 }
 
+#[derive(Clone)]
+struct DebuffTemplate {
+    id: u32,
+    kind: u8,
+    name: String,
+    width: u32,
+    height: u32,
+    rgba: Vec<u8>,
+    anchor_x: u32,
+    anchor_y: u32,
+    anchor_rgb: [u8; 3],
+    icon: String,
+}
+
 pub struct GameOverlay {
     path: PathBuf,
     settings: OverlaySettings,
     detection: Option<Detection>,
     error: Option<String>,
+    templates: Option<Vec<DebuffTemplate>>,
+    template_error: Option<String>,
+    missing_debuffs: Vec<usize>,
+    configuring_alert: bool,
 }
 
 impl GameOverlay {
@@ -70,6 +94,10 @@ impl GameOverlay {
             settings,
             detection: None,
             error: None,
+            templates: None,
+            template_error: None,
+            missing_debuffs: Vec::new(),
+            configuring_alert: false,
         }
     }
 
@@ -80,6 +108,29 @@ impl GameOverlay {
             .error
             .as_ref()
             .map_or(Value::Null, |error| json!(error));
+        value["debuffAlertConfiguring"] = json!(self.configuring_alert);
+        value["debuffTemplateError"] = self
+            .template_error
+            .as_ref()
+            .map_or(Value::Null, |error| json!(error));
+        value["missingDebuffs"] = self
+            .templates
+            .as_ref()
+            .map(|templates| {
+                self.missing_debuffs
+                    .iter()
+                    .filter_map(|index| templates.get(*index))
+                    .map(|template| {
+                        json!({
+                            "id": template.id,
+                            "type": template.kind,
+                            "name": template.name,
+                            "icon": template.icon
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .map_or_else(|| json!([]), Value::from);
         if let Some(detection) = self.detection {
             value["debuffRegion"] = json!({
                 "x": detection.rect.x,
@@ -112,6 +163,8 @@ impl GameOverlay {
         if object.get("debuffNotifications") == Some(&Value::Bool(false)) {
             self.detection = None;
             self.error = None;
+            self.missing_debuffs.clear();
+            self.configuring_alert = false;
         }
         storage::write_json(
             &self.path,
@@ -137,6 +190,7 @@ impl GameOverlay {
                 process_started_at: capture.process_started_at,
                 rect,
             });
+            self.missing_debuffs.clear();
             Ok(self.status())
         });
         if let Err(error) = &result {
@@ -146,11 +200,14 @@ impl GameOverlay {
     }
 
     pub fn preview_bounds(&mut self, env: &Environment) -> Option<OverlayBounds> {
+        if !self.configuring_alert {
+            return None;
+        }
         let detection = self.detection?;
-        let bounds = current_screen_bounds(env, detection)?;
+        let bounds = screen_bounds(env, detection, false)?;
         Some(OverlayBounds {
             x: bounds.x - 4.0,
-            y: bounds.y - 24.0,
+            y: bounds.y - bounds.height - 24.0,
             width: bounds.width + 8.0,
             height: bounds.height + 28.0,
         })
@@ -158,6 +215,79 @@ impl GameOverlay {
 
     pub fn clear_error(&mut self) {
         self.error = None;
+    }
+
+    pub fn configure_alert(&mut self, enabled: bool) -> Result<Value> {
+        self.configuring_alert = enabled;
+        Ok(self.status())
+    }
+
+    pub fn save_alert_position(
+        &mut self,
+        env: &Environment,
+        screen_x: i32,
+        screen_y: i32,
+    ) -> Result<()> {
+        let anchor = game_client_bounds(env, self.detection, false)
+            .ok_or("마비노기 창 위치를 확인하지 못했습니다")?;
+        self.settings.debuff_alert_offset_x = Some((f64::from(screen_x) - anchor.x).round() as i32);
+        self.settings.debuff_alert_offset_y = Some((f64::from(screen_y) - anchor.y).round() as i32);
+        storage::write_json(
+            &self.path,
+            &serde_json::to_value(&self.settings).map_err(|error| error.to_string())?,
+        )
+    }
+
+    pub fn alert_bounds(&mut self, env: &Environment) -> Option<OverlayBounds> {
+        let anchor = game_client_bounds(env, self.detection, !self.configuring_alert)?;
+        Some(OverlayBounds {
+            x: anchor.x + f64::from(self.settings.debuff_alert_offset_x.unwrap_or(32)),
+            y: anchor.y + f64::from(self.settings.debuff_alert_offset_y.unwrap_or(32)),
+            width: 520.0,
+            height: 440.0,
+        })
+    }
+
+    pub fn should_show_alert(&self) -> bool {
+        self.configuring_alert
+            || (self.settings.debuff_notifications && !self.missing_debuffs.is_empty())
+    }
+
+    pub fn alert_configuring(&self) -> bool {
+        self.configuring_alert
+    }
+
+    pub fn scan_debuffs(&mut self, env: &Environment) -> Result<bool> {
+        if !self.settings.debuff_notifications || self.configuring_alert {
+            return Ok(false);
+        }
+        let detection = self
+            .detection
+            .ok_or("보스 체력바 영역이 설정되지 않았습니다")?;
+        let source = debuff_source_rect(detection.rect)
+            .ok_or("보스 체력바 위 디버프 영역이 게임 화면 밖입니다")?;
+        let frame = capture_detected_region(env, detection, source)?;
+        if self.templates.is_none() {
+            match load_debuff_templates(env) {
+                Ok(templates) => {
+                    self.templates = Some(templates);
+                    self.template_error = None;
+                }
+                Err(error) => {
+                    self.template_error = Some(error.clone());
+                    return Err(error);
+                }
+            }
+        }
+        let templates = self.templates.as_ref().unwrap();
+        let missing = templates
+            .iter()
+            .enumerate()
+            .filter_map(|(index, template)| (!template_present(&frame, template)).then_some(index))
+            .collect::<Vec<_>>();
+        let changed = missing != self.missing_debuffs;
+        self.missing_debuffs = missing;
+        Ok(changed)
     }
 }
 
@@ -174,6 +304,144 @@ struct Capture {
     pid: u32,
     process_started_at: i64,
     frame: Frame,
+}
+
+fn load_debuff_templates(env: &Environment) -> Result<Vec<DebuffTemplate>> {
+    load_debuff_templates_from_root(&env.root)
+}
+
+fn load_debuff_templates_from_root(root: &Path) -> Result<Vec<DebuffTemplate>> {
+    let csv = std::fs::read_to_string(root.join("debuff.csv"))
+        .map_err(|error| format!("디버프 목록을 읽지 못했습니다: {error}"))?;
+    let mut templates: Vec<DebuffTemplate> = Vec::new();
+    for (line_index, line) in csv.lines().enumerate().skip(1) {
+        let mut fields = line.split(',').map(str::trim);
+        let id = fields
+            .next()
+            .and_then(|value| value.parse::<u32>().ok())
+            .ok_or_else(|| format!("debuff.csv {}행 ID가 올바르지 않습니다", line_index + 1))?;
+        let kind = fields
+            .next()
+            .and_then(|value| value.parse::<u8>().ok())
+            .filter(|value| (1..=6).contains(value))
+            .ok_or_else(|| format!("debuff.csv {}행 type이 올바르지 않습니다", line_index + 1))?;
+        let name = fields
+            .next()
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| format!("debuff.csv {}행 name이 비어 있습니다", line_index + 1))?;
+        if fields.next().is_some() || templates.iter().any(|template| template.id == id) {
+            return Err(format!(
+                "debuff.csv {}행이 중복되었거나 형식이 올바르지 않습니다",
+                line_index + 1
+            ));
+        }
+        let bytes = std::fs::read(root.join(format!("data/conditions/{id}.png")))
+            .map_err(|error| format!("디버프 {id} 아이콘을 읽지 못했습니다: {error}"))?;
+        let image = image::load_from_memory_with_format(&bytes, image::ImageFormat::Png)
+            .map_err(|error| format!("디버프 {id} 아이콘이 올바른 PNG가 아닙니다: {error}"))?
+            .to_rgba8();
+        let (width, height) = image.dimensions();
+        if width != 16 || height != 16 {
+            return Err(format!("디버프 {id} 아이콘 크기는 16×16이어야 합니다"));
+        }
+        let anchor = image
+            .pixels()
+            .enumerate()
+            .filter(|(_, pixel)| pixel[3] != 0)
+            .max_by_key(|(_, pixel)| {
+                let high = pixel[0].max(pixel[1]).max(pixel[2]);
+                let low = pixel[0].min(pixel[1]).min(pixel[2]);
+                u16::from(high - low) * 2 + u16::from(high)
+            })
+            .ok_or_else(|| format!("디버프 {id} 아이콘에 불투명 픽셀이 없습니다"))?;
+        let anchor_index =
+            u32::try_from(anchor.0).map_err(|_| "디버프 아이콘 좌표가 너무 큽니다")?;
+        let anchor_rgb = [anchor.1[0], anchor.1[1], anchor.1[2]];
+        templates.push(DebuffTemplate {
+            id,
+            kind,
+            name: name.to_owned(),
+            width,
+            height,
+            rgba: image.into_raw(),
+            anchor_x: anchor_index % width,
+            anchor_y: anchor_index / width,
+            anchor_rgb,
+            icon: format!(
+                "data:image/png;base64,{}",
+                base64::engine::general_purpose::STANDARD.encode(bytes)
+            ),
+        });
+    }
+    if templates.is_empty() {
+        return Err("debuff.csv에 판독할 디버프가 없습니다".into());
+    }
+    Ok(templates)
+}
+
+fn debuff_source_rect(health: PixelRect) -> Option<PixelRect> {
+    Some(PixelRect {
+        x: health.x,
+        y: health.y.checked_sub(health.height)?,
+        width: health.width,
+        height: health.height,
+    })
+}
+
+fn template_matches(frame: &Frame, template: &DebuffTemplate, x: u32, y: u32, scale: u32) -> bool {
+    if scale != 1
+        || !pixel(frame, x + template.anchor_x, y + template.anchor_y)
+            .is_some_and(|sample| rgb_matches(sample, template.anchor_rgb))
+    {
+        return false;
+    }
+    let mut compared = 0u32;
+    for ty in 0..template.height {
+        for tx in 0..template.width {
+            let template_index = (ty as usize * template.width as usize + tx as usize) * 4;
+            let alpha = template.rgba[template_index + 3];
+            let red = template.rgba[template_index];
+            let green = template.rgba[template_index + 1];
+            let blue = template.rgba[template_index + 2];
+            if alpha == 0 {
+                continue;
+            }
+            for sy in 0..scale {
+                for sx in 0..scale {
+                    let Some(sample) = pixel(frame, x + tx * scale + sx, y + ty * scale + sy)
+                    else {
+                        return false;
+                    };
+                    if !rgb_matches(sample, [red, green, blue]) {
+                        return false;
+                    }
+                    compared += 1;
+                }
+            }
+        }
+    }
+    compared > 0
+}
+
+fn rgb_matches(sample: [u8; 3], template: [u8; 3]) -> bool {
+    sample
+        .into_iter()
+        .zip(template)
+        .all(|(sample, template)| sample.abs_diff(template) <= 2)
+}
+
+fn template_present(frame: &Frame, template: &DebuffTemplate) -> bool {
+    if template.width > frame.width || template.height > frame.height {
+        return false;
+    }
+    for y in 0..=frame.height - template.height {
+        for x in 0..=frame.width - template.width {
+            if template_matches(frame, template, x, y, 1) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn normalize_process(env: &Environment, window: isize) -> Option<(u32, i64)> {
@@ -447,13 +715,172 @@ fn capture_game_client(env: &Environment) -> Result<Capture> {
     result
 }
 
+#[cfg(windows)]
+fn capture_detected_region(
+    env: &Environment,
+    detection: Detection,
+    rect: PixelRect,
+) -> Result<Frame> {
+    use windows_sys::Win32::Graphics::Gdi::{
+        BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BitBlt, CAPTUREBLT, CreateCompatibleBitmap,
+        CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, GetDIBits, ReleaseDC,
+        SRCCOPY, SelectObject,
+    };
+    let bounds = screen_bounds(env, Detection { rect, ..detection }, true)
+        .ok_or("마비노기 창이 전경이 아니거나 디버프 영역이 유효하지 않습니다")?;
+    let width = i32::try_from(rect.width).map_err(|_| "디버프 영역 너비가 너무 큽니다")?;
+    let height = i32::try_from(rect.height).map_err(|_| "디버프 영역 높이가 너무 큽니다")?;
+    let source_window = std::ptr::null_mut();
+    let source = unsafe { GetDC(source_window) };
+    if source.is_null() {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    let memory = unsafe { CreateCompatibleDC(source) };
+    let bitmap = if memory.is_null() {
+        std::ptr::null_mut()
+    } else {
+        unsafe { CreateCompatibleBitmap(source, width, height) }
+    };
+    if memory.is_null() || bitmap.is_null() {
+        if !memory.is_null() {
+            unsafe {
+                DeleteDC(memory);
+            }
+        }
+        unsafe {
+            ReleaseDC(source_window, source);
+        }
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    let previous = unsafe { SelectObject(memory, bitmap as _) };
+    let copied = unsafe {
+        BitBlt(
+            memory,
+            0,
+            0,
+            width,
+            height,
+            source,
+            bounds.x.round() as i32,
+            bounds.y.round() as i32,
+            SRCCOPY | CAPTUREBLT,
+        )
+    };
+    unsafe {
+        SelectObject(memory, previous);
+    }
+    let mut pixels = vec![0u8; rect.width as usize * rect.height as usize * 4];
+    let mut info = BITMAPINFO {
+        bmiHeader: BITMAPINFOHEADER {
+            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: width,
+            biHeight: -height,
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let rows = if copied == 0 {
+        0
+    } else {
+        unsafe {
+            GetDIBits(
+                memory,
+                bitmap,
+                0,
+                rect.height,
+                pixels.as_mut_ptr().cast(),
+                &mut info,
+                DIB_RGB_COLORS,
+            )
+        }
+    };
+    unsafe {
+        DeleteObject(bitmap as _);
+        DeleteDC(memory);
+        ReleaseDC(source_window, source);
+    }
+    if copied == 0 || rows != rect.height as i32 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    Ok(Frame {
+        width: rect.width,
+        height: rect.height,
+        bgra: pixels,
+    })
+}
+
+#[cfg(not(windows))]
+fn capture_detected_region(
+    _env: &Environment,
+    _detection: Detection,
+    _rect: PixelRect,
+) -> Result<Frame> {
+    Err("Windows에서만 디버프 영역을 캡처할 수 있습니다".into())
+}
+
 #[cfg(not(windows))]
 fn capture_game_client(_env: &Environment) -> Result<Capture> {
     Err("Windows에서만 게임 화면을 자동인식할 수 있습니다".into())
 }
 
 #[cfg(windows)]
-fn current_screen_bounds(_env: &Environment, detection: Detection) -> Option<ScreenRect> {
+fn game_client_bounds(
+    env: &Environment,
+    detection: Option<Detection>,
+    require_foreground: bool,
+) -> Option<ScreenRect> {
+    if let Some(detection) = detection {
+        if let Some(bounds) = screen_bounds(env, detection, require_foreground) {
+            return Some(ScreenRect {
+                x: bounds.x - f64::from(detection.rect.x),
+                y: bounds.y - f64::from(detection.rect.y),
+                width: bounds.width,
+                height: bounds.height,
+            });
+        }
+        if require_foreground {
+            return None;
+        }
+    }
+    let (window, pid, process_started_at) = find_game_window(env).ok()?;
+    let fallback = Detection {
+        window,
+        pid,
+        process_started_at,
+        rect: PixelRect {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+        },
+    };
+    let bounds = screen_bounds(env, fallback, require_foreground)?;
+    Some(ScreenRect {
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+    })
+}
+
+#[cfg(not(windows))]
+fn game_client_bounds(
+    _env: &Environment,
+    _detection: Option<Detection>,
+    _require_foreground: bool,
+) -> Option<ScreenRect> {
+    None
+}
+
+#[cfg(windows)]
+fn screen_bounds(
+    _env: &Environment,
+    detection: Detection,
+    require_foreground: bool,
+) -> Option<ScreenRect> {
     use windows_sys::Win32::{
         Foundation::{POINT, RECT},
         Graphics::Gdi::ClientToScreen,
@@ -469,7 +896,7 @@ fn current_screen_bounds(_env: &Environment, detection: Detection) -> Option<Scr
     if unsafe { IsWindow(detection.window as _) } == 0
         || unsafe { IsWindowVisible(detection.window as _) } == 0
         || unsafe { IsIconic(detection.window as _) } != 0
-        || unsafe { GetForegroundWindow() } as isize != detection.window
+        || (require_foreground && unsafe { GetForegroundWindow() } as isize != detection.window)
         || pid != detection.pid
         || process::start_ms(pid).ok() != Some(detection.process_started_at)
     {
@@ -497,7 +924,11 @@ fn current_screen_bounds(_env: &Environment, detection: Detection) -> Option<Scr
 }
 
 #[cfg(not(windows))]
-fn current_screen_bounds(_env: &Environment, _detection: Detection) -> Option<ScreenRect> {
+fn screen_bounds(
+    _env: &Environment,
+    _detection: Detection,
+    _require_foreground: bool,
+) -> Option<ScreenRect> {
     None
 }
 
@@ -571,10 +1002,10 @@ fn vertical_edge(
     top: u32,
     bottom: u32,
 ) -> Option<(u32, f64)> {
-    (first.min(second).saturating_sub(2)
+    (first.min(second).saturating_sub(4)
         ..=first
             .max(second)
-            .saturating_add(2)
+            .saturating_add(4)
             .min(frame.width.saturating_sub(1)))
         .map(|x| (x, vertical_black_ratio(frame, x, top, bottom)))
         .filter(|(_, ratio)| *ratio >= 0.90)
@@ -619,6 +1050,27 @@ fn vertical_span_near(frame: &Frame, expected: u32, top: u32) -> Option<(u32, u3
         })
 }
 
+fn has_colored_health_fill(frame: &Frame, rect: PixelRect) -> bool {
+    if rect.width < 5 || rect.height < 5 {
+        return false;
+    }
+    let left = rect.x + 2;
+    let right = rect.x + rect.width - 2;
+    let required = (right - left).div_ceil(2);
+    (rect.y + 2..rect.y + rect.height - 2).any(|y| {
+        (left..right)
+            .filter(|x| {
+                pixel(frame, *x, y).is_some_and(|value| {
+                    let low = *value.iter().min().unwrap();
+                    let high = *value.iter().max().unwrap();
+                    high >= 48 && high - low >= 16
+                })
+            })
+            .count() as u32
+            >= required
+    })
+}
+
 fn detect_from_upper_edges(frame: &Frame) -> Option<PixelRect> {
     let mut candidates = Vec::new();
     for top in 0..frame.height.saturating_sub(19) {
@@ -644,14 +1096,18 @@ fn detect_from_upper_edges(frame: &Frame) -> Option<PixelRect> {
             if width < height.saturating_mul(5) {
                 continue;
             }
+            let rect = PixelRect {
+                x: left.0,
+                y: top,
+                width,
+                height,
+            };
+            if !has_colored_health_fill(frame, rect) {
+                continue;
+            }
             candidates.push((
                 left.2 + right.2 + f64::from(width) / f64::from(frame.width),
-                PixelRect {
-                    x: left.0,
-                    y: top,
-                    width,
-                    height,
-                },
+                rect,
             ));
         }
     }
@@ -792,18 +1248,18 @@ pub fn detect_boss_health_bar(frame: &Frame) -> Option<PixelRect> {
                 let maximum_top = bottom.saturating_sub(20);
                 for top in minimum_top..=maximum_top {
                     for upper in runs(frame, top, 0, 32, 150) {
-                        if (!close(lower.start, upper.start, 4) && !close(lower.end, upper.end, 4))
-                            || lower.width().abs_diff(upper.width()) > 32
-                        {
+                        let overlap_start = lower.start.max(upper.start);
+                        let overlap_end = lower.end.min(upper.end);
+                        if overlap_end < overlap_start || overlap_end - overlap_start + 1 < 150 {
                             continue;
                         }
                         let Some(left) =
-                            vertical_edge(frame, lower.start, upper.start, top, bottom + 1)
+                            vertical_edge(frame, lower.start, lower.start, top, bottom + 1)
                         else {
                             continue;
                         };
                         let Some(right) =
-                            vertical_edge(frame, lower.end, upper.end, top, bottom + 1)
+                            vertical_edge(frame, lower.end, lower.end, top, bottom + 1)
                         else {
                             continue;
                         };
@@ -819,15 +1275,16 @@ pub fn detect_boss_health_bar(frame: &Frame) -> Option<PixelRect> {
                             lower.start.abs_diff(upper.start) + lower.end.abs_diff(upper.end);
                         let score = left.1 + right.1 - f64::from(endpoint_error) * 0.02
                             + f64::from(width) / f64::from(frame.width);
-                        candidates.push((
-                            score,
-                            PixelRect {
-                                x: left.0,
-                                y: top,
-                                width,
-                                height,
-                            },
-                        ));
+                        let rect = PixelRect {
+                            x: left.0,
+                            y: top,
+                            width,
+                            height,
+                        };
+                        if !has_colored_health_fill(frame, rect) {
+                            continue;
+                        }
+                        candidates.push((score, rect));
                     }
                 }
             }
@@ -844,6 +1301,52 @@ pub fn detect_boss_health_bar(frame: &Frame) -> Option<PixelRect> {
 mod tests {
     use super::*;
 
+    fn matcher_template() -> DebuffTemplate {
+        let mut rgba = Vec::new();
+        for value in 1..=9u8 {
+            rgba.extend_from_slice(&[value, value + 10, value + 20, 255]);
+        }
+        DebuffTemplate {
+            id: 1,
+            kind: 1,
+            name: "테스트".into(),
+            width: 3,
+            height: 3,
+            rgba,
+            anchor_x: 1,
+            anchor_y: 1,
+            anchor_rgb: [5, 15, 25],
+            icon: String::new(),
+        }
+    }
+
+    fn matcher_frame(template: &DebuffTemplate, scale: u32) -> Frame {
+        let mut frame = Frame {
+            width: 16,
+            height: 12,
+            bgra: vec![0; 16 * 12 * 4],
+        };
+        for ty in 0..template.height {
+            for tx in 0..template.width {
+                let source = (ty as usize * template.width as usize + tx as usize) * 4;
+                for sy in 0..scale {
+                    for sx in 0..scale {
+                        let x = 4 + tx * scale + sx;
+                        let y = 3 + ty * scale + sy;
+                        let target = (y as usize * frame.width as usize + x as usize) * 4;
+                        frame.bgra[target..target + 4].copy_from_slice(&[
+                            template.rgba[source + 2],
+                            template.rgba[source + 1],
+                            template.rgba[source],
+                            255,
+                        ]);
+                    }
+                }
+            }
+        }
+        frame
+    }
+
     fn fixture(width: u32, height: u32, rect: PixelRect) -> Frame {
         let mut frame = Frame {
             width,
@@ -852,6 +1355,12 @@ mod tests {
         };
         for pixel in frame.bgra.chunks_exact_mut(4) {
             pixel[3] = 255;
+        }
+        for y in rect.y + 1..rect.y + rect.height - 1 {
+            for x in rect.x + 1..rect.x + rect.width - 1 {
+                let index = (y as usize * width as usize + x as usize) * 4;
+                frame.bgra[index..index + 3].copy_from_slice(&[90, 20, 120]);
+            }
         }
         let mut set = |x: u32, y: u32, value: u8| {
             let index = (y as usize * width as usize + x as usize) * 4;
@@ -888,6 +1397,61 @@ mod tests {
     }
 
     #[test]
+    fn 디버프_아이콘은_렌더러_반올림을_제외한_모든_rgb가_같을_때만_일치한다() {
+        let template = matcher_template();
+        let exact = matcher_frame(&template, 1);
+        assert!(template_present(&exact, &template));
+
+        let mut rounded = exact.clone();
+        let index = (4usize * rounded.width as usize + 5) * 4;
+        rounded.bgra[index] = rounded.bgra[index].saturating_add(2);
+        assert!(template_present(&rounded, &template));
+
+        let mut changed = exact.clone();
+        let index = (4usize * changed.width as usize + 5) * 4;
+        changed.bgra[index] = changed.bgra[index].saturating_add(3);
+        assert!(!template_present(&changed, &template));
+    }
+
+    #[test]
+    fn 디버프_아이콘의_두배_확대는_일치하지_않는다() {
+        let template = matcher_template();
+        assert!(!template_present(&matcher_frame(&template, 2), &template));
+    }
+
+    #[test]
+    fn 배포_디버프_목록의_아이콘과_이름을_읽는다() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let templates = load_debuff_templates_from_root(&root).unwrap();
+        assert_eq!(templates.len(), 16);
+        assert_eq!(templates.first().map(|template| template.id), Some(1164));
+        assert_eq!(
+            templates.first().map(|template| template.name.as_str()),
+            Some("물리보호")
+        );
+        assert_eq!(templates.last().map(|template| template.id), Some(16));
+    }
+
+    #[test]
+    fn 디버프_판독_영역은_체력바_바로_위와_같은_크기다() {
+        let health = PixelRect {
+            x: 80,
+            y: 80,
+            width: 302,
+            height: 38,
+        };
+        assert_eq!(
+            debuff_source_rect(health),
+            Some(PixelRect {
+                x: 80,
+                y: 42,
+                width: 302,
+                height: 38,
+            })
+        );
+    }
+
+    #[test]
     fn 상하단선_길이가_두_픽셀_차이나도_찾는다() {
         let expected = PixelRect {
             x: 80,
@@ -920,7 +1484,7 @@ mod tests {
     }
 
     #[test]
-    fn 상단선_한쪽이_일부_끊겨도_세로선으로_경계를_확정한다() {
+    fn 상단선_중앙_일부만_남아도_세로선으로_경계를_확정한다() {
         let expected = PixelRect {
             x: 80,
             y: 40,
@@ -929,7 +1493,11 @@ mod tests {
         };
         let mut frame = fixture(640, 180, expected);
         let right = expected.x + expected.width - 1;
-        for x in right - 15..=right {
+        for x in expected.x..expected.x + 20 {
+            let index = (expected.y as usize * frame.width as usize + x as usize) * 4;
+            frame.bgra[index..index + 3].fill(100);
+        }
+        for x in expected.x + 200..=right {
             let index = (expected.y as usize * frame.width as usize + x as usize) * 4;
             frame.bgra[index..index + 3].fill(100);
         }
@@ -1009,6 +1577,11 @@ mod tests {
             let index = (y as usize * 523 + x as usize) * 4;
             frame.bgra[index..index + 3].copy_from_slice(&[blue, green, red]);
         };
+        for y in 1..39 {
+            for x in 1..522 {
+                set(x, y, 120, 20, 90);
+            }
+        }
         for x in 1..522 {
             set(x, 0, 9, 10, 10);
             set(x, 39, 55, 55, 55);
@@ -1045,6 +1618,30 @@ mod tests {
             }
         }
         assert_eq!(detect_boss_health_bar(&no_sides), None);
+    }
+
+    #[test]
+    fn 검은_배경의_직사각형_경계는_체력바로_인식하지_않는다() {
+        let mut frame = Frame {
+            width: 640,
+            height: 180,
+            bgra: vec![180; 640 * 180 * 4],
+        };
+        for pixel in frame.bgra.chunks_exact_mut(4) {
+            pixel[3] = 255;
+        }
+        for x in 80..=381 {
+            let index = (40usize * frame.width as usize + x) * 4;
+            frame.bgra[index..index + 3].fill(0);
+        }
+        for y in 40..=77 {
+            for x in [80usize, 381] {
+                let index = (y * frame.width as usize + x) * 4;
+                frame.bgra[index..index + 3].fill(0);
+            }
+        }
+
+        assert_eq!(detect_boss_health_bar(&frame), None);
     }
 
     #[test]
@@ -1093,5 +1690,25 @@ mod tests {
         let status = overlay.set(&json!({"skillNotifications":false})).unwrap();
         assert_eq!(status["debuffRegionDetected"], true);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn 체력바_인식_없이도_디버프_알림_위치_구성을_시작한다() {
+        let root = std::env::temp_dir().join(format!("nogirem-overlay-{}", uuid::Uuid::new_v4()));
+        let env = Environment {
+            root: root.clone(),
+            user: root.join("user"),
+            documents: root.join("documents"),
+            videos: root.join("videos"),
+            exe: root.join("nogirem.exe"),
+            packaged: false,
+            portable: false,
+        };
+        let mut overlay = GameOverlay::new(&env);
+
+        let status = overlay.configure_alert(true).unwrap();
+
+        assert_eq!(status["debuffRegionDetected"], false);
+        assert_eq!(status["debuffAlertConfiguring"], true);
     }
 }

@@ -58,8 +58,18 @@ for (const file of await readdir(join(root, 'service'))) {
   await copyFile(join(root, 'service', file), join(appDirectory, 'service', file))
 }
 await cp(join(root, 'desktop/target/release/web'), join(appDirectory, 'web'), { recursive: true })
-for (const file of ['character-guide.html', 'dxvk-guide.html', 'dxvk-manager.html', 'blackbox-manager.html', 'blackbox-editor.html', 'channel-ping-overlay.html', 'channel-ping-live.html', 'overlay-settings.html', 'debuff-region-overlay.html', 'channel.csv', 'icon.ico', 'icon-paused.png', 'config.json', 'INTRODUCE.md', 'OPERATION.md', 'TURBO_KEY_TERMS.md', 'VERSION_HISTORY.md', 'VERSION_HISTORY_DETAIL.md', 'NOTICE.md', 'REPORT.json']) {
+for (const file of ['character-guide.html', 'dxvk-guide.html', 'dxvk-manager.html', 'blackbox-manager.html', 'blackbox-editor.html', 'channel-ping-overlay.html', 'channel-ping-live.html', 'overlay-settings.html', 'debuff-region-overlay.html', 'debuff-alert-overlay.html', 'overlay-configuration.html', 'channel.csv', 'debuff.csv', 'icon.ico', 'icon-paused.png', 'config.json', 'INTRODUCE.md', 'OPERATION.md', 'TURBO_KEY_TERMS.md', 'VERSION_HISTORY.md', 'VERSION_HISTORY_DETAIL.md', 'NOTICE.md', 'REPORT.json']) {
   await copyFile(join(root, file), join(appDirectory, file))
+}
+const debuffIds = (await readFile(join(root, 'debuff.csv'), 'utf8'))
+  .trim()
+  .split(/\r?\n/)
+  .slice(1)
+  .map(line => line.split(',')[0].trim())
+await mkdir(join(appDirectory, 'data/conditions'), { recursive: true })
+for (const id of debuffIds) {
+  if (!/^\d+$/.test(id)) throw new Error(`Invalid debuff id: ${id}`)
+  await copyFile(join(root, `data/conditions/${id}.png`), join(appDirectory, `data/conditions/${id}.png`))
 }
 for (const helper of ['input-guard-helper', 'radeon-helper', 'recorder-helper']) {
   await cp(join(root, 'native', helper, 'bin'), join(appDirectory, 'native', helper, 'bin'), { recursive: true })

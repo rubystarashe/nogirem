@@ -94,6 +94,18 @@
     }
     .detect:hover:not(:disabled) { background: #3a91ce }
     .detect:disabled { color: #777d88; background: #32363e; cursor: default }
+    .configure {
+      width: 100%;
+      height: 36px;
+      margin-top: 8px;
+      border: 1px solid #4b5360;
+      border-radius: 4px;
+      color: #e8ebf0;
+      background: #303641;
+      cursor: pointer;
+    }
+    .configure:hover:not(:disabled) { background: #3a424f }
+    .configure:disabled { opacity: .45; cursor: default }
     .status { min-height: 34px; margin: 10px 2px 0; color: #aeb3be; font-size: 11px; line-height: 1.45 }
     .status.error { color: #ff829f }
     .status.success { color: #69c99a }
@@ -111,6 +123,7 @@
       <strong>디버프 영역 자동인식</strong>
       <p>마비노기 창을 잠시 전경으로 전환해 보스 체력바 외곽을 찾은 뒤 원래 창으로 돌아옵니다.</p>
       <button class="detect" type="button">인터페이스 자동인식</button>
+      <button class="configure" type="button">인터페이스 구성</button>
       <div class="status" role="status" aria-live="polite"></div>
     </section>
   </main>
@@ -124,6 +137,7 @@
     ]
     const list = document.querySelector(".list")
     const detect = document.querySelector(".detect")
+    const configure = document.querySelector(".configure")
     const status = document.querySelector(".status")
     let current = {}
     let busy = false
@@ -140,6 +154,7 @@
         return row
       }))
       detect.disabled = busy
+      configure.disabled = busy
     }
 
     function showStatus(message, kind = "") {
@@ -172,6 +187,20 @@
       } catch (error) {
         showStatus(error?.message || String(error), "error")
         current = await window.overlaySettings.getStatus()
+      } finally {
+        busy = false
+        render()
+      }
+    })
+
+    configure.addEventListener("click", async () => {
+      busy = true
+      render()
+      try {
+        current = await window.overlaySettings.configureDebuffAlert()
+        showStatus("게임 화면의 누락 알림 창에서 위치를 조정한 뒤 완료를 눌러주세요.", "success")
+      } catch (error) {
+        showStatus(error?.message || String(error), "error")
       } finally {
         busy = false
         render()

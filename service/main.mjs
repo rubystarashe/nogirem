@@ -5218,10 +5218,19 @@ function registerIpc() {
     "overlay-settings:get-status",
     "overlay-settings:set-setting",
     "overlay-settings:detect-debuff-region",
+    "overlay-settings:configure-debuff-alert",
+    "debuff-alert:get-status",
+    "overlay-configuration:finish",
   ]) {
     ipcMain.handle(channel, () => {
       throw new Error("게임 오버레이 설정은 Rust 앱에서만 지원합니다")
     })
+  }
+  for (const channel of [
+    "debuff-alert:drag-start",
+    "overlay-configuration:drag-start",
+  ]) {
+    ipcMain.on(channel, () => {})
   }
   ipcMain.handle("application:set-input-guard-setting", (event, setting) => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {

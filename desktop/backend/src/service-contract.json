@@ -107,6 +107,9 @@
     "overlay-settings:get-status",
     "overlay-settings:set-setting",
     "overlay-settings:detect-debuff-region",
+    "overlay-settings:configure-debuff-alert",
+    "debuff-alert:get-status",
+    "overlay-configuration:finish",
     "application:confirm-close"
   ],
   "events": [
@@ -116,6 +119,8 @@
     "character-guide:drag-end",
     "dxvk-guide:drag-start",
     "dxvk-guide:drag-move",
-    "dxvk-guide:drag-end"
+    "dxvk-guide:drag-end",
+    "debuff-alert:drag-start",
+    "overlay-configuration:drag-start"
   ]
 }
