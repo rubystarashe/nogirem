@@ -109,7 +109,7 @@ impl GameOverlay {
                     .ok_or_else(|| format!("{key} 설정 값이 올바르지 않습니다"))?;
             }
         }
-        if !next.debuff_notifications {
+        if object.get("debuffNotifications") == Some(&Value::Bool(false)) {
             self.detection = None;
             self.error = None;
         }
@@ -122,9 +122,6 @@ impl GameOverlay {
     }
 
     pub fn detect_debuff_region(&mut self, env: &Environment) -> Result<Value> {
-        if !self.settings.debuff_notifications {
-            return Err("디버프 알림을 먼저 켜 주세요".into());
-        }
         self.detection = None;
         self.error = None;
         let result = capture_game_client(env).and_then(|capture| {
@@ -145,10 +142,6 @@ impl GameOverlay {
     }
 
     pub fn preview_bounds(&mut self, env: &Environment) -> Option<OverlayBounds> {
-        if !self.settings.debuff_notifications {
-            self.detection = None;
-            return None;
-        }
         let detection = self.detection?;
         let bounds = current_screen_bounds(env, detection)?;
         Some(OverlayBounds {
@@ -267,6 +260,57 @@ fn find_game_window(_env: &Environment) -> Result<(isize, u32, i64)> {
 }
 
 #[cfg(windows)]
+fn activate_window(window: isize) -> bool {
+    use windows_sys::Win32::{
+        System::Threading::{AttachThreadInput, GetCurrentThreadId},
+        UI::WindowsAndMessaging::{
+            BringWindowToTop, GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow,
+        },
+    };
+    let window = window as windows_sys::Win32::Foundation::HWND;
+    if window.is_null() {
+        return false;
+    }
+    if unsafe { GetForegroundWindow() } == window {
+        return true;
+    }
+    let current_thread = unsafe { GetCurrentThreadId() };
+    let foreground = unsafe { GetForegroundWindow() };
+    let foreground_thread = if foreground.is_null() {
+        0
+    } else {
+        unsafe { GetWindowThreadProcessId(foreground, std::ptr::null_mut()) }
+    };
+    let target_thread = unsafe { GetWindowThreadProcessId(window, std::ptr::null_mut()) };
+    let attach_foreground = foreground_thread != 0 && foreground_thread != current_thread;
+    let attach_target =
+        target_thread != 0 && target_thread != current_thread && target_thread != foreground_thread;
+    if attach_foreground {
+        unsafe {
+            AttachThreadInput(current_thread, foreground_thread, 1);
+        }
+    }
+    if attach_target {
+        unsafe {
+            AttachThreadInput(current_thread, target_thread, 1);
+        }
+    }
+    let activated =
+        unsafe { BringWindowToTop(window) } != 0 && unsafe { SetForegroundWindow(window) } != 0;
+    if attach_target {
+        unsafe {
+            AttachThreadInput(current_thread, target_thread, 0);
+        }
+    }
+    if attach_foreground {
+        unsafe {
+            AttachThreadInput(current_thread, foreground_thread, 0);
+        }
+    }
+    activated && unsafe { GetForegroundWindow() } == window
+}
+
+#[cfg(windows)]
 fn capture_game_client(env: &Environment) -> Result<Capture> {
     use windows_sys::Win32::{
         Foundation::RECT,
@@ -275,20 +319,18 @@ fn capture_game_client(env: &Environment) -> Result<Capture> {
             CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, GetDIBits,
             ReleaseDC, SRCCOPY, SelectObject,
         },
-        UI::WindowsAndMessaging::{GetClientRect, GetForegroundWindow, SetForegroundWindow},
+        UI::WindowsAndMessaging::{GetClientRect, GetForegroundWindow},
     };
 
     let (window, pid, process_started_at) = find_game_window(env)?;
     let previous = unsafe { GetForegroundWindow() };
-    if unsafe { SetForegroundWindow(window as _) } == 0 {
+    if !activate_window(window) {
         return Err("마비노기 창을 캡처 대상으로 전환하지 못했습니다".into());
     }
     std::thread::sleep(std::time::Duration::from_millis(180));
     if unsafe { GetForegroundWindow() } as isize != window {
         if !previous.is_null() {
-            unsafe {
-                SetForegroundWindow(previous);
-            }
+            activate_window(previous as isize);
         }
         return Err("마비노기 창이 전경으로 전환되지 않아 캡처를 중단했습니다".into());
     }
@@ -389,9 +431,7 @@ fn capture_game_client(env: &Environment) -> Result<Capture> {
     })();
 
     if !previous.is_null() {
-        unsafe {
-            SetForegroundWindow(previous);
-        }
+        activate_window(previous as isize);
     }
     result
 }
@@ -741,6 +781,19 @@ mod tests {
         });
         let status = overlay.set(&json!({"debuffNotifications":false})).unwrap();
         assert_eq!(status["debuffRegionDetected"], false);
+        overlay.detection = Some(Detection {
+            window: 1,
+            pid: 2,
+            process_started_at: 3,
+            rect: PixelRect {
+                x: 4,
+                y: 5,
+                width: 300,
+                height: 40,
+            },
+        });
+        let status = overlay.set(&json!({"skillNotifications":false})).unwrap();
+        assert_eq!(status["debuffRegionDetected"], true);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

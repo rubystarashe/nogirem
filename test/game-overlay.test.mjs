@@ -41,6 +41,9 @@ test("게임 오버레이 설정창은 다섯 알림과 디버프 자동인식�
     assert.match(settings, new RegExp(key))
   }
   assert.match(settings, /인터페이스 자동인식/)
+  assert.match(settings, /detect\.disabled = busy/)
+  assert.doesNotMatch(settings, /detect\.disabled = busy \|\|/)
+  assert.match(settings, /body \{[^}]*overflow: hidden/)
   assert.match(settingsPreload, /overlay-settings:get-status/)
   assert.match(settingsPreload, /overlay-settings:set-setting/)
   assert.match(settingsPreload, /overlay-settings:detect-debuff-region/)
@@ -56,6 +59,8 @@ test("디버프 영역 preview는 독립된 클릭 통과 native 창이다", () 
   assert.match(windows, /"debuff-region-overlay"[\s\S]+focusable":false/)
   assert.match(windows, /show_debuff_preview/)
   assert.match(service, /monitor_debuff_preview/)
+  assert.match(windows, /"overlay-settings"[\s\S]+?"height":700/)
+  assert.doesNotMatch(windows, /matches!\(w\.kind\.as_str\(\), "blackbox-editor" \| "overlay-settings"\)/)
 })
 
 test("오버레이 문서·IPC·package 입력은 native 계약에 등록된다", () => {

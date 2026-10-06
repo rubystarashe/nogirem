@@ -714,7 +714,7 @@ impl Windows {
                 json!({"width":1100,"height":720,"minWidth":780,"minHeight":560,"title":"블랙박스 영상 추출","alwaysOnTop":true})
             }
             "overlay-settings" => {
-                json!({"width":520,"height":560,"minWidth":460,"minHeight":500,"title":"게임 오버레이 설정","skipTaskbar":true,"resizable":false,"parent":1})
+                json!({"width":520,"height":700,"minWidth":460,"minHeight":700,"title":"게임 오버레이 설정","skipTaskbar":true,"resizable":false,"parent":1})
             }
             "channel-ping-overlay" => {
                 json!({"width":584,"height":400,"title":"채널별 서버 지연 추측","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":true})
@@ -781,7 +781,7 @@ impl Windows {
         if let Some(w) = self.state.lock().unwrap().windows.get_mut(&id) {
             w.closing = true;
         }
-        if matches!(w.kind.as_str(), "blackbox-editor" | "overlay-settings") {
+        if w.kind == "blackbox-editor" {
             self.destroy(id);
             self.focus_main();
         } else {
