@@ -313,11 +313,11 @@ fn activate_window(window: isize) -> bool {
 #[cfg(windows)]
 fn capture_game_client(env: &Environment) -> Result<Capture> {
     use windows_sys::Win32::{
-        Foundation::RECT,
+        Foundation::{POINT, RECT},
         Graphics::Gdi::{
-            BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BitBlt, CAPTUREBLT, CreateCompatibleBitmap,
-            CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, GetDIBits,
-            ReleaseDC, SRCCOPY, SelectObject,
+            BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BitBlt, CAPTUREBLT, ClientToScreen,
+            CreateCompatibleBitmap, CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, DeleteObject,
+            GetDC, GetDIBits, ReleaseDC, SRCCOPY, SelectObject,
         },
         UI::WindowsAndMessaging::{GetClientRect, GetForegroundWindow},
     };
@@ -345,14 +345,19 @@ fn capture_game_client(env: &Environment) -> Result<Capture> {
         if width <= 0 || height <= 0 {
             return Err("마비노기 화면 크기를 확인하지 못했습니다".into());
         }
-        let source = unsafe { GetDC(window as _) };
+        let mut origin = POINT { x: 0, y: 0 };
+        if unsafe { ClientToScreen(window as _, &mut origin) } == 0 {
+            return Err(std::io::Error::last_os_error().to_string());
+        }
+        let source_window = std::ptr::null_mut();
+        let source = unsafe { GetDC(source_window) };
         if source.is_null() {
             return Err(std::io::Error::last_os_error().to_string());
         }
         let memory = unsafe { CreateCompatibleDC(source) };
         if memory.is_null() {
             unsafe {
-                ReleaseDC(window as _, source);
+                ReleaseDC(source_window, source);
             }
             return Err(std::io::Error::last_os_error().to_string());
         }
@@ -360,7 +365,7 @@ fn capture_game_client(env: &Environment) -> Result<Capture> {
         if bitmap.is_null() {
             unsafe {
                 DeleteDC(memory);
-                ReleaseDC(window as _, source);
+                ReleaseDC(source_window, source);
             }
             return Err(std::io::Error::last_os_error().to_string());
         }
@@ -368,8 +373,8 @@ fn capture_game_client(env: &Environment) -> Result<Capture> {
         let copied = unsafe {
             BitBlt(
                 memory,
-                0,
-                0,
+                origin.x,
+                origin.y,
                 width,
                 height,
                 source,
@@ -391,6 +396,9 @@ fn capture_game_client(env: &Environment) -> Result<Capture> {
             },
             ..Default::default()
         };
+        unsafe {
+            SelectObject(memory, previous_bitmap);
+        }
         let rows = if copied != 0 {
             unsafe {
                 GetDIBits(
@@ -407,10 +415,9 @@ fn capture_game_client(env: &Environment) -> Result<Capture> {
             0
         };
         unsafe {
-            SelectObject(memory, previous_bitmap);
             DeleteObject(bitmap as _);
             DeleteDC(memory);
-            ReleaseDC(window as _, source);
+            ReleaseDC(source_window, source);
         }
         if rows != height {
             return Err("마비노기 화면 픽셀을 읽지 못했습니다".into());
