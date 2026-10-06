@@ -6,7 +6,7 @@
 - completed_at: `2026-10-06T01:05:00Z`
 - requested_scope: `5종 알림 설정 UI와 디버프 보스 체력바 영역 자동인식·오버레이 preview`
 - delivered_scope: `요청 source 구현 완료; 실제 게임 종단간 검증·package·배포 제외`
-- source_target: `cb3ee40cee4afda954e2d8ae94a780df39d9fcec`
+- source_target: `20ae67c9f20426dbd1f0139d64fb2b408dd817f5`
 - feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 신규 설정과 디버프 영역 자동인식 preview`
 - feature_map: `updated — 신규 PLANNED identity·flows·scenarios·freshness 추가`
 - architecture_impact: `verified foreground capture, pure detector, setting writer, interactive/preview native windows`
@@ -14,7 +14,7 @@
 
 ## Outcome
 
-- implemented: `5종 persistent toggles, canonical game HWND 선택, foreground GDI client capture와 포커스 복원, one-shot border detector, client-local 좌표, click-through preview`
+- implemented: `5종 persistent toggles, toggle-independent setup detection, 700px no-scroll settings와 fade close, canonical game HWND 선택, UI-thread 연결형 foreground GDI client capture와 포커스 복원, one-shot border detector, client-local 좌표, click-through preview`
 - automated-test-passing: `Node 207/207, backend 110 PASS·2 ignored, parity 2/2, desktop 8/8, detector 5/5, overlay contract 4/4`
 - manually exercised: `native fixture settings window와 bridge·본문 렌더링`
 - not-run: `실제 게임 capture·focus·검출·preview·DPI·전체화면`

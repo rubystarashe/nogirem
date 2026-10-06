@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-GAME-OVERLAY-DEBUFF-045`
 - owner: `Cursor Agent acting as QA`
 - created_at: `2026-10-06T01:05:00Z`
-- source_target: `cb3ee40cee4afda954e2d8ae94a780df39d9fcec`
+- source_target: `20ae67c9f20426dbd1f0139d64fb2b408dd817f5`
 - execution_target: `Windows 10.0.26200 x64 source tests, synthetic BGRA fixtures, Dioxus native smoke fixture`
 - qa_state: `COMPLETE_PASS for automated scope`
 - feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 설정·자동인식·preview source 검증`
@@ -22,6 +22,7 @@
 - `PASS` — overlay contract 4/4 and native preload contract.
 - `PASS` — primary native UI smoke: advanced row, settings bridge, five toggles, auto-detection button; artifact `C:\Users\User\AppData\Local\Temp\nogirem-dioxus-smoke-cRfIHL\ui.json`.
 - `PASS` — targeted rustfmt, diff check, IDE diagnostics.
+- `PASS` — follow-up: toggle-independent detection, 700px no-scroll window contract, fade path, foreground UI-thread attachment compile and detector 5/5.
 - `FAIL after primary PASS` — full smoke's later isolated creator-prompt process reported `visual=false`; primary overlay UI report remained `passed:true`.
 
 ## Not run

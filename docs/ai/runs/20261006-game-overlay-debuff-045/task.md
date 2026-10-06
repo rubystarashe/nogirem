@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-GAME-OVERLAY-DEBUFF-045`
 - owner: `Cursor Agent`
 - created_at: `2026-10-06T00:34:00Z`
-- updated_at: `2026-10-06T01:05:00Z`
+- updated_at: `2026-10-06T01:29:00Z`
 - repository: `rubystarashe/nogirem`
 - branch: `main`
 - source_base: `497bb750c7d17ee02b3fe2dc308b873316d51217`
@@ -35,7 +35,8 @@
 ## Result
 
 - disposition: `PARTIALLY_COMPLETED — 요청한 source 범위는 구현했고 실제 게임 behavior verification은 NOT_RUN`
-- implementation_target: `cb3ee40cee4afda954e2d8ae94a780df39d9fcec`
+- implementation_target: `20ae67c9f20426dbd1f0139d64fb2b408dd817f5`
+- initial_implementation_target: `cb3ee40cee4afda954e2d8ae94a780df39d9fcec`
 - delivered: `5종 persistent toggle 설정창, 디버프 one-shot 자동인식, 검증된 게임 foreground GDI client capture와 포커스 복원, client-local 좌표, click-through border·label preview`
 - detector: `55±2 하단선, 바로 아래 17±2 선, 20~120px 위 7~12 상단선, endpoint ±2px, RGB channel spread ≤2, 검은 좌우선 ≥95%, aspect ≥5:1`
 - provided_image_assessment: `523×40 crop에서 상단 9/10/10, 하단 55/55/55, 좌우 0/0/0과 상단 2px edge gap을 확인해 synthetic BGRA 회귀 fixture에 반영; crop 밖 17 line은 사용자 규칙대로 합성`
@@ -61,3 +62,14 @@
 - architecture_impact: `foreground capture adapter, pure detector, setting writer, interactive·preview windows`
 - architecture_contract: `updated — trust·capture·focus·window·data 경계 추가`
 - remaining: `사용자 PC 실제 게임 QA 후 검출 허용오차 조정; 후속 checkpoint에서 실제 디버프 판독·알림`
+
+## Follow-up 2026-10-06T01:29:00Z
+
+- feedback: `자동인식 버튼이 디버프 토글 off 상태에서 비활성, 설정창 scrollbar, close fade-out 누락, SetForegroundWindow 거부`
+- disposition: `FIXED in 20ae67c9f20426dbd1f0139d64fb2b408dd817f5`
+- changes: `자동인식을 알림 toggle과 분리, 높이 700px·body overflow hidden, 표준 300ms fade path 복원, capture worker를 foreground·target UI thread에 임시 연결해 전환·복원`
+- validation: `detector 5/5, overlay/native contract 4/4, locked desktop compile, diff check, IDE diagnostics PASS`
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 설정 UX와 foreground capture 성공 경로 수정`
+- feature_map: `updated — toggle 독립 setup flow와 최신 target 반영`
+- architecture_impact: `foreground activation adapter의 thread attachment·detach 경계`
+- architecture_contract: `updated — source target과 focus activation 경계 갱신`

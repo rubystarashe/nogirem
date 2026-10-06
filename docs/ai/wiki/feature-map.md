@@ -2,16 +2,16 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `21`
-- updated_at: `2026-10-06T01:05:00Z`
+- revision: `22`
+- updated_at: `2026-10-06T01:29:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-06T01:05:00Z`
+- source_reviewed_at: `2026-10-06T01:29:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit cb3ee40cee4afda954e2d8ae94a780df39d9fcec, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
+- source_review_target: `source commit 20ae67c9f20426dbd1f0139d64fb2b408dd817f5, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
 - source_review_evidence: `게임 오버레이 setting·capture·detector·preview·IPC/package 경계 SELF_REVIEW APPROVED`
 - behavior_verified_at: `2026-10-06T01:05:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit cb3ee40cee4afda954e2d8ae94a780df39d9fcec`
+- behavior_verification_target: `source commit 20ae67c9f20426dbd1f0139d64fb2b408dd817f5`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration·Node contract·desktop compile`
 - behavior_verification_evidence: `Node 207/207, backend 110 PASS·2 declared ignore, parity 2/2, desktop 8/8, detector 5/5, overlay contract 4/4, primary native UI smoke PASS`
 - freshness_status: `CURRENT`
@@ -80,7 +80,7 @@
 - exclusions: 이번 source는 실제 디버프·버프·스킬 상태를 판독하거나 알림을 발생시키지 않는다. 지속 영상 추적, 가려진 DirectX background capture, 게임 메모리·패킷 접근, 입력 주입, 임의 프로세스 캡처, 캡처 이미지 저장·전송을 지원하지 않는다.
 - personas_permissions_accessibility_entry: Windows 사용자가 고급 기능의 `게임 오버레이` 설정창에서 5개 토글을 키보드·마우스로 조작한다. 자동인식 버튼은 디버프 알림이 켜졌을 때만 활성화되고 진행·성공·오류를 색상뿐 아니라 텍스트 live status로 알린다.
 - preconditions_dependencies: Windows, 실행 중이고 최소화되지 않은 검증 가능한 마비노기 `Client.exe`, WebView2, GDI client capture, foreground 전환 권한, 보스 체력바가 화면에 표시된 상태.
-- normal_flow: 설정창에서 디버프 알림을 켜고 자동인식을 누르면 기존 foreground HWND를 저장한다. 정본 실행 경로를 만족하는 단일 게임 창 또는 canonical game path와 일치하는 창을 선택해 잠시 foreground로 전환하고 180ms 뒤 client BGRA를 캡처한다. 하단 `55±2` 선과 바로 아래 `17±2` 선, 20~120px 위의 `7~12` 상단선, 95% 이상 연속인 `0±2` 좌우선을 검증한 뒤 기존 foreground를 복원하고 preview 좌표를 표시한다.
+- normal_flow: 자동인식은 디버프 알림 toggle과 독립된 setup action이다. 기존 foreground HWND를 저장하고 정본 실행 경로를 만족하는 단일 게임 창 또는 canonical game path와 일치하는 창을 선택한 뒤 capture worker를 foreground·target UI thread에 임시 연결해 전환한다. 180ms 뒤 client BGRA를 캡처하고 하단 `55±2` 선과 바로 아래 `17±2` 선, 20~120px 위의 `7~12` 상단선, 95% 이상 연속인 `0±2` 좌우선을 검증한 뒤 thread 연결을 해제하고 기존 foreground를 복원해 preview 좌표를 표시한다.
 - error_cancel_retry_flow: 게임 창 부재·최소화·복수 후보 모호성·foreground 전환 실패·capture 실패·process identity 변경·외곽 미검출은 설정창에 오류를 표시하고 preview를 숨긴다. 사용자는 게임 상태를 준비한 뒤 버튼을 다시 눌러 재시도한다. 디버프 토글을 끄면 검출 좌표·오류·preview를 제거한다.
 - concurrency_partial_failure_recovery: 설정 저장은 capability mutex와 원자 JSON writer가 직렬화한다. 캡처 전·후 PID와 process start identity를 확인하고 foreground는 성공·실패 모두에서 원래 HWND로 복원한다. preview monitor는 100ms마다 같은 HWND가 foreground인지 확인해 다른 앱 위에서는 숨긴다.
 - state_side_effects_limits: `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`에 5개 boolean만 지속한다. pixel frame·HWND·PID·검출 좌표·오류는 메모리에만 존재하고 이미지 파일을 만들지 않는다. settings window는 tray 이동 시 닫고 preview window는 capability 상태를 위해 유지하되 게임이 foreground가 아니면 숨긴다.
@@ -98,11 +98,11 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-06T01:05:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit cb3ee40cee4afda954e2d8ae94a780df39d9fcec, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
+- source_review_target: `source commit 20ae67c9f20426dbd1f0139d64fb2b408dd817f5, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
 - source_review_evidence: `capture trust·focus restoration·pure detector·setting writer·window/IPC/package diff SELF_REVIEW APPROVED`
 - behavior_verified_at: `2026-10-06T01:05:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit cb3ee40cee4afda954e2d8ae94a780df39d9fcec`
+- behavior_verification_target: `source commit 20ae67c9f20426dbd1f0139d64fb2b408dd817f5`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target, synthetic BGRA and native smoke fixture`
 - behavior_verification_evidence: `detector 5/5, overlay contract 4/4, Node 207/207, backend 110 PASS·2 ignored, parity 2/2, desktop 8/8, primary UI smoke PASS`
 - freshness_status: `CURRENT`
