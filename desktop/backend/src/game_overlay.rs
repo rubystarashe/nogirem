@@ -125,8 +125,12 @@ impl GameOverlay {
         self.detection = None;
         self.error = None;
         let result = capture_game_client(env).and_then(|capture| {
-            let rect = detect_boss_health_bar(&capture.frame)
-                .ok_or_else(|| "보스 체력바 영역을 찾지 못했습니다".to_owned())?;
+            let rect = detect_boss_health_bar(&capture.frame).ok_or_else(|| {
+                format!(
+                    "보스 체력바 영역을 찾지 못했습니다 ({})",
+                    detector_diagnostics(&capture.frame)
+                )
+            })?;
             self.detection = Some(Detection {
                 window: capture.window,
                 pid: capture.pid,
@@ -568,6 +572,58 @@ fn vertical_edge(frame: &Frame, expected: u32, top: u32, bottom: u32) -> Option<
         .map(|x| (x, vertical_black_ratio(frame, x, top, bottom)))
         .filter(|(_, ratio)| *ratio >= 0.95)
         .max_by(|a, b| a.1.total_cmp(&b.1))
+}
+
+fn detector_diagnostics(frame: &Frame) -> String {
+    let mut lower = 0usize;
+    let mut darkest = 0usize;
+    let mut upper = 0usize;
+    let mut grayscale = Vec::new();
+    let mut minimum = u8::MAX;
+    let mut maximum = 0u8;
+    for y in 0..frame.height {
+        lower += runs(frame, y, 53, 57, 150).len();
+        darkest += runs(frame, y, 15, 19, 150).len();
+        upper += runs(frame, y, 7, 12, 150).len();
+        let mut start = None;
+        let mut sum = 0u64;
+        for x in 0..frame.width {
+            let Some(value) = pixel(frame, x, y) else {
+                continue;
+            };
+            let low = *value.iter().min().unwrap();
+            let high = *value.iter().max().unwrap();
+            minimum = minimum.min(low);
+            maximum = maximum.max(high);
+            if high <= 90 && high - low <= 3 {
+                start.get_or_insert(x);
+                sum += u64::from(value[0]) + u64::from(value[1]) + u64::from(value[2]);
+            } else if let Some(run_start) = start.take() {
+                let width = x - run_start;
+                if width >= 150 {
+                    grayscale.push((width, y, sum / u64::from(width * 3)));
+                }
+                sum = 0;
+            }
+        }
+        if let Some(run_start) = start {
+            let width = frame.width - run_start;
+            if width >= 150 {
+                grayscale.push((width, y, sum / u64::from(width * 3)));
+            }
+        }
+    }
+    grayscale.sort_by(|left, right| right.0.cmp(&left.0));
+    let lines = grayscale
+        .into_iter()
+        .take(3)
+        .map(|(width, y, value)| format!("{value}/{width}@{y}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{}x{}, 밝기 {minimum}~{maximum}, 55선 {lower}, 17선 {darkest}, 상단선 {upper}, 회색후보 [{lines}]",
+        frame.width, frame.height
+    )
 }
 
 pub fn detect_boss_health_bar(frame: &Frame) -> Option<PixelRect> {
