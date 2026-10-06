@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-ANTIVIRUS-FALSE-POSITIVE-045`
 - owner: `Cursor Agent`
 - created_at: `2026-10-06T04:13:00Z`
-- updated_at: `2026-10-06T06:37:18Z`
+- updated_at: `2026-10-06T09:26:10Z`
 - repository: `rubystarashe/nogirem`
 - branch: `main`
 - source_base: `9ce107f97cdbafad0c228777bb49b84d9256d059`
@@ -85,6 +85,20 @@
 - push_status: `NOT_RUN — 미승인`
 - release_status: `NOT_RUN — 미승인`
 - deployment_status: `NOT_RUN — 미승인`
+
+## Accepted packaging disposition
+
+- decided_at: `2026-10-06T09:25:00Z`
+- authority: `user`
+- decision: VirusTotal 최저 확인값 `2/70`을 만든 `af703e2`·`aa2e6a8` 계열 package 구조를 유지한다.
+- effective_source: `811251a91de71119e0269528b5d4bf55abc835b4`
+- included: 신규 설치 PowerShell 생략, `ExecutionPolicy Bypass` 미사용, outer PE metadata, solid LZMA, 기존 update/uninstall PowerShell 호환 경로.
+- excluded: 별도 native cleanup helper 재도입과 AV 탐지 수를 위한 추가 구조 실험.
+- feature_impact: `none — 제품 기능을 변경하지 않고 선택한 package 경계를 고정`
+- feature_map: `no_change — capability·lifecycle 변화 없음`
+- architecture_impact: `package cleanup boundary — aa2e6a8 구조를 승인된 현재 경로로 유지`
+- architecture_contract: `no_change — canonical contract의 현재 PowerShell package 설명과 일치`
+- remaining: rollback candidate의 exact VirusTotal 수치는 아직 확인되지 않았으며 `2/70`은 commit `af703e2` 격리 artifact 근거다.
 
 ## Native helper rollback
 
