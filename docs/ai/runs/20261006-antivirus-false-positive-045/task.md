@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-ANTIVIRUS-FALSE-POSITIVE-045`
 - owner: `Cursor Agent`
 - created_at: `2026-10-06T04:13:00Z`
-- updated_at: `2026-10-06T04:26:00Z`
+- updated_at: `2026-10-06T04:58:00Z`
 - repository: `rubystarashe/nogirem`
 - branch: `main`
 - source_base: `9ce107f97cdbafad0c228777bb49b84d9256d059`
@@ -52,7 +52,10 @@
 - `PASS` — 두 outer PE의 product name, description, file/product version `0.4.5`, original filename 확인
 - `PASS` — `git diff --check`
 - `PASS` — 변경 파일 IDE diagnostics 0
-- `NOT_RUN` — 실제 설치·업데이트·제거와 새 artifact VirusTotal 업로드·재분석
+- `PASS` — exact commit `af703e21f976d888cafe2ea1805a98b3b6816659` 격리 package 설치형 SHA-256 `7d13fb635220ed98155a1d820e2852b92c54ab3118cfeb204a638f516d8711a1`
+- `PASS` — VirusTotal 재분석 `2/70`: CrowdStrike Falcon `Win/grayware_confidence_90% (D)`, Microsoft `Trojan:Win32/Wacatac.C!ml`
+- `PASS` — 기존 공개 설치형 `4/71` 대비 Arctic Wolf `Unsafe`와 Elastic `Malicious (moderate Confidence)` 탐지 제거
+- `NOT_RUN` — 실제 설치·업데이트·제거와 포터블 VirusTotal 재분석
 
 ## Findings and decisions
 
@@ -68,7 +71,7 @@
 - reviewed_scope: 신규·기존 설치 분기, update/uninstall 종료 호환성, PowerShell policy, NSIS version resource, compressor/size gate, 테스트와 canonical contract 정합성
 - verdict: `APPROVED`
 - mandatory_findings: `none`
-- limitations: 동일 Cursor Agent가 구현과 검토를 수행했으며 독립 reviewer와 실제 Windows 설치 종단간 QA는 없음
+- limitations: 동일 Cursor Agent가 구현과 검토를 수행했으며 독립 reviewer, 실제 Windows 설치 종단간 QA와 포터블 재분석은 없음
 
 ## Final disposition
 
@@ -76,9 +79,9 @@
 - delivered: 코드 서명 없이 신규 설치의 불필요한 PowerShell 제거, policy bypass 제거, PE 식별 resource, 회귀 검사와 package gate
 - feature_gate: `PASS — 제품 기능 변경 없음; feature map no_change`
 - architecture_gate: `PASS — revision 20 갱신, package·크기·NSIS enforcement 통과`
-- review_qa_gate: `PASS for automated source/package scope`
+- review_qa_gate: `PASS for automated source/package and installer VirusTotal comparison scope`
 - target_authorization_gate: `PASS — local source·package만 변경/생성; push·release·배포 없음`
-- remaining_risk: 미서명·관리자 권한·solid NSIS·포함 helper의 민감 동작 때문에 탐지가 완전히 사라진다는 보장은 없으며 새 artifact 재분석 필요
+- remaining_risk: 설치형 탐지는 4개에서 2개로 감소했지만 미서명·관리자 권한·solid NSIS·포함 helper의 민감 동작 때문에 CrowdStrike grayware와 Microsoft Wacatac ML 탐지가 남음
 - push_status: `NOT_RUN — 미승인`
 - release_status: `NOT_RUN — 미승인`
 - deployment_status: `NOT_RUN — 미승인`
