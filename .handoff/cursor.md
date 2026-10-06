@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-06 11:25 +09:00
+Last Updated: 2026-10-06 13:26 +09:00
 
 ## Current Objective
 신규 `게임 오버레이` 설정창과 첫 디버프 영역 자동인식 checkpoint를 구현하고 실제 3440×1440 보스 화면 positive 검출을 확인했다. 다음 checkpoint는 체력바 바로 위 동일 크기 영역에서 `debuff.csv`와 `data/conditions` 아이콘을 판독하고 누락 디버프를 이동 가능한 오버레이로 표시하는 것이다.
 
 ## Active Runs
+- `20261006-antivirus-false-positive-045`: 유료 Authenticode 없이 백신 오진 신호를 줄이기 위해 신규 설치에서는 기존 파일이 없을 때 종료 PowerShell을 생략하고, update/uninstall 명령에서 `ExecutionPolicy Bypass`를 제거했으며 설치형·포터블 outer PE 식별 resource를 추가했다. Node 208/208, 미서명 package·NSIS `/WX`·10MB 제한·PE metadata 검증이 통과했다. non-solid LZMA는 설치형이 10MB 제한을 초과해 철회했고 실제 설치·VirusTotal 재분석·배포는 수행하지 않았다. (`docs/ai/runs/20261006-antivirus-false-positive-045/task.md`)
 - `20261006-game-overlay-debuff-045`: source base `15d425d9c35b25dd3a1836027d5ba6acf66d70d9`에서 실제 렌더링 endpoint·세로 연속률·하단 색상·상단 부분 단절을 허용하고 재인식 중 preview capture race를 제거했다. detector 9/9·backend 전체·Clippy·diff/lint가 통과했고 사용자가 3440×1440 실제 보스 화면 positive 검출을 확인했다. (`docs/ai/runs/20261006-game-overlay-debuff-045/task.md`)
 - `20261006-tray-channel-monitor-045`: tray cleanup이 일반 보조 창만 닫고 `channel-ping-overlay`·`channel-ping-live`를 보존하도록 source `66d56b49544219fa7c8f38d5aea77a87f78bb11c`에서 수정했다. backend 105 PASS·2 declared ignore, parity 2/2, overlay 3/3과 SELF_REVIEW가 통과했다. 실제 tray·게임·Windows 키·DPI QA와 package·push·재배포는 수행하지 않았다. (`docs/ai/runs/20261006-tray-channel-monitor-045/task.md`)
 - `20261005-release-045`: source `2fd708bee4af0513a68b21618e81e0173516c098`에서 signed 설치형·포터블을 만들고 origin/main push, v0.4.5 tag와 [GitHub v0.4.5](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.5) 자산 10개를 공개했다. 공개 10/10 hash·Ed25519 manifest·Electron 0.3.19 bridge 재검증이 통과했다. 실제 설치·게임·혼합 DPI QA는 수행하지 않았다. (`docs/ai/runs/20261005-release-045/task.md`)
@@ -33,6 +34,7 @@ Last Updated: 2026-10-06 11:25 +09:00
 - 검출 좌표는 client-local physical pixel로 메모리에만 보존한다. `debuff-region-overlay`는 같은 game HWND가 foreground일 때만 screen origin을 다시 계산해 정확한 영역 위에 `디버프 영역` 테두리·라벨을 표시하며 다른 앱에서는 숨는다. 실제 게임에서의 capture·preview는 아직 확인하지 않았다.
 - tray 최소화와 tray에서 다시 열기는 character guide·blackbox manager 등 일반 보조 창을 정리하되 hidden `channel-ping-overlay`·`channel-ping-live`는 유지한다. 별도 backend channel monitor thread와 input hook도 main WebView visibility에 묶이지 않으므로 기능 활성 상태가 유지된다. 이 fix는 local commit `66d56b4`에 있으며 공개 v0.4.5 package에는 아직 포함되지 않았다.
 - 0.4.5 공개 패키지는 설치형 `9,563,418 bytes` SHA-256 `aada494d...308b7`, 포터블 `7,790,592 bytes` SHA-256 `5269af6c...1bef8`이다. Node 204/204, desktop 8/8, backend integration 3/3, package contract·서명과 공개 재다운로드 자산 10/10 검증이 통과했다.
+- 공개 0.4.5는 Authenticode 미서명이며 VirusTotal 기준 설치형 4/71·포터블 6/71 탐지가 확인됐다. 후속 source는 신규 설치의 불필요한 임시 PowerShell과 policy bypass를 제거하고 outer PE metadata를 추가했지만 아직 공개 자산을 교체하거나 VirusTotal에 재업로드하지 않았다.
 - 기능명을 `채널별 핑`에서 `실시간 게임 서버 모니터링`으로 변경하고 중앙 전체 채널 창의 현재 제목은 `채널별 서버 지연 추측`이다. 고정 GitHub raw CSV의 검증·cache→package fallback과 설정 single writer는 유지한다.
 - endpoint가 있는 채널은 초기 3표본을 약 30초에 순차 수집한 뒤 60초 동안 하나씩 분산 측정한다. 목록은 최근 표본에 선형으로 높은 가중치를 둔 최근 20회 연결 시험의 평균 절대편차에 100을 곱한 정수 점수를 표시하고, 0.5·1.0·1.5ms 경계로 녹색·노란색·주황색·빨간색을 적용한다.
 - 정본 마비노기 전경 process handle을 조회 완료까지 유지하고 CSV IP:port와 정확히 일치하는 established 5-tuple만 현재 채널 후보로 인정한다. 동일 connection identity를 유지하고 모호한 복수 연결은 표시하지 않으며, connection-scoped Windows TCP EStats 수집 활성화·조회 결과를 반영한다.
@@ -170,6 +172,7 @@ Last Updated: 2026-10-06 11:25 +09:00
 - 일부 DXVK 버전은 Windows Smart App Control에서 `0xC0E90002`로 차단될 수 있다.
 - 0.3.16 설치본은 Authenticode 인증서 서명이 없어 Windows 검증 결과가 `NotSigned`다.
 - 채널 핑 source·로컬 signed package는 완료했지만 실제 게임 수동 QA와 설치·제거 종단간·release는 완료하지 않았다.
+- 미서명 NSIS와 포함 helper의 관리자 권한·입력 hook·화면 capture 특성 때문에 오진을 완전히 제거할 수 없다. non-solid LZMA는 10MB 공유 제한을 초과해 solid archive를 유지한다.
 - 사용 중인 녹화 청크가 Windows 파일 잠금으로 삭제되지 않으면 정리 오류를 표시하며 해당 파일은 남는다.
 
 ## Key Files

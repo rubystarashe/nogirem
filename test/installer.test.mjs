@@ -15,6 +15,9 @@ const [installer, cleanup, service, rustService, desktopMain, updateInstall] = a
 ])
 test('설치기는 WebView2를 확인하고 설치 EXE를 직접 실행한다', () => {
   assert.match(installer, /SilentInstall silent/)
+  assert.match(installer, /VIProductVersion "\$\{APP_VERSION\}\.0"/)
+  assert.match(installer, /VIAddVersionKey \/LANG=1042 "FileDescription"/)
+  assert.match(installer, /SetCompressor \/SOLID lzma/)
   assert.match(installer, /Exec '"\$INSTDIR\\nogirem\.exe"'/)
   assert.match(installer, /\$\{GetOptions\} "\$1" "\/S"/)
   assert.match(installer, /F3017226-FE2A-4295-8BDF-00C3A9A7E4C5/)
@@ -44,6 +47,8 @@ test('설치기는 정상 종료를 기다리고 해당 설치의 예약 작업�
   assert.match(cleanup, /\[int\]\$UpdaterPid = 0/)
   assert.match(installer, /-CallerPid \$9/)
   assert.match(installer, /nsExec::ExecToStack[\s\S]*stop-installed-app\.ps1/)
+  assert.match(installer, /IfFileExists "\$INSTDIR\\\*\.\*" 0 stop_installed_app_done/)
+  assert.doesNotMatch(installer, /ExecutionPolicy Bypass/)
   assert.match(installer, /\/NOGIREMUPDATE=[\s\S]*-UpdaterPid \$2/)
   assert.match(updateInstall, /format!\("\/NOGIREMUPDATE=\{\}",std::process::id\(\)\)/)
   assert.match(cleanup, /Stop-Process -Force/)

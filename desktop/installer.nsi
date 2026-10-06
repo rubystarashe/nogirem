@@ -7,6 +7,14 @@ Name "마비노기 렘 부스터"
 Icon "${APP_DIRECTORY}\icon.ico"
 UninstallIcon "${APP_DIRECTORY}\icon.ico"
 OutFile "${OUTPUT_FILE}"
+VIProductVersion "${APP_VERSION}.0"
+VIAddVersionKey /LANG=1042 "ProductName" "마비노기 렘 부스터"
+VIAddVersionKey /LANG=1042 "FileDescription" "마비노기 렘 부스터 설치 프로그램"
+VIAddVersionKey /LANG=1042 "FileVersion" "${APP_VERSION}"
+VIAddVersionKey /LANG=1042 "ProductVersion" "${APP_VERSION}"
+VIAddVersionKey /LANG=1042 "InternalName" "nogirem-installer"
+VIAddVersionKey /LANG=1042 "OriginalFilename" "nogirem-setup.exe"
+VIAddVersionKey /LANG=1042 "LegalCopyright" "Copyright (C) 2026 Nogirem contributors"
 InstallDir "$PROGRAMFILES64\Nogirem"
 RequestExecutionLevel admin
 SilentInstall silent
@@ -58,12 +66,13 @@ Section "Install"
   StrCpy $8 "-UpdaterPid $2"
   update_flag_done:
   Call EnsureWebView
+  IfFileExists "$INSTDIR\*.*" 0 stop_installed_app_done
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
   File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
   System::Call 'kernel32::GetCurrentProcessId() i.r9'
   ${DisableX64FSRedirection}
-  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 $8'
+  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 $8'
   Pop $0
   Pop $1
   ${EnableX64FSRedirection}
@@ -72,6 +81,7 @@ Section "Install"
     MessageBox MB_ICONSTOP "실행 중인 앱을 정상 종료한 뒤 다시 설치해 주세요."
     Abort
   ${EndIf}
+  stop_installed_app_done:
   !include "legacy-node-cleanup.nsh"
   SetOutPath "$INSTDIR"
   ClearErrors
@@ -106,7 +116,7 @@ Section "Uninstall"
   File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
   System::Call 'kernel32::GetCurrentProcessId() i.r9'
   ${DisableX64FSRedirection}
-  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 -Uninstall'
+  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 -Uninstall'
   Pop $0
   Pop $1
   ${EnableX64FSRedirection}

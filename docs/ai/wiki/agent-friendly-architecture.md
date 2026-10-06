@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `19`
-- updated_at: `2026-10-06T02:25:00Z`
+- revision: `20`
+- updated_at: `2026-10-06T04:24:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-06T02:25:00Z`
+- source_reviewed_at: `2026-10-06T04:24:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted target based on 15d425d9c35b25dd3a1836027d5ba6acf66d70d9`
-- source_review_evidence: `실제 렌더링 detector tolerance·fallback과 preview/capture gate SELF_REVIEW APPROVED`
+- source_review_target: `uncommitted packaging target based on 9ce107f97cdbafad0c228777bb49b84d9256d059; concurrent debuff target excluded`
+- source_review_evidence: `NSIS 신규 설치 gate·PowerShell policy·PE version resource와 package size 계약 SELF_REVIEW`
 - behavior_verified_at: `2026-10-06T02:25:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
 - behavior_verification_target: `uncommitted target based on 15d425d9c35b25dd3a1836027d5ba6acf66d70d9`
 - behavior_verification_environment: `Windows 10.0.26200 x64, 3440×1440 실제 Mabinogi와 자동 검사`
 - behavior_verification_evidence: `사용자 실제 positive 검출 확인, detector 9/9, backend 전체, Clippy -D warnings, diff check, IDE diagnostics`
 - freshness_status: `CURRENT`
-- freshness_reason: `게임 client foreground capture와 독립 settings/preview window 경계를 최신 source에 맞게 추가`
-- known_gaps: `별도 dependency graph lint가 없고 negative·click-through·DPI·보조 모니터·전체화면 QA는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 설정과 디버프 영역 자동인식 preview`
-- feature_map: `updated — FEAT-NOGIREM-GAME-OVERLAY와 연결`
-- architecture_impact: `verified game capture, pure pixel detector, setting single writer, interactive/preview native windows`
-- architecture_contract: `updated — capture trust·focus·privacy·window lifecycle 경계 추가`
+- freshness_reason: `배포 wrapper의 신규 설치·업데이트 PowerShell 경계와 PE 식별 resource를 최신 source에 맞게 추가`
+- known_gaps: `실제 설치·업데이트·제거 QA와 새 산출물 VirusTotal 재분석은 NOT_RUN; 10MB 제한 때문에 solid LZMA를 유지해 overlay 휴리스틱은 남음`
+- feature_impact: `none — 제품 기능과 observable flow는 유지하고 배포 wrapper만 변경`
+- feature_map: `no_change — 기존 feature entry의 기능·lifecycle·behavior evidence는 영향 없음`
+- architecture_impact: `package security boundary — 신규 설치의 불필요한 stop script 제거, ExecutionPolicy 우회 금지, PE version resource`
+- architecture_contract: `updated — package extension path와 anti-false-positive 제약 추가`
 
 ## 계층과 확장 경로
 
@@ -118,6 +118,9 @@
 - 설치형은 파일·설정 backup 후 설치하고 건강 확인 실패 시 복원한다. 포터블은 동일 볼륨 원자 교체와 backup digest를 사용한다.
 - 새 updater는 installer에 자신의 PID를 전달한다. 이전 0.4.1 updater는 인자가 없으므로 installer 종료 script가 검증된 parent `updater.exe` 하나를 자동 보존한다.
 - 직접 설치·제거는 보호 updater 경로의 stale helper를 종료한다. 설치 폴더 프로세스가 정상 종료 중 다시 생길 수 있으므로 안정 구간까지 반복 조회한다.
+- 신규 설치 대상에 기존 파일이 없으면 프로세스 종료 PowerShell을 실행하지 않는다. 기존 설치 업데이트와 제거에서만 package가 생성한 고정 script를 `-NoProfile -NonInteractive -File`로 실행하며 `ExecutionPolicy Bypass`를 사용하지 않는다.
+- 설치형·포터블 outer PE는 제품명, 설명, file/product version, internal/original filename과 copyright resource를 포함한다. 이는 Authenticode를 대체하지 않으며 update manifest의 Ed25519 서명도 Windows publisher 신뢰를 제공하지 않는다.
+- 배포 압축은 파일 공유 10MB 제한 때문에 solid LZMA를 유지한다. non-solid 변경은 실제 0.4.5 payload에서 설치형 `10,132,758 bytes`로 제한을 초과했으므로 적용하지 않으며, 이로 인한 NSIS overlay 휴리스틱 gap을 숨기지 않는다.
 - retry는 새 attempt identity와 현재 target을 사용하며 이전 attempt의 늦은 callback이 현재 상태를 덮지 못한다.
 
 ## API·schema와 생성물
@@ -130,7 +133,7 @@
 
 ## enforcement
 
-- `npm test`: renderer/preload 계약, 설치·제거 실프로세스, 포터블·서명 정적 계약.
+- `npm test`: renderer/preload 계약, 설치·제거 실프로세스, 포터블·서명 정적 계약, 신규 설치 PowerShell gate·policy와 outer PE resource 입력.
 - `cargo test --locked --manifest-path desktop/backend/Cargo.toml`: backend 기능·update 보안 경계.
 - `cargo check --locked --manifest-path desktop/Cargo.toml`: desktop/backend compile 경계.
 - package script: native service contract, Node/Electron payload 부재, Microsoft bootstrap signature, NSIS warning-as-error, 파일 크기, signing key/public key 일치.

@@ -5,6 +5,14 @@ Unicode true
 Name "마비노기 렘 부스터 포터블"
 Icon "${APP_DIRECTORY}\icon.ico"
 OutFile "${OUTPUT_FILE}"
+VIProductVersion "${APP_VERSION}.0"
+VIAddVersionKey /LANG=1042 "ProductName" "마비노기 렘 부스터 포터블"
+VIAddVersionKey /LANG=1042 "FileDescription" "마비노기 렘 부스터 포터블 실행 프로그램"
+VIAddVersionKey /LANG=1042 "FileVersion" "${APP_VERSION}"
+VIAddVersionKey /LANG=1042 "ProductVersion" "${APP_VERSION}"
+VIAddVersionKey /LANG=1042 "InternalName" "nogirem-portable"
+VIAddVersionKey /LANG=1042 "OriginalFilename" "nogirem-portable.exe"
+VIAddVersionKey /LANG=1042 "LegalCopyright" "Copyright (C) 2026 Nogirem contributors"
 RequestExecutionLevel admin
 SilentInstall silent
 SetCompressor /SOLID lzma

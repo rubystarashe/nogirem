@@ -17,6 +17,9 @@ const [packager, signer, bridge, workers, updater, launcher, installer, installe
 test('포터블 배포물은 내부 파일을 캐시에 준비하는 단일 EXE다', () => {
   assert.match(packager, /portable\.marker/)
   assert.match(packager, /nogirem-dioxus-portable-\$\{version\}\.exe/)
+  assert.match(launcher, /VIProductVersion "\$\{APP_VERSION\}\.0"/)
+  assert.match(launcher, /VIAddVersionKey \/LANG=1042 "FileDescription"/)
+  assert.match(launcher, /SetCompressor \/SOLID lzma/)
   assert.match(launcher, /File \/r "\$\{APP_DIRECTORY\}\\\*"/)
   assert.match(launcher, /--portable-source="\$EXEPATH"/)
   assert.match(launcher, /--portable-launcher-pid=\$2/)
