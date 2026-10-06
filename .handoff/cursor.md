@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-06 08:54 +09:00
+Last Updated: 2026-10-06 10:05 +09:00
 
 ## Current Objective
-메인 창을 트레이로 숨겨도 `실시간 게임 서버 모니터링`의 채널 측정, Windows 키 전체표와 게임 전경 상단 compact 창이 계속 동작하도록 channel window 수명주기를 main visibility에서 분리했다.
+신규 `게임 오버레이` 설정창과 첫 디버프 영역 자동인식 checkpoint를 구현했다. 실제 디버프 판독 전 단계로 검증된 마비노기 client의 보스 체력바 외곽을 one-shot 캡처·검출해 click-through 테두리와 라벨로 표시한다.
 
 ## Active Runs
+- `20261006-game-overlay-debuff-045`: source `cb3ee40cee4afda954e2d8ae94a780df39d9fcec`에서 디버프·투아림·붕괴·버프·스킬 persistent toggle, foreground 전환·복원형 GDI client capture, 보스 체력바 순수 BGRA detector, 독립 `debuff-region-overlay` preview를 구현했다. Node 207/207, backend 110 PASS·2 ignored, parity 2/2, desktop 8/8, detector 5/5와 primary native UI smoke가 통과했다. 실제 게임 capture·focus·preview·DPI는 NOT_RUN이며 package·push·release도 수행하지 않았다. (`docs/ai/runs/20261006-game-overlay-debuff-045/task.md`)
 - `20261006-tray-channel-monitor-045`: tray cleanup이 일반 보조 창만 닫고 `channel-ping-overlay`·`channel-ping-live`를 보존하도록 source `66d56b49544219fa7c8f38d5aea77a87f78bb11c`에서 수정했다. backend 105 PASS·2 declared ignore, parity 2/2, overlay 3/3과 SELF_REVIEW가 통과했다. 실제 tray·게임·Windows 키·DPI QA와 package·push·재배포는 수행하지 않았다. (`docs/ai/runs/20261006-tray-channel-monitor-045/task.md`)
 - `20261005-release-045`: source `2fd708bee4af0513a68b21618e81e0173516c098`에서 signed 설치형·포터블을 만들고 origin/main push, v0.4.5 tag와 [GitHub v0.4.5](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.5) 자산 10개를 공개했다. 공개 10/10 hash·Ed25519 manifest·Electron 0.3.19 bridge 재검증이 통과했다. 실제 설치·게임·혼합 DPI QA는 수행하지 않았다. (`docs/ai/runs/20261005-release-045/task.md`)
 - `20261005-package-045`: source `4c11b0e42055073597d080cf59219d22cd06cfbb`에서 0.4.5 서명 설치형·포터블을 `release/dioxus-0.4.5-2026-10-05T08-21-42-249Z`에 생성하고 자동·native contract·해시·manifest 검증을 통과했다. 실제 설치·포터블 실행과 push·tag·GitHub release·배포는 수행하지 않았다. (`docs/ai/runs/20261005-package-045/final-report.md`)
@@ -24,6 +25,10 @@ Last Updated: 2026-10-06 08:54 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- 고급 기능의 `게임 오버레이` 버튼은 별도 520×560 settings window를 열고 5개 알림 boolean을 `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`에 원자 저장한다. 디버프 알림을 켜야 자동인식 버튼이 활성화되며 나머지 4종은 설정 UI만 구현됐다.
+- 자동인식은 정본 path를 만족하는 visible non-minimized game HWND 하나를 선택하고 기존 foreground를 저장한 뒤 게임을 180ms foreground로 전환해 client BGRA를 한 번 캡처한다. 복수 후보는 canonical game path 단일 일치가 없으면 거부하고 capture 전·후 PID·start identity를 재확인하며 성공·실패 모두 기존 foreground를 복원한다.
+- detector는 `55±2`와 바로 아래 `17±2` 하단선, 20~120px 위 `7~12` 상단선, endpoint ±2px, RGB spread ≤2, 95% 검은 좌우선과 5:1 aspect를 사용한다. 제공 523×40 crop의 9/10/10 상단·55 하단·상단 2px edge gap을 synthetic test에 반영했으며 crop 밖 17 line은 사용자 규칙을 따른다.
+- 검출 좌표는 client-local physical pixel로 메모리에만 보존한다. `debuff-region-overlay`는 같은 game HWND가 foreground일 때만 screen origin을 다시 계산해 정확한 영역 위에 `디버프 영역` 테두리·라벨을 표시하며 다른 앱에서는 숨는다. 실제 게임에서의 capture·preview는 아직 확인하지 않았다.
 - tray 최소화와 tray에서 다시 열기는 character guide·blackbox manager 등 일반 보조 창을 정리하되 hidden `channel-ping-overlay`·`channel-ping-live`는 유지한다. 별도 backend channel monitor thread와 input hook도 main WebView visibility에 묶이지 않으므로 기능 활성 상태가 유지된다. 이 fix는 local commit `66d56b4`에 있으며 공개 v0.4.5 package에는 아직 포함되지 않았다.
 - 0.4.5 공개 패키지는 설치형 `9,563,418 bytes` SHA-256 `aada494d...308b7`, 포터블 `7,790,592 bytes` SHA-256 `5269af6c...1bef8`이다. Node 204/204, desktop 8/8, backend integration 3/3, package contract·서명과 공개 재다운로드 자산 10/10 검증이 통과했다.
 - 기능명을 `채널별 핑`에서 `실시간 게임 서버 모니터링`으로 변경하고 중앙 전체 채널 창의 현재 제목은 `채널별 서버 지연 추측`이다. 고정 GitHub raw CSV의 검증·cache→package fallback과 설정 single writer는 유지한다.

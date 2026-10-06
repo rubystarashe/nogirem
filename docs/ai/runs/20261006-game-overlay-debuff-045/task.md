@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-GAME-OVERLAY-DEBUFF-045`
 - owner: `Cursor Agent`
 - created_at: `2026-10-06T00:34:00Z`
-- updated_at: `2026-10-06T00:34:00Z`
+- updated_at: `2026-10-06T01:05:00Z`
 - repository: `rubystarashe/nogirem`
 - branch: `main`
 - source_base: `497bb750c7d17ee02b3fe2dc308b873316d51217`
@@ -16,9 +16,9 @@
 - risk: `HIGH — 검증된 게임 HWND 포커스와 화면 픽셀을 읽고 native topmost overlay를 추가하지만 게임 메모리·패킷·입력 주입·외부 전송은 하지 않음`
 - authorization: `사용자가 계획을 검토한 뒤 작업을 명시적으로 승인함`
 - roles: `Coordinator=DEV=QA=Reviewer=Feature owner=Architecture owner=Documentation maintainer=Cursor Agent; SELF_REVIEW`
-- dev_state: `IN_PROGRESS`
-- qa_state: `PLANNED`
-- review_verdict: `NOT_REVIEWED`
+- dev_state: `DONE`
+- qa_state: `COMPLETE_PASS for automated scope`
+- review_verdict: `APPROVED`
 - feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 5종 알림 설정과 디버프 보스 체력바 영역 자동인식 preview`
 - feature_map: `updated 예정 — 신규 identity·흐름·검증·수동 gap 추가`
 - architecture_impact: `overlay setting single writer, verified game capture adapter, pure boss-bar detector, interactive settings와 click-through preview window 분리`
@@ -31,3 +31,33 @@
 - preview는 클릭 통과 테두리와 작은 `디버프 영역` 라벨이다.
 - 캡처 시 기존 foreground를 저장하고 검증된 마비노기 창을 포커싱해 캡처한 뒤 기존 창 포커스를 복원한다.
 - 가려진 DirectX 창의 background capture는 검은 화면·stale frame 위험 때문에 이번 checkpoint에서 사용하지 않는다.
+
+## Result
+
+- disposition: `PARTIALLY_COMPLETED — 요청한 source 범위는 구현했고 실제 게임 behavior verification은 NOT_RUN`
+- implementation_target: `cb3ee40cee4afda954e2d8ae94a780df39d9fcec`
+- delivered: `5종 persistent toggle 설정창, 디버프 one-shot 자동인식, 검증된 게임 foreground GDI client capture와 포커스 복원, client-local 좌표, click-through border·label preview`
+- detector: `55±2 하단선, 바로 아래 17±2 선, 20~120px 위 7~12 상단선, endpoint ±2px, RGB channel spread ≤2, 검은 좌우선 ≥95%, aspect ≥5:1`
+- provided_image_assessment: `523×40 crop에서 상단 9/10/10, 하단 55/55/55, 좌우 0/0/0과 상단 2px edge gap을 확인해 synthetic BGRA 회귀 fixture에 반영; crop 밖 17 line은 사용자 규칙대로 합성`
+- `PASS` — Node 207/207.
+- `PASS` — backend 110 passed, 2 declared ignored; legacy·native parity 2/2.
+- `PASS` — desktop 8/8, desktop compile.
+- `PASS` — detector 5/5, overlay contract 4/4, preload syntax, targeted rustfmt, diff check, IDE diagnostics 0.
+- `PASS` — native primary UI smoke에서 고급 기능 row와 `overlay-settings` bridge·5개 toggle·자동인식 문구 렌더링 확인.
+- `FAIL after primary PASS` — 전체 smoke 후속 creator-prompt 별도 process가 기존 visual activity 준비 상태를 얻지 못함; 신규 overlay settings 검증이 포함된 primary `ui.json`은 `passed:true`. 제품 source 필수 자동 검사와 직접 관련된 실패는 아님.
+- `NOT_RUN` — 실제 마비노기 foreground 전환·복원, GDI pixel capture, 보스 체력바 검출, preview 위치·click-through, 창모드·전체화면·다중 DPI·복수 game window.
+- review_mode: `SELF_REVIEW`
+- review_scope: `capture trust boundary, PID·start identity, focus restoration, detector tolerance·negative fixtures, setting writer, capability dependency, overlay foreground hiding, IPC authorization, native/package inputs, test evidence`
+- review_disclosure: `같은 Cursor Agent가 구현과 검토를 수행했으며 독립 reviewer는 참여하지 않음`
+- review_verdict: `APPROVED — unresolved mandatory source finding 0`
+- qa_record: `qa.md`
+- final_report: `final-report.md`
+- feature_gate: `BLOCKED for behavioral completion — canonical FEAT-NOGIREM-GAME-OVERLAY 추가와 자동 source evidence는 완료, 실제 게임 QA NOT_RUN`
+- architecture_gate: `PASS — shared geometry 분리, capture·setting single writer와 preview window 경계 명시, 새 예외 없음`
+- review_qa_gate: `PASS for automated source scope; BLOCKED for actual-game behavior scope`
+- target_authorization_gate: `PASS — local commits only, package·push·release 없음`
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 설정·디버프 영역 자동인식 preview source 구현`
+- feature_map: `updated — 신규 PLANNED feature와 source·QA freshness 추가`
+- architecture_impact: `foreground capture adapter, pure detector, setting writer, interactive·preview windows`
+- architecture_contract: `updated — trust·capture·focus·window·data 경계 추가`
+- remaining: `사용자 PC 실제 게임 QA 후 검출 허용오차 조정; 후속 checkpoint에서 실제 디버프 판독·알림`

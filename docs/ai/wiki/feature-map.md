@@ -2,22 +2,22 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `20`
-- updated_at: `2026-10-05T23:54:00Z`
+- revision: `21`
+- updated_at: `2026-10-06T01:05:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T23:54:00Z`
+- source_reviewed_at: `2026-10-06T01:05:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 66d56b49544219fa7c8f38d5aea77a87f78bb11c, base 543064863d3316478763395929565f1fc78db27a`
-- source_review_evidence: `tray cleanup의 auxiliary kind filter와 channel monitor thread/window lifecycle 검토; SELF_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T23:54:00Z`
+- source_review_target: `source commit cb3ee40cee4afda954e2d8ae94a780df39d9fcec, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
+- source_review_evidence: `게임 오버레이 setting·capture·detector·preview·IPC/package 경계 SELF_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-06T01:05:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 66d56b49544219fa7c8f38d5aea77a87f78bb11c`
+- behavior_verification_target: `source commit cb3ee40cee4afda954e2d8ae94a780df39d9fcec`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust unit/integration·Node contract·desktop compile`
-- behavior_verification_evidence: `backend 105 PASS·2 declared ignore, parity 2/2, tray window policy regression 1/1, overlay interface 3/3, targeted rustfmt, diff check, IDE diagnostics`
+- behavior_verification_evidence: `Node 207/207, backend 110 PASS·2 declared ignore, parity 2/2, desktop 8/8, detector 5/5, overlay contract 4/4, primary native UI smoke PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `트레이에서도 독립 channel monitor windows를 보존하는 최신 source와 자동 검증·수동 gap을 반영`
-- known_gaps: `실제 tray 최소화 중 Windows 키 expanded·게임 전경 compact·혼합 DPI는 수동 NOT_RUN; 공개 v0.4.5 package에는 후속 tray fix가 포함되지 않음`
-- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 트레이 상태의 채널 점수와 compact·expanded 표시 유지`
+- freshness_reason: `신규 게임 오버레이 source와 자동 검증, 실제 게임 미검증 범위를 구분해 반영`
+- known_gaps: `FEAT-NOGIREM-GAME-OVERLAY 실제 게임 capture·focus·preview·DPI는 NOT_RUN; FEAT-NOGIREM-CHANNEL-PING tray 수동 QA와 공개 package 반영도 대기`
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 5종 설정과 디버프 영역 자동인식 preview 추가`
 - feature_map: `updated — 신규 기능 identity·흐름·writer·시나리오·검증 범위를 추가함`
 - architecture_impact: `채널 CSV/cache writer, TCP worker, foreground input adapter, click-through auxiliary window`
 - architecture_contract: `updated — agent-friendly-architecture.md에 채널 핑 기능 경계와 금지 규칙을 추가함`
@@ -68,6 +68,50 @@
 - feature_map: `updated — PING-012와 tray window lifecycle을 추가`
 - architecture_impact: `channel ping capability·cache writer·Win32 input·auxiliary window 경계`
 - architecture_contract: `updated — 관련 contract section과 연결`
+
+## FEAT-NOGIREM-GAME-OVERLAY
+
+- canonical_name: `게임 오버레이 알림`
+- aliases: `오버레이 설정`, `디버프 알림`, `인터페이스 자동인식`
+- lifecycle: `PLANNED`
+- lifecycle_reason: `설정과 디버프 영역 preview source는 구현됐지만 실제 게임 behavior verification과 package·공개 배포가 완료되지 않음`
+- owners: `product=nogirem maintainer`, `technical=game overlay backend owner`
+- purpose_and_scope: 사용자가 디버프·투아림·붕괴·버프·스킬 알림을 개별 설정하고, 첫 단계로 검증된 마비노기 client의 보스 체력바 외곽을 한 번 자동인식해 click-through 테두리와 `디버프 영역` 라벨로 확인한다. 검출 좌표는 client-local physical pixel로 메모리에만 보관하며 같은 게임 창이 이동하면 client origin을 다시 계산해 preview를 이동한다.
+- exclusions: 이번 source는 실제 디버프·버프·스킬 상태를 판독하거나 알림을 발생시키지 않는다. 지속 영상 추적, 가려진 DirectX background capture, 게임 메모리·패킷 접근, 입력 주입, 임의 프로세스 캡처, 캡처 이미지 저장·전송을 지원하지 않는다.
+- personas_permissions_accessibility_entry: Windows 사용자가 고급 기능의 `게임 오버레이` 설정창에서 5개 토글을 키보드·마우스로 조작한다. 자동인식 버튼은 디버프 알림이 켜졌을 때만 활성화되고 진행·성공·오류를 색상뿐 아니라 텍스트 live status로 알린다.
+- preconditions_dependencies: Windows, 실행 중이고 최소화되지 않은 검증 가능한 마비노기 `Client.exe`, WebView2, GDI client capture, foreground 전환 권한, 보스 체력바가 화면에 표시된 상태.
+- normal_flow: 설정창에서 디버프 알림을 켜고 자동인식을 누르면 기존 foreground HWND를 저장한다. 정본 실행 경로를 만족하는 단일 게임 창 또는 canonical game path와 일치하는 창을 선택해 잠시 foreground로 전환하고 180ms 뒤 client BGRA를 캡처한다. 하단 `55±2` 선과 바로 아래 `17±2` 선, 20~120px 위의 `7~12` 상단선, 95% 이상 연속인 `0±2` 좌우선을 검증한 뒤 기존 foreground를 복원하고 preview 좌표를 표시한다.
+- error_cancel_retry_flow: 게임 창 부재·최소화·복수 후보 모호성·foreground 전환 실패·capture 실패·process identity 변경·외곽 미검출은 설정창에 오류를 표시하고 preview를 숨긴다. 사용자는 게임 상태를 준비한 뒤 버튼을 다시 눌러 재시도한다. 디버프 토글을 끄면 검출 좌표·오류·preview를 제거한다.
+- concurrency_partial_failure_recovery: 설정 저장은 capability mutex와 원자 JSON writer가 직렬화한다. 캡처 전·후 PID와 process start identity를 확인하고 foreground는 성공·실패 모두에서 원래 HWND로 복원한다. preview monitor는 100ms마다 같은 HWND가 foreground인지 확인해 다른 앱 위에서는 숨긴다.
+- state_side_effects_limits: `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`에 5개 boolean만 지속한다. pixel frame·HWND·PID·검출 좌표·오류는 메모리에만 존재하고 이미지 파일을 만들지 않는다. settings window는 tray 이동 시 닫고 preview window는 capability 상태를 위해 유지하되 게임이 foreground가 아니면 숨긴다.
+- modules_contracts: `desktop/src/ui.rs` → `overlay-settings.html`·제한 preload → `service.rs` → `game_overlay.rs`; `overlay_geometry.rs`가 capability 중립 physical bounds를 소유하고 `service_windows.rs`·`desktop/src/native.rs`가 interactive settings와 click-through preview의 서로 다른 identity를 중계한다.
+- durable_data_owner: `game_overlay.rs`만 overlay settings JSON을 읽고 원자 갱신한다. renderer·legacy Electron host·preview window는 writer가 아니다.
+- security_privacy: `process::matches_game`을 통과한 visible non-minimized HWND만 캡처하고 복수 후보가 있으면 canonical path 단일 일치 없이는 실패한다. 캡처는 client pixel을 메모리에서 검출한 뒤 폐기하며 로그·문서·외부 요청에 화면 내용을 기록하지 않는다.
+- compatibility_limits: foreground GDI capture는 가려진 창을 background capture하지 않으며 독점 전체화면·일부 GPU 경로에서 실패할 수 있다. 검출은 UI scale에 따라 높이 22~122px와 endpoint ±2px를 허용하지만 테마·클라이언트 UI 변경 시 재조정이 필요하다.
+- scenarios: `OVERLAY-001 5종 설정 저장·재로드`, `OVERLAY-002 단일 정본 게임 foreground 전환·복원`, `OVERLAY-003 체력바 이중 하단선·상단선·좌우선 검출`, `OVERLAY-004 가변 높이·길이 ±2·RGB spread 허용`, `OVERLAY-005 유사 panel·선 누락 거부`, `OVERLAY-006 client-local→screen preview 변환`, `OVERLAY-007 비전경·기능 해제 숨김`, `OVERLAY-008 settings·preview native/package 계약`
+- observability_evidence: 설정창 진행·성공·오류 status, `game_overlay.rs` unit tests, `test/game-overlay.test.mjs`, native primary UI smoke `otherWindows.overlay-settings`, service stderr의 preview 준비·표시 실패.
+- architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 게임 화면 capture·overlay 경계.
+- record_id: `FEAT-NOGIREM-GAME-OVERLAY`
+- owner: `nogirem maintainer`
+- revision: `1`
+- updated_at: `2026-10-06T01:05:00Z`
+- updated_by: `cursor-agent-92251f36`
+- source_reviewed_at: `2026-10-06T01:05:00Z`
+- source_reviewed_by: `cursor-agent-92251f36`
+- source_review_target: `source commit cb3ee40cee4afda954e2d8ae94a780df39d9fcec, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
+- source_review_evidence: `capture trust·focus restoration·pure detector·setting writer·window/IPC/package diff SELF_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-06T01:05:00Z`
+- behavior_verified_by: `cursor-agent-92251f36`
+- behavior_verification_target: `source commit cb3ee40cee4afda954e2d8ae94a780df39d9fcec`
+- behavior_verification_environment: `Windows 10.0.26200 x64 automated source target, synthetic BGRA and native smoke fixture`
+- behavior_verification_evidence: `detector 5/5, overlay contract 4/4, Node 207/207, backend 110 PASS·2 ignored, parity 2/2, desktop 8/8, primary UI smoke PASS`
+- freshness_status: `CURRENT`
+- freshness_reason: `현재 source 구현 범위와 실제 게임 미검증·미배포 상태를 명시함`
+- known_gaps: `실제 Mabinogi capture·focus restore·보스 체력바 검출·preview·click-through·DPI·전체화면 NOT_RUN; 투아림·붕괴·버프·스킬과 실제 디버프 알림 미구현`
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 신규 설정과 디버프 영역 자동인식 preview`
+- feature_map: `updated — 신규 canonical identity 예약·추가`
+- architecture_impact: `foreground capture adapter, pure detector, setting single writer, interactive/preview windows`
+- architecture_contract: `updated — 신규 capture·focus·privacy·window 경계와 금지 규칙 추가`
 
 ## FEAT-NOGIREM-FRAME-BOOST
 

@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `15`
-- updated_at: `2026-10-05T23:54:00Z`
+- revision: `16`
+- updated_at: `2026-10-06T01:05:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T23:54:00Z`
+- source_reviewed_at: `2026-10-06T01:05:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 66d56b49544219fa7c8f38d5aea77a87f78bb11c, base 543064863d3316478763395929565f1fc78db27a`
-- source_review_evidence: `tray cleanup의 종류별 보존 정책과 독립 channel monitor thread·window identity 경계 검토; SELF_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T23:54:00Z`
+- source_review_target: `source commit cb3ee40cee4afda954e2d8ae94a780df39d9fcec, base 497bb750c7d17ee02b3fe2dc308b873316d51217`
+- source_review_evidence: `game overlay setting writer·capture trust·focus restoration·detector·window/IPC/package 경계 SELF_REVIEW APPROVED`
+- behavior_verified_at: `2026-10-06T01:05:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 66d56b49544219fa7c8f38d5aea77a87f78bb11c`
+- behavior_verification_target: `source commit cb3ee40cee4afda954e2d8ae94a780df39d9fcec`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `backend 105 PASS·2 declared ignore, parity 2/2, tray policy regression 1/1, overlay interface 3/3, targeted rustfmt, diff check, IDE diagnostics`
+- behavior_verification_evidence: `Node 207/207, backend 110 PASS·2 declared ignore, parity 2/2, desktop 8/8, detector 5/5, overlay contract 4/4, primary native UI smoke PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `트레이 전환과 독립 channel monitoring window 수명주기 경계를 최신 source와 일치시킴`
-- known_gaps: `별도 dependency graph lint가 없고 실제 tray 전환 중 Windows 키·게임 전경 compact·DPI·최신 package 수동 QA는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 트레이 상태의 채널 측정·compact·expanded 유지`
-- feature_map: `updated — feature-map.md PING-012와 연결`
-- architecture_impact: `tray auxiliary cleanup과 독립 compact/expanded click-through window 수명주기`
-- architecture_contract: `updated — channel monitor windows를 main tray visibility에서 분리하는 경계를 명시`
+- freshness_reason: `게임 client foreground capture와 독립 settings/preview window 경계를 최신 source에 맞게 추가`
+- known_gaps: `별도 dependency graph lint가 없고 실제 게임 capture·focus restore·preview·DPI·전체화면 QA는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 설정과 디버프 영역 자동인식 preview`
+- feature_map: `updated — FEAT-NOGIREM-GAME-OVERLAY와 연결`
+- architecture_impact: `verified game capture, pure pixel detector, setting single writer, interactive/preview native windows`
+- architecture_contract: `updated — capture trust·focus·privacy·window lifecycle 경계 추가`
 
 ## 계층과 확장 경로
 
@@ -50,6 +50,7 @@
 - DXVK는 확인되지 않은 게임 경로나 임의 URL에 파일을 쓰지 않는다. manager가 실제 `Client.exe`와 게임 미실행 상태를 확인하고 capability module이 digest·x64 PE·최종 파일 hash를 검증해야 한다.
 - 채널 핑은 사용자 URL·hostname·endpoint를 받지 않는다. 고정 HTTPS source의 제한 크기 CSV를 전부 검증한 뒤에만 cache와 runtime endpoint를 교체한다.
 - 실시간 점수 창은 게임 프로세스에 주입하거나 Windows 키를 차단하지 않는다. 실제 실행 경로가 정본 게임 조건을 충족한 전경 PID가 소유하고 CSV endpoint와 일치하는 established TCP 연결만 조회하며 비활성·click-through 상태를 유지한다. 상단 창은 게임 전경 또는 전체표가 열린 Windows shell 전경에서만 표시하고 일반 앱 전경에서는 마지막 게임 bounds를 재사용하지 않는다.
+- 게임 오버레이 자동인식은 임의 HWND·가려진 background 화면·게임 메모리를 읽지 않는다. 정본 실행 경로를 만족하는 visible non-minimized 게임 창만 foreground로 전환해 client pixel을 메모리에서 읽고 즉시 폐기하며, 기존 foreground는 성공·실패 모두에서 복원해야 한다.
 
 ## durable data와 single writer
 
@@ -63,6 +64,7 @@
 - turbo helper installation: `inputs.rs`가 helper version·manifest·binary 교체를 조정하고 native helper는 전달받은 설정과 game path state를 소비한다.
 - DXVK state와 DLL: `dxvk.rs` install/apply 경로만 `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 검증된 게임 폴더의 `d3d9_dxvk.dll`을 쓴다.
 - channel ping setting·cache: `channel_ping.rs`만 `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv`를 쓴다. 동일 module이 연결 시험 표본과 실제 5-tuple별 `SmoothedRtt + RttVar` TCP 추정값을 계산하고, 최근 유효 counter보다 재전송·TCP 시간초과·수신 중복 ACK·혼잡 신호 중 하나라도 증가한 표본에는 `SmoothedRtt + 4×RttVar`를 적용한다. 최근 1분 추정 표본 평균·최대, 네 counter delta 표본과 최근 유효 counter 기준은 메모리에만 두며 overlay·UI는 status IPC로 읽는다. 추정 최대는 원시 패킷 RTT 최대나 게임 처리·입력·렌더링 지연을 뜻하지 않는다. rolling outcomes·실제 연결·window mode는 지속하지 않는다.
+- game overlay setting: `game_overlay.rs`만 `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`의 5개 boolean을 쓴다. 캡처 frame·HWND·PID·process start identity·검출 좌표와 오류는 메모리에만 두고 renderer·legacy host·preview window는 읽기 요청만 한다.
 
 ## 실시간 helper 상태와 게임 경로
 
@@ -96,6 +98,17 @@
 - bounded input channel이 포화되면 event를 성공으로 간주하지 않고 fail-safe로 overlay를 숨긴다. backlog를 폐기한 뒤 최소 100ms의 input quiet 구간이 확인될 때까지 새 표시 trigger를 받지 않는다.
 - 두 preload는 `channel-ping:get-status` 읽기 하나만 노출한다. 설정 쓰기와 창 command는 main renderer의 application channel과 backend service만 수행한다.
 - package fallback source는 저장소 root `channel.csv` 하나이며 `scripts/package-dioxus.mjs`가 두 HTML·두 preload와 함께 복사한다. Electron 0.3.x 호환 host는 preload 요청을 명시적으로 거부하고 두 번째 writer나 기능 구현이 되지 않는다.
+
+## 게임 화면 capture·overlay
+
+- `game_overlay.rs`는 overlay 설정, 검증된 게임 window 선택, one-shot client capture와 순수 보스 체력바 외곽 검출을 소유한다. `service.rs`는 IPC와 preview monitor만 조정하고 pixel 판정 조건을 복제하지 않는다.
+- 여러 capability가 사용하는 physical rectangle은 `overlay_geometry.rs`의 `OverlayBounds` 하나를 사용한다. game overlay가 channel ping capability 내부 type에 의존하거나 서로의 window ID·visible state를 공유해서는 안 된다.
+- 게임 window 후보는 `process::matches_game`을 통과해야 한다. 후보가 여러 개면 persisted canonical game path와 정확히 일치하는 하나만 선택하고, 그렇지 않으면 fail closed한다. capture 전·후 PID와 process start identity가 달라지면 결과를 폐기한다.
+- foreground GDI capture는 기존 foreground HWND 저장, 검증된 game foreground 전환, 짧은 render 대기, client BGRA read, 기존 foreground 복원 순서다. 포커스 복원은 capture 성공 여부와 무관하게 수행한다. `PrintWindow`나 Windows Graphics Capture background adapter는 실제 GPU 호환성 검증 전 지원 경로로 간주하지 않는다.
+- detector는 압축 이미지·OCR·내부 체력 색상에 의존하지 않는다. 회색 이중 하단선, 가변 거리 상단선, 검은 좌우선과 aspect를 순수 BGRA 입력에서 판정하며 허용오차 변경은 synthetic positive·negative fixture를 동반한다.
+- `overlay-settings`는 main-owned interactive window라 tray 이동 시 닫는다. `debuff-region-overlay`는 focusable=false·click-through·transparent·always-on-top인 별도 identity이고 기능 상태 보존을 위해 tray cleanup에서 제거하지 않지만, 검증된 같은 game HWND가 foreground가 아니면 숨긴다.
+- settings preload만 get·set·detect·close IPC를 노출하고 preview preload는 제품 IPC를 노출하지 않는다. 두 HTML과 preload는 native allowlist·service contract·packager 입력을 함께 갱신한다. Electron 0.3.x host는 Rust 전용 요청을 명시적으로 거부한다.
+- 화면 pixel·게임 경로·사용자 식별 정보는 setting, log, evidence, screenshot 또는 외부 서비스로 보내지 않는다. 수동 QA 증거가 필요하면 사용자가 제공한 비식별 crop이나 synthetic fixture만 보존한다.
 
 ## update·설치 transaction과 호환성
 
