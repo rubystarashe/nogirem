@@ -620,8 +620,66 @@ fn detector_diagnostics(frame: &Frame) -> String {
         .map(|(width, y, value)| format!("{value}/{width}@{y}"))
         .collect::<Vec<_>>()
         .join(",");
+    let mut double_pairs = 0usize;
+    let mut best_top: Option<(u32, u32, Run, Run, u32)> = None;
+    for bottom in 0..frame.height.saturating_sub(1) {
+        for lower_run in runs(frame, bottom, 53, 57, 150) {
+            for dark_run in runs(frame, bottom + 1, 15, 19, 150) {
+                if !close(lower_run.start, dark_run.start, 2)
+                    || !close(lower_run.end, dark_run.end, 2)
+                    || lower_run.width().abs_diff(dark_run.width()) > 2
+                {
+                    continue;
+                }
+                double_pairs += 1;
+                let minimum_top = bottom.saturating_sub(120);
+                let maximum_top = bottom.saturating_sub(20);
+                for top in minimum_top..=maximum_top {
+                    for upper_run in runs(frame, top, 0, 32, 150) {
+                        let score = lower_run.start.abs_diff(upper_run.start)
+                            + lower_run.end.abs_diff(upper_run.end)
+                            + lower_run.width().abs_diff(upper_run.width());
+                        if best_top
+                            .as_ref()
+                            .is_none_or(|(best, _, _, _, _)| score < *best)
+                        {
+                            best_top = Some((score, bottom, lower_run, upper_run, top));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let top_detail = best_top.map_or_else(
+        || "없음".to_owned(),
+        |(score, bottom, lower_run, upper_run, top)| {
+            let left = (lower_run.start.saturating_sub(2)
+                ..=lower_run
+                    .start
+                    .saturating_add(2)
+                    .min(frame.width.saturating_sub(1)))
+                .map(|x| vertical_black_ratio(frame, x, top, bottom + 1))
+                .fold(0.0, f64::max);
+            let right = (lower_run.end.saturating_sub(2)
+                ..=lower_run
+                    .end
+                    .saturating_add(2)
+                    .min(frame.width.saturating_sub(1)))
+                .map(|x| vertical_black_ratio(frame, x, top, bottom + 1))
+                .fold(0.0, f64::max);
+            format!(
+                "차이{score}, 하단{}-{}@{bottom}, 상단{}-{}@{top}, 세로{:.0}%/{:.0}%",
+                lower_run.start,
+                lower_run.end,
+                upper_run.start,
+                upper_run.end,
+                left * 100.0,
+                right * 100.0
+            )
+        },
+    );
     format!(
-        "{}x{}, 밝기 {minimum}~{maximum}, 55선 {lower}, 17선 {darkest}, 상단선0~32 {upper}, 회색후보 [{lines}]",
+        "{}x{}, 밝기 {minimum}~{maximum}, 55선 {lower}, 17선 {darkest}, 이중선 {double_pairs}, 상단선0~32 {upper}, 최접 [{top_detail}], 회색후보 [{lines}]",
         frame.width, frame.height
     )
 }
