@@ -584,7 +584,7 @@ fn detector_diagnostics(frame: &Frame) -> String {
     for y in 0..frame.height {
         lower += runs(frame, y, 53, 57, 150).len();
         darkest += runs(frame, y, 15, 19, 150).len();
-        upper += runs(frame, y, 7, 12, 150).len();
+        upper += runs(frame, y, 0, 32, 150).len();
         let mut start = None;
         let mut sum = 0u64;
         for x in 0..frame.width {
@@ -621,7 +621,7 @@ fn detector_diagnostics(frame: &Frame) -> String {
         .collect::<Vec<_>>()
         .join(",");
     format!(
-        "{}x{}, 밝기 {minimum}~{maximum}, 55선 {lower}, 17선 {darkest}, 상단선 {upper}, 회색후보 [{lines}]",
+        "{}x{}, 밝기 {minimum}~{maximum}, 55선 {lower}, 17선 {darkest}, 상단선0~32 {upper}, 회색후보 [{lines}]",
         frame.width, frame.height
     )
 }
@@ -646,7 +646,7 @@ pub fn detect_boss_health_bar(frame: &Frame) -> Option<PixelRect> {
                 let minimum_top = bottom.saturating_sub(120);
                 let maximum_top = bottom.saturating_sub(20);
                 for top in minimum_top..=maximum_top {
-                    for upper in runs(frame, top, 7, 12, 150) {
+                    for upper in runs(frame, top, 0, 32, 150) {
                         if !close(lower.start, upper.start, 2)
                             || !close(lower.end, upper.end, 2)
                             || lower.width().abs_diff(upper.width()) > 2
@@ -750,6 +750,22 @@ mod tests {
         for x in expected.x..expected.x + 2 {
             let index = (expected.y as usize * frame.width as usize + x as usize) * 4;
             frame.bgra[index..index + 3].fill(0);
+        }
+        assert_eq!(detect_boss_health_bar(&frame), Some(expected));
+    }
+
+    #[test]
+    fn 합성된_게임화면에서_밝아진_상단선을_허용한다() {
+        let expected = PixelRect {
+            x: 80,
+            y: 40,
+            width: 302,
+            height: 38,
+        };
+        let mut frame = fixture(640, 180, expected);
+        for x in expected.x + 1..expected.x + expected.width - 1 {
+            let index = (expected.y as usize * frame.width as usize + x as usize) * 4;
+            frame.bgra[index..index + 3].fill(31);
         }
         assert_eq!(detect_boss_health_bar(&frame), Some(expected));
     }
