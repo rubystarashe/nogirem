@@ -28,6 +28,9 @@ function run(file, args, options = {}) {
 }
 await run(process.execPath, [join(root, 'scripts/build-recorder-helper.mjs'), '--tools-only'])
 await run('cargo', ['build', '--release', '--locked', '--manifest-path', 'desktop/Cargo.toml'])
+await run('cargo', ['build', '--release', '--locked', '--manifest-path', 'native/installer-cleanup/Cargo.toml'])
+const installerCleanupHelper = join(root, 'native/installer-cleanup/target/release/nogirem-installer-cleanup.exe')
+if (!existsSync(installerCleanupHelper)) throw new Error('Missing native installer cleanup helper')
 await mkdir(appDirectory, { recursive: true })
 await writeFile(join(appDirectory,'version.json'),JSON.stringify({version}))
 const turboKeyHelperSource = join(root, 'native/turbo-key/bin/turbo-key-helper.exe')
@@ -149,8 +152,6 @@ async function enumerateUninstall(directory) {
 await enumerateUninstall(appDirectory)
 const uninstallManifest = join(output, 'uninstall-files.nsh')
 await writeFile(uninstallManifest, '\uFEFF' + uninstallLines.join('\r\n'))
-const stopScript = join(output, 'stop-installed-app.ps1')
-await writeFile(stopScript, '\uFEFF' + (await readFile(join(root, 'scripts/stop-installed-app.ps1'), 'utf8')).replace(/^\uFEFF/, ''))
 
 const bootstrapper = join(output, 'MicrosoftEdgeWebview2Setup.exe')
 const response = await fetch('https://go.microsoft.com/fwlink/p/?LinkId=2124703')
@@ -165,9 +166,9 @@ const candidates = [process.env.NSIS_MAKENSIS, join(process.env.LOCALAPPDATA ?? 
 const nsis = candidates.find(existsSync)
 if (!nsis) throw new Error(`NSIS compiler not found. Set NSIS_MAKENSIS. Prepared app: ${appDirectory}`)
 const installer = join(output, `nogirem-dioxus-setup-${version}.exe`)
-await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${appDirectory}`, `/DWEBVIEW_BOOTSTRAPPER=${bootstrapper}`, `/DUNINSTALL_MANIFEST=${uninstallManifest}`, `/DSTOP_SCRIPT=${stopScript}`, `/DOUTPUT_FILE=${installer}`, `/DAPP_VERSION=${version}`, join(root, 'desktop/installer.nsi')])
+await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${appDirectory}`, `/DWEBVIEW_BOOTSTRAPPER=${bootstrapper}`, `/DUNINSTALL_MANIFEST=${uninstallManifest}`, `/DCLEANUP_HELPER=${installerCleanupHelper}`, `/DOUTPUT_FILE=${installer}`, `/DAPP_VERSION=${version}`, join(root, 'desktop/installer.nsi')])
 const portable = join(output, `nogirem-dioxus-portable-${version}.exe`)
-await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${portableDirectory}`, `/DOUTPUT_FILE=${portable}`, `/DAPP_VERSION=${version}`, `/DPORTABLE_CACHE_ID=${portableCacheId}`, join(root, 'desktop/portable.nsi')])
+await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${portableDirectory}`, `/DCLEANUP_HELPER=${installerCleanupHelper}`, `/DOUTPUT_FILE=${portable}`, `/DAPP_VERSION=${version}`, `/DPORTABLE_CACHE_ID=${portableCacheId}`, join(root, 'desktop/portable.nsi')])
 const installerBytes = (await stat(installer)).size
 const installerLimitBytes = 10_000_000 // Conservative decimal MB limit for file sharing.
 if (installerBytes >= installerLimitBytes) throw new Error(`Installer exceeds 10 MB budget: ${installerBytes} bytes`)

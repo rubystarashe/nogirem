@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-ANTIVIRUS-FALSE-POSITIVE-045`
 - owner: `Cursor Agent`
 - created_at: `2026-10-06T04:13:00Z`
-- updated_at: `2026-10-06T04:58:00Z`
+- updated_at: `2026-10-06T06:00:56Z`
 - repository: `rubystarashe/nogirem`
 - branch: `main`
 - source_base: `9ce107f97cdbafad0c228777bb49b84d9256d059`
@@ -91,3 +91,72 @@
 - out_of_scope_dirty_changes: 진행 중인 `20261006-debuff-missing-overlay-045`의 source·asset·test 변경 전체
 - owned_files: `desktop/installer.nsi`, `desktop/portable.nsi`, `test/installer.test.mjs`, `test/portable-release.test.mjs`, 이 run 기록과 packaging contract/handoff의 해당 section
 - commit_policy: 위 소유 파일만 명시적으로 stage하며 기존 index와 디버프 작업을 보존한다.
+
+## Approved native continuation
+
+- checkpoint_id: `CP-ANTIVIRUS-NATIVE-CLEANUP-045`
+- approved_at: `2026-10-06T05:38:00Z`
+- request: 설치형·제거형 embedded `stop-installed-app.ps1`와 포터블 inline PowerShell 검사를 Rust/Win32 helper로 교체한다.
+- authorization: 사용자가 PowerShell 제거·동등 동작 회귀·package·VirusTotal 재검사 순서를 승인했다.
+- scope: `native/installer-cleanup`, installer·portable NSIS, package 조립, 계약·프로세스 회귀 검사, 기존 script 삭제.
+- risk: `MEDIUM-HIGH — 관리자 helper가 설치 폴더 프로세스와 updater 및 시작 예약 작업을 정리하므로 경로·process identity·task ownership 경계가 중요함`
+- roles: `Coordinator=DEV=QA=Feature owner=Architecture owner=Documentation maintainer=Cursor Agent; Reviewer=independent generalPurpose agent`
+- dev_state: `READY_FOR_QA`
+- qa_state: `IN_PROGRESS — automated helper/package checks passed; actual lifecycle and VirusTotal pending`
+- review_state: `APPROVED for current source review target`
+- feature_impact: `none — 설치·업데이트·제거와 포터블 캐시의 observable 동작을 보존하는 내부 구현 교체`
+- feature_map: `no_change — 제품 capability·lifecycle·acceptance scope는 변하지 않음`
+- architecture_impact: `package cleanup boundary — 임시 PowerShell 대신 별도 최소 Rust/Win32 helper가 process·task cleanup을 소유`
+- architecture_contract: `blocked — canonical contract의 PowerShell 설명 갱신이 필요하지만 진행 중인 game overlay 작업이 같은 문서를 수정 중이며 해당 owner와 병합 전임`
+
+### Implementation
+
+- `nogirem-installer-cleanup.exe`는 Toolhelp snapshot과 열린 process handle로 설치 경로·updater 경로를 검사한다.
+- 현재 helper·호출 installer/uninstaller와 검증된 명시 updater 또는 구버전 installer의 부모 updater를 보존한다.
+- `%APPDATA%\마비노기 렘 부스터\instance\installer-close-request`를 반복 기록하고 30초 뒤 설치 경로에 남은 process만 강제 종료한다.
+- 제거 시 고정 예약 작업 XML의 `Command`가 해당 설치의 `nogirem.exe`와 정확히 일치할 때만 `schtasks.exe`로 제거한다.
+- task file과 `schtasks.exe`는 환경변수가 아닌 `GetWindowsDirectoryW`·`GetSystemDirectoryW`로 찾는다.
+- 포터블 cache check는 cache의 정확한 `nogirem.exe` process path만 사용 중으로 판정하고 exit code 2를 유지한다.
+- helper에는 제품명·설명·0.4.5 version·original filename·copyright PE resource를 넣고 기존 PowerShell source를 package와 저장소에서 제거했다.
+
+### QA and evidence
+
+- `PASS` — `cargo test --locked --manifest-path native/installer-cleanup/Cargo.toml`: 8 PASS, test process fixture 3 declared ignored.
+- `PASS` — 실제 process 시나리오: 강제 종료, 대기 중 신규 process 재탐색, 정상 종료 요청, stale updater 종료, 명시 updater 보존, 0.4.1 부모 updater 보존, 포터블 exact/negative path.
+- `PASS` — `node --test test/installer.test.mjs test/portable-release.test.mjs`: 11/11.
+- `PASS` — `npm test`: 206/206.
+- `PASS` — `npm run package:win:unsigned`: Rust release helper, native service contract, Microsoft bootstrapper signature, NSIS `/WX`, 10MB gate.
+- `PASS` — installer `9,932,829 bytes`, SHA-256 `f1ae91bb416a832dc2408662b89da3016cdf6ea4b87109468892fb009206d298`.
+- `PASS` — portable `8,027,656 bytes`, SHA-256 `524f5c06283f691ada1ff0e2d6d5398c096d620a95e39a300941061fde0d46ff`.
+- `PASS` — helper `297,984 bytes`, ProductName `마비노기 렘 부스터`, FileDescription `마비노기 렘 부스터 설치 정리 도구`, FileVersion `0.4.5`.
+- `PASS` — installer·portable outer PE product·description·version resource.
+- `PASS` — IDE diagnostics 0, owned source `git diff --check`.
+- `NOT_RUN` — 실제 설치·업데이트·제거: 임시 `/D=` 설치 시도의 reliable process exit와 target 생성이 확인되지 않아 실제 설치 경로를 보호하기 위해 중단했다. 기존 `C:\Program Files\Nogirem\nogirem.exe` hash와 timestamp는 final package와 달라 변경되지 않았음을 확인했다.
+- `NOT_RUN` — signed updater rollback: unsigned candidate에는 검증 가능한 update envelope가 없음.
+- `BLOCKED` — VirusTotal 재검사: 브라우저 file picker에서 사용자가 final installer를 선택해야 함.
+
+### Independent review exchange
+
+- round_id: `REV-ANTIVIRUS-NATIVE-045-R1`
+- review_mode: `INDEPENDENT_REVIEW`
+- reviewer: `generalPurpose agent 90ac6910-35a8-42e8-875f-7610740a0399`
+- initial_verdict: `CHANGES_REQUESTED`
+- findings: `ISSUE-INSTALLER-001 task action ownership`, `ISSUE-UPDATER-003 PID reuse`, `ISSUE-TEST-005 missing scenarios`, `ISSUE-INSTALLER-006 untrusted SystemRoot`; 모두 mandatory.
+- dev_response: task XML action 검증·실패 처리, caller/updater handle lifetime 유지, process scenario 확대, trusted Win32 directory API 적용.
+- rereview_verdict: `APPROVED`
+- resolved: `ISSUE-INSTALLER-001`, `ISSUE-UPDATER-003`, `ISSUE-TEST-005`, `ISSUE-INSTALLER-006`.
+- deferred_non_regressions: `ISSUE-PORTABLE-002 mutex 해제 후 app 시작`, `ISSUE-INSTALLER-004 quiet period 뒤 file copy 전 재실행 가능성`; 기존 구현과 동일하며 별도 authorization이 필요한 잔여 위험.
+- approval_freshness: 현재 source 변경 뒤 Node·Rust·package를 재실행했으며 final package 결과가 review source 논리를 변경하지 않음.
+
+### Continuation handoff
+
+- status: `PARTIALLY_COMPLETED`
+- current_source_base: `aa2e6a8121720d8a9aa1e12a4949c14046929220`
+- current_execution_target: `release/dioxus-0.4.5-2026-10-06T06-00-25-179Z`
+- completed: native helper 구현, PowerShell 제거, regression·package·size·PE resource·independent review.
+- pending: final installer VirusTotal 업로드·결과 확인, 실제 lifecycle QA, canonical architecture contract와 `.handoff/cursor.md` 병합.
+- blocker_owner: `VirusTotal file selection=사용자; shared documentation ownership=game overlay coordinator`
+- next_authorized_action: final installer를 VirusTotal에 업로드한 뒤 결과를 기록하고, 공유 문서 소유권이 해소되면 package contract/handoff를 갱신한다.
+- push_status: `NOT_RUN — 미승인`
+- release_status: `NOT_RUN — 미승인`
+- deployment_status: `NOT_RUN — 미승인`

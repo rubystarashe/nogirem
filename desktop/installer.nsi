@@ -63,19 +63,17 @@ Section "Install"
   ClearErrors
   ${GetOptions} "$1" "/NOGIREMUPDATE=" $2
   IfErrors update_flag_done
-  StrCpy $8 "-UpdaterPid $2"
+  StrCpy $8 "--updater-pid $2"
   update_flag_done:
   Call EnsureWebView
   IfFileExists "$INSTDIR\*.*" 0 stop_installed_app_done
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
-  File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
+  File /oname=installer-cleanup.exe "${CLEANUP_HELPER}"
   System::Call 'kernel32::GetCurrentProcessId() i.r9'
-  ${DisableX64FSRedirection}
-  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 $8'
+  nsExec::ExecToStack '"$PLUGINSDIR\installer-cleanup.exe" --cleanup --install-directory "$INSTDIR" --caller-pid $9 $8'
   Pop $0
   Pop $1
-  ${EnableX64FSRedirection}
   ${If} $0 != 0
     SetErrorLevel 1
     MessageBox MB_ICONSTOP "실행 중인 앱을 정상 종료한 뒤 다시 설치해 주세요."
@@ -113,13 +111,11 @@ Section "Uninstall"
   SetRegView 64
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
-  File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
+  File /oname=installer-cleanup.exe "${CLEANUP_HELPER}"
   System::Call 'kernel32::GetCurrentProcessId() i.r9'
-  ${DisableX64FSRedirection}
-  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 -Uninstall'
+  nsExec::ExecToStack '"$PLUGINSDIR\installer-cleanup.exe" --cleanup --install-directory "$INSTDIR" --caller-pid $9 --uninstall'
   Pop $0
   Pop $1
-  ${EnableX64FSRedirection}
   ${If} $0 != 0
     SetErrorLevel 1
     MessageBox MB_ICONSTOP "실행 중인 앱을 정상 종료한 뒤 다시 제거해 주세요."

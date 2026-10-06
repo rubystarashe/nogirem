@@ -1,0 +1,17 @@
+[package]
+name = "nogirem-installer-cleanup"
+version = "0.4.5"
+edition = "2024"
+publish = false
+
+[dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_SystemInformation", "Win32_System_Threading"] }
+
+[build-dependencies]
+winresource = "0.1"
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"
