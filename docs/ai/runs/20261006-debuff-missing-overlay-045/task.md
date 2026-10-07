@@ -66,3 +66,28 @@
 - feature_map: `updated — 독립 controller와 destroy lifecycle 반영`
 - architecture_impact: `configuration control을 alert renderer에서 분리하고 native auxiliary window 종료를 destroy로 일원화`
 - architecture_contract: `updated — controller writer boundary와 transparent window lifecycle 반영`
+
+## Follow-up 2026-10-07T09:15:00Z
+
+- request: `앱 시작 자동 추적, 해상도별 체력바·디버프 좌표 저장·재사용, 재인식 지속 retry, 디버프 일렬 slot 좌표 계산 후 slot-only 판독`
+- checkpoint_id: `CP-DEBUFF-TRACKING-CACHE-045`
+- owner: `Cursor Agent`
+- source_base: `51d0ee4a091ffb2d61406a0ee948400a4ae02135`
+- source_target: `uncommitted manifest based on source_base; game_overlay.rs, service.rs, service-contract.json, overlay-settings.html, overlay-settings-preload.js, game-overlay.test.mjs와 canonical docs`
+- risk: `MEDIUM — foreground 화면 판독 빈도와 durable settings schema를 바꾸지만 기존 원자 writer 하나를 유지하고 화면 pixel은 지속·전송하지 않음`
+- roles: `Coordinator=DEV=QA=Reviewer=Feature owner=Architecture owner=Documentation maintainer=Cursor Agent; review_mode=SELF_REVIEW; independent reviewer 없음`
+- dev_state: `READY_FOR_QA`
+- qa_state: `COMPLETE_PASS for automated source scope`
+- review_verdict: `APPROVED for automated source scope`
+- delivered: `디버프 알림이 저장된 시작 상태면 monitor가 자동 추적을 시작한다. 전경 정본 게임의 physical client 해상도별로 체력바·디버프 영역을 settings JSON에 저장하고 다음 실행에서 작은 체력바 crop 검증 뒤 재사용한다. stale 좌표는 누락 snapshot과 함께 폐기하고 2초 주기 full detection으로 복귀한다. 재인식 IPC는 즉시 실패하지 않고 찾을 때까지 tracking state를 유지한다. 같은 y의 대상 아이콘 둘 이상에서 허용 범위 내 고정 spacing을 확정하면 phase·y·spacing·count를 저장하고 이후 slot 좌표만 exact RGB 판독한다.`
+- canonical_extension_path: `service monitor tick → game_overlay foreground identity·resolution cache → detector 또는 cache validation → full-area discovery 또는 slot-only matcher`
+- durable_writer: `game_overlay.rs만 overlay/settings.json의 booleans·alert offset·resolution tracking cache를 원자 갱신`
+- security_privacy: `전경 검증된 game HWND만 캡처하고 재인식이 다른 앱 focus를 빼앗지 않음; BGRA·HWND·PID는 지속·로그·전송하지 않음`
+- validation: `cargo check --locked --manifest-path desktop/Cargo.toml PASS; cargo test --locked --manifest-path desktop/backend/Cargo.toml game_overlay::tests 18/18 PASS; node --test test/game-overlay.test.mjs 5/5 PASS; diff check PASS`
+- manually_exercised: `NOT_RUN — 실제 게임 시작 재로드·해상도 변경·재인식 대기·slot 성능은 사용자 환경 확인 필요`
+- app_launch: `npm run app:dev가 최신 source를 빌드하고 nogirem-desktop.exe를 호출했으나 exit 0 뒤 실행 process가 남지 않아 현재 source의 interactive runtime은 확립하지 못함; elevation 또는 기존 single-instance 상태를 이 실행만으로 구분할 수 없음`
+- known_gap: `slot layout은 target template 둘 이상이 같은 행에서 허용 spacing을 증명할 때까지 full-area 판독을 유지한다. 실제 게임에서 target 조합이 인접하지 않아 spacing GCD가 허용 범위를 벗어나면 의도적으로 cache를 만들지 않는다.`
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 자동 추적, 해상도별 좌표 cache, 지속 재인식과 slot 한정 판독`
+- feature_map: `updated — OVERLAY-002·009·010, durable state, retry·recovery와 evidence 갱신`
+- architecture_impact: `foreground periodic capture, resolution-keyed cache single writer, stale validation, slot matcher fast path`
+- architecture_contract: `updated — game overlay durable cache·tracking state·slot inference 경계 갱신`

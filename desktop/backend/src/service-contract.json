@@ -106,7 +106,7 @@
     "overlay-settings:request-close",
     "overlay-settings:get-status",
     "overlay-settings:set-setting",
-    "overlay-settings:detect-debuff-region",
+    "overlay-settings:retrack-debuff-region",
     "overlay-settings:configure-debuff-alert",
     "debuff-alert:get-status",
     "overlay-configuration:finish",

@@ -667,7 +667,7 @@ impl Service {
         while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
             let (target, should_show, next_configuring) = {
                 let mut overlay = self.game_overlay.lock().unwrap();
-                let _ = overlay.scan_debuffs(&self.env);
+                let _ = overlay.tick(&self.env);
                 (
                     overlay.alert_bounds(&self.env),
                     overlay.should_show_alert(),
@@ -1041,21 +1041,13 @@ impl Service {
                     }
                     Ok(status)
                 }
-                "detect-debuff-region" => {
+                "retrack-debuff-region" => {
                     let _preview_guard = self.debuff_preview_gate.lock().unwrap();
                     self.windows.destroy_debuff_preview();
                     self.windows.destroy_debuff_alert();
                     self.windows.destroy_overlay_configuration();
                     let _ = self.game_overlay.lock().unwrap().configure_alert(false);
-                    let result = self
-                        .game_overlay
-                        .lock()
-                        .unwrap()
-                        .detect_debuff_region(&self.env);
-                    if result.is_err() {
-                        self.windows.destroy_debuff_preview();
-                    }
-                    result
+                    self.game_overlay.lock().unwrap().request_retrack()
                 }
                 "configure-debuff-alert" => {
                     let status = self.game_overlay.lock().unwrap().configure_alert(true)?;

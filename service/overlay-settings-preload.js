@@ -4,6 +4,6 @@ contextBridge.exposeInMainWorld("overlaySettings", {
   requestClose: () => ipcRenderer.invoke("overlay-settings:request-close"),
   getStatus: () => ipcRenderer.invoke("overlay-settings:get-status"),
   setSetting: setting => ipcRenderer.invoke("overlay-settings:set-setting", setting),
-  detectDebuffRegion: () => ipcRenderer.invoke("overlay-settings:detect-debuff-region"),
+  retrackDebuffRegion: () => ipcRenderer.invoke("overlay-settings:retrack-debuff-region"),
   configureDebuffAlert: () => ipcRenderer.invoke("overlay-settings:configure-debuff-alert"),
 })

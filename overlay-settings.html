@@ -117,12 +117,12 @@
     <button class="close" type="button" aria-label="닫기">✕</button>
   </header>
   <main>
-    <p class="description">게임 화면 위에 표시할 알림을 선택합니다. 현재는 디버프 영역 자동인식 미리보기만 지원합니다.</p>
+    <p class="description">게임 화면 위에 표시할 알림을 선택합니다. 디버프 알림을 켜면 게임 해상도별 위치를 자동으로 추적합니다.</p>
     <section class="list" aria-label="오버레이 알림 설정"></section>
     <section class="detect-panel">
-      <strong>디버프 영역 자동인식</strong>
-      <p>마비노기 창을 잠시 전경으로 전환해 보스 체력바 외곽을 찾은 뒤 원래 창으로 돌아옵니다.</p>
-      <button class="detect" type="button">인터페이스 자동인식</button>
+      <strong>디버프 영역 추적</strong>
+      <p>마비노기 화면이 전경에 있을 때 해상도별 저장 위치를 확인하고, 위치가 바뀌면 다시 찾습니다.</p>
+      <button class="detect" type="button">재인식</button>
       <button class="configure" type="button">인터페이스 구성</button>
       <div class="status" role="status" aria-live="polite"></div>
     </section>
@@ -162,6 +162,15 @@
       status.className = `status ${kind}`.trim()
     }
 
+    function showTrackingStatus() {
+      if (current.detectionError) showStatus(current.detectionError, "error")
+      else if (current.debuffTracking) showStatus("마비노기 화면에서 보스 체력바를 다시 찾는 중입니다.")
+      else if (current.debuffRegionDetected) {
+        const resolution = current.debuffResolution ? ` (${current.debuffResolution})` : ""
+        showStatus(`저장된 디버프 영역을 사용 중입니다${resolution}.`, "success")
+      }
+    }
+
     async function update(key, value) {
       busy = true
       render()
@@ -180,10 +189,10 @@
     detect.addEventListener("click", async () => {
       busy = true
       render()
-      showStatus("마비노기 창을 확인하고 있습니다.")
+      showStatus("마비노기 화면에서 보스 체력바를 다시 찾기 시작합니다.")
       try {
-        current = await window.overlaySettings.detectDebuffRegion()
-        showStatus("보스 체력바 영역을 찾았습니다. 게임 창에서 표시 위치를 확인해 주세요.", "success")
+        current = await window.overlaySettings.retrackDebuffRegion()
+        showTrackingStatus()
       } catch (error) {
         showStatus(error?.message || String(error), "error")
         current = await window.overlaySettings.getStatus()
@@ -215,9 +224,17 @@
     window.overlaySettings.getStatus().then(value => {
       current = value
       render()
-      if (current.detectionError) showStatus(current.detectionError, "error")
-      else if (current.debuffRegionDetected) showStatus("자동인식된 디버프 영역이 저장되어 있습니다.", "success")
+      showTrackingStatus()
     }).catch(error => showStatus(error?.message || String(error), "error"))
+
+    window.setInterval(async () => {
+      if (busy) return
+      try {
+        current = await window.overlaySettings.getStatus()
+        render()
+        showTrackingStatus()
+      } catch {}
+    }, 1000)
   </script>
 </body>
 </html>

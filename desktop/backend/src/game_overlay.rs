@@ -8,7 +8,31 @@ use crate::{
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+    time::{Duration, Instant},
+};
+
+const TRACKING_INTERVAL: Duration = Duration::from_secs(2);
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DebuffSlotLayout {
+    origin_x: u32,
+    origin_y: u32,
+    spacing: u32,
+    count: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ResolutionTrackingCache {
+    health_bar: PixelRect,
+    debuff_region: PixelRect,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    debuff_slots: Option<DebuffSlotLayout>,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -21,6 +45,7 @@ pub struct OverlaySettings {
     pub skill_notifications: bool,
     pub debuff_alert_offset_x: Option<i32>,
     pub debuff_alert_offset_y: Option<i32>,
+    tracking_cache: BTreeMap<String, ResolutionTrackingCache>,
 }
 
 impl Default for OverlaySettings {
@@ -33,11 +58,12 @@ impl Default for OverlaySettings {
             skill_notifications: false,
             debuff_alert_offset_x: None,
             debuff_alert_offset_y: None,
+            tracking_cache: BTreeMap::new(),
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PixelRect {
     pub x: u32,
     pub y: u32,
@@ -83,12 +109,17 @@ pub struct GameOverlay {
     template_error: Option<String>,
     missing_debuffs: Vec<usize>,
     configuring_alert: bool,
+    tracking: bool,
+    force_retrack: bool,
+    active_resolution: Option<String>,
+    next_tracking_at: Instant,
 }
 
 impl GameOverlay {
     pub fn new(env: &Environment) -> Self {
         let path = env.user.join("overlay/settings.json");
-        let settings = serde_json::from_value(read(&path)).unwrap_or_default();
+        let settings: OverlaySettings = serde_json::from_value(read(&path)).unwrap_or_default();
+        let tracking = settings.debuff_notifications;
         Self {
             path,
             settings,
@@ -98,12 +129,24 @@ impl GameOverlay {
             template_error: None,
             missing_debuffs: Vec::new(),
             configuring_alert: false,
+            tracking,
+            force_retrack: false,
+            active_resolution: None,
+            next_tracking_at: Instant::now(),
         }
     }
 
     pub fn status(&self) -> Value {
         let mut value = serde_json::to_value(&self.settings).unwrap_or_else(|_| json!({}));
+        value
+            .as_object_mut()
+            .map(|object| object.remove("trackingCache"));
         value["debuffRegionDetected"] = json!(self.detection.is_some());
+        value["debuffTracking"] = json!(self.tracking);
+        value["debuffResolution"] = self
+            .active_resolution
+            .as_ref()
+            .map_or(Value::Null, |resolution| json!(resolution));
         value["detectionError"] = self
             .error
             .as_ref()
@@ -165,6 +208,14 @@ impl GameOverlay {
             self.error = None;
             self.missing_debuffs.clear();
             self.configuring_alert = false;
+            self.tracking = false;
+            self.force_retrack = false;
+            self.active_resolution = None;
+        } else if object.get("debuffNotifications") == Some(&Value::Bool(true))
+            && !self.settings.debuff_notifications
+        {
+            self.tracking = true;
+            self.next_tracking_at = Instant::now();
         }
         storage::write_json(
             &self.path,
@@ -174,29 +225,14 @@ impl GameOverlay {
         Ok(self.status())
     }
 
-    pub fn detect_debuff_region(&mut self, env: &Environment) -> Result<Value> {
+    pub fn request_retrack(&mut self) -> Result<Value> {
         self.detection = None;
         self.error = None;
-        let result = capture_game_client(env).and_then(|capture| {
-            let rect = detect_boss_health_bar(&capture.frame).ok_or_else(|| {
-                format!(
-                    "보스 체력바 영역을 찾지 못했습니다 ({})",
-                    detector_diagnostics(&capture.frame)
-                )
-            })?;
-            self.detection = Some(Detection {
-                window: capture.window,
-                pid: capture.pid,
-                process_started_at: capture.process_started_at,
-                rect,
-            });
-            self.missing_debuffs.clear();
-            Ok(self.status())
-        });
-        if let Err(error) = &result {
-            self.error = Some(error.clone());
-        }
-        result
+        self.missing_debuffs.clear();
+        self.tracking = true;
+        self.force_retrack = true;
+        self.next_tracking_at = Instant::now();
+        Ok(self.status())
     }
 
     pub fn preview_bounds(&mut self, env: &Environment) -> Option<OverlayBounds> {
@@ -257,14 +293,104 @@ impl GameOverlay {
         self.configuring_alert
     }
 
-    pub fn scan_debuffs(&mut self, env: &Environment) -> Result<bool> {
+    pub fn tick(&mut self, env: &Environment) -> Result<bool> {
         if !self.settings.debuff_notifications || self.configuring_alert {
             return Ok(false);
         }
+        let Some(client) = foreground_game_client(env)? else {
+            return Ok(false);
+        };
+        let resolution = resolution_key(client.width, client.height);
+        let identity_changed = self.detection.is_none_or(|detection| {
+            detection.window != client.window
+                || detection.pid != client.pid
+                || detection.process_started_at != client.process_started_at
+        });
+        if self.active_resolution.as_deref() != Some(&resolution) || identity_changed {
+            self.active_resolution = Some(resolution.clone());
+            self.detection = if self.force_retrack {
+                None
+            } else {
+                self.settings
+                    .tracking_cache
+                    .get(&resolution)
+                    .map(|cache| client.detection(cache.health_bar))
+            };
+            self.tracking = self.force_retrack || self.detection.is_none();
+            self.next_tracking_at = Instant::now();
+        }
+
+        if Instant::now() >= self.next_tracking_at {
+            self.next_tracking_at = Instant::now() + TRACKING_INTERVAL;
+            let cached_valid = if self.force_retrack {
+                false
+            } else if let Some(detection) = self.detection {
+                debuff_source_rect(detection.rect).is_some()
+                    && capture_detected_region(env, detection, detection.rect)
+                        .is_ok_and(|frame| cached_health_bar_valid(&frame))
+            } else {
+                false
+            };
+            if cached_valid {
+                self.tracking = false;
+                self.error = None;
+            } else {
+                self.tracking = true;
+                self.detection = None;
+                self.missing_debuffs.clear();
+                match capture_game_client(env).and_then(|capture| {
+                    let rect = detect_boss_health_bar(&capture.frame).ok_or_else(|| {
+                        format!(
+                            "보스 체력바 영역을 찾지 못했습니다 ({})",
+                            detector_diagnostics(&capture.frame)
+                        )
+                    })?;
+                    Ok((capture, rect))
+                }) {
+                    Ok((capture, rect)) => {
+                        self.detection = Some(Detection {
+                            window: capture.window,
+                            pid: capture.pid,
+                            process_started_at: capture.process_started_at,
+                            rect,
+                        });
+                        self.settings.tracking_cache.insert(
+                            resolution.clone(),
+                            ResolutionTrackingCache {
+                                health_bar: rect,
+                                debuff_region: debuff_source_rect(rect)
+                                    .ok_or("보스 체력바 위 디버프 영역이 게임 화면 밖입니다")?,
+                                debuff_slots: None,
+                            },
+                        );
+                        self.persist_settings()?;
+                        self.missing_debuffs.clear();
+                        self.tracking = false;
+                        self.force_retrack = false;
+                        self.error = None;
+                    }
+                    Err(error) => {
+                        if self.force_retrack {
+                            self.error = Some(format!("{error} 다시 찾는 중입니다."));
+                        }
+                        return Ok(false);
+                    }
+                }
+            }
+        }
+        self.scan_debuffs(env, &resolution)
+    }
+
+    fn scan_debuffs(&mut self, env: &Environment, resolution: &str) -> Result<bool> {
         let detection = self
             .detection
             .ok_or("보스 체력바 영역이 설정되지 않았습니다")?;
-        let source = debuff_source_rect(detection.rect)
+        let source = self
+            .settings
+            .tracking_cache
+            .get(resolution)
+            .map(|cache| cache.debuff_region)
+            .or_else(|| debuff_source_rect(detection.rect))
             .ok_or("보스 체력바 위 디버프 영역이 게임 화면 밖입니다")?;
         let frame = capture_detected_region(env, detection, source)?;
         if self.templates.is_none() {
@@ -280,14 +406,58 @@ impl GameOverlay {
             }
         }
         let templates = self.templates.as_ref().unwrap();
-        let missing = templates
-            .iter()
-            .enumerate()
-            .filter_map(|(index, template)| (!template_present(&frame, template)).then_some(index))
-            .collect::<Vec<_>>();
+        let slots = self
+            .settings
+            .tracking_cache
+            .get(resolution)
+            .and_then(|cache| cache.debuff_slots.as_ref());
+        let (missing, discovered_slots) = if let Some(slots) = slots {
+            (
+                templates
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, template)| {
+                        (!template_present_at_slots(&frame, template, slots)).then_some(index)
+                    })
+                    .collect::<Vec<_>>(),
+                None,
+            )
+        } else {
+            let positions = templates
+                .iter()
+                .enumerate()
+                .filter_map(|(index, template)| {
+                    template_position(&frame, template)
+                        .map(|(x, y)| (index, x, y, template.width, template.height))
+                })
+                .collect::<Vec<_>>();
+            let present = positions
+                .iter()
+                .map(|(index, _, _, _, _)| *index)
+                .collect::<std::collections::BTreeSet<_>>();
+            (
+                (0..templates.len())
+                    .filter(|index| !present.contains(index))
+                    .collect::<Vec<_>>(),
+                infer_slot_layout(&frame, &positions),
+            )
+        };
+        if let Some(slots) = discovered_slots {
+            if let Some(cache) = self.settings.tracking_cache.get_mut(resolution) {
+                cache.debuff_slots = Some(slots);
+                self.persist_settings()?;
+            }
+        }
         let changed = missing != self.missing_debuffs;
         self.missing_debuffs = missing;
         Ok(changed)
+    }
+
+    fn persist_settings(&self) -> Result<()> {
+        storage::write_json(
+            &self.path,
+            &serde_json::to_value(&self.settings).map_err(|error| error.to_string())?,
+        )
     }
 }
 
@@ -304,6 +474,30 @@ struct Capture {
     pid: u32,
     process_started_at: i64,
     frame: Frame,
+}
+
+#[derive(Clone, Copy)]
+struct ForegroundGameClient {
+    window: isize,
+    pid: u32,
+    process_started_at: i64,
+    width: u32,
+    height: u32,
+}
+
+impl ForegroundGameClient {
+    fn detection(self, rect: PixelRect) -> Detection {
+        Detection {
+            window: self.window,
+            pid: self.pid,
+            process_started_at: self.process_started_at,
+            rect,
+        }
+    }
+}
+
+fn resolution_key(width: u32, height: u32) -> String {
+    format!("{width}x{height}")
 }
 
 fn load_debuff_templates(env: &Environment) -> Result<Vec<DebuffTemplate>> {
@@ -388,6 +582,16 @@ fn debuff_source_rect(health: PixelRect) -> Option<PixelRect> {
     })
 }
 
+fn cached_health_bar_valid(frame: &Frame) -> bool {
+    detect_boss_health_bar(frame)
+        == Some(PixelRect {
+            x: 0,
+            y: 0,
+            width: frame.width,
+            height: frame.height,
+        })
+}
+
 fn template_matches(frame: &Frame, template: &DebuffTemplate, x: u32, y: u32, scale: u32) -> bool {
     if scale != 1
         || !pixel(frame, x + template.anchor_x, y + template.anchor_y)
@@ -430,18 +634,103 @@ fn rgb_matches(sample: [u8; 3], template: [u8; 3]) -> bool {
         .all(|(sample, template)| sample.abs_diff(template) <= 2)
 }
 
+#[cfg(test)]
 fn template_present(frame: &Frame, template: &DebuffTemplate) -> bool {
+    template_position(frame, template).is_some()
+}
+
+fn template_position(frame: &Frame, template: &DebuffTemplate) -> Option<(u32, u32)> {
     if template.width > frame.width || template.height > frame.height {
-        return false;
+        return None;
     }
     for y in 0..=frame.height - template.height {
         for x in 0..=frame.width - template.width {
             if template_matches(frame, template, x, y, 1) {
-                return true;
+                return Some((x, y));
             }
         }
     }
-    false
+    None
+}
+
+fn template_present_at_slots(
+    frame: &Frame,
+    template: &DebuffTemplate,
+    slots: &DebuffSlotLayout,
+) -> bool {
+    (0..slots.count).any(|index| {
+        let x = slots.origin_x + index * slots.spacing;
+        x + template.width <= frame.width
+            && slots.origin_y + template.height <= frame.height
+            && template_matches(frame, template, x, slots.origin_y, 1)
+    })
+}
+
+fn infer_slot_layout(
+    frame: &Frame,
+    positions: &[(usize, u32, u32, u32, u32)],
+) -> Option<DebuffSlotLayout> {
+    if positions.len() < 2 {
+        return None;
+    }
+    let mut coordinates = positions
+        .iter()
+        .map(|(_, x, y, width, height)| (*x, *y, *width, *height))
+        .collect::<Vec<_>>();
+    coordinates.sort_unstable();
+    coordinates.dedup_by_key(|(x, y, _, _)| (*x, *y));
+    if coordinates.len() < 2 {
+        return None;
+    }
+    let icon_width = coordinates[0].2;
+    let icon_height = coordinates[0].3;
+    if coordinates
+        .iter()
+        .any(|(_, _, width, height)| *width != icon_width || *height != icon_height)
+    {
+        return None;
+    }
+    let minimum_y = coordinates.iter().map(|(_, y, _, _)| *y).min()?;
+    let maximum_y = coordinates.iter().map(|(_, y, _, _)| *y).max()?;
+    if maximum_y != minimum_y {
+        return None;
+    }
+    let mut spacing = 0;
+    for pair in coordinates.windows(2) {
+        let difference = pair[1].0.saturating_sub(pair[0].0);
+        if difference == 0 {
+            continue;
+        }
+        spacing = if spacing == 0 {
+            difference
+        } else {
+            greatest_common_divisor(spacing, difference)
+        };
+    }
+    if spacing < icon_width || spacing > icon_width.saturating_add(16) {
+        return None;
+    }
+    let phase = coordinates[0].0 % spacing;
+    if coordinates
+        .iter()
+        .any(|(x, _, _, _)| x.abs_diff(phase + (x / spacing) * spacing) > 1)
+        || phase + icon_width > frame.width
+    {
+        return None;
+    }
+    Some(DebuffSlotLayout {
+        origin_x: phase,
+        origin_y: minimum_y,
+        spacing,
+        count: (frame.width - phase - icon_width) / spacing + 1,
+    })
+}
+
+fn greatest_common_divisor(mut left: u32, mut right: u32) -> u32 {
+    while right != 0 {
+        (left, right) = (right, left % right);
+    }
+    left
 }
 
 fn normalize_process(env: &Environment, window: isize) -> Option<(u32, i64)> {
@@ -474,6 +763,39 @@ fn normalize_process(env: &Environment, window: isize) -> Option<(u32, i64)> {
         let _ = (env, window);
         None
     }
+}
+
+#[cfg(windows)]
+fn foreground_game_client(env: &Environment) -> Result<Option<ForegroundGameClient>> {
+    use windows_sys::Win32::{
+        Foundation::RECT,
+        UI::WindowsAndMessaging::{GetClientRect, GetForegroundWindow},
+    };
+    let (window, pid, process_started_at) = find_game_window(env)?;
+    if unsafe { GetForegroundWindow() } as isize != window {
+        return Ok(None);
+    }
+    let mut client = RECT::default();
+    if unsafe { GetClientRect(window as _, &mut client) } == 0 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    let width = client.right - client.left;
+    let height = client.bottom - client.top;
+    if width <= 0 || height <= 0 {
+        return Err("마비노기 화면 크기를 확인하지 못했습니다".into());
+    }
+    Ok(Some(ForegroundGameClient {
+        window,
+        pid,
+        process_started_at,
+        width: width as u32,
+        height: height as u32,
+    }))
+}
+
+#[cfg(not(windows))]
+fn foreground_game_client(_env: &Environment) -> Result<Option<ForegroundGameClient>> {
+    Ok(None)
 }
 
 #[cfg(windows)]
@@ -1417,6 +1739,62 @@ mod tests {
     fn 디버프_아이콘의_두배_확대는_일치하지_않는다() {
         let template = matcher_template();
         assert!(!template_present(&matcher_frame(&template, 2), &template));
+    }
+
+    #[test]
+    fn 슬롯_위치와_간격을_찾아_영역_전체의_좌표를_계산한다() {
+        let frame = Frame {
+            width: 24,
+            height: 12,
+            bgra: vec![0; 24 * 12 * 4],
+        };
+        let positions = vec![(0, 2, 3, 3, 3), (1, 7, 3, 3, 3), (2, 17, 3, 3, 3)];
+        let slots = infer_slot_layout(&frame, &positions).unwrap();
+        assert_eq!(slots.origin_x, 2);
+        assert_eq!(slots.origin_y, 3);
+        assert_eq!(slots.spacing, 5);
+        assert_eq!(slots.count, 4);
+    }
+
+    #[test]
+    fn 슬롯_캐시가_있으면_계산된_좌표에서만_아이콘을_판독한다() {
+        let template = matcher_template();
+        let frame = matcher_frame(&template, 1);
+        let wrong_slots = DebuffSlotLayout {
+            origin_x: 1,
+            origin_y: 3,
+            spacing: 5,
+            count: 3,
+        };
+        assert!(!template_present_at_slots(&frame, &template, &wrong_slots));
+        let matching_slots = DebuffSlotLayout {
+            origin_x: 4,
+            origin_y: 3,
+            spacing: 5,
+            count: 3,
+        };
+        assert!(template_present_at_slots(
+            &frame,
+            &template,
+            &matching_slots
+        ));
+    }
+
+    #[test]
+    fn 저장된_체력바_좌표는_외곽과_내부_색상으로_검증한다() {
+        let rect = PixelRect {
+            x: 0,
+            y: 0,
+            width: 302,
+            height: 38,
+        };
+        assert!(cached_health_bar_valid(&fixture(302, 38, rect)));
+        let black = Frame {
+            width: 302,
+            height: 38,
+            bgra: vec![0; 302 * 38 * 4],
+        };
+        assert!(!cached_health_bar_valid(&black));
     }
 
     #[test]

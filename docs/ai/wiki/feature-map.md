@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `25`
-- updated_at: `2026-10-06T04:30:00Z`
+- revision: `26`
+- updated_at: `2026-10-07T09:15:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-06T04:30:00Z`
+- source_reviewed_at: `2026-10-07T09:15:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted target based on 9ce107f97cdbafad0c228777bb49b84d9256d059`
-- source_review_evidence: `디버프 exact-template 판독, alert 위치 구성, CSV type/name layer renderer와 window lifecycle SELF_REVIEW`
-- behavior_verified_at: `2026-10-06T04:30:00Z`
+- source_review_target: `uncommitted target based on 51d0ee4a091ffb2d61406a0ee948400a4ae02135`
+- source_review_evidence: `해상도별 체력바·디버프 영역·slot layout cache, foreground 주기 검증·지속 재추적, slot-only matcher SELF_REVIEW`
+- behavior_verified_at: `2026-10-07T09:15:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted target based on 9ce107f97cdbafad0c228777bb49b84d9256d059`
-- behavior_verification_environment: `Windows 10.0.26200 x64, 사용자 제공 실제 Mabinogi PNG/JPG와 자동 검사`
-- behavior_verification_evidence: `사용자 실제 체력바·디버프 화면, PNG 16×16 전 픽셀 재현, Node 5/5, backend game_overlay tests, desktop locked check`
+- behavior_verification_target: `uncommitted target based on 51d0ee4a091ffb2d61406a0ee948400a4ae02135`
+- behavior_verification_environment: `Windows 10.0.26200 x64, synthetic BGRA와 자동 검사`
+- behavior_verification_evidence: `backend game_overlay 18/18, game overlay Node 5/5, desktop locked check; 실제 게임 신규 추적 flow는 NOT_RUN`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 game overlay source·실제 화면 재현과 새 분류 UI의 자동 검증 범위를 구분해 반영`
-- known_gaps: `신규 5개 layer UI의 실제 게임 시각 확인, DPI·보조 모니터·전체화면·package·공개 배포는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 실제 누락 판독, 이동 가능한 alert와 type별 layer·이름 표시`
-- feature_map: `updated — 누락 판독·분류·위치 구성 flow와 최신 evidence 반영`
-- architecture_impact: `foreground region capture, packaged CSV/icon source, read-only alert renderer, settings single writer`
-- architecture_contract: `updated — game overlay capture·CSV source·auxiliary window 경계 반영`
+- freshness_reason: `현재 game overlay source의 해상도 cache·재추적·slot 판독과 자동 검증 범위를 반영`
+- known_gaps: `실제 게임 시작 재로드·해상도 전환·재인식 지속 추적·slot cache 성능·DPI·보조 모니터·전체화면·package·공개 배포는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 자동 추적, 해상도별 좌표 재사용과 slot 한정 디버프 판독`
+- feature_map: `updated — 자동 추적·재인식·좌표 cache·slot 판독 flow와 evidence 반영`
+- architecture_impact: `foreground 주기 capture, resolution-keyed durable cache, slot matcher, settings single writer`
+- architecture_contract: `updated — game overlay cache writer·추적·slot 판독 경계 반영`
 
 ## ID 할당
 
@@ -72,46 +72,46 @@
 ## FEAT-NOGIREM-GAME-OVERLAY
 
 - canonical_name: `게임 오버레이 알림`
-- aliases: `오버레이 설정`, `디버프 알림`, `인터페이스 자동인식`
+- aliases: `오버레이 설정`, `디버프 알림`, `인터페이스 자동인식`, `재인식`
 - lifecycle: `PLANNED`
 - lifecycle_reason: `설정·체력바 검출·디버프 판독·누락 alert source는 구현됐지만 신규 layer UI 실제 확인과 package·공개 배포가 완료되지 않음`
 - owners: `product=nogirem maintainer`, `technical=game overlay backend owner`
-- purpose_and_scope: 사용자가 디버프·투아림·붕괴·버프·스킬 알림을 개별 설정한다. 디버프 경로는 검증된 마비노기 client의 보스 체력바 외곽을 한 번 자동인식하고 바로 위 동일 크기 영역에서 package `debuff.csv`와 16×16 condition PNG를 1× 전 픽셀 비교해 누락 항목을 표시한다. alert는 물리·마법·보너스·아르카나·이동속도 layer와 CSV 이름을 사용하며 type 3은 물리·마법 양쪽에 표시한다. 사용자는 구성 mode에서 alert 위치를 이동하고 독립 `overlay-configuration` controller에서 모든 인터페이스 구성을 완료한다.
+- purpose_and_scope: 사용자가 디버프·투아림·붕괴·버프·스킬 알림을 개별 설정한다. 디버프 알림을 켜면 검증된 마비노기 client가 전경일 때 보스 체력바를 주기적으로 확인하고 해상도별 체력바·디버프 영역 좌표를 저장·재사용한다. 여러 대상 아이콘에서 같은 행의 위치·고정 간격을 확정하면 디버프 영역의 전체 slot 좌표를 계산·저장하고 이후에는 해당 좌표에서만 package `debuff.csv`와 16×16 condition PNG를 1× 전 픽셀 비교한다. alert는 물리·마법·보너스·아르카나·이동속도 layer와 CSV 이름을 사용하며 type 3은 물리·마법 양쪽에 표시한다. 사용자는 구성 mode에서 alert 위치를 이동하고 독립 `overlay-configuration` controller에서 모든 인터페이스 구성을 완료한다.
 - exclusions: 투아림·붕괴·버프·스킬 실제 판독, 지속 영상 저장, 가려진 DirectX background capture, 게임 메모리·패킷 접근, 입력 주입, 임의 프로세스 캡처, 캡처 이미지 저장·전송을 지원하지 않는다.
-- personas_permissions_accessibility_entry: Windows 사용자가 고급 기능의 `게임 오버레이` 설정창에서 5개 토글을 키보드·마우스로 조작한다. 자동인식 버튼은 디버프 알림이 켜졌을 때만 활성화되고 진행·성공·오류를 색상뿐 아니라 텍스트 live status로 알린다.
-- preconditions_dependencies: Windows, 실행 중이고 최소화되지 않은 검증 가능한 마비노기 `Client.exe`, WebView2, GDI client capture, foreground 전환 권한, 보스 체력바가 화면에 표시된 상태.
-- normal_flow: 자동인식은 디버프 알림 toggle과 독립된 setup action이다. 기존 preview monitor를 잠그고 preview window를 제거한 뒤 정본 게임을 foreground로 전환한다. 180ms 뒤 client BGRA를 캡처하고 회색 이중 하단선 또는 색상 비의존 상단·좌우선 fallback을 사용한다. 상·하단 endpoint와 한쪽 상단선의 제한된 단절, 90% 이상 연속인 검은 좌우선, 5:1 aspect를 검증한 뒤 기존 foreground를 복원하고 새 preview를 다시 생성한다.
-- error_cancel_retry_flow: 게임 창 부재·최소화·복수 후보 모호성·foreground 전환 실패·capture 실패·process identity 변경·외곽 미검출은 설정창에 오류를 표시하고 preview를 숨긴다. 사용자는 게임 상태를 준비한 뒤 버튼을 다시 눌러 재시도한다. 디버프 토글을 끄면 검출 좌표·오류·preview를 제거한다.
-- concurrency_partial_failure_recovery: 설정 저장은 capability mutex와 원자 JSON writer가 직렬화한다. 캡처 전·후 PID와 process start identity를 확인하고 foreground는 성공·실패 모두에서 원래 HWND로 복원한다. preview monitor는 100ms마다 같은 HWND가 foreground인지 확인해 다른 앱 위에서는 숨긴다.
-- state_side_effects_limits: `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`에 5개 boolean과 alert client-relative offset만 지속한다. pixel frame·HWND·PID·검출 좌표·누락 snapshot·오류는 메모리에만 존재하고 이미지 파일을 만들지 않는다. 판독 영역 preview는 구성 mode에서만 보이고 완료 시 native window를 제거한다. 불필요한 alert도 hide 재사용하지 않고 destroy해 transparent surface 잔상을 남기지 않는다.
+- personas_permissions_accessibility_entry: Windows 사용자가 고급 기능의 `게임 오버레이` 설정창에서 5개 토글을 키보드·마우스로 조작한다. `재인식`은 현재 toggle과 독립적으로 요청할 수 있고 추적 중·해상도별 좌표 사용·오류를 색상뿐 아니라 텍스트 live status로 알린다.
+- preconditions_dependencies: Windows, 실행 중이고 최소화되지 않은 검증 가능한 마비노기 `Client.exe`, WebView2, 전경 GDI client capture, 보스 체력바가 화면에 표시된 상태.
+- normal_flow: 앱 시작 때 디버프 알림이 켜져 있으면 monitor가 전경 게임의 client 해상도를 확인한다. 같은 해상도 cache가 있으면 저장된 체력바를 작은 region capture로 검증해 즉시 사용하고, 없거나 검증에 실패하면 2초 주기로 전체 client에서 다시 찾는다. 성공하면 체력바와 바로 위 디버프 영역을 저장한다. full-area 디버프 판독에서 같은 행의 대상 아이콘 둘 이상으로 16~32px 고정 간격을 확정하면 phase·간격·slot 수를 저장하고 이후 slot 좌표만 판독한다.
+- error_cancel_retry_flow: 게임 창 부재·최소화·비전경·복수 후보 모호성·capture 실패·process identity 변경·외곽 미검출 중에는 강제로 focus를 빼앗지 않고 다음 주기에 재시도한다. `재인식`은 기존 runtime 좌표를 지우고 찾을 때까지 지속한다. 디버프 toggle을 끄면 runtime 검출·오류·누락 snapshot을 제거하지만 해상도 cache는 다음 활성화를 위해 유지한다.
+- concurrency_partial_failure_recovery: 설정·tracking cache 저장은 capability mutex와 원자 JSON writer가 직렬화한다. PID·process start identity와 client 해상도가 바뀌면 현재 detection을 새 HWND의 같은 해상도 cache로 다시 결합한다. 저장 좌표의 체력바 외곽·내부 색상이 맞지 않으면 stale runtime detection과 누락 snapshot을 제거하고 full detection으로 복귀한다.
+- state_side_effects_limits: `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`에 5개 boolean, alert client-relative offset, 해상도별 체력바·디버프 영역·slot layout을 지속한다. pixel frame·HWND·PID·process start identity·누락 snapshot·오류는 메모리에만 존재하고 이미지 파일을 만들지 않는다. 판독 영역 preview는 구성 mode에서만 보이고 완료 시 native window를 제거한다. 불필요한 alert도 hide 재사용하지 않고 destroy해 transparent surface 잔상을 남기지 않는다.
 - modules_contracts: `desktop/src/ui.rs` → `overlay-settings.html`·제한 preload → `service.rs` → `game_overlay.rs`; `overlay_geometry.rs`가 capability 중립 physical bounds를 소유하고 `service_windows.rs`·`desktop/src/native.rs`가 interactive settings와 click-through preview의 서로 다른 identity를 중계한다.
 - durable_data_owner: `game_overlay.rs`만 overlay settings JSON을 읽고 원자 갱신한다. renderer·legacy Electron host·preview window는 writer가 아니다.
 - security_privacy: `process::matches_game`을 통과한 visible non-minimized HWND만 캡처하고 복수 후보가 있으면 canonical path 단일 일치 없이는 실패한다. 캡처는 client pixel을 메모리에서 검출한 뒤 폐기하며 로그·문서·외부 요청에 화면 내용을 기록하지 않는다.
 - compatibility_limits: foreground GDI capture는 가려진 창을 background capture하지 않으며 독점 전체화면·일부 GPU 경로에서 실패할 수 있다. 검출은 높이 20~120px, 90% 세로선, 상단선 한쪽 최대 32px 길이 차이를 허용하지만 테마·클라이언트 UI 변경 시 재조정이 필요하다.
-- scenarios: `OVERLAY-001 5종 설정 저장·재로드`, `OVERLAY-002 단일 정본 게임 foreground 전환·복원`, `OVERLAY-003 체력바 외곽·내부 색상 검출과 검은 panel 거부`, `OVERLAY-004 체력바 위 동일 크기 1× RGB 디버프 판독`, `OVERLAY-005 누락 snapshot·runtime click-through`, `OVERLAY-006 구성 중 preview·alert drag·client-relative 저장`, `OVERLAY-007 type 1~6 layer·type 3 중복·CSV 이름`, `OVERLAY-008 settings·preview·alert native/package 계약`
+- scenarios: `OVERLAY-001 5종 설정 저장·재로드`, `OVERLAY-002 전경 정본 게임 주기 추적·비전경 유휴`, `OVERLAY-003 체력바 외곽·내부 색상 검출과 검은 panel 거부`, `OVERLAY-004 체력바 위 동일 크기 1× RGB 디버프 판독`, `OVERLAY-005 누락 snapshot·runtime click-through`, `OVERLAY-006 구성 중 preview·alert drag·client-relative 저장`, `OVERLAY-007 type 1~6 layer·type 3 중복·CSV 이름`, `OVERLAY-008 settings·preview·alert native/package 계약`, `OVERLAY-009 해상도별 좌표 저장·재사용·stale 검증`, `OVERLAY-010 재인식 지속 retry와 slot layout 한정 판독`
 - observability_evidence: 설정창 진행·성공·오류 status, `game_overlay.rs` unit tests, `test/game-overlay.test.mjs`, native primary UI smoke `otherWindows.overlay-settings`, service stderr의 preview 준비·표시 실패.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 게임 화면 capture·overlay 경계.
 - record_id: `FEAT-NOGIREM-GAME-OVERLAY`
 - owner: `nogirem maintainer`
-- revision: `3`
-- updated_at: `2026-10-06T04:30:00Z`
+- revision: `4`
+- updated_at: `2026-10-07T09:15:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-06T04:30:00Z`
+- source_reviewed_at: `2026-10-07T09:15:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted target based on 9ce107f97cdbafad0c228777bb49b84d9256d059`
-- source_review_evidence: `체력바 내부 색상 negative gate, 1× 전체 픽셀 matcher, type/name CSV와 5개 alert layer SELF_REVIEW`
-- behavior_verified_at: `2026-10-06T04:30:00Z`
+- source_review_target: `uncommitted target based on 51d0ee4a091ffb2d61406a0ee948400a4ae02135`
+- source_review_evidence: `해상도 cache schema·foreground tracking state·stale 검증·slot layout 추론과 slot matcher SELF_REVIEW`
+- behavior_verified_at: `2026-10-07T09:15:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted target based on 9ce107f97cdbafad0c228777bb49b84d9256d059`
-- behavior_verification_environment: `Windows 10.0.26200 x64, 사용자 제공 실제 Mabinogi PNG/JPG와 synthetic BGRA`
-- behavior_verification_evidence: `실제 디버프 PNG 9개 위치 재현, 검은 배경 오검출 fixture, Node 5/5, backend game_overlay tests, desktop locked check`
+- behavior_verification_target: `uncommitted target based on 51d0ee4a091ffb2d61406a0ee948400a4ae02135`
+- behavior_verification_environment: `Windows 10.0.26200 x64, synthetic BGRA와 자동 검사`
+- behavior_verification_evidence: `backend game_overlay 18/18, Node 5/5, desktop locked check; 실제 게임 신규 flow는 NOT_RUN`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 디버프 판독·분류 alert source와 실제 화면 evidence, 미검증 UI 범위를 구분해 반영`
-- known_gaps: `신규 layer UI 실제 시각 확인, DPI·보조 모니터·전체화면·package·공개 배포 대기; 투아림·붕괴·버프·스킬 미구현`
-- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 실제 누락 판독, 이동 가능한 alert, type layer와 이름 표시`
-- feature_map: `updated — 신규 canonical identity 예약·추가`
-- architecture_impact: `foreground capture adapter, pure detector, setting single writer, interactive/preview windows`
-- architecture_contract: `updated — 신규 capture·focus·privacy·window 경계와 금지 규칙 추가`
+- freshness_reason: `현재 자동 추적·resolution cache·slot 판독 source와 자동 검증, 실제 게임 미검증 범위를 구분해 반영`
+- known_gaps: `실제 게임 시작 재로드·해상도 전환·재인식 retry·slot cache 성능·DPI·보조 모니터·전체화면·package·공개 배포 대기; 투아림·붕괴·버프·스킬 미구현`
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 자동 추적, 해상도별 좌표 cache, 지속 재인식과 slot 한정 판독`
+- feature_map: `updated — OVERLAY-002·009·010과 durable state 갱신`
+- architecture_impact: `foreground capture adapter, resolution cache single writer, pure detector·slot matcher, auxiliary windows`
+- architecture_contract: `updated — cache writer·foreground 주기 추적·slot-only fast path 추가`
 
 ## FEAT-NOGIREM-FRAME-BOOST
 

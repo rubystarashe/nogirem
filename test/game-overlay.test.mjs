@@ -48,7 +48,7 @@ test("게임 오버레이 설정창은 다섯 알림과 디버프 자동인식�
   ]) {
     assert.match(settings, new RegExp(key))
   }
-  assert.match(settings, /인터페이스 자동인식/)
+  assert.match(settings, /재인식/)
   assert.match(settings, /인터페이스 구성/)
   assert.match(settings, /detect\.disabled = busy/)
   assert.doesNotMatch(settings, /detect\.disabled = busy \|\|/)
@@ -57,7 +57,7 @@ test("게임 오버레이 설정창은 다섯 알림과 디버프 자동인식�
   assert.match(settings, /body \{[^}]*overflow: hidden/)
   assert.match(settingsPreload, /overlay-settings:get-status/)
   assert.match(settingsPreload, /overlay-settings:set-setting/)
-  assert.match(settingsPreload, /overlay-settings:detect-debuff-region/)
+  assert.match(settingsPreload, /overlay-settings:retrack-debuff-region/)
   assert.match(settingsPreload, /overlay-settings:configure-debuff-alert/)
   assert.match(ui, /게임 오버레이[\s\S]+application:open-overlay-settings/)
 })
@@ -126,7 +126,7 @@ test("오버레이 문서·IPC·package 입력은 native 계약에 등록된다"
     "overlay-settings:request-close",
     "overlay-settings:get-status",
     "overlay-settings:set-setting",
-    "overlay-settings:detect-debuff-region",
+    "overlay-settings:retrack-debuff-region",
     "overlay-settings:configure-debuff-alert",
     "debuff-alert:get-status",
     "debuff-alert:drag-start",
