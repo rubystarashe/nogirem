@@ -7,11 +7,11 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-15T13:35:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted graphics routing and AMD restore target based on 061a23a4c7a6fc977ce8b3ec32e43c691ab8d1c0`
+- source_review_target: `d1b87085c360133eab49455348142efe94435f78`
 - source_review_evidence: `NVIDIA 우선 routing, WMI 상태 탐지, Radeon I3DSettings-only helper와 Electron compatibility 경계`
 - behavior_verified_at: `2026-10-15T13:35:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted graphics routing and AMD restore target based on 061a23a4c7a6fc977ce8b3ec32e43c691ab8d1c0`
+- behavior_verification_target: `reviewed code hashes committed in d1b87085c360133eab49455348142efe94435f78`
 - behavior_verification_environment: `Windows 10.0.26200 x64 source checks와 RTX 4090 + AMD Radeon(TM) Graphics`
 - behavior_verification_evidence: `실제 NVIDIA status 선택, graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Radeon Node 13/13, Node 211/211, desktop check, Radeon helper rebuild PASS`
 - freshness_status: `CURRENT`

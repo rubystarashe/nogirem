@@ -3,10 +3,10 @@
 Last Updated: 2026-10-15 22:35 +09:00
 
 ## Current Objective
-혼합 GPU에서 AMD 내장 그래픽이 RTX 4090을 가리던 routing을 NVIDIA 우선으로 수정하고, AMD 단독 시스템의 Radeon 3D 최적화를 tuning API 미접근 경계로 복구했다. 자동 검사, 실제 RTX 4090 선택과 독립 review가 통과했으며 local commit과 AMD 단독 하드웨어 수동 QA가 남았다.
+혼합 GPU에서 AMD 내장 그래픽이 RTX 4090을 가리던 routing을 NVIDIA 우선으로 수정하고, AMD 단독 시스템의 Radeon 3D 최적화를 tuning API 미접근 경계로 복구했다. 자동 검사, 실제 RTX 4090 선택과 독립 review가 통과했고 implementation commit은 `d1b87085c360133eab49455348142efe94435f78`이다. AMD 단독 하드웨어 수동 QA는 남았다.
 
 ## Active Runs
-- `20261015-graphics-routing-amd-restore`: NVIDIA status를 먼저 확인해 RTX 4090 + AMD Radeon(TM) Graphics 환경에서 NVIDIA 프로그램 profile을 선택한다. AMD 단독 상태 조회는 Rust와 Electron 모두 WMI만 사용하며 명시 적용에서만 `I3DSettings` helper를 호출한다. GPU tuning API·비호환 driver 초기화와 legacy retry를 금지하고, 적용·rollback 후 실제 값 검증과 게임 VSync 선차단을 추가했다. graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Node 211/211, desktop check, helper rebuild와 실제 RTX 4090 status가 통과했다. 독립 review R3는 `APPROVED`이며 AMD 단독 적용 전후 tuning 유지와 package는 NOT_RUN이다. (`docs/ai/runs/20261015-graphics-routing-amd-restore/task.md`)
+- `20261015-graphics-routing-amd-restore`: implementation commit `d1b87085c360133eab49455348142efe94435f78`. NVIDIA status를 먼저 확인해 RTX 4090 + AMD Radeon(TM) Graphics 환경에서 NVIDIA 프로그램 profile을 선택한다. AMD 단독 상태 조회는 Rust와 Electron 모두 WMI만 사용하며 명시 적용에서만 `I3DSettings` helper를 호출한다. GPU tuning API·비호환 driver 초기화와 legacy retry를 금지하고, 적용·rollback 후 실제 값 검증과 게임 VSync 선차단을 추가했다. graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Node 211/211, desktop check, helper rebuild와 실제 RTX 4090 status가 통과했다. 독립 review R3는 `APPROVED`이며 AMD 단독 적용 전후 tuning 유지와 package는 NOT_RUN이다. (`docs/ai/runs/20261015-graphics-routing-amd-restore/task.md`)
 - `20261015-package-047`: source `9a64283a01121406f880206c3d9448d7329ea476`과 사용자 `NOTICE.md` SHA-256 `af1eb83b...f1f2`에서 0.4.7 signed 설치형·포터블을 `release/dioxus-0.4.7-2026-10-15T13-17-35-650Z`에 생성했다. installer `081f0dc4...43fd`, portable `6467b756...501f`; Node 206/206, targeted 18/18, native integration 3/3, package contract·manifest·payload와 독립 review가 통과했다. turbo helper·standalone terms는 package/release asset에 없고 source 구현은 보존된다. 배포·실제 설치는 NOT_RUN이다. (`docs/ai/runs/20261015-package-047/final-report.md`)
 - `20261015-disable-turbo-047`: commit `e3a40177b89679fb40942d0a1e04b41d23595b31`에서 Dioxus 고급 기능의 터보키 카드·초기 상태 요청을 제거하고 Rust·Electron 설정·다운로드 IPC를 차단했다. 기존 enabled=true 사용자는 키·간격·설치 파일을 보존한 채 false로 migration하고 종료 control을 기록하며, 비사용자에게는 파일을 만들지 않는다. Node 206/206, backend 115 PASS·3 ignored와 parity 2/2, desktop 8/8, locked check와 독립 리뷰가 통과했다. 실제 0.4.6 설치본 upgrade와 package·배포는 NOT_RUN이다. (`docs/ai/runs/20261015-disable-turbo-047/task.md`)
 - `20261015-channel-overlay-dpi`: DPI-unaware 게임 HWND의 `GetDpiForWindow`가 150% 모니터에서도 96을 반환해 native 창은 584×400 물리 픽셀에 머물고 WebView 콘텐츠만 확대되던 원인을 수정했다. 대상 모니터 `MDT_EFFECTIVE_DPI`로 expanded·compact logical 크기를 physicalBounds로 환산한다. channel ping 34/34, overlay 3/3, backend 112 PASS·3 ignored와 parity 2/2, Node 206/206, desktop check와 독립 리뷰가 통과했으며 실제 3840×2160 150%·혼합 DPI 게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261015-channel-overlay-dpi/task.md`)
@@ -272,4 +272,4 @@ Last Updated: 2026-10-15 22:35 +09:00
 - 원격 REPORT 자동 정리 커밋을 병합하고 `v0.3.16` 태그와 GitHub Release를 공개했다. 네 자산의 원격 digest가 로컬 SHA-256과 일치한다.
 
 ## Next Recommended Step
-exact reviewed target을 local commit한다. 이후 AMD 단독 테스트 장비에서 앱 시작 전후와 명시 최적화 적용 전후의 언더볼팅 값을 비교해야 하며, package·공개 배포는 별도 승인 전 수행하지 않는다.
+AMD 단독 테스트 장비에서 앱 시작 전후와 명시 최적화 적용 전후의 언더볼팅 값을 비교한다. package·공개 배포는 별도 승인 전 수행하지 않는다.

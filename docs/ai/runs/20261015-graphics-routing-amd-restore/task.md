@@ -7,9 +7,9 @@
 - created_at: `2026-10-15T13:28:00Z`
 - updated_at: `2026-10-15T13:35:00Z`
 - base_target: `nogirem main 061a23a4c7a6fc977ce8b3ec32e43c691ab8d1c0`
-- source_target: `uncommitted owned changes listed below`
-- status: `READY_FOR_COMMIT`
-- DEV_state: `READY_FOR_QA`
+- source_target: `commit d1b87085c360133eab49455348142efe94435f78`
+- status: `COMPLETED`
+- DEV_state: `DONE`
 - QA_state: `COMPLETE_PASS for automated checks; AMD hardware scenario NOT_RUN`
 - review_state: `APPROVED — R3 exact code hashes, ISSUE-GFX-R-001~003 RESOLVED`
 - feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — 혼합 GPU NVIDIA 선택과 AMD Radeon 3D 최적화 복구`
@@ -69,8 +69,8 @@
 - feature_gate: `PASS for source accuracy and mixed-GPU behavior; AMD hardware behavior remains NOT_RUN`
 - architecture_gate: `PASS — tuning API and incompatible initialization mechanically excluded; snapshot rollback verified by source review`
 - QA_gate: `PASS for automated and mixed-GPU source execution; AMD explicit apply NOT_RUN`
-- target_gate: `READY — exact code hashes reviewed; local commit pending`
-- final_disposition: `PARTIALLY_COMPLETED — source and automated verification complete; local commit and AMD hardware manual QA remain`
+- target_gate: `PASS — exact code hashes reviewed and committed as d1b87085c360133eab49455348142efe94435f78`
+- final_disposition: `COMPLETED — authorized source scope committed; AMD hardware manual QA remains a disclosed non-blocking limitation`
 - push_status: `NOT_RUN — unauthorized`
 - deployment_status: `NOT_RUN — unauthorized`
 
