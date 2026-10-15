@@ -7,7 +7,6 @@ use crate::{
         foreground_is_windows_shell, set_input_overlay_window,
     },
     dxvk_manager,
-    game_overlay::GameOverlay,
     graphics,
     inputs::Inputs,
     network_manager,
@@ -35,7 +34,6 @@ pub struct Service {
     pub blackbox: Mutex<Blackbox>,
     pub inputs: Mutex<Inputs>,
     pub channel_ping: Arc<ChannelPing>,
-    pub game_overlay: Mutex<GameOverlay>,
     pub dxvk: Mutex<dxvk_manager::Manager>,
     pub dxvk_runtime: RwLock<Value>,
     startup: OnceLock<()>,
@@ -44,7 +42,6 @@ pub struct Service {
     reports_notified: Mutex<std::collections::HashSet<String>>,
     media: RwLock<(PathBuf, Option<EditorSession>)>,
     saving: AtomicBool,
-    debuff_preview_gate: Mutex<()>,
     network: Mutex<()>,
     pub fixture: bool,
     pub fixture_state: Mutex<Value>,
@@ -150,7 +147,6 @@ impl Service {
             });
             let blackbox = Blackbox::new(env.clone(), event);
             let channel_ping = Arc::new(ChannelPing::new(&env));
-            let game_overlay = Mutex::new(GameOverlay::new(&env));
             let clips = blackbox.clips();
             let updates = rpc.clone();
             let update_service = weak.clone();
@@ -175,7 +171,6 @@ impl Service {
                 boost: Boost::new(env.clone()),
                 inputs: Mutex::new(Inputs::new(env.clone())),
                 channel_ping,
-                game_overlay,
                 dxvk: Mutex::new(dxvk_manager::Manager::new(env.clone())),
                 dxvk_runtime: RwLock::new(
                     json!({"state":"checking","latestVersion":null,"error":null}),
@@ -189,7 +184,6 @@ impl Service {
                 prompt: Mutex::new(()),
                 reports_notified: Mutex::new(std::collections::HashSet::new()),
                 saving: AtomicBool::new(false),
-                debuff_preview_gate: Mutex::new(()),
                 network: Mutex::new(()),
                 fixture,
                 fixture_state: Mutex::new(crate::service_fixture::initial()),
@@ -410,10 +404,6 @@ impl Service {
         let service = self.clone();
         std::thread::spawn(move || service.monitor_channel_ping_overlay());
         let service = self.clone();
-        std::thread::spawn(move || service.monitor_debuff_preview());
-        let service = self.clone();
-        std::thread::spawn(move || service.monitor_debuff_alert());
-        let service = self.clone();
         std::thread::spawn(move || service.check_startup_network());
         if self.env.packaged {
             let service = self.clone();
@@ -615,100 +605,6 @@ impl Service {
         self.channel_ping.set_expanded(false);
         self.windows.hide_channel_ping();
         self.windows.hide_channel_ping_live();
-    }
-    fn monitor_debuff_preview(self: &Arc<Self>) {
-        let mut window_id = None;
-        let mut visible = false;
-        let mut bounds = None;
-        while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
-            let target = self.game_overlay.lock().unwrap().preview_bounds(&self.env);
-            let current_id = self.windows.id("debuff-region-overlay");
-            if window_id != current_id {
-                window_id = current_id;
-                visible = false;
-                bounds = None;
-            }
-            if let Some(target) = target {
-                if current_id.is_none() {
-                    if let Err(error) = self.windows.prepare_debuff_preview() {
-                        log(format!("디버프 영역 미리보기 준비 실패: {error}"));
-                        std::thread::sleep(Duration::from_secs(1));
-                        continue;
-                    }
-                }
-                if !visible || bounds != Some(target) {
-                    match self.windows.show_debuff_preview(target) {
-                        Ok((id, _)) => {
-                            window_id = Some(id);
-                            visible = true;
-                            bounds = Some(target);
-                        }
-                        Err(error) => {
-                            visible = false;
-                            bounds = None;
-                            log(format!("디버프 영역 미리보기 표시 실패: {error}"));
-                        }
-                    }
-                }
-            } else if visible {
-                self.windows.destroy_debuff_preview();
-                window_id = None;
-                visible = false;
-                bounds = None;
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        }
-        self.windows.destroy_debuff_preview();
-    }
-    fn monitor_debuff_alert(self: &Arc<Self>) {
-        let mut visible = false;
-        let mut bounds = None;
-        let mut configuring = false;
-        while !self.rpc.closed() && !self.boost.exiting.load(Ordering::SeqCst) {
-            let (target, should_show, next_configuring) = {
-                let mut overlay = self.game_overlay.lock().unwrap();
-                let _ = overlay.tick(&self.env);
-                (
-                    overlay.alert_bounds(&self.env),
-                    overlay.should_show_alert(),
-                    overlay.alert_configuring(),
-                )
-            };
-            if should_show {
-                if let Some(target) = target {
-                    if self.windows.id("debuff-alert-overlay").is_none()
-                        && self.windows.prepare_debuff_alert().is_err()
-                    {
-                        std::thread::sleep(Duration::from_secs(1));
-                        continue;
-                    }
-                    if !visible || bounds != Some(target) || configuring != next_configuring {
-                        match self.windows.show_debuff_alert(target, next_configuring) {
-                            Ok(_) => {
-                                visible = true;
-                                bounds = Some(target);
-                                configuring = next_configuring;
-                            }
-                            Err(error) => {
-                                visible = false;
-                                bounds = None;
-                                log(format!("디버프 누락 알림 표시 실패: {error}"));
-                            }
-                        }
-                    }
-                } else if visible {
-                    self.windows.destroy_debuff_alert();
-                    visible = false;
-                    bounds = None;
-                }
-            } else if visible {
-                self.windows.destroy_debuff_alert();
-                visible = false;
-                bounds = None;
-            }
-            std::thread::sleep(Duration::from_millis(250));
-        }
-        self.windows.destroy_debuff_alert();
     }
     fn check_startup_network(&self) {
         let path = self.env.user.join("network/fast-ping-original.json");
@@ -938,21 +834,11 @@ impl Service {
                     && self.windows.kind(id).as_deref() == Some("dxvk-manager")
                 {
                     self.windows.content_ready(id);
-                } else if let Some((kind, action)) = channel.split_once(':') {
-                    let expected_kind = if kind == "debuff-alert" {
-                        "debuff-alert-overlay"
-                    } else {
-                        kind
-                    };
-                    if matches!(kind, "character-guide" | "dxvk-guide" | "debuff-alert")
-                        && self.windows.kind(id).as_deref() == Some(expected_kind)
-                    {
-                        if kind == "debuff-alert" && action == "drag-start" {
-                            self.windows.begin_native_drag(id);
-                        } else {
-                            self.windows.drag(id, action, &p["args"][0]);
-                        }
-                    }
+                } else if let Some((kind, action)) = channel.split_once(':')
+                    && matches!(kind, "character-guide" | "dxvk-guide")
+                    && self.windows.kind(id).as_deref() == Some(kind)
+                {
+                    self.windows.drag(id, action, &p["args"][0]);
                 }
             }
             "tray" => {
@@ -980,7 +866,6 @@ impl Service {
             "channel-ping" => {
                 matches!(kind.as_str(), "channel-ping-overlay" | "channel-ping-live")
             }
-            "debuff-alert" => kind == "debuff-alert-overlay",
             prefix => prefix == kind,
         };
         if !allowed {
@@ -1012,7 +897,6 @@ impl Service {
                     | "dxvk-manager"
                     | "blackbox-manager"
                     | "blackbox-editor"
-                    | "overlay-settings"
             ) {
                 self.windows.open(kind, true)?;
                 return Ok(json!(true));
@@ -1028,68 +912,6 @@ impl Service {
         }
         if channel.starts_with("blackbox-manager:") || channel.starts_with("blackbox-editor:") {
             return self.blackbox_invoke(id, action, args);
-        }
-        if channel.starts_with("overlay-settings:") {
-            return match action {
-                "get-status" => Ok(self.game_overlay.lock().unwrap().status()),
-                "set-setting" => {
-                    let status = self.game_overlay.lock().unwrap().set(v)?;
-                    if status["debuffNotifications"] != true {
-                        self.windows.destroy_debuff_preview();
-                        self.windows.destroy_debuff_alert();
-                        self.windows.destroy_overlay_configuration();
-                    }
-                    Ok(status)
-                }
-                "retrack-debuff-region" => {
-                    let _preview_guard = self.debuff_preview_gate.lock().unwrap();
-                    self.windows.destroy_debuff_preview();
-                    self.windows.destroy_debuff_alert();
-                    self.windows.destroy_overlay_configuration();
-                    let _ = self.game_overlay.lock().unwrap().configure_alert(false);
-                    self.game_overlay.lock().unwrap().request_retrack()
-                }
-                "configure-debuff-alert" => {
-                    let status = self.game_overlay.lock().unwrap().configure_alert(true)?;
-                    if let Err(error) = self.windows.show_overlay_configuration() {
-                        let _ = self.game_overlay.lock().unwrap().configure_alert(false);
-                        return Err(error);
-                    }
-                    Ok(status)
-                }
-                _ => Err("지원하지 않는 오버레이 설정 요청입니다".into()),
-            };
-        }
-        if channel.starts_with("debuff-alert:") {
-            if self.windows.kind(id).as_deref() != Some("debuff-alert-overlay") {
-                return Err("디버프 누락 알림 창 요청자가 올바르지 않습니다".into());
-            }
-            return match action {
-                "get-status" => Ok(self.game_overlay.lock().unwrap().status()),
-                _ => Err("지원하지 않는 디버프 알림 요청입니다".into()),
-            };
-        }
-        if channel.starts_with("overlay-configuration:") {
-            if self.windows.kind(id).as_deref() != Some("overlay-configuration") {
-                return Err("인터페이스 구성 창 요청자가 올바르지 않습니다".into());
-            }
-            return match action {
-                "finish" => {
-                    if let Some(alert_id) = self.windows.id("debuff-alert-overlay")
-                        && let Some((x, y)) = self.windows.physical_position(alert_id)
-                    {
-                        self.game_overlay
-                            .lock()
-                            .unwrap()
-                            .save_alert_position(&self.env, x, y)?;
-                    }
-                    let status = self.game_overlay.lock().unwrap().configure_alert(false)?;
-                    self.windows.destroy_debuff_preview();
-                    self.windows.destroy_overlay_configuration();
-                    Ok(status)
-                }
-                _ => Err("지원하지 않는 인터페이스 구성 요청입니다".into()),
-            };
         }
         match channel{
    "application:begin-startup-reveal"=>{if !self.startup_tray{self.windows.reveal_main();}Ok(json!(true))},

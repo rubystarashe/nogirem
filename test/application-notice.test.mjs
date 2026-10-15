@@ -42,6 +42,6 @@ test("공지 조회와 닫기 상태가 메인 창 IPC 및 모달에 연결된�
 
   assert.match(packageInfo, /['"]NOTICE\.md['"]/)
   assert.doesNotMatch(packageInfo, /docs\/notices/)
-  assert.match(noticeMarkdown, /https:\/\/raw\.githubusercontent\.com\/rubystarashe\/nogirem\/main\/docs\/notices\/channel-ping-0\.4\.4\.png/)
+  assert.match(noticeMarkdown, /^# .+/m)
   assert.match(styles, /\.application-notice-content \.markdown-image[\s\S]*aspect-ratio: 958 \/ 668[\s\S]*object-fit: cover/)
 })

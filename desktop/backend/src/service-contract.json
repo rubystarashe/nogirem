@@ -67,7 +67,6 @@
     "application:open-character-guide",
     "application:open-dxvk-manager",
     "application:open-blackbox-manager",
-    "application:open-overlay-settings",
     "application:open-dxvk-guide",
     "application:open-creator-channel",
     "application:get-creator-channel",
@@ -103,13 +102,6 @@
     "blackbox-manager:rename-clip",
     "blackbox-manager:delete-clip",
     "blackbox-manager:open-folder",
-    "overlay-settings:request-close",
-    "overlay-settings:get-status",
-    "overlay-settings:set-setting",
-    "overlay-settings:retrack-debuff-region",
-    "overlay-settings:configure-debuff-alert",
-    "debuff-alert:get-status",
-    "overlay-configuration:finish",
     "application:confirm-close"
   ],
   "events": [
@@ -119,8 +111,6 @@
     "character-guide:drag-end",
     "dxvk-guide:drag-start",
     "dxvk-guide:drag-move",
-    "dxvk-guide:drag-end",
-    "debuff-alert:drag-start",
-    "overlay-configuration:drag-start"
+    "dxvk-guide:drag-end"
   ]
 }

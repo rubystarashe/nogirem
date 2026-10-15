@@ -304,7 +304,6 @@ fn auxiliary() -> Element {
                         Err("이 창에 허용되지 않은 요청입니다".into())
                     } else if channel == "character-guide:drag-start"
                         || channel == "dxvk-guide:drag-start"
-                        || channel == "overlay-configuration:drag-start"
                     {
                         window.drag();
                         Ok(Value::Null)
@@ -423,10 +422,6 @@ impl Host {
                         "blackbox-editor.html",
                         "channel-ping-overlay.html",
                         "channel-ping-live.html",
-                        "overlay-settings.html",
-                        "debuff-region-overlay.html",
-                        "debuff-alert-overlay.html",
-                        "overlay-configuration.html",
                     ]
                     .iter()
                     .any(|n| name == *n)

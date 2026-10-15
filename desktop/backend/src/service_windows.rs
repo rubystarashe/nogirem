@@ -50,12 +50,7 @@ fn n(v: &Value, k: &str, default: f64) -> f64 {
 fn close_when_main_moves_to_tray(kind: &str) -> bool {
     !matches!(
         kind,
-        "notice"
-            | "update-notice"
-            | "channel-ping-overlay"
-            | "channel-ping-live"
-            | "debuff-region-overlay"
-            | "debuff-alert-overlay"
+        "notice" | "update-notice" | "channel-ping-overlay" | "channel-ping-live"
     )
 }
 impl Windows {
@@ -96,20 +91,6 @@ impl Windows {
             .values()
             .find(|w| w.kind == kind)
             .map(|w| w.id)
-    }
-    #[cfg(windows)]
-    pub fn physical_position(&self, id: u64) -> Option<(i32, i32)> {
-        use windows_sys::Win32::{Foundation::RECT, UI::WindowsAndMessaging::GetWindowRect};
-        let hwnd = self.get(id)?.state["hwnd"].as_u64()? as isize;
-        let mut rect = RECT::default();
-        (unsafe { GetWindowRect(hwnd as _, &mut rect) } != 0).then_some((rect.left, rect.top))
-    }
-    #[cfg(not(windows))]
-    pub fn physical_position(&self, _id: u64) -> Option<(i32, i32)> {
-        None
-    }
-    pub fn begin_native_drag(&self, id: u64) {
-        self.command(id, "dragWindow", Value::Null);
     }
     pub fn channel_ping_visible(&self) -> bool {
         self.id("channel-ping-overlay")
@@ -165,72 +146,6 @@ impl Windows {
     }
     pub fn show_channel_ping_live(self: &Arc<Self>, bounds: OverlayBounds) -> Result<(u64, isize)> {
         self.show_channel_ping_window("channel-ping-live", bounds, "상단 실시간 핑 창")
-    }
-    pub fn prepare_debuff_preview(self: &Arc<Self>) -> Result<()> {
-        self.open("debuff-region-overlay", false).map(|_| ())
-    }
-    pub fn show_debuff_preview(self: &Arc<Self>, bounds: OverlayBounds) -> Result<(u64, isize)> {
-        self.show_channel_ping_window("debuff-region-overlay", bounds, "디버프 영역 미리보기")
-    }
-    pub fn destroy_debuff_preview(&self) {
-        if let Some(id) = self.id("debuff-region-overlay") {
-            self.destroy(id);
-        }
-    }
-    pub fn prepare_debuff_alert(self: &Arc<Self>) -> Result<()> {
-        self.open("debuff-alert-overlay", false).map(|_| ())
-    }
-    pub fn show_debuff_alert(
-        self: &Arc<Self>,
-        bounds: OverlayBounds,
-        configuring: bool,
-    ) -> Result<(u64, isize)> {
-        let id = self
-            .id("debuff-alert-overlay")
-            .ok_or("디버프 누락 알림 창이 준비되지 않았습니다")?;
-        let hwnd = self
-            .get(id)
-            .and_then(|window| window.state["hwnd"].as_u64())
-            .ok_or("디버프 누락 알림의 native 창을 찾지 못했습니다")?;
-        self.command(
-            id,
-            "physicalBounds",
-            json!({"x":bounds.x,"y":bounds.y,"width":bounds.width,"height":bounds.height}),
-        );
-        self.command(id, "alwaysOnTop", json!(true));
-        self.command(id, "focusable", json!(configuring));
-        self.command(id, "ignoreMouseEvents", json!(!configuring));
-        self.command(id, "opacity", json!(1));
-        let action = if configuring { "show" } else { "showInactive" };
-        self.rpc.request(
-            "window.command",
-            json!({"windowId":id,"action":action,"value":Value::Null}),
-        )?;
-        if let Some(window) = self.state.lock().unwrap().windows.get_mut(&id) {
-            window.state["visible"] = json!(true);
-        }
-        Ok((id, hwnd as isize))
-    }
-    pub fn destroy_debuff_alert(&self) {
-        if let Some(id) = self.id("debuff-alert-overlay") {
-            self.destroy(id);
-        }
-    }
-    pub fn show_overlay_configuration(self: &Arc<Self>) -> Result<()> {
-        let id = self.open("overlay-configuration", false)?;
-        self.command(id, "alwaysOnTop", json!(true));
-        self.command(id, "focusable", json!(true));
-        self.command(id, "ignoreMouseEvents", json!(false));
-        self.command(id, "opacity", json!(1));
-        self.command(id, "center", Value::Null);
-        self.command(id, "show", Value::Null);
-        self.command(id, "focus", Value::Null);
-        Ok(())
-    }
-    pub fn destroy_overlay_configuration(&self) {
-        if let Some(id) = self.id("overlay-configuration") {
-            self.destroy(id);
-        }
     }
     fn show_channel_ping_window(
         &self,
@@ -775,23 +690,11 @@ impl Windows {
             "blackbox-editor" => {
                 json!({"width":1100,"height":720,"minWidth":780,"minHeight":560,"title":"블랙박스 영상 추출","alwaysOnTop":true})
             }
-            "overlay-settings" => {
-                json!({"width":520,"height":700,"minWidth":460,"minHeight":700,"title":"게임 오버레이 설정","skipTaskbar":true,"resizable":false,"parent":1})
-            }
             "channel-ping-overlay" => {
                 json!({"width":584,"height":400,"title":"채널별 서버 지연 추측","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":true})
             }
             "channel-ping-live" => {
                 json!({"width":520,"height":30,"title":"실시간 점수 확인","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":false})
-            }
-            "debuff-region-overlay" => {
-                json!({"width":520,"height":70,"title":"디버프 영역 미리보기","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":false})
-            }
-            "debuff-alert-overlay" => {
-                json!({"width":520,"height":440,"title":"디버프 누락 알림","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":false,"roundedCorners":false})
-            }
-            "overlay-configuration" => {
-                json!({"width":300,"height":112,"title":"인터페이스 구성","transparent":true,"alwaysOnTop":true,"skipTaskbar":true,"resizable":false,"focusable":true,"roundedCorners":true})
             }
             _ => return Err("허용되지 않은 보조 창".into()),
         };
@@ -1000,9 +903,7 @@ mod tests {
         assert!(!close_when_main_moves_to_tray("update-notice"));
         assert!(!close_when_main_moves_to_tray("channel-ping-overlay"));
         assert!(!close_when_main_moves_to_tray("channel-ping-live"));
-        assert!(!close_when_main_moves_to_tray("debuff-region-overlay"));
         assert!(close_when_main_moves_to_tray("character-guide"));
-        assert!(close_when_main_moves_to_tray("overlay-settings"));
         assert!(close_when_main_moves_to_tray("blackbox-manager"));
     }
 

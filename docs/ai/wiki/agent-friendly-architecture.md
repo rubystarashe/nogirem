@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `22`
-- updated_at: `2026-10-07T09:15:00Z`
+- revision: `23`
+- updated_at: `2026-10-15T05:45:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-07T09:15:00Z`
+- source_reviewed_at: `2026-10-15T05:45:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted target based on 51d0ee4a091ffb2d61406a0ee948400a4ae02135`
-- source_review_evidence: `game overlay resolution cache single writer, foreground periodic tracking, stale validation과 slot-only fast path SELF_REVIEW`
-- behavior_verified_at: `2026-10-07T09:15:00Z`
+- source_review_target: `uncommitted removal target based on 5f67ca0c41c5a727729b3412458f0c9f886867d3`
+- source_review_evidence: `게임 화면 image recognition module·writer·IPC·window·package input 제거와 금지 경계 SELF_REVIEW`
+- behavior_verified_at: `2026-10-15T05:46:17Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted target based on 51d0ee4a091ffb2d61406a0ee948400a4ae02135`
-- behavior_verification_environment: `Windows 10.0.26200 x64, synthetic BGRA와 자동 검사`
-- behavior_verification_evidence: `backend game_overlay 18/18, Node 5/5, desktop locked check; 실제 게임 신규 tracking flow는 NOT_RUN`
+- behavior_verification_target: `uncommitted removal target based on 5f67ca0c41c5a727729b3412458f0c9f886867d3`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Rust locked build와 Node architecture enforcement`
+- behavior_verification_evidence: `금지 경로 enforcement PASS, Node 205/205 PASS, backend 105 PASS·2 declared ignore와 integration parity 2/2 PASS, desktop locked check PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 game overlay의 durable cache·foreground 추적·slot 판독 경계를 최신 source에 맞게 반영`
-- known_gaps: `실제 게임 시작 재로드·해상도 전환·지속 재인식·slot cache 성능과 DPI·package는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 자동 추적, 해상도별 좌표 재사용과 slot 한정 판독`
-- feature_map: `updated — 자동 추적·cache·slot flow와 evidence 갱신`
-- architecture_impact: `game overlay cache single writer, foreground capture, stale validation, pure slot matcher`
-- architecture_contract: `updated — durable cache·tracking state·slot fast path 경계 추가`
+- freshness_reason: `화면 이미지 인식 기능 제거와 재도입 금지 경계를 현재 source에 맞게 반영`
+- known_gaps: `기존 AppData overlay 설정은 orphaned user data로 남으며 자동 삭제하지 않음; package 생성·설치와 기존 설정 보유 상태 수동 실행은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — REMOVED`
+- feature_map: `updated — REMOVED tombstone과 제거 범위 기록`
+- architecture_impact: `게임 화면 capture·template matcher·settings writer·전용 auxiliary window 경계 제거`
+- architecture_contract: `updated — 화면 이미지 인식 금지 정책 추가`
 
 ## 계층과 확장 경로
 
@@ -50,7 +50,7 @@
 - DXVK는 확인되지 않은 게임 경로나 임의 URL에 파일을 쓰지 않는다. manager가 실제 `Client.exe`와 게임 미실행 상태를 확인하고 capability module이 digest·x64 PE·최종 파일 hash를 검증해야 한다.
 - 채널 핑은 사용자 URL·hostname·endpoint를 받지 않는다. 고정 HTTPS source의 제한 크기 CSV를 전부 검증한 뒤에만 cache와 runtime endpoint를 교체한다.
 - 실시간 점수 창은 게임 프로세스에 주입하거나 Windows 키를 차단하지 않는다. 실제 실행 경로가 정본 게임 조건을 충족한 전경 PID가 소유하고 CSV endpoint와 일치하는 established TCP 연결만 조회하며 비활성·click-through 상태를 유지한다. 상단 창은 게임 전경 또는 전체표가 열린 Windows shell 전경에서만 표시하고 일반 앱 전경에서는 마지막 게임 bounds를 재사용하지 않는다.
-- 게임 오버레이 추적은 임의 HWND·가려진 background 화면·게임 메모리를 읽지 않는다. 정본 실행 경로를 만족하는 visible non-minimized 게임이 이미 foreground일 때만 주기 capture를 수행한다. 사용자 `재인식` 요청도 focus를 강제로 빼앗지 않고 전경 조건을 만족할 때까지 대기하며 pixel은 메모리에서 판정 후 즉시 폐기한다.
+- 게임 화면 pixel을 캡처해 UI·상태·아이콘을 인식하는 기능은 금지한다. GDI·DirectX·screenshot capture, template matching, OCR, 해상도별 화면 좌표 cache와 이를 사용하는 알림 UI를 새로 추가하거나 우회 경로로 복원하지 않는다. 채널 핑 창은 OS TCP 상태만 읽고 게임 화면 pixel을 처리하지 않으므로 이 금지 범위와 분리한다.
 
 ## durable data와 single writer
 
@@ -64,7 +64,7 @@
 - turbo helper installation: `inputs.rs`가 helper version·manifest·binary 교체를 조정하고 native helper는 전달받은 설정과 game path state를 소비한다.
 - DXVK state와 DLL: `dxvk.rs` install/apply 경로만 `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 검증된 게임 폴더의 `d3d9_dxvk.dll`을 쓴다.
 - channel ping setting·cache: `channel_ping.rs`만 `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv`를 쓴다. 동일 module이 연결 시험 표본과 실제 5-tuple별 `SmoothedRtt + RttVar` TCP 추정값을 계산하고, 최근 유효 counter보다 재전송·TCP 시간초과·수신 중복 ACK·혼잡 신호 중 하나라도 증가한 표본에는 `SmoothedRtt + 4×RttVar`를 적용한다. 최근 1분 추정 표본 평균·최대, 네 counter delta 표본과 최근 유효 counter 기준은 메모리에만 두며 overlay·UI는 status IPC로 읽는다. 추정 최대는 원시 패킷 RTT 최대나 게임 처리·입력·렌더링 지연을 뜻하지 않는다. rolling outcomes·실제 연결·window mode는 지속하지 않는다.
-- game overlay setting: `game_overlay.rs`만 `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`의 5개 boolean, alert client-relative offset, 해상도별 체력바·디버프 영역·slot layout을 쓴다. 캡처 frame·HWND·PID·process start identity·누락 snapshot과 오류는 메모리에만 두고 renderer·legacy host·preview·alert window는 읽기 요청만 한다.
+- removed game overlay setting: 현재 source에는 `%APPDATA%\마비노기 렘 부스터\overlay\settings.json` writer나 reader가 없다. 기존 사용자 파일은 자동 삭제하지 않으며 어떤 runtime 결정에도 사용하지 않는다.
 
 ## 실시간 helper 상태와 게임 경로
 
@@ -99,20 +99,13 @@
 - 두 preload는 `channel-ping:get-status` 읽기 하나만 노출한다. 설정 쓰기와 창 command는 main renderer의 application channel과 backend service만 수행한다.
 - package fallback source는 저장소 root `channel.csv` 하나이며 `scripts/package-dioxus.mjs`가 두 HTML·두 preload와 함께 복사한다. Electron 0.3.x 호환 host는 preload 요청을 명시적으로 거부하고 두 번째 writer나 기능 구현이 되지 않는다.
 
-## 게임 화면 capture·overlay
+## 게임 화면 이미지 인식 금지
 
-- `game_overlay.rs`는 overlay 설정, 검증된 게임 window 선택, foreground 주기 client capture, 보스 체력바 검출, 해상도별 좌표 cache, 체력바 위 영역 캡처와 condition template·slot 판독을 소유한다. `service.rs`는 IPC와 preview·alert monitor만 조정하고 pixel 판정·cache 조건을 복제하지 않는다.
-- 여러 capability가 사용하는 physical rectangle은 `overlay_geometry.rs`의 `OverlayBounds` 하나를 사용한다. game overlay가 channel ping capability 내부 type에 의존하거나 서로의 window ID·visible state를 공유해서는 안 된다.
-- 게임 window 후보는 `process::matches_game`을 통과해야 한다. 후보가 여러 개면 persisted canonical game path와 정확히 일치하는 하나만 선택하고, 그렇지 않으면 fail closed한다. capture 전·후 PID와 process start identity가 달라지면 결과를 폐기한다.
-- foreground GDI capture는 기존 foreground HWND 저장, capture worker와 foreground·target UI thread의 임시 `AttachThreadInput`, 검증된 game foreground 전환, thread detach, 짧은 render 대기, client origin·size 계산, composited screen DC에서 해당 rectangle만 BitBlt, bitmap deselect 후 BGRA read, 같은 방식의 기존 foreground 복원 순서다. DirectX window DC는 빈 화면·stale surface 위험 때문에 지원 capture source가 아니다. attach는 성공 여부와 무관하게 즉시 해제하고 포커스 복원도 capture 성공 여부와 무관하게 수행한다.
-- detector는 압축 이미지·OCR에 의존하지 않는다. 회색 이중 하단선, 가변 거리 상단선, 검은 좌우선, aspect와 내부의 넓은 색상 게이지를 순수 BGRA 입력에서 판정하며 허용오차 변경은 synthetic positive·negative fixture를 동반한다.
-- `debuff.csv`는 ID·type 1~6·표시 이름의 package source이고 `data/conditions/{id}.png`는 16×16 RGB template source다. type 3의 물리·마법 중복 배치는 alert renderer 표현이며 backend 누락 snapshot을 복제하거나 쓰지 않는다.
-- tracking cache key는 현재 game client의 physical `width×height`다. cache hit도 저장된 체력바 rectangle만 다시 캡처해 외곽과 내부 색상을 검증해야 하며 실패하면 runtime detection과 stale 누락 snapshot을 폐기하고 2초 주기 full detection으로 복귀한다. PID·process start identity는 지속하지 않고 매 실행·재시작 때 현재 검증된 HWND와 결합한다.
-- slot layout은 같은 크기의 대상 template 둘 이상이 정확히 같은 y에 있고 x 차이의 최대공약수가 icon 너비 이상·너비+16 이하일 때만 확정한다. x phase·y·spacing·count를 디버프 영역 상대 좌표로 저장하고 이후 모든 template은 해당 slot에서만 비교한다. 조건을 만족하지 못하면 full-area 판독을 유지하며 임의 간격을 추정하지 않는다.
-- `overlay-settings`는 main-owned interactive window라 tray 이동 시 닫는다. `debuff-region-overlay`는 구성 중 판독 영역만 표시하는 click-through identity다. `debuff-alert-overlay`는 runtime에는 click-through이고 구성 중에만 focusable·drag 가능하다. 완료 동작은 향후 여러 오버레이를 함께 제어할 독립 `overlay-configuration` window가 소유하며 alert 위치 저장, 구성 상태 종료, preview·controller destroy를 한 transaction으로 조정한다.
-- 재인식은 preview monitor와 같은 gate를 획득해 기존 preview·alert window와 runtime detection을 제거하고 tracking state만 요청한다. 실제 capture는 alert monitor의 주기 tick이 전경 게임에서 수행하며 성공할 때까지 요청 상태를 유지한다. preview monitor는 gate를 장기 점유하지 않고 구성 mode에서만 체력바 위 동일 크기 영역을 표시한다.
-- settings preload는 get·set·retrack·configure·close IPC를, alert preload는 status·drag를, configuration preload는 drag·finish만 노출하고 preview preload는 제품 IPC를 노출하지 않는다. 네 HTML과 preload는 native allowlist·service contract·packager 입력을 함께 갱신한다. Electron 0.3.x host는 Rust 전용 요청을 명시적으로 거부한다.
-- 화면 pixel·게임 경로·사용자 식별 정보는 setting, log, evidence, screenshot 또는 외부 서비스로 보내지 않는다. 수동 QA 증거가 필요하면 사용자가 제공한 비식별 crop이나 synthetic fixture만 보존한다.
+- `FEAT-NOGIREM-GAME-OVERLAY`는 `REMOVED`다. `game_overlay.rs`, 전용 settings·preview·alert·configuration HTML/preload, service monitor·IPC, native auxiliary allowlist, package CSV·template 입력을 지원 경로로 두지 않는다.
+- 제품 기능은 게임 화면 pixel을 캡처·저장·분석하거나 OCR·template matching으로 상태를 추론해서는 안 된다. 기능명 변경, helper 분리, background service, 사용자 좌표 지정은 이 금지를 우회하지 못한다.
+- 새 변경은 `game_overlay`, `overlay-settings`, `debuff-alert`, `debuff-region-overlay`, `overlay-configuration`, `debuff.csv`, package `data/conditions` 의존성을 추가하지 않아야 한다.
+- `overlay_geometry.rs`와 `channel-ping-live`·`channel-ping-overlay`는 게임 화면 인식 코드가 아니다. 이들은 OS window geometry와 TCP 상태 표시를 위해 유지하며 화면 pixel capture 경로에 의존해서는 안 된다.
+- 과거 run·review 문서는 immutable history로 유지하지만 현재 기능 근거로 사용할 수 없다. 재도입은 일반 exception으로 승인할 수 없으며 제품 정책 변경과 별도 architecture review가 필요하다.
 
 ## update·설치 transaction과 호환성
 

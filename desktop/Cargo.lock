@@ -3254,7 +3254,6 @@ dependencies = [
  "chrono",
  "ed25519-dalek",
  "flate2",
- "image",
  "libloading 0.8.9",
  "regex",
  "reqwest",

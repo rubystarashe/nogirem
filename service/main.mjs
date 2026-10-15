@@ -5209,29 +5209,10 @@ function registerIpc() {
     }
     return getInputGuardSetting()
   })
-  // Rust 전용 오버레이 preload가 레거시 호스트에서 무응답으로 남지 않게 명시적으로 거부한다
+  // Rust 전용 채널 모니터링 preload가 레거시 호스트에서 무응답으로 남지 않게 명시적으로 거부한다
   ipcMain.handle("channel-ping:get-status", () => {
     throw new Error("실시간 게임 서버 모니터링은 Rust 앱에서만 지원합니다")
   })
-  for (const channel of [
-    "overlay-settings:request-close",
-    "overlay-settings:get-status",
-    "overlay-settings:set-setting",
-    "overlay-settings:detect-debuff-region",
-    "overlay-settings:configure-debuff-alert",
-    "debuff-alert:get-status",
-    "overlay-configuration:finish",
-  ]) {
-    ipcMain.handle(channel, () => {
-      throw new Error("게임 오버레이 설정은 Rust 앱에서만 지원합니다")
-    })
-  }
-  for (const channel of [
-    "debuff-alert:drag-start",
-    "overlay-configuration:drag-start",
-  ]) {
-    ipcMain.on(channel, () => {})
-  }
   ipcMain.handle("application:set-input-guard-setting", (event, setting) => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 마비노기 입력 기능 설정 변경 요청입니다")

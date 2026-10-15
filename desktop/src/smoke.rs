@@ -274,42 +274,6 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
         return Err("Turbo save did not reach service".into());
     }
 
-    client
-        .invoke(1, "application:open-overlay-settings", json!([]))
-        .await?;
-    tokio::time::sleep(Duration::from_millis(900)).await;
-    let overlay_settings = host
-        .0
-        .borrow()
-        .windows
-        .iter()
-        .find(|(id, _)| **id != 1)
-        .map(|(_, window)| window.clone())
-        .ok_or("Overlay settings window not created")?;
-    let overlay_result = inspect(
-        &overlay_settings,
-        "({bridge:typeof window.overlaySettings, errors:window.__nogiremErrors, text:document.body.innerText})",
-    )
-    .await?;
-    if overlay_result["bridge"] != "object"
-        || overlay_result["errors"]
-            .as_array()
-            .is_none_or(|items| !items.is_empty())
-        || !overlay_result["text"]
-            .as_str()
-            .unwrap_or("")
-            .contains("인터페이스 자동인식")
-    {
-        return Err(format!("overlay-settings: {overlay_result}"));
-    }
-    auxiliary_results.push(json!({"window":"overlay-settings","result":overlay_result}));
-    inspect(
-        &overlay_settings,
-        "setTimeout(()=>window.overlaySettings.requestClose(),50); true",
-    )
-    .await?;
-    tokio::time::sleep(Duration::from_millis(300)).await;
-
     tokio::time::sleep(Duration::from_millis(300)).await;
     inspect(
         &main,

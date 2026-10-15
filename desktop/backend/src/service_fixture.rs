@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 pub fn initial() -> Value {
     let graphics = json!({"supported":true,"detected":true,"allMet":true,"title":"NVIDIA 프로필","gpus":[{"name":"NVIDIA GeForce RTX 4090"}],"goalsList":(["수직 동기화 끄기","최대 프레임 400 FPS","스레드 최적화","최고 성능 선호","저지연 모드 울트라"].iter().map(|label|json!({"label":label,"met":true,"supported":true})).collect::<Vec<_>>())});
-    let mut fixture = json!({"status":{"affinity":{"ok":true,"data":{"running":true,"gameActive":false,"dxvk":{"state":"latest"},"characterSimplification":{"applied":true},"gameCoreSetting":{"maxGameCoreCount":4,"gameCoreCount":2,"hybrid":true}}},"memory":{"ok":true,"data":{"running":true}},"graphics":{"ok":true,"data":graphics},"network":{"ok":true,"data":{"optimized":true,"originalStateRecorded":true,"fastPing":{"supported":true,"current":{"interfaceAlias":"이더넷","TcpAckFrequency":1,"TCPNoDelay":1}},"tcpAutoTuning":{"optimized":true}}}},"blackbox":{"enabled":true,"featureEnabled":true,"durationSeconds":125},"turbo":{"enabled":false,"keys":[65],"intervalMs":10,"installed":true,"ignoreInitialDelay":false},"input":{"enabled":false,"cursorScalePercent":100,"cursorWheelModifier":"disabled"},"channelPing":{"enabled":false},"overlay":{"debuffNotifications":false,"tuarimNotifications":false,"collapseNotifications":false,"buffNotifications":false,"skillNotifications":false,"debuffRegionDetected":false,"detectionError":null}});
+    let mut fixture = json!({"status":{"affinity":{"ok":true,"data":{"running":true,"gameActive":false,"dxvk":{"state":"latest"},"characterSimplification":{"applied":true},"gameCoreSetting":{"maxGameCoreCount":4,"gameCoreCount":2,"hybrid":true}}},"memory":{"ok":true,"data":{"running":true}},"graphics":{"ok":true,"data":graphics},"network":{"ok":true,"data":{"optimized":true,"originalStateRecorded":true,"fastPing":{"supported":true,"current":{"interfaceAlias":"이더넷","TcpAckFrequency":1,"TCPNoDelay":1}},"tcpAutoTuning":{"optimized":true}}}},"blackbox":{"enabled":true,"featureEnabled":true,"durationSeconds":125},"turbo":{"enabled":false,"keys":[65],"intervalMs":10,"installed":true,"ignoreInitialDelay":false},"input":{"enabled":false,"cursorScalePercent":100,"cursorWheelModifier":"disabled"},"channelPing":{"enabled":false}});
     if std::env::args().any(|a|a=="--smoke-boost") {
         fixture["status"]["affinity"]["data"]["gameActive"]=json!(true);
         fixture["status"]["memory"]["data"]["gameActive"]=json!(true);
@@ -107,15 +107,6 @@ pub fn invoke(s: &Arc<Service>, id: u64, channel: &str, args: &Value) -> Option<
         "blackbox-manager:get-editor-session" | "blackbox-editor:get-session" => {
             json!({"requestedSeconds":900,"anchorAt":crate::now_ms(),"segments":[],"gaps":[],"timelineDurationSeconds":900})
         }
-        "overlay-settings:get-status" => state["overlay"].clone(),
-        "overlay-settings:set-setting" => {
-            if let Some(fields) = v.as_object() {
-                for (key, value) in fields {
-                    state["overlay"][key] = value.clone();
-                }
-            }
-            state["overlay"].clone()
-        }
         "blackbox-manager:report-playback"
         | "blackbox-editor:report-playback"
         | "blackbox-manager:set-page"
@@ -141,7 +132,6 @@ pub fn invoke(s: &Arc<Service>, id: u64, channel: &str, args: &Value) -> Option<
                         | "application:open-dxvk-manager"
                         | "application:open-blackbox-manager"
                         | "application:open-blackbox-editor"
-                        | "application:open-overlay-settings"
                 )
             {
                 return None;

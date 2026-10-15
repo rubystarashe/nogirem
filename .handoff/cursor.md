@@ -1,14 +1,13 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-07 18:15 +09:00
+Last Updated: 2026-10-15 14:45 +09:00
 
 ## Current Objective
-`FEAT-NOGIREM-GAME-OVERLAY`의 자동 추적, 해상도별 체력바·디버프 좌표 cache, 지속 재인식과 slot-only 판독 checkpoint를 구현했다. 자동 검사는 통과했으며 실제 게임 시작 재로드·해상도 전환·재인식 지속·slot 성능 확인이 남았다.
+화면 이미지 인식 기능 금지 결정에 따라 `FEAT-NOGIREM-GAME-OVERLAY`를 제품 source·UI·IPC·package 입력에서 제거하고 `REMOVED` tombstone과 architecture 금지 경계를 검증한다. 화면 pixel을 처리하지 않는 `FEAT-NOGIREM-CHANNEL-PING`의 상단·전체표 창은 유지한다.
 
 ## Active Runs
+- `20261015-remove-game-overlay-045`: source base `5f67ca0c41c5a727729b3412458f0c9f886867d3`에서 화면 이미지 인식 기반 게임 오버레이의 UI·backend·monitor·IPC·auxiliary window·package template 입력을 제거하고 canonical feature를 `REMOVED`로 전환 중이다. (`docs/ai/runs/20261015-remove-game-overlay-045/task.md`)
 - `20261006-antivirus-false-positive-045`: 유료 Authenticode 없이 백신 오진 신호를 줄이기 위해 신규 설치에서는 기존 파일이 없을 때 종료 PowerShell을 생략하고, update/uninstall 명령에서 `ExecutionPolicy Bypass`를 제거했으며 설치형·포터블 outer PE 식별 resource를 추가했다. Node 208/208, 미서명 package·NSIS `/WX`·10MB 제한·PE metadata 검증이 통과했다. non-solid LZMA는 설치형이 10MB 제한을 초과해 철회했고 실제 설치·VirusTotal 재분석·배포는 수행하지 않았다. (`docs/ai/runs/20261006-antivirus-false-positive-045/task.md`)
-- `20261006-game-overlay-debuff-045`: source base `15d425d9c35b25dd3a1836027d5ba6acf66d70d9`에서 실제 렌더링 endpoint·세로 연속률·하단 색상·상단 부분 단절을 허용하고 재인식 중 preview capture race를 제거했다. detector 9/9·backend 전체·Clippy·diff/lint가 통과했고 사용자가 3440×1440 실제 보스 화면 positive 검출을 확인했다. (`docs/ai/runs/20261006-game-overlay-debuff-045/task.md`)
-- `20261006-debuff-missing-overlay-045`: 디버프 누락 layer·독립 구성 controller에 이어 source base `51d0ee4a091ffb2d61406a0ee948400a4ae02135`에서 시작 자동 추적, 해상도별 체력바·디버프 영역·slot layout cache, 지속 재인식과 slot-only 판독을 구현했다. desktop check, game overlay backend 18/18, Node 5/5가 통과했고 실제 게임 신규 flow는 NOT_RUN이다. (`docs/ai/runs/20261006-debuff-missing-overlay-045/task.md`)
 - `20261006-tray-channel-monitor-045`: tray cleanup이 일반 보조 창만 닫고 `channel-ping-overlay`·`channel-ping-live`를 보존하도록 source `66d56b49544219fa7c8f38d5aea77a87f78bb11c`에서 수정했다. backend 105 PASS·2 declared ignore, parity 2/2, overlay 3/3과 SELF_REVIEW가 통과했다. 실제 tray·게임·Windows 키·DPI QA와 package·push·재배포는 수행하지 않았다. (`docs/ai/runs/20261006-tray-channel-monitor-045/task.md`)
 - `20261005-release-045`: source `2fd708bee4af0513a68b21618e81e0173516c098`에서 signed 설치형·포터블을 만들고 origin/main push, v0.4.5 tag와 [GitHub v0.4.5](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.5) 자산 10개를 공개했다. 공개 10/10 hash·Ed25519 manifest·Electron 0.3.19 bridge 재검증이 통과했다. 실제 설치·게임·혼합 DPI QA는 수행하지 않았다. (`docs/ai/runs/20261005-release-045/task.md`)
 - `20261005-package-045`: source `4c11b0e42055073597d080cf59219d22cd06cfbb`에서 0.4.5 서명 설치형·포터블을 `release/dioxus-0.4.5-2026-10-05T08-21-42-249Z`에 생성하고 자동·native contract·해시·manifest 검증을 통과했다. 실제 설치·포터블 실행과 push·tag·GitHub release·배포는 수행하지 않았다. (`docs/ai/runs/20261005-package-045/final-report.md`)
@@ -27,19 +26,16 @@ Last Updated: 2026-10-07 18:15 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
-- 디버프 누락 alert는 `debuff.csv`의 현재 16개 ID·type·name과 `data/conditions/{id}.png`를 읽는다. type 1=물리, 2=마법, 3=물리·마법 양쪽, 4=보너스, 5=이동속도, 6=아르카나 layer이며 각 아이콘 아래 CSV 이름을 표시한다.
-- `인터페이스 구성`은 별도 `overlay-configuration` controller window를 열고 `구성 완료`가 alert 위치 저장, 구성 mode 종료, 영역 preview와 controller native window 제거를 조정한다. preview·alert가 불필요할 때는 hide 재사용 대신 destroy해 투명 Windows surface 잔상을 방지한다.
-- 자동 검사는 game overlay Node 5/5, backend game_overlay 18/18과 desktop locked check가 통과했다. 새 자동 추적·cache·slot 경로와 기존 layer·controller·완료 후 preview 제거·잔상은 실제 게임에서 재확인이 필요하다.
-- 고급 기능의 `게임 오버레이` 버튼은 별도 520×700 settings window를 열고 5개 알림 boolean을 `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`에 원자 저장한다. 자동인식과 위치 구성은 디버프 알림 toggle과 독립적으로 실행할 수 있으며 나머지 4종은 설정 UI만 구현됐다.
-- 디버프 알림이 저장된 채 앱이 시작되면 monitor가 전경 정본 게임을 자동 추적한다. physical client 해상도별 체력바·바로 위 디버프 영역을 `overlay/settings.json`에 저장하고, 다음 실행은 저장 좌표의 작은 crop에서 외곽·내부 색상을 검증한 뒤 사용한다. stale 좌표는 누락 snapshot과 함께 폐기하고 2초 주기 full detection으로 복귀한다.
-- 설정창의 `인터페이스 자동인식`은 `재인식`으로 바뀌었다. 요청 즉시 다른 창의 focus를 빼앗지 않고 runtime detection을 지운 뒤 전경 게임에서 찾을 때까지 background monitor가 계속 시도하며 설정창은 1초 status polling으로 진행·성공·오류를 표시한다.
-- full-area 판독에서 같은 y의 대상 아이콘 둘 이상으로 icon 너비 이상·너비+16 이하 spacing을 증명하면 x phase·y·spacing·slot 수를 해상도 cache에 저장한다. 이후 모든 16×16 template은 계산된 slot 좌표에서만 ±2 RGB exact matching하며 layout을 확정하지 못한 동안만 full-area 판독을 유지한다.
-- `npm run app:dev`는 최신 source를 빌드해 실행 명령까지 도달했지만 exit 0 뒤 process가 남지 않았다. elevation 또는 기존 single-instance 상태를 구분하지 못했으므로 실제 게임 QA 전 사용자가 최신 debug 앱을 직접 실행해 runtime을 확인해야 한다.
-- 추적은 정본 path를 만족하는 visible non-minimized game HWND 하나를 선택하며 복수 후보는 canonical game path 단일 일치가 없으면 거부한다. background monitor는 게임이 이미 foreground인 경우에만 capture하고 전·후 PID·start identity를 재확인한다.
-- `재인식`과 위치 구성은 디버프 알림 toggle과 독립적으로 요청할 수 있다. 설정창은 높이 700px로 scrollbar를 제거했고 닫을 때 표준 300ms fade-out 후 메인 창을 focus한다.
-- DirectX window DC의 blank·stale frame 문제를 피하려고 전경 게임의 client origin·size를 계산하고 composited screen DC에서 그 rectangle만 캡처한다. compatible bitmap은 memory DC에서 해제한 뒤 `GetDIBits`로 읽는다.
-- detector는 회색 이중 하단선 정밀 경로와 상단·좌우선 fallback을 함께 사용한다. 상·하단 양쪽 endpoint, 90% 검은 세로선, 한쪽 상단선 최대 32px 길이 차이와 5:1 aspect를 검증하며 재인식 중에는 preview monitor를 잠그고 기존 preview를 제거한다.
-- 검출 좌표는 client-local physical pixel이며 해상도별 체력바·디버프 영역·slot layout만 settings에 지속한다. HWND·PID·start identity는 메모리에만 두고 현재 검증된 game instance와 다시 결합한다. `debuff-region-overlay`는 같은 game HWND가 foreground일 때만 screen origin을 다시 계산해 구성 중 정확한 영역 위에 `디버프 영역` 테두리·라벨을 표시하며 다른 앱에서는 숨는다.
+- 게임 화면 pixel capture, 체력바·디버프 template matcher, 해상도별 좌표 cache, 디버프 누락 alert, 게임 오버레이 설정·구성 창과 관련 IPC·package 입력을 제거했다.
+- 기존 `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`은 더 이상 읽거나 쓰지 않으며 사용자 데이터 보존을 위해 자동 삭제하지 않는다.
+- `channel-ping-live`·`channel-ping-overlay`는 OS TCP 상태만 표시하고 게임 화면 pixel을 처리하지 않으므로 유지한다.
+- Node 205/205, backend 105 PASS·2 declared ignore, integration parity 2/2, desktop locked check, 채널 창 보존 1/1과 금지 경로 enforcement가 통과했다. package·설치·게임 수동 실행은 NOT_RUN이다.
+- SELF_REVIEW `APPROVED`; 독립 reviewer는 참여하지 않았다.
+- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — REMOVED`
+- feature_map: `updated — REMOVED tombstone과 검증 evidence 반영`
+- architecture_impact: `게임 화면 이미지 인식 runtime·writer·window 제거와 재도입 금지`
+- architecture_contract: `updated — 금지 경계와 채널 핑 보존 범위 명시`
+- unrelated_preserved: 사용자 수정 `NOTICE.md`, 기존 비추적 data·installer-cleanup 파일
 - tray 최소화와 tray에서 다시 열기는 character guide·blackbox manager 등 일반 보조 창을 정리하되 hidden `channel-ping-overlay`·`channel-ping-live`는 유지한다. 별도 backend channel monitor thread와 input hook도 main WebView visibility에 묶이지 않으므로 기능 활성 상태가 유지된다. 이 fix는 local commit `66d56b4`에 있으며 공개 v0.4.5 package에는 아직 포함되지 않았다.
 - 0.4.5 공개 패키지는 설치형 `9,563,418 bytes` SHA-256 `aada494d...308b7`, 포터블 `7,790,592 bytes` SHA-256 `5269af6c...1bef8`이다. Node 204/204, desktop 8/8, backend integration 3/3, package contract·서명과 공개 재다운로드 자산 10/10 검증이 통과했다.
 - 공개 0.4.5는 Authenticode 미서명이며 VirusTotal 기준 설치형 4/71·포터블 6/71 탐지가 확인됐다. 후속 source는 신규 설치의 불필요한 임시 PowerShell과 policy bypass를 제거하고 outer PE metadata를 추가했지만 아직 공개 자산을 교체하거나 VirusTotal에 재업로드하지 않았다.
@@ -223,4 +219,4 @@ Last Updated: 2026-10-07 18:15 +09:00
 - 원격 REPORT 자동 정리 커밋을 병합하고 `v0.3.16` 태그와 GitHub Release를 공개했다. 네 자산의 원격 digest가 로컬 SHA-256과 일치한다.
 
 ## Next Recommended Step
-0.4.x 무응답 사용자에게 `%LOCALAPPDATA%\NogiremUpdater\updates\bootstrap.log`와 `%APPDATA%\마비노기 렘 부스터\logs\startup.log`를 받아 WebView 이전·이후 실패 단계를 확인한다.
+이 checkpoint의 다음 필수 작업은 없다. 배포가 필요하면 별도 승인된 package·설치 QA checkpoint에서 제거된 파일이 payload에 포함되지 않는지 확인한다.
