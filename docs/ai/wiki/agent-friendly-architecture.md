@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `23`
-- updated_at: `2026-10-15T05:45:00Z`
+- revision: `24`
+- updated_at: `2026-10-15T12:00:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T05:45:00Z`
+- source_reviewed_at: `2026-10-15T12:00:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted removal target based on 5f67ca0c41c5a727729b3412458f0c9f886867d3`
-- source_review_evidence: `게임 화면 image recognition module·writer·IPC·window·package input 제거와 금지 경계 SELF_REVIEW`
-- behavior_verified_at: `2026-10-15T05:46:17Z`
-- behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted removal target based on 5f67ca0c41c5a727729b3412458f0c9f886867d3`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust locked build와 Node architecture enforcement`
-- behavior_verification_evidence: `금지 경로 enforcement PASS, Node 205/205 PASS, backend 105 PASS·2 declared ignore와 integration parity 2/2 PASS, desktop locked check PASS`
+- source_review_target: `base 36e24da646d91b6bcde35ac3aea06c16c4274d63 + RUN-20261015-UPDATER-HOTFIX-046 working target`
+- source_review_evidence: `update job 파일별 seal, commit seal, 검증된 updater PID handoff와 NSIS 종료 책임 SELF_REVIEW`
+- behavior_verified_at: `null`
+- behavior_verified_by: `NOT_RUN`
+- behavior_verification_target: `NOT_RUN — hotfix signed package와 이전 버전 실행 target 미확정`
+- behavior_verification_environment: `Windows 10.0.26200 x64 source 자동 검사만 수행`
+- behavior_verification_evidence: `backend 105 PASS·3 declared ignore, parity 2/2 PASS, installer 회귀 10/10 PASS; 실제 update transaction은 NOT_RUN`
 - freshness_status: `CURRENT`
-- freshness_reason: `화면 이미지 인식 기능 제거와 재도입 금지 경계를 현재 source에 맞게 반영`
-- known_gaps: `기존 AppData overlay 설정은 orphaned user data로 남으며 자동 삭제하지 않음; package 생성·설치와 기존 설정 보유 상태 수동 실행은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — REMOVED`
-- feature_map: `updated — REMOVED tombstone과 제거 범위 기록`
-- architecture_impact: `게임 화면 capture·template matcher·settings writer·전용 auxiliary window 경계 제거`
-- architecture_contract: `updated — 화면 이미지 인식 금지 정책 추가`
+- freshness_reason: `현재 source의 update 보호 파일과 프로세스 종료 책임 경계를 반영하며 미배포·미실행 상태를 명시`
+- known_gaps: `signed hotfix package 자동 검증은 통과했으나 공개 이전 버전에서의 실제 관리자 update transaction은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 작업 파일 신뢰 판정과 설치 handoff`
+- feature_map: `updated — lifecycle PARTIAL과 미검증 hotfix 상태 반영`
+- architecture_impact: `update job 파일별 High Integrity seal, Rust updater와 NSIS process terminator 책임`
+- architecture_contract: `updated — 상속 레이블 비의존과 검증된 handoff 단일 종료 경계`
 
 ## 계층과 확장 경로
 
@@ -110,10 +110,11 @@
 ## update·설치 transaction과 호환성
 
 - manifest 서명과 payload SHA-256 검증 전에 설치를 시작하지 않는다.
-- updater 작업은 migration mutex로 직렬화하고 보호 cache의 reparse와 Win32 mandatory-label ACL을 검증한다. PowerShell SDDL 문자열 표현은 신뢰 판정에 사용하지 않으며 label authority, NO_WRITE_UP 정책과 High/System RID를 모두 요구한다.
+- updater 작업은 migration mutex로 직렬화하고 보호 cache의 reparse와 Win32 mandatory-label ACL을 검증한다. `update.json`, payload, helper, `job.json`, `result.json`, 설치 승인 `commit`은 디렉터리 상속에만 의존하지 않고 생성 직후 파일별 High Integrity를 적용·재검증한다. PowerShell SDDL 문자열 표현은 신뢰 판정에 사용하지 않으며 label authority, NO_WRITE_UP 정책과 High/System RID를 모두 요구한다.
 - 설치형은 파일·설정 backup 후 설치하고 건강 확인 실패 시 복원한다. 포터블은 동일 볼륨 원자 교체와 backup digest를 사용한다.
 - 새 updater는 installer에 자신의 PID를 전달한다. 이전 0.4.1 updater는 인자가 없으므로 installer 종료 script가 검증된 parent `updater.exe` 하나를 자동 보존한다.
 - 직접 설치·제거는 보호 updater 경로의 stale helper를 종료한다. 설치 폴더 프로세스가 정상 종료 중 다시 생길 수 있으므로 안정 구간까지 반복 조회한다.
+- 서명 update helper는 기록된 app·backend PID 종료와 worker flush를 완료한 뒤 NSIS를 실행한다. NSIS stop script는 전달된 PID가 보호 cache의 정확한 `updater.exe`인지 검증한 경우 설치 폴더 프로세스를 다시 탐색하지 않는다. 직접 설치·제거와 인자 없는 0.4.1 호환 경로만 반복 종료 탐색을 소유한다.
 - 신규 설치 대상에 기존 파일이 없으면 프로세스 종료 PowerShell을 실행하지 않는다. 기존 설치 업데이트와 제거에서만 package가 생성한 고정 script를 `-NoProfile -NonInteractive -File`로 실행하며 `ExecutionPolicy Bypass`를 사용하지 않는다.
 - 설치형·포터블 outer PE는 제품명, 설명, file/product version, internal/original filename과 copyright resource를 포함한다. 이는 Authenticode를 대체하지 않으며 update manifest의 Ed25519 서명도 Windows publisher 신뢰를 제공하지 않는다.
 - 배포 압축은 파일 공유 10MB 제한 때문에 solid LZMA를 유지한다. non-solid 변경은 실제 0.4.5 payload에서 설치형 `10,132,758 bytes`로 제한을 초과했으므로 적용하지 않으며, 이로 인한 NSIS overlay 휴리스틱 gap을 숨기지 않는다.

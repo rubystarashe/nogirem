@@ -985,6 +985,10 @@ impl Service {
             self.updater.failed(e.to_string());
             return Err(e.to_string());
         }
+        if let Err(e) = crate::update_install::seal_commit(&dir) {
+            self.updater.failed(e.clone());
+            return Err(e);
+        }
         self.finish_exit("keep")
     }
     fn notice(&self) -> Result<Value> {

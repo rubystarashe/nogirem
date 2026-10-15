@@ -41,15 +41,19 @@ function Test-UpdaterPid([int]$ProcessId) {
     } catch { $false }
 }
 $preservedUpdaterPid = 0
-if (Test-UpdaterPid $UpdaterPid) {
+$parentPid = 0
+try {
+    $caller = Get-CimInstance Win32_Process -Filter "ProcessId = $CallerPid" -ErrorAction Stop
+    $parentPid = [int]$caller.ParentProcessId
+} catch { Write-Verbose $_ }
+if ($UpdaterPid -gt 0) {
+    if ($parentPid -ne $UpdaterPid -or !(Test-UpdaterPid $UpdaterPid)) {
+        throw '업데이트 설치 프로세스의 부모와 경로를 확인하지 못했습니다.'
+    }
     $preservedUpdaterPid = $UpdaterPid
-} else {
+} elseif (Test-UpdaterPid $parentPid) {
     # 0.4.1 updater는 전용 인자를 전달하지 않으므로 검증된 설치기 부모만 자동 보존한다.
-    try {
-        $caller = Get-CimInstance Win32_Process -Filter "ProcessId = $CallerPid" -ErrorAction Stop
-        $parentPid = [int]$caller.ParentProcessId
-        if (Test-UpdaterPid $parentPid) { $preservedUpdaterPid = $parentPid }
-    } catch { Write-Verbose $_ }
+    $preservedUpdaterPid = $parentPid
 }
 if ($Uninstall) {
     # 제거가 중단돼도 재부팅 때 같은 앱이 다시 시작되지 않도록 대상 예약 작업을 먼저 해제한다.
@@ -66,6 +70,11 @@ if ($updaters.Count -gt 0) {
     if ($updaters.Count -gt 0) {
         throw '업데이트 설치 프로세스를 종료하지 못했습니다. 작업 관리자에서 앱 업데이트를 종료한 뒤 다시 시도하세요.'
     }
+}
+if ($UpdaterPid -gt 0) {
+    # 서명 payload를 적용하는 helper는 기록된 앱·backend PID 종료와 worker flush를 이미 완료했다.
+    # 설치기에서 설치 폴더를 다시 탐색하면 종료 중인 보조 프로세스를 일반 앱으로 오판할 수 있다.
+    exit 0
 }
 $deadline = [DateTime]::UtcNow.AddSeconds($GracefulTimeoutSeconds)
 $forceDeadline = $null

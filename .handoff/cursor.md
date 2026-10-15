@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-15 15:40 +09:00
+Last Updated: 2026-10-15 21:22 +09:00
 
 ## Current Objective
-최종 안전 공지를 포함한 0.4.6 source를 origin/main에 push하고 annotated tag와 signed GitHub Release 자산 10개를 공개·재검증했다.
+0.4.6 자동 업데이트의 작업 파일 신뢰 오판과 NSIS 실행 중 앱 오판 hotfix source·signed 후보를 완료했고, 공개 대치 전 이전 버전 종단간 검증이 남았다.
 
 ## Active Runs
+- `20261015-updater-hotfix-046`: 공개 0.4.6 적용 제보의 `신뢰할 수 없는 업데이트 작업 파일`, helper exit 255, NSIS 실행 중 앱 오판·exit 1을 분리해 수정했다. 모든 신뢰 파일과 후속 state·포터블 복구 파일을 생성·교체마다 High Integrity로 seal하며, NSIS는 실제 부모이자 보호 cache의 정확한 updater PID만 중복 설치 프로세스 탐색을 생략한다. Node 206/206, backend 105 PASS·3 declared ignore, parity 2/2, installer 10/10, signed package 검증과 독립 리뷰가 통과했다. 후보는 `release/dioxus-0.4.6-2026-10-15T12-17-45-499Z`; 실제 이전 버전→후보 적용과 GitHub 자산 대치는 NOT_RUN이다. (`docs/ai/runs/20261015-updater-hotfix-046/task.md`)
 - `20261015-release-046`: source `4838885c2d810b7ec12cd1dfb99a83c0d8fbd21c`에서 최종 공지를 포함한 0.4.6 signed 설치형·포터블과 Electron migration bridge 자산 10개를 [GitHub v0.4.6](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.6)로 공개했다. 공개 재다운로드 10/10 hash와 signed manifest·routing 재검증이 통과했으며 실제 설치·게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261015-release-046/final-report.md`)
 - `20261015-package-046`: source `cdc477dd775849c7be102e4cc31a90473f74e171`과 사용자 `NOTICE.md` SHA-256 `896a7366...920d`에서 0.4.6 설치형·포터블과 signed manifest를 `release/dioxus-0.4.6-2026-10-15T05-57-08-337Z`에 생성·검증했다. Node 205/205, backend 105 PASS·2 ignore, parity 2/2, desktop 8/8, native integration 3/3과 package 검증이 통과했으며 배포·설치·실행은 NOT_RUN이다. (`docs/ai/runs/20261015-package-046/final-report.md`)
 - `20261015-remove-game-overlay-045`: source `ad6125e425797a146e1ee01af591ede2d3e83173`에서 화면 이미지 인식 기반 게임 오버레이의 UI·backend·monitor·IPC·auxiliary window·package template 입력을 제거하고 canonical feature를 `REMOVED`로 전환했다. (`docs/ai/runs/20261015-remove-game-overlay-045/final-report.md`)
@@ -28,6 +29,12 @@ Last Updated: 2026-10-15 15:40 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- 자동 업데이트 hotfix signed 설치형은 `9,576,758 bytes`, SHA-256 `3327260676e2b754314956ef2ba2f625452f2070f2430e6868bb1560afd56920`; 포터블은 `7,795,362 bytes`, SHA-256 `a03315ef4cf647d00fa4075b9503284761804506ec4c7f87adf58ec56450a2b1`이다.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 작업 파일 신뢰 판정과 설치 handoff`
+- feature_map: `updated — lifecycle PARTIAL, 공개 결함과 미배포 hotfix 상태 반영`
+- architecture_impact: `파일별 High Integrity seal, updater 실제 부모 PID 결속, Rust/NSIS 종료 책임`
+- architecture_contract: `updated — revision 24`
+- 공개 v0.4.6 자산은 아직 대치하지 않았다. 신뢰 판정에서 이미 막히는 구 updater는 새 source를 실행하기 전에 실패할 수 있으므로 해당 사용자는 수정 설치형을 한 번 수동 설치해야 할 수 있다.
 - 공개 0.4.6 설치형은 `9,572,561 bytes`, SHA-256 `01dffc8375f98d93e01f84e7e5137df3fbaa087879090a14e9985813b0678df1`다.
 - 공개 0.4.6 포터블은 `7,791,805 bytes`, SHA-256 `68ff04252b14559ee253ff4ef08c3b8bad1d4d0885e17a6863a534c3b3c56e53`다.
 - 두 update manifest는 0.4.6 artifact size·SHA-256와 일치하고 Ed25519 자체 검증을 통과했다. channel overlay payload는 존재하고 제거된 game overlay HTML·preload·CSV·condition template은 부재한다.
@@ -225,4 +232,4 @@ Last Updated: 2026-10-15 15:40 +09:00
 - 원격 REPORT 자동 정리 커밋을 병합하고 `v0.3.16` 태그와 GitHub Release를 공개했다. 네 자산의 원격 digest가 로컬 SHA-256과 일치한다.
 
 ## Next Recommended Step
-이 checkpoint의 다음 필수 작업은 없다. 운영 후속으로 설치형·포터블 실행, 자동 업데이트, 게임과 혼합 DPI QA를 별도 수행할 수 있다.
+공개 대치 승인을 받기 전에 격리된 0.4.5 설치형·포터블에서 최종 hotfix 후보로 실제 관리자 update transaction을 실행한다. 신뢰 판정에서 먼저 막히는 client는 수정 설치형 수동 설치 복구가 필요함을 안내한다. GitHub v0.4.6 자산 대치·push는 별도 승인 전 수행하지 않는다.

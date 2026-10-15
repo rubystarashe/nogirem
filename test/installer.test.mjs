@@ -51,6 +51,11 @@ test('설치기는 정상 종료를 기다리고 해당 설치의 예약 작업�
   assert.doesNotMatch(installer, /ExecutionPolicy Bypass/)
   assert.match(installer, /\/NOGIREMUPDATE=[\s\S]*-UpdaterPid \$2/)
   assert.match(updateInstall, /format!\("\/NOGIREMUPDATE=\{\}",std::process::id\(\)\)/)
+  assert.match(updateInstall, /fn seal_path[\s\S]*set_file_integrity\(path,"H"\)[\s\S]*require_high_integrity\(path\)/)
+  assert.match(updateInstall, /fn trusted_state[\s\S]*seal_path\(&dir\.join\("result\.json"\),"result\.json"\)/)
+  assert.match(updateInstall, /seal_path\(&backup,"previous-portable\.exe"\)[\s\S]*seal_path\(&recovery,"portable-recovery\.json"\)/)
+  assert.match(updateInstall, /pub fn seal_commit[\s\S]*seal_path\(&dir\.join\("commit"\),"commit"\)/)
+  assert.match(cleanup, /if \(\$UpdaterPid -gt 0\)[\s\S]*\$parentPid -ne \$UpdaterPid[\s\S]*Test-UpdaterPid \$UpdaterPid[\s\S]*exit 0/)
   assert.match(cleanup, /Stop-Process -Force/)
   assert.doesNotMatch(cleanup, /taskkill.*\/IM/i)
   assert.match(rustService, /read_to_string\(&close\)/)
@@ -131,6 +136,91 @@ test('종료 스크립트는 updater와 대기 중 새로 생성된 설치 프�
     for (const child of children) assert.notEqual(child.exitCode, null)
   } finally {
     for (const child of children) {
+      if (child.exitCode === null) {
+        child.kill()
+        await new Promise(resolve => child.once('exit', resolve))
+      }
+    }
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+test('검증된 updater 설치는 이미 종료를 마친 앱을 다시 탐색하지 않는다', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'nogirem-trusted-update-'))
+  const local = join(directory, 'local')
+  const install = join(directory, 'install')
+  const updaterDirectory = join(local, 'NogiremUpdater', 'updates', 'job-test')
+  const unrelatedUpdaterDirectory = join(local, 'NogiremUpdater', 'updates', 'job-other')
+  await mkdir(install, { recursive: true })
+  await mkdir(updaterDirectory, { recursive: true })
+  await mkdir(unrelatedUpdaterDirectory, { recursive: true })
+  const app = join(install, 'nogirem.exe')
+  const updater = join(updaterDirectory, 'updater.exe')
+  const unrelatedUpdater = join(unrelatedUpdaterDirectory, 'updater.exe')
+  const installer = join(updaterDirectory, 'installer.exe')
+  const helper = join(directory, 'updater-helper.mjs')
+  const state = join(directory, 'child.json')
+  await copyFile(process.env.ComSpec, app)
+  await copyFile(process.execPath, updater)
+  await copyFile(process.execPath, unrelatedUpdater)
+  await copyFile(process.env.ComSpec, installer)
+  await writeFile(helper, [
+    'import { spawn } from "node:child_process"',
+    'import { writeFileSync } from "node:fs"',
+    'const child = spawn(process.argv[2], ["/d", "/c", "ping", "127.0.0.1", "-n", "30"], { stdio: "ignore", windowsHide: true })',
+    'writeFileSync(process.argv[3], JSON.stringify({ pid: child.pid }))',
+    'child.once("exit", code => process.exit(code ?? 0))',
+    'setInterval(() => {}, 1000)',
+  ].join('\n'))
+  const installedProcess = spawn(app, ['/d', '/c', 'ping', '127.0.0.1', '-n', '30'], { windowsHide: true, stdio: 'ignore' })
+  const updaterProcess = spawn(updater, [helper, installer, state], { windowsHide: true, stdio: 'ignore' })
+  const unrelatedUpdaterProcess = spawn(unrelatedUpdater, [helper, installer, join(directory, 'unrelated-child.json')], { windowsHide: true, stdio: 'ignore' })
+  let installerPid = 0
+  try {
+    const deadline = Date.now() + 5000
+    while (!installerPid && Date.now() < deadline) {
+      try {
+        installerPid = JSON.parse(await readFile(state, 'utf8')).pid
+      } catch {
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+    }
+    assert.ok(installerPid > 0)
+    const powershell = join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    const environment = {
+      ...process.env,
+      APPDATA: join(directory, 'roaming'),
+      LOCALAPPDATA: local,
+    }
+    const forged = spawn(powershell, [
+      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', fileURLToPath(new URL('../scripts/stop-installed-app.ps1', import.meta.url)),
+      '-InstallDirectory', install,
+      '-CallerPid', String(installerPid),
+      '-UpdaterPid', String(unrelatedUpdaterProcess.pid),
+      '-GracefulTimeoutSeconds', '1',
+    ], { windowsHide: true, stdio: 'ignore', env: environment })
+    const forgedCode = await Promise.race([
+      new Promise(resolve => forged.once('exit', resolve)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('위조 updater PID 검사 시간 초과')), 8000)),
+    ])
+    assert.notEqual(forgedCode, 0)
+    const check = spawn(powershell, [
+      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', fileURLToPath(new URL('../scripts/stop-installed-app.ps1', import.meta.url)),
+      '-InstallDirectory', install,
+      '-CallerPid', String(installerPid),
+      '-UpdaterPid', String(updaterProcess.pid),
+      '-GracefulTimeoutSeconds', '1',
+    ], { windowsHide: true, stdio: 'ignore', env: environment })
+    const code = await Promise.race([
+      new Promise(resolve => check.once('exit', resolve)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('검증된 updater 종료 스크립트 시간 초과')), 8000)),
+    ])
+    assert.equal(code, 0)
+    assert.equal(installedProcess.exitCode, null)
+    assert.equal(updaterProcess.exitCode, null)
+  } finally {
+    for (const child of [installedProcess, updaterProcess, unrelatedUpdaterProcess]) {
       if (child.exitCode === null) {
         child.kill()
         await new Promise(resolve => child.once('exit', resolve))
