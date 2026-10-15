@@ -13,8 +13,8 @@
 - authorization: `0.4.7 source fix, local commits, origin/main push and existing v0.4.7 asset replacement`
 - roles: `Coordinator=DEV=QA=Documentation maintainer cursor-agent-92251f36; independent reviewer generalPurpose agent 0051f39a-3f3d-46c3-978f-d3bfc2e13bec`
 - dev_state: `READY_FOR_QA`
-- qa_state: `COMPLETE_PASS for source checkpoint`
-- review_verdict: `APPROVED for source checkpoint`
+- qa_state: `COMPLETE_PASS for source and package checkpoints`
+- review_verdict: `APPROVED for source checkpoint; package publication review pending`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 실행 프로세스가 없는데 제거가 차단되고 retired package files가 install directory에 남는 결함`
 - feature_map: `blocked — exact fix and verification evidence pending`
 - architecture_impact: `installer stop-script failure semantics, scheduled-task cleanup ownership and exact retired-asset deletion boundary`
@@ -50,3 +50,12 @@
 - validation: installer `11/11`, full Node `212/212`, backend `115 PASS·3 ignored` plus parity `2/2`, desktop check, PowerShell parse, diff check and lint `0`.
 - review: `INDEPENDENT_REVIEW APPROVED`, two must-fix findings resolved, unresolved `0`.
 - remaining_checkpoint: source commit, signed package, package verification, same-version public replacement and public re-download verification.
+
+## Package checkpoint
+
+- source_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
+- package_target: `release/dioxus-0.4.7-2026-10-15T18-11-53-739Z`
+- installer: `9,569,870 bytes`, SHA-256 `5d01a715a04d89bd2fbb531a2b3fb8fa9d85f0f0ee9e2cbd66aff17325ebff1c`
+- portable: `7,789,387 bytes`, SHA-256 `985c8a241760a90fe2fe456982490c4d15201b6340c0c3a97103191b655ac6e5`
+- result: `PASS — signed manifests, native contract, NSIS /WX, stop-script source identity, exact cleanup source, payload boundary and native integration 3/3`
+- remaining_checkpoint: package publication review, source push, v0.4.7 asset replacement, public re-download verification and final records.

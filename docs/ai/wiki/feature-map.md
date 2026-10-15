@@ -303,16 +303,16 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-15T18:00:06Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base e975a26865e1481984a092d93fa560d5abf2fa27 + RUN-20261016-UNINSTALL-HOTFIX-047 working target`
+- source_review_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
 - source_review_evidence: `scripts/stop-installed-app.ps1, desktop/installer.nsi, desktop/retired-assets-cleanup.nsh, test/installer.test.mjs`
 - behavior_verified_at: `2026-10-15T18:00:06Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base e975a26865e1481984a092d93fa560d5abf2fa27 + RUN-20261016-UNINSTALL-HOTFIX-047 working target`
+- behavior_verification_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
 - behavior_verification_environment: `Windows 10.0.26200 x64, temporary real-process installer fixtures; actual installed NSIS uninstall NOT_RUN`
 - behavior_verification_evidence: `installer 11/11 including real process termination and retired path contract, Node 212/212, backend 115 PASS·3 ignored and parity 2/2, desktop check`
 - freshness_status: `CURRENT`
 - freshness_reason: `공개 0.4.7과 제거 제보, exact retired cleanup source hotfix 및 아직 남은 종단간 검증을 분리해 기록`
-- known_gaps: `실제 관리자 권한 0.4.7 설치본의 예약 작업 정리·제거·install directory 소거와 이전 공개 자산→동일 버전 대치 업데이트는 NOT_RUN. 이미 신뢰 판정에서 막힌 client는 수동 설치가 필요할 수 있다.`
+- known_gaps: `signed 0.4.7 hotfix package 자동 검증은 통과했지만 실제 관리자 권한 설치본의 예약 작업 정리·제거·install directory 소거와 이전 공개 자산→동일 버전 대치 업데이트는 NOT_RUN. 이미 신뢰 판정에서 막힌 client는 수동 설치가 필요할 수 있다.`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 제거 종료 오류 의미와 retired install payload cleanup`
 - feature_map: `updated — revision 6, same-version uninstall hotfix pending publication`
 - architecture_impact: `NSIS stop-script failure semantics, scheduled-task best-effort cleanup and exact retired asset ownership`

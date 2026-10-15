@@ -30,3 +30,14 @@
 - reviewer independently reran installer `11/11`, PowerShell parse and diff check.
 - actual elevated scheduled task deletion, installed NSIS uninstall, empty directory result, signed package and GitHub replacement were `NOT_RUN`.
 - unrelated `NOTICE.md`, `data/` and `native/installer-cleanup/` remained outside the target.
+
+## Package round
+
+- round_id: `PACKAGE-R1`
+- source_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
+- package_target: `release/dioxus-0.4.7-2026-10-15T18-11-53-739Z`
+- package_manifest_sha256: `b204b2ac29e1d68a48016781b575cfee331145788024e1d58dfabde251b05506`
+- verdict: `APPROVED`
+- findings: none
+- verified: installer·portable Ed25519, URL, version, size, SHA-256, build metadata, stop-script identity, retired payload absence, cleanup include ordering, 10MB budget, `runtimePackages=[]` and canonical replacement names.
+- limits: actual install/update/uninstall and public replacement re-download remained `NOT_RUN`.

@@ -7,11 +7,11 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-15T18:00:06Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base e975a26865e1481984a092d93fa560d5abf2fa27 + RUN-20261016-UNINSTALL-HOTFIX-047 working target`
+- source_review_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
 - source_review_evidence: `installer stop script, NSIS cleanup ordering, exact retired-assets include and installer regression tests`
 - behavior_verified_at: `2026-10-15T18:00:06Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base e975a26865e1481984a092d93fa560d5abf2fa27 + RUN-20261016-UNINSTALL-HOTFIX-047 working target`
+- behavior_verification_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
 - behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures; installed NSIS uninstall NOT_RUN`
 - behavior_verification_evidence: `installer 11/11, Node 212/212, backend 115 PASS·3 ignored and parity 2/2, desktop check`
 - freshness_status: `CURRENT`
