@@ -14,7 +14,7 @@ export function releaseAssetNames(version){
   }
 }
 
-export async function assembleReleaseAssets({rust,bridge,destination,version,turboKeyHelperAssetName}){
+export async function assembleReleaseAssets({rust,bridge,destination,version}){
   const names=releaseAssetNames(version)
   const legacySourceName=existsSync(join(bridge,names.legacy))?names.legacy:names.oldLegacy
   const legacy=await readFile(join(bridge,legacySourceName))
@@ -33,7 +33,7 @@ export async function assembleReleaseAssets({rust,bridge,destination,version,tur
   const yml=sourceYml.replaceAll(legacySourceName,names.legacy)
 
   await mkdir(destination,{recursive:true})
-  for(const file of [names.installer,'update.json',names.portable,'portable-update.json',turboKeyHelperAssetName]) await copyFile(join(rust,file),join(destination,file))
+  for(const file of [names.installer,'update.json',names.portable,'portable-update.json']) await copyFile(join(rust,file),join(destination,file))
   await copyFile(join(rust,names.installer),join(destination,names.publicInstaller))
   await copyFile(join(rust,names.portable),join(destination,names.publicPortable))
   await copyFile(join(bridge,legacySourceName),join(destination,names.legacy))

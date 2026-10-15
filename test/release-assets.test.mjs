@@ -22,7 +22,6 @@ async function fixture(t,{blockmap=true}={}){
     ['nogirem-dioxus-portable-0.4.2.exe',portable],
     ['update.json',Buffer.from('update')],
     ['portable-update.json',Buffer.from('portable-update')],
-    ['turbo.exe',Buffer.from('turbo')],
   ]) await writeFile(join(rust,name),bytes)
   await writeFile(join(bridge,legacyName),legacy)
   if(blockmap) await writeFile(join(bridge,legacyName+'.blockmap'),blockmapBytes)
@@ -33,7 +32,7 @@ async function fixture(t,{blockmap=true}={}){
 
 test('릴리스 조립은 권장 alias와 자동 업데이트 호환 자산을 함께 보존한다',async t=>{
   const input=await fixture(t)
-  const {files}=await assembleReleaseAssets({...input,version:'0.4.2',turboKeyHelperAssetName:'turbo.exe'})
+  const {files}=await assembleReleaseAssets({...input,version:'0.4.2'})
   assert.deepEqual(files.sort(),[
     'latest.yml',
     'nogirem-dioxus-portable-0.4.2.exe',
@@ -43,7 +42,6 @@ test('릴리스 조립은 권장 alias와 자동 업데이트 호환 자산을 �
     'nogirem-portable-0.4.2.exe',
     'nogirem-setup-0.4.2.exe',
     'portable-update.json',
-    'turbo.exe',
     'update.json',
   ])
   assert.deepEqual(await readFile(join(input.destination,'nogirem-setup-0.4.2.exe')),input.installer)
@@ -59,7 +57,7 @@ test('릴리스 조립은 권장 alias와 자동 업데이트 호환 자산을 �
 
 test('릴리스 조립은 Electron blockmap 누락을 거부한다',async t=>{
   const input=await fixture(t,{blockmap:false})
-  await assert.rejects(()=>assembleReleaseAssets({...input,version:'0.4.2',turboKeyHelperAssetName:'turbo.exe'}),/blockmap is required/)
+  await assert.rejects(()=>assembleReleaseAssets({...input,version:'0.4.2'}),/blockmap is required/)
 })
 
 test('릴리스 조립은 Electron sha512 누락을 거부한다',async t=>{
@@ -67,5 +65,5 @@ test('릴리스 조립은 Electron sha512 누락을 거부한다',async t=>{
   const ymlPath=join(input.bridge,'latest.yml')
   const yml=(await readFile(ymlPath,'utf8')).replace(/^.*sha512:.*$\n?/gm,'')
   await writeFile(ymlPath,yml)
-  await assert.rejects(()=>assembleReleaseAssets({...input,version:'0.4.2',turboKeyHelperAssetName:'turbo.exe'}),/checksums are missing/)
+  await assert.rejects(()=>assembleReleaseAssets({...input,version:'0.4.2'}),/checksums are missing/)
 })

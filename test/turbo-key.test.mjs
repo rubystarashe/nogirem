@@ -10,7 +10,6 @@ import {
   normalizeTurboKeyIntervalMs,
   turboKeyIntervalOptions,
 } from "../src/turbo-key-settings.mjs"
-import { turboKeyHelperAssetName } from "../src/turbo-key-installer.mjs"
 
 test("터보 키 기본값은 선택된 키가 없는 상태다", () => {
   assert.deepEqual(defaultTurboKeyCodes, [])
@@ -35,31 +34,22 @@ test("터보 키 최초 입력 지연 무시는 명시적인 true만 허용한�
   assert.equal(normalizeTurboKeyIgnoreInitialDelay("true"), false)
 })
 
-test("터보 키 helper는 설치본에 포함되지 않는다", async () => {
+test("터보 키 helper 구현은 보존한다", async () => {
   const packageInfo = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
   )
-  const helperPath = "native/turbo-key/bin/turbo-key-helper.exe"
-
   assert.equal(packageInfo.scripts["native:turbo-key"], "node scripts/build-turbo-key.mjs")
-
-
 })
 
-test("Windows 패키징은 터보 키를 별도 Release 자산으로 준비한다", async () => {
-  const script = await readFile(
-    new URL("../scripts/package-dioxus.mjs", import.meta.url),
-    "utf8",
-  )
-
-  assert.match(script, /turbo-key-helper\.exe/)
-  assert.match(script, /turboKeyHelperAssetName/)
-  assert.match(script, /copyFile\(turboKeyHelperSource, join\(output, turboKeyHelperAssetName\)\)/)
-  assert.match(turboKeyHelperAssetName, /^turbo-key-helper-win32-x64-v[\d.]+\.exe$/)
-  const buildScript = await readFile(
-    new URL("../scripts/build-turbo-key.mjs", import.meta.url),
-    "utf8",
-  )
+test("0.4.7 패키지와 릴리스 자산은 터보 키 helper를 포함하지 않는다", async () => {
+  const [packageScript, releaseScript, buildScript] = await Promise.all([
+    readFile(new URL("../scripts/package-dioxus.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/release-assets.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/build-turbo-key.mjs", import.meta.url), "utf8"),
+  ])
+  assert.doesNotMatch(packageScript, /turbo-key-helper|turboKeyHelper/)
+  assert.doesNotMatch(packageScript, /TURBO_KEY_TERMS\.md/)
+  assert.doesNotMatch(releaseScript, /turbo-key-helper|turboKeyHelper/)
   assert.match(buildScript, /"x86_64-pc-windows-msvc"/)
 })
 

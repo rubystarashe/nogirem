@@ -4,7 +4,6 @@ import { existsSync } from 'node:fs'
 import { cp, copyFile, mkdir, readFile, writeFile, readdir, stat } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { turboKeyHelperAssetName } from '../src/turbo-key-installer.mjs'
 import { createTransport } from '../service/transport.mjs'
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
@@ -30,9 +29,6 @@ await run(process.execPath, [join(root, 'scripts/build-recorder-helper.mjs'), '-
 await run('cargo', ['build', '--release', '--locked', '--manifest-path', 'desktop/Cargo.toml'])
 await mkdir(appDirectory, { recursive: true })
 await writeFile(join(appDirectory,'version.json'),JSON.stringify({version}))
-const turboKeyHelperSource = join(root, 'native/turbo-key/bin/turbo-key-helper.exe')
-if (!existsSync(turboKeyHelperSource)) throw new Error('Run npm run native:turbo-key before packaging')
-await copyFile(turboKeyHelperSource, join(output, turboKeyHelperAssetName))
 await copyFile(join(root, 'desktop/target/release/nogirem-desktop.exe'), join(appDirectory, 'nogirem.exe'))
 // Keep source artwork in the repository; runtime uses the optimized JPEG/WebP.
 const sourceOnlyAssets = new Set(['public/main3.jpg', 'public/doc_minimize/introduce.png'])
@@ -58,7 +54,7 @@ for (const file of await readdir(join(root, 'service'))) {
   await copyFile(join(root, 'service', file), join(appDirectory, 'service', file))
 }
 await cp(join(root, 'desktop/target/release/web'), join(appDirectory, 'web'), { recursive: true })
-for (const file of ['character-guide.html', 'dxvk-guide.html', 'dxvk-manager.html', 'blackbox-manager.html', 'blackbox-editor.html', 'channel-ping-overlay.html', 'channel-ping-live.html', 'channel.csv', 'icon.ico', 'icon-paused.png', 'config.json', 'INTRODUCE.md', 'OPERATION.md', 'TURBO_KEY_TERMS.md', 'VERSION_HISTORY.md', 'VERSION_HISTORY_DETAIL.md', 'NOTICE.md', 'REPORT.json']) {
+for (const file of ['character-guide.html', 'dxvk-guide.html', 'dxvk-manager.html', 'blackbox-manager.html', 'blackbox-editor.html', 'channel-ping-overlay.html', 'channel-ping-live.html', 'channel.csv', 'icon.ico', 'icon-paused.png', 'config.json', 'INTRODUCE.md', 'OPERATION.md', 'VERSION_HISTORY.md', 'VERSION_HISTORY_DETAIL.md', 'NOTICE.md', 'REPORT.json']) {
   await copyFile(join(root, file), join(appDirectory, file))
 }
 for (const helper of ['input-guard-helper', 'radeon-helper', 'recorder-helper']) {
