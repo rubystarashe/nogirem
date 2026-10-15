@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-15 15:00 +09:00
+Last Updated: 2026-10-15 15:40 +09:00
 
 ## Current Objective
-0.4.6 변경 이력에 tray 상태 채널 핑 overlay 수명주기 수정과 화면 이미지 인식 기반 게임 overlay module 제거를 기록하고, 해당 source와 사용자 작성 공지를 포함한 서명 설치형·포터블을 로컬 패키징했다. 배포는 수행하지 않았다.
+최종 안전 공지를 포함한 0.4.6 source를 origin/main에 push하고 annotated tag와 signed GitHub Release 자산 10개를 공개·재검증했다.
 
 ## Active Runs
+- `20261015-release-046`: source `4838885c2d810b7ec12cd1dfb99a83c0d8fbd21c`에서 최종 공지를 포함한 0.4.6 signed 설치형·포터블과 Electron migration bridge 자산 10개를 [GitHub v0.4.6](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.6)로 공개했다. 공개 재다운로드 10/10 hash와 signed manifest·routing 재검증이 통과했으며 실제 설치·게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261015-release-046/final-report.md`)
 - `20261015-package-046`: source `cdc477dd775849c7be102e4cc31a90473f74e171`과 사용자 `NOTICE.md` SHA-256 `896a7366...920d`에서 0.4.6 설치형·포터블과 signed manifest를 `release/dioxus-0.4.6-2026-10-15T05-57-08-337Z`에 생성·검증했다. Node 205/205, backend 105 PASS·2 ignore, parity 2/2, desktop 8/8, native integration 3/3과 package 검증이 통과했으며 배포·설치·실행은 NOT_RUN이다. (`docs/ai/runs/20261015-package-046/final-report.md`)
 - `20261015-remove-game-overlay-045`: source `ad6125e425797a146e1ee01af591ede2d3e83173`에서 화면 이미지 인식 기반 게임 오버레이의 UI·backend·monitor·IPC·auxiliary window·package template 입력을 제거하고 canonical feature를 `REMOVED`로 전환했다. (`docs/ai/runs/20261015-remove-game-overlay-045/final-report.md`)
 - `20261006-antivirus-false-positive-045`: 유료 Authenticode 없이 백신 오진 신호를 줄이기 위해 신규 설치에서는 기존 파일이 없을 때 종료 PowerShell을 생략하고, update/uninstall 명령에서 `ExecutionPolicy Bypass`를 제거했으며 설치형·포터블 outer PE 식별 resource를 추가했다. Node 208/208, 미서명 package·NSIS `/WX`·10MB 제한·PE metadata 검증이 통과했다. non-solid LZMA는 설치형이 10MB 제한을 초과해 철회했고 실제 설치·VirusTotal 재분석·배포는 수행하지 않았다. (`docs/ai/runs/20261006-antivirus-false-positive-045/task.md`)
@@ -27,10 +28,10 @@ Last Updated: 2026-10-15 15:00 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
-- 0.4.6 설치형은 `9,572,765 bytes`, SHA-256 `f4b58b6477e118a7279481f8ce79394e6583487d8e3ee47da5da72bd0b3d076c`다.
-- 0.4.6 포터블은 `7,790,678 bytes`, SHA-256 `9a869dee1c6d0c9811c1f383fa278b43301a2364dd53d4ca54ec62efdff32ee1`다.
+- 공개 0.4.6 설치형은 `9,572,561 bytes`, SHA-256 `01dffc8375f98d93e01f84e7e5137df3fbaa087879090a14e9985813b0678df1`다.
+- 공개 0.4.6 포터블은 `7,791,805 bytes`, SHA-256 `68ff04252b14559ee253ff4ef08c3b8bad1d4d0885e17a6863a534c3b3c56e53`다.
 - 두 update manifest는 0.4.6 artifact size·SHA-256와 일치하고 Ed25519 자체 검증을 통과했다. channel overlay payload는 존재하고 제거된 game overlay HTML·preload·CSV·condition template은 부재한다.
-- package·source 자동 검사는 통과했으며 실제 설치·제거·포터블 실행·업데이트·게임·혼합 DPI는 NOT_RUN이다. push·tag·release·deployment도 수행하지 않았다.
+- origin/main, annotated v0.4.6 tag와 public GitHub Release를 공개했고 자산 10/10 재다운로드 hash·signed manifest·Electron routing 재검증을 통과했다. 실제 설치·제거·포터블 실행·업데이트·게임·혼합 DPI는 NOT_RUN이다.
 - 게임 화면 pixel capture, 체력바·디버프 template matcher, 해상도별 좌표 cache, 디버프 누락 alert, 게임 오버레이 설정·구성 창과 관련 IPC·package 입력을 제거했다.
 - 기존 `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`은 더 이상 읽거나 쓰지 않으며 사용자 데이터 보존을 위해 자동 삭제하지 않는다.
 - `channel-ping-live`·`channel-ping-overlay`는 OS TCP 상태만 표시하고 게임 화면 pixel을 처리하지 않으므로 유지한다.
@@ -224,4 +225,4 @@ Last Updated: 2026-10-15 15:00 +09:00
 - 원격 REPORT 자동 정리 커밋을 병합하고 `v0.3.16` 태그와 GitHub Release를 공개했다. 네 자산의 원격 digest가 로컬 SHA-256과 일치한다.
 
 ## Next Recommended Step
-이 checkpoint의 다음 필수 작업은 없다. 이후 배포를 검토하려면 별도 승인된 설치형·포터블 실행과 업데이트·게임·혼합 DPI QA를 먼저 수행한다.
+이 checkpoint의 다음 필수 작업은 없다. 운영 후속으로 설치형·포터블 실행, 자동 업데이트, 게임과 혼합 DPI QA를 별도 수행할 수 있다.
