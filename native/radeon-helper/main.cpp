@@ -19,6 +19,19 @@ struct GoalState
     std::string currentValue = "지원 안 함";
 };
 
+struct GpuSnapshot
+{
+    IADLXGPU* gpu = nullptr;
+    bool chillSupported = false;
+    bool chillEnabled = false;
+    bool enhancedSyncSupported = false;
+    bool enhancedSyncEnabled = false;
+    bool antiLagSupported = false;
+    bool antiLagEnabled = false;
+    bool verticalSyncSupported = false;
+    ADLX_WAIT_FOR_VERTICAL_REFRESH_MODE verticalSyncMode = WFVR_ALWAYS_ON;
+};
+
 template <typename T>
 void releaseInterface(T*& value)
 {
@@ -141,6 +154,7 @@ bool readVerticalSync(
     IADLX3DSettingsServices* settings,
     IADLXGPU* gpu,
     bool apply,
+    ADLX_WAIT_FOR_VERTICAL_REFRESH_MODE target,
     bool& supported,
     ADLX_WAIT_FOR_VERTICAL_REFRESH_MODE& mode,
     std::string& error)
@@ -151,7 +165,7 @@ bool readVerticalSync(
     if (ADLX_SUCCEEDED(result) && setting != nullptr)
     {
         result = setting->IsSupported(&isSupported);
-        if (ADLX_SUCCEEDED(result) && isSupported && apply) result = setting->SetMode(WFVR_ALWAYS_OFF);
+        if (ADLX_SUCCEEDED(result) && isSupported && apply) result = setting->SetMode(target);
         if (ADLX_SUCCEEDED(result) && isSupported) result = setting->GetMode(&mode);
         releaseInterface(setting);
     }
@@ -162,6 +176,68 @@ bool readVerticalSync(
     }
     supported = isSupported;
     return true;
+}
+
+bool readSnapshot(IADLX3DSettingsServices* settings, GpuSnapshot& snapshot, std::string& error)
+{
+    if (!readBooleanSetting(settings, snapshot.gpu, "chill", false, false, snapshot.chillSupported, snapshot.chillEnabled, error)) return false;
+    if (!readBooleanSetting(settings, snapshot.gpu, "enhancedSync", false, false, snapshot.enhancedSyncSupported, snapshot.enhancedSyncEnabled, error)) return false;
+    if (!readVerticalSync(settings, snapshot.gpu, false, WFVR_ALWAYS_OFF, snapshot.verticalSyncSupported, snapshot.verticalSyncMode, error)) return false;
+    return readBooleanSetting(settings, snapshot.gpu, "antiLag", false, true, snapshot.antiLagSupported, snapshot.antiLagEnabled, error);
+}
+
+bool writeTargets(
+    IADLX3DSettingsServices* settings,
+    const GpuSnapshot& snapshot,
+    bool restore,
+    std::string& error)
+{
+    bool supported = false;
+    bool enabled = false;
+    ADLX_WAIT_FOR_VERTICAL_REFRESH_MODE mode = WFVR_ALWAYS_ON;
+    bool success = true;
+    std::string settingError;
+    const bool chillTarget = restore ? snapshot.chillEnabled : false;
+    settingError.clear();
+    if (!readBooleanSetting(settings, snapshot.gpu, "chill", true, chillTarget, supported, enabled, settingError)
+        || (supported && enabled != chillTarget))
+    {
+        if (settingError.empty()) settingError = "Radeon Chill 설정 검증 실패";
+        error = settingError;
+        if (!restore) return false;
+        success = false;
+    }
+    const bool enhancedSyncTarget = restore ? snapshot.enhancedSyncEnabled : false;
+    settingError.clear();
+    if (!readBooleanSetting(settings, snapshot.gpu, "enhancedSync", true, enhancedSyncTarget, supported, enabled, settingError)
+        || (supported && enabled != enhancedSyncTarget))
+    {
+        if (settingError.empty()) settingError = "Enhanced Sync 설정 검증 실패";
+        if (error.empty()) error = settingError;
+        if (!restore) return false;
+        success = false;
+    }
+    const ADLX_WAIT_FOR_VERTICAL_REFRESH_MODE verticalSyncTarget = restore ? snapshot.verticalSyncMode : WFVR_ALWAYS_OFF;
+    settingError.clear();
+    if (!readVerticalSync(settings, snapshot.gpu, true, verticalSyncTarget, supported, mode, settingError)
+        || (supported && mode != verticalSyncTarget))
+    {
+        if (settingError.empty()) settingError = "수직 동기화 설정 검증 실패";
+        if (error.empty()) error = settingError;
+        if (!restore) return false;
+        success = false;
+    }
+    const bool antiLagTarget = restore ? snapshot.antiLagEnabled : true;
+    settingError.clear();
+    if (!readBooleanSetting(settings, snapshot.gpu, "antiLag", true, antiLagTarget, supported, enabled, settingError)
+        || (supported && enabled != antiLagTarget))
+    {
+        if (settingError.empty()) settingError = "Radeon Anti-Lag 설정 검증 실패";
+        if (error.empty()) error = settingError;
+        if (!restore) return false;
+        success = false;
+    }
+    return success;
 }
 
 std::string verticalSyncText(ADLX_WAIT_FOR_VERTICAL_REFRESH_MODE mode)
@@ -211,7 +287,8 @@ void printResult(
             << ",\"met\":" << (goal.met ? "true" : "false")
             << ",\"currentValue\":\"" << escapeJson(goal.currentValue) << "\"}";
     }
-    output << "],\"allMet\":" << (allMet ? "true" : "false");
+    output << "],\"allMet\":" << (allMet ? "true" : "false")
+           << ",\"tuningAccessed\":false";
     if (reason.empty()) output << ",\"reason\":null";
     else output << ",\"reason\":\"" << escapeJson(reason) << "\"";
     output << "}";
@@ -221,11 +298,9 @@ void printResult(
 int runHelper(int argc, char** argv)
 {
     bool apply = false;
-    bool legacyDriver = false;
     for (int index = 1; index < argc; ++index)
     {
         if (std::string(argv[index]) == "--apply") apply = true;
-        if (std::string(argv[index]) == "--legacy-driver") legacyDriver = true;
     }
 
     std::vector<GoalState> goals = {
@@ -237,14 +312,8 @@ int runHelper(int argc, char** argv)
     std::vector<std::string> gpuNames;
     std::string error;
 
-    ADLX_RESULT result = legacyDriver
-        ? g_ADLX.InitializeWithIncompatibleDriver()
-        : g_ADLX.Initialize();
-    if (!legacyDriver && !ADLX_SUCCEEDED(result))
-    {
-        g_ADLX.Terminate();
-        result = g_ADLX.InitializeWithIncompatibleDriver();
-    }
+    // 사용자 전력·전압 프로필과 분리된 3D 설정 서비스만 사용합니다.
+    ADLX_RESULT result = g_ADLX.Initialize();
     if (!ADLX_SUCCEEDED(result))
     {
         printResult(false, gpuNames, goals, "AMD ADLX 초기화 실패: " + std::to_string(result));
@@ -265,6 +334,7 @@ int runHelper(int argc, char** argv)
         return 0;
     }
 
+    std::vector<GpuSnapshot> snapshots;
     for (adlx_uint index = 0; index < gpus->Size(); ++index)
     {
         IADLXGPU* gpu = nullptr;
@@ -273,27 +343,62 @@ int runHelper(int argc, char** argv)
         if (ADLX_SUCCEEDED(gpu->Name(&name)) && name != nullptr) gpuNames.emplace_back(name);
         else gpuNames.emplace_back("AMD Radeon GPU");
 
+        GpuSnapshot snapshot;
+        snapshot.gpu = gpu;
+        std::string settingError;
+        if (!readSnapshot(settings, snapshot, settingError) && error.empty()) error = settingError;
+        snapshots.push_back(snapshot);
+    }
+
+    if (apply && error.empty())
+    {
+        for (const GpuSnapshot& snapshot : snapshots)
+        {
+            std::string settingError;
+            if (!writeTargets(settings, snapshot, false, settingError))
+            {
+                error = settingError;
+                break;
+            }
+        }
+        if (!error.empty())
+        {
+            std::string rollbackError;
+            for (const GpuSnapshot& snapshot : snapshots)
+            {
+                std::string settingError;
+                if (!writeTargets(settings, snapshot, true, settingError) && rollbackError.empty())
+                    rollbackError = settingError;
+            }
+            if (!rollbackError.empty()) error += " / 이전 3D 설정 복원 실패: " + rollbackError;
+            else error += " / 이전 3D 설정을 복원했습니다";
+        }
+    }
+
+    for (const GpuSnapshot& snapshot : snapshots)
+    {
         bool supported = false;
         bool enabled = false;
         ADLX_WAIT_FOR_VERTICAL_REFRESH_MODE mode = WFVR_ALWAYS_ON;
         std::string settingError;
 
-        if (readBooleanSetting(settings, gpu, "chill", apply, false, supported, enabled, settingError))
+        if (readBooleanSetting(settings, snapshot.gpu, "chill", false, false, supported, enabled, settingError))
             mergeGoal(goals[3], supported, !enabled, booleanText(enabled));
         else if (error.empty()) error = settingError;
 
-        if (readBooleanSetting(settings, gpu, "enhancedSync", apply, false, supported, enabled, settingError))
+        if (readBooleanSetting(settings, snapshot.gpu, "enhancedSync", false, false, supported, enabled, settingError))
             mergeGoal(goals[1], supported, !enabled, booleanText(enabled));
         else if (error.empty()) error = settingError;
 
-        if (readVerticalSync(settings, gpu, apply, supported, mode, settingError))
+        if (readVerticalSync(settings, snapshot.gpu, false, WFVR_ALWAYS_OFF, supported, mode, settingError))
             mergeGoal(goals[0], supported, mode == WFVR_ALWAYS_OFF, verticalSyncText(mode));
         else if (error.empty()) error = settingError;
 
-        if (readBooleanSetting(settings, gpu, "antiLag", apply, true, supported, enabled, settingError))
+        if (readBooleanSetting(settings, snapshot.gpu, "antiLag", false, true, supported, enabled, settingError))
             mergeGoal(goals[2], supported, enabled, booleanText(enabled));
         else if (error.empty()) error = settingError;
 
+        IADLXGPU* gpu = snapshot.gpu;
         releaseInterface(gpu);
     }
 
@@ -316,6 +421,7 @@ int main(int argc, char** argv)
     {
         std::printf(
             "{\"detected\":false,\"gpus\":[],\"goals\":[],\"allMet\":false,"
+            "\"tuningAccessed\":false,"
             "\"reason\":\"AMD \\ub4dc\\ub77c\\uc774\\ubc84 \\uc124\\uc815 API "
             "\\uc2e4\\ud589 \\uc911 \\uc624\\ub958\\uac00 \\ubc1c\\uc0dd"
             "\\ud588\\uc2b5\\ub2c8\\ub2e4 (0x%08lX)\"}\n",

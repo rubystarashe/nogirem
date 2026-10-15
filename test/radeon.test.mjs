@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises"
 import test from "node:test"
 import {
   createRadeonManager,
+  normalizeRadeonDetection,
   normalizeRadeonResult,
-  runRadeonHelperWithFallback,
+  runRadeonHelper,
 } from "../src/radeon.mjs"
 
 const nativeSource = await readFile(
@@ -40,10 +41,39 @@ function helperResult(overrides = {}) {
       },
     ],
     allMet: true,
+    tuningAccessed: false,
     reason: null,
     ...overrides,
   }
 }
+
+test("Radeon 시작 상태는 helper 없이 WMI 장치와 적용 전 목표만 표시한다", async () => {
+  let helperCalls = 0
+  const manager = createRadeonManager({
+    runHelper: async () => {
+      helperCalls += 1
+      return helperResult()
+    },
+    detectDevices: async () => ({
+      gpus: [{ name: "AMD Radeon RX 6700 XT" }],
+    }),
+  })
+
+  const result = await manager.check()
+
+  assert.equal(result.vendor, "amd")
+  assert.equal(result.goalsList.length, 4)
+  assert.equal(result.goalsList[0].pending, true)
+  assert.equal(result.tuningProtected, true)
+  assert.equal(helperCalls, 0)
+})
+
+test("Radeon WMI 장치 이름 누락은 안전한 이름으로 정규화한다", () => {
+  const result = normalizeRadeonDetection({ gpus: [{ name: null }] })
+
+  assert.equal(result.detected, true)
+  assert.equal(result.gpus[0].name, "AMD Radeon GPU")
+})
 
 test("지원하지 않는 Radeon 목표는 완료 판정에서 제외한다", () => {
   const result = normalizeRadeonResult(
@@ -111,19 +141,56 @@ test("Radeon 적용 후 남은 목표가 있으면 실패한다", async () => {
   await assert.rejects(() => manager.apply(), /Radeon Anti-Lag 켜기/)
 })
 
-test("Radeon helper 비정상 종료 시 레거시 드라이버 모드로 재시도한다", async () => {
-  const calls = []
-  const result = await runRadeonHelperWithFallback(async args => {
-    calls.push(args)
-    if (calls.length === 1) throw new Error("helper crash")
-    return { stdout: JSON.stringify(helperResult()) }
-  }, true)
+test("Radeon helper 적용 오류는 게임 설정 변경 전에 최종 상태와 함께 반환한다", async () => {
+  let gameWrites = 0
+  const manager = createRadeonManager({
+    runHelper: async () => helperResult({
+      reason: "Anti-Lag 적용 실패 / 이전 3D 설정을 복원했습니다",
+    }),
+    setGameVerticalSync: async () => {
+      gameWrites += 1
+    },
+  })
 
-  assert.equal(result.detected, true)
-  assert.deepEqual(calls, [
-    ["--apply"],
-    ["--legacy-driver", "--apply"],
-  ])
+  await assert.rejects(() => manager.apply(), /최종 Radeon 3D 상태/)
+  assert.equal(gameWrites, 0)
+})
+
+test("Radeon helper 목표 미달은 게임 설정 변경 전에 거부한다", async () => {
+  let gameWrites = 0
+  const manager = createRadeonManager({
+    runHelper: async () => helperResult({
+      allMet: false,
+      reason: null,
+      goals: [{
+        key: "antiLagOn",
+        label: "Radeon Anti-Lag 켜기",
+        supported: true,
+        met: false,
+        currentValue: "끄기",
+      }],
+    }),
+    setGameVerticalSync: async () => {
+      gameWrites += 1
+    },
+  })
+
+  await assert.rejects(() => manager.apply(), /목표 적용 검증 실패/)
+  assert.equal(gameWrites, 0)
+})
+
+test("Radeon helper 비정상 종료 시 비호환 드라이버 모드로 재시도하지 않는다", async () => {
+  const calls = []
+  await assert.rejects(
+    () => runRadeonHelper(async args => {
+      calls.push(args)
+      const error = new Error("helper crash")
+      error.code = 3221225477
+      throw error
+    }, true),
+    /종료 코드 0xC0000005/,
+  )
+  assert.deepEqual(calls, [["--apply"]])
 })
 
 test("Radeon helper가 결과 출력 후 종료되면 JSON 결과를 복구한다", async () => {
@@ -131,16 +198,16 @@ test("Radeon helper가 결과 출력 후 종료되면 JSON 결과를 복구한�
   error.code = 3221225477
   error.stdout = JSON.stringify(helperResult())
 
-  const result = await runRadeonHelperWithFallback(async () => {
+  const result = await runRadeonHelper(async () => {
     throw error
   }, false)
 
   assert.equal(result.detected, true)
 })
 
-test("Radeon helper가 두 번 모두 출력 없이 종료되면 종료 코드를 안내한다", async () => {
+test("Radeon helper가 출력 없이 종료되면 종료 코드를 안내한다", async () => {
   await assert.rejects(
-    () => runRadeonHelperWithFallback(async () => {
+    () => runRadeonHelper(async () => {
       const error = new Error("helper exit")
       error.code = 3221225477
       throw error
@@ -149,7 +216,18 @@ test("Radeon helper가 두 번 모두 출력 없이 종료되면 종료 코드�
   )
 })
 
+test("Radeon helper는 튜닝 미접근 계약이 없으면 결과를 거부한다", async () => {
+  await assert.rejects(
+    () => runRadeonHelper(async () => ({
+      stdout: JSON.stringify(helperResult({ tuningAccessed: undefined })),
+    }), false),
+    /언더볼팅 보호 계약/,
+  )
+})
+
 test("Radeon helper는 결과 출력 후 정적 종료 정리 없이 프로세스를 끝낸다", () => {
   assert.match(nativeSource, /std::fflush\(nullptr\)/)
   assert.match(nativeSource, /ExitProcess\(static_cast<UINT>\(exitCode\)\)/)
+  assert.match(nativeSource, /std::vector<GpuSnapshot> snapshots/)
+  assert.match(nativeSource, /writeTargets\(settings, snapshot, true/)
 })

@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-15 22:21 +09:00
+Last Updated: 2026-10-15 22:35 +09:00
 
 ## Current Objective
-터보키 실행·배포 경로를 제거한 source `9a64283a01121406f880206c3d9448d7329ea476`에서 0.4.7 서명 설치형·포터블을 생성·검증했다. 실제 설치·업데이트 수동 QA와 배포는 남았다.
+혼합 GPU에서 AMD 내장 그래픽이 RTX 4090을 가리던 routing을 NVIDIA 우선으로 수정하고, AMD 단독 시스템의 Radeon 3D 최적화를 tuning API 미접근 경계로 복구했다. 자동 검사, 실제 RTX 4090 선택과 독립 review가 통과했으며 local commit과 AMD 단독 하드웨어 수동 QA가 남았다.
 
 ## Active Runs
+- `20261015-graphics-routing-amd-restore`: NVIDIA status를 먼저 확인해 RTX 4090 + AMD Radeon(TM) Graphics 환경에서 NVIDIA 프로그램 profile을 선택한다. AMD 단독 상태 조회는 Rust와 Electron 모두 WMI만 사용하며 명시 적용에서만 `I3DSettings` helper를 호출한다. GPU tuning API·비호환 driver 초기화와 legacy retry를 금지하고, 적용·rollback 후 실제 값 검증과 게임 VSync 선차단을 추가했다. graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Node 211/211, desktop check, helper rebuild와 실제 RTX 4090 status가 통과했다. 독립 review R3는 `APPROVED`이며 AMD 단독 적용 전후 tuning 유지와 package는 NOT_RUN이다. (`docs/ai/runs/20261015-graphics-routing-amd-restore/task.md`)
 - `20261015-package-047`: source `9a64283a01121406f880206c3d9448d7329ea476`과 사용자 `NOTICE.md` SHA-256 `af1eb83b...f1f2`에서 0.4.7 signed 설치형·포터블을 `release/dioxus-0.4.7-2026-10-15T13-17-35-650Z`에 생성했다. installer `081f0dc4...43fd`, portable `6467b756...501f`; Node 206/206, targeted 18/18, native integration 3/3, package contract·manifest·payload와 독립 review가 통과했다. turbo helper·standalone terms는 package/release asset에 없고 source 구현은 보존된다. 배포·실제 설치는 NOT_RUN이다. (`docs/ai/runs/20261015-package-047/final-report.md`)
 - `20261015-disable-turbo-047`: commit `e3a40177b89679fb40942d0a1e04b41d23595b31`에서 Dioxus 고급 기능의 터보키 카드·초기 상태 요청을 제거하고 Rust·Electron 설정·다운로드 IPC를 차단했다. 기존 enabled=true 사용자는 키·간격·설치 파일을 보존한 채 false로 migration하고 종료 control을 기록하며, 비사용자에게는 파일을 만들지 않는다. Node 206/206, backend 115 PASS·3 ignored와 parity 2/2, desktop 8/8, locked check와 독립 리뷰가 통과했다. 실제 0.4.6 설치본 upgrade와 package·배포는 NOT_RUN이다. (`docs/ai/runs/20261015-disable-turbo-047/task.md`)
 - `20261015-channel-overlay-dpi`: DPI-unaware 게임 HWND의 `GetDpiForWindow`가 150% 모니터에서도 96을 반환해 native 창은 584×400 물리 픽셀에 머물고 WebView 콘텐츠만 확대되던 원인을 수정했다. 대상 모니터 `MDT_EFFECTIVE_DPI`로 expanded·compact logical 크기를 physicalBounds로 환산한다. channel ping 34/34, overlay 3/3, backend 112 PASS·3 ignored와 parity 2/2, Node 206/206, desktop check와 독립 리뷰가 통과했으며 실제 3840×2160 150%·혼합 DPI 게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261015-channel-overlay-dpi/task.md`)
@@ -33,6 +34,16 @@ Last Updated: 2026-10-15 22:21 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — 혼합 GPU NVIDIA 선택과 AMD 3D 최적화 복구`
+- feature_map: `updated — revision 2와 GFX-007~010`
+- architecture_impact: `NVIDIA 우선 routing, AMD 상태의 ADLX 미초기화, 명시 적용의 I3DSettings-only helper`
+- architecture_contract: `updated — revision 29`
+- 실제 source status는 `NVIDIA GeForce RTX 4090`, `vendor=nvidia`, `title=NVIDIA 프로필`을 반환했다. AMD WMI와 Radeon helper는 혼합 GPU NVIDIA 경로에서 호출하지 않는다.
+- AMD 단독 상태는 WMI만 조회하고 네 목표를 `적용 전`으로 표시한다. 명시 적용 helper는 tuning API와 `InitializeWithIncompatibleDriver`를 사용하지 않으며 Rust·Electron이 `tuningAccessed:false` 계약을 강제한다.
+- AMD 명시 적용은 네 3D 설정을 먼저 snapshot하고 실패 시 복원을 시도한다. helper reason이 있으면 게임 VSync를 변경하지 않고 최종 Radeon 상태를 오류로 반환한다.
+- `PASS` — graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Radeon Node 13/13, Node 211/211, desktop check, helper rebuild, diff check와 IDE diagnostics.
+- `NOT_RUN` — AMD 단독 GPU의 실제 적용 전후 언더볼팅 유지, packaged UI, package·push·release·deployment.
+- unrelated_preserved: 사용자 수정 `NOTICE.md`, 비추적 `data/`, `native/installer-cleanup/`
 - feature_impact: `FEAT-NOGIREM-TURBO-KEY — REMOVED; helper·standalone terms package/release asset 비배포`
 - feature_map: `updated — revision 3, TURBO-009와 signed package evidence`
 - architecture_impact: `저수준 입력 helper의 UI·IPC·startup·package·release 경계 폐쇄`
@@ -210,7 +221,7 @@ Last Updated: 2026-10-15 22:21 +09:00
 - 실제 관리자 토큰의 High label 종단간 QA는 Cursor sandbox의 `icacls` 오류 1299 때문에 실행하지 못했다.
 - affinity reset은 프로세스별 저장 mask 대신 현재 세션에 전체 mask를 적용하며 worker 시작 시 이전 runtime state를 삭제해 비정상 종료 전 custom affinity의 정확한 복원을 보장하지 않는다.
 - 네트워크 되돌리기는 패스트핑과 RSS 원본을 다루지만 TCP receive autotuning의 이전 값은 저장·복원하지 않는다.
-- NVIDIA/VSync 최적화는 이전 설정 snapshot과 restore 경로가 없다. Radeon은 사용자 튜닝 보호를 위해 조회·적용을 차단했으며 제보 RX 6700 XT 수동 확인은 남아 있다.
+- NVIDIA/VSync와 Radeon 3D 최적화는 이전 설정 snapshot과 restore 경로가 없다. Radeon 시작 상태는 ADLX를 열지 않고 적용 helper는 tuning API를 사용하지 않지만, 제보 RX 6700 XT에서 적용 전후 언더볼팅 유지 수동 확인은 남아 있다.
 - 설치형 업데이트 rollback은 기존 파일을 다시 복사하지만 새 설치기가 추가한 파일 제거를 보장하지 않는다.
 - 이미 배포된 0.4.1 포터블은 같은 버전의 대체 자산을 자동 업데이트로 선택하지 않으므로 수정본을 한 번 직접 내려받아야 한다.
 - 전체 데스크톱 스모크는 메인 viewport 640×290 검증을 통과한 뒤 기존 고급 기능 화면 진입 단계에서 `Advanced structure failed: null`로 두 번 실패했으며 시작 애니메이션 단독 스모크는 통과했다.
@@ -261,4 +272,4 @@ Last Updated: 2026-10-15 22:21 +09:00
 - 원격 REPORT 자동 정리 커밋을 병합하고 `v0.3.16` 태그와 GitHub Release를 공개했다. 네 자산의 원격 digest가 로컬 SHA-256과 일치한다.
 
 ## Next Recommended Step
-공개 대치 승인을 받기 전에 격리된 0.4.5 설치형·포터블에서 최종 hotfix 후보로 실제 관리자 update transaction을 실행한다. 신뢰 판정에서 먼저 막히는 client는 수정 설치형 수동 설치 복구가 필요함을 안내한다. GitHub v0.4.6 자산 대치·push는 별도 승인 전 수행하지 않는다.
+exact reviewed target을 local commit한다. 이후 AMD 단독 테스트 장비에서 앱 시작 전후와 명시 최적화 적용 전후의 언더볼팅 값을 비교해야 하며, package·공개 배포는 별도 승인 전 수행하지 않는다.

@@ -6,9 +6,16 @@ import {
   queryMabinogiVerticalSync,
   setMabinogiVerticalSync,
 } from "./game-graphics.mjs"
+import { runPowerShellScript } from "./powershell.mjs"
 
 const execFileAsync = promisify(execFile)
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
+const radeonGoals = [
+  ["verticalSyncOff", "수직 동기화 항상 끄기"],
+  ["enhancedSyncOff", "Enhanced Sync 끄기"],
+  ["antiLagOn", "Radeon Anti-Lag 켜기"],
+  ["chillOff", "Radeon Chill 끄기"],
+]
 
 function resolveHelperPath() {
   const executableRoot = root.includes("app.asar")
@@ -68,6 +75,7 @@ export function normalizeRadeonResult(raw, gameVerticalSync = null) {
 
 export function createRadeonManager({
   runHelper,
+  detectDevices = queryRadeonDevices,
   queryGameVerticalSync = queryMabinogiVerticalSync,
   setGameVerticalSync = setMabinogiVerticalSync,
 }) {
@@ -80,17 +88,19 @@ export function createRadeonManager({
         reason: "Windows x64에서만 Radeon 설정을 조회할 수 있습니다",
       })
     }
-    const [raw, gameVerticalSync] = await Promise.all([
-      runHelper(false),
-      queryGameVerticalSync(),
-    ])
-    return normalizeRadeonResult(raw, gameVerticalSync)
+    return normalizeRadeonDetection(await detectDevices())
   }
 
   async function apply() {
     const raw = await runHelper(true)
     if (!raw.detected) {
       throw new Error(raw.reason ?? "AMD Radeon GPU 또는 드라이버를 찾지 못했습니다")
+    }
+    if (raw.reason) {
+      throw new Error(`${raw.reason} (최종 Radeon 3D 상태: ${JSON.stringify(raw.goals ?? [])})`)
+    }
+    if (raw.allMet !== true) {
+      throw new Error(`Radeon 3D 목표 적용 검증 실패 (최종 Radeon 3D 상태: ${JSON.stringify(raw.goals ?? [])})`)
     }
     await setGameVerticalSync(false)
     const result = normalizeRadeonResult(raw, await queryGameVerticalSync())
@@ -106,10 +116,54 @@ export function createRadeonManager({
   return { check, apply }
 }
 
+export function normalizeRadeonDetection(raw) {
+  const gpus = Array.isArray(raw?.gpus) ? raw.gpus : []
+  const detected = gpus.length > 0
+  return {
+    supported: process.platform === "win32" && process.arch === "x64",
+    detected,
+    amd: detected,
+    vendor: detected ? "amd" : null,
+    vendorLabel: detected ? "AMD Radeon" : null,
+    title: detected ? "AMD Radeon 전역 설정" : "그래픽 설정",
+    scope: detected ? "global" : null,
+    scopeLabel: detected ? "Radeon GPU 전역 설정" : null,
+    persistentGlobal: detected,
+    tuningProtected: detected,
+    tuningProtectionNote: detected
+      ? "시작·새로고침에서는 드라이버 API를 열지 않습니다. 적용할 때도 언더볼팅·오버클럭·전력 튜닝 API는 사용하지 않고 Radeon 3D 설정만 처리합니다."
+      : null,
+    reason: detected ? null : "AMD Radeon GPU를 찾지 못했습니다",
+    gpus: gpus.map(gpu => ({
+      name: String(gpu?.name || "AMD Radeon GPU"),
+    })),
+    gameVerticalSync: null,
+    goalsList: detected
+      ? radeonGoals.map(([key, label]) => ({
+        key,
+        label,
+        supported: true,
+        met: false,
+        pending: true,
+        currentValue: null,
+      }))
+      : [],
+    allMet: false,
+  }
+}
+
+async function queryRadeonDevices() {
+  const { stdout } = await runPowerShellScript(`
+$devices = @(Get-CimInstance Win32_VideoController | Where-Object { $_.PNPDeviceID -match 'VEN_1002' } | ForEach-Object { [ordered]@{ name = $_.Name } })
+[ordered]@{ gpus = $devices } | ConvertTo-Json -Depth 4 -Compress
+  `, { timeout: 15000 })
+  return JSON.parse(stdout.trim())
+}
+
 async function runNativeHelper(apply) {
   const helperPath = resolveHelperPath()
   try {
-    return await runRadeonHelperWithFallback(
+    return await runRadeonHelper(
       args => execFileAsync(helperPath, args, {
         windowsHide: true,
         timeout: 30000,
@@ -134,37 +188,33 @@ async function runNativeHelper(apply) {
   }
 }
 
-export async function runRadeonHelperWithFallback(execute, apply) {
-  const argumentSets = [
-    apply ? ["--apply"] : [],
-    apply ? ["--legacy-driver", "--apply"] : ["--legacy-driver"],
-  ]
-  let initialError
-  for (const args of argumentSets) {
-    try {
-      const { stdout } = await execute(args)
-      return JSON.parse(stdout.trim())
-    } catch (error) {
-      if (error instanceof SyntaxError) throw error
-      const recoveredOutput = String(error?.stdout ?? "").trim()
-      if (recoveredOutput) {
-        try {
-          return JSON.parse(recoveredOutput)
-        } catch {
-        }
-      }
-      if (!initialError) {
-        initialError = error
-        continue
-      }
-      const numericCode = Number(error?.code)
-      const exitCode = Number.isInteger(numericCode)
-        ? `0x${(numericCode >>> 0).toString(16).padStart(8, "0").toUpperCase()}`
-        : String(error?.code ?? error?.signal ?? "알 수 없음")
-      throw new Error(`Radeon 설정 helper가 비정상 종료되었습니다 (종료 코드 ${exitCode})`)
+export async function runRadeonHelper(execute, apply) {
+  const validate = result => {
+    if (result?.tuningAccessed !== false) {
+      throw new Error("Radeon helper가 언더볼팅 보호 계약을 확인하지 않았습니다")
     }
+    return result
   }
-  throw initialError
+  try {
+    const { stdout } = await execute(apply ? ["--apply"] : [])
+    return validate(JSON.parse(stdout.trim()))
+  } catch (error) {
+    if (error instanceof SyntaxError || error?.message?.includes("언더볼팅 보호 계약")) throw error
+    const recoveredOutput = String(error?.stdout ?? "").trim()
+    if (recoveredOutput) {
+      try {
+        return validate(JSON.parse(recoveredOutput))
+      } catch (recoveredError) {
+        if (recoveredError instanceof SyntaxError) throw recoveredError
+        if (recoveredError?.message?.includes("언더볼팅 보호 계약")) throw recoveredError
+      }
+    }
+    const numericCode = Number(error?.code)
+    const exitCode = Number.isInteger(numericCode)
+      ? `0x${(numericCode >>> 0).toString(16).padStart(8, "0").toUpperCase()}`
+      : String(error?.code ?? error?.signal ?? "알 수 없음")
+    throw new Error(`Radeon 설정 helper가 비정상 종료되었습니다 (종료 코드 ${exitCode})`)
+  }
 }
 
 const defaultManager = createRadeonManager({ runHelper: runNativeHelper })

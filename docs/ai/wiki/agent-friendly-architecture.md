@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `28`
-- updated_at: `2026-10-15T13:21:02Z`
+- revision: `29`
+- updated_at: `2026-10-15T13:35:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T13:21:02Z`
+- source_reviewed_at: `2026-10-15T13:35:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `9a64283a01121406f880206c3d9448d7329ea476`
-- source_review_evidence: `package·release assembly turbo asset 제거 diff와 REV-PACKAGE-047 APPROVED`
-- behavior_verified_at: `2026-10-15T13:21:02Z`
+- source_review_target: `uncommitted graphics routing and AMD restore target based on 061a23a4c7a6fc977ce8b3ec32e43c691ab8d1c0`
+- source_review_evidence: `NVIDIA 우선 routing, WMI 상태 탐지, Radeon I3DSettings-only helper와 Electron compatibility 경계`
+- behavior_verified_at: `2026-10-15T13:35:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `release/dioxus-0.4.7-2026-10-15T13-17-35-650Z from source 9a64283a01121406f880206c3d9448d7329ea476`
-- behavior_verification_environment: `Windows 10.0.26200 x64 signed package build와 payload verifier`
-- behavior_verification_evidence: `Node 206/206, targeted 18/18, native integration 3/3, package·manifest·payload 검증 PASS`
+- behavior_verification_target: `uncommitted graphics routing and AMD restore target based on 061a23a4c7a6fc977ce8b3ec32e43c691ab8d1c0`
+- behavior_verification_environment: `Windows 10.0.26200 x64 source checks와 RTX 4090 + AMD Radeon(TM) Graphics`
+- behavior_verification_evidence: `실제 NVIDIA status 선택, graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Radeon Node 13/13, Node 211/211, desktop check, Radeon helper rebuild PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source와 signed package의 제거된 터보키 실행·distribution 금지 경계를 반영`
-- known_gaps: `기존 enabled 사용자 설정을 사용한 실제 설치·업데이트 후 실행은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-TURBO-KEY — REMOVED, helper·standalone terms 비배포`
-- feature_map: `updated — revision 3과 package evidence 반영`
-- architecture_impact: `저수준 입력 helper의 UI·IPC·startup·package·release 경계 폐쇄`
-- architecture_contract: `updated — 제거된 helper의 실행·배포 금지와 단일 migration writer 추가`
+- freshness_reason: `현재 source의 GPU 선택 순서와 AMD 상태·적용 API 경계를 반영`
+- known_gaps: `AMD 단독 GPU의 실제 3D 적용과 언더볼팅 유지 수동 검증, package 실행은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — 혼합 GPU NVIDIA 선택과 AMD 3D 최적화 복구`
+- feature_map: `updated — revision 2`
+- architecture_impact: `NVIDIA 우선 routing, AMD 상태 조회의 ADLX 미호출, 명시 적용의 3D-only contract`
+- architecture_contract: `updated — revision 29`
 
 ## 계층과 확장 경로
 
@@ -44,8 +44,10 @@
 - 포터블 배포 EXE를 실행 중 직접 덮어쓰지 않는다. 보호 staging, digest, backup과 launcher 종료 경로를 사용한다.
 - 사용자 설정·녹화 파일은 설치 manifest와 제거 manifest에 포함하지 않는다.
 - Electron 호환 코드는 새 Rust backend authoritative state의 두 번째 writer가 될 수 없다.
-- AMD 장치가 하나라도 있으면 그래픽 상태 조회와 적용은 `Win32_VideoController`의 `VEN_1002` 장치 식별만 허용한다. Radeon ADLX·ADL·GPU tuning·3D 전역 설정 API와 packaged `radeon-helper.exe`를 시작·새로고침·적용 경로에서 호출하지 않으며 혼합 GPU에서도 AMD 보호를 NVIDIA 최적화보다 우선한다.
-- NVIDIA 전용 시스템은 기존 NVAPI 프로그램 profile 경로를 사용할 수 있다. AMD WMI 조회 실패만으로 NVIDIA 경로를 차단하지 않되, Radeon 설정 API로 fallback해서는 안 된다.
+- 그래픽 경로는 NVIDIA를 먼저 확인한다. NVIDIA가 감지되면 NVAPI 프로그램 profile을 authoritative target으로 사용하고 AMD WMI·ADLX helper를 호출하지 않는다.
+- NVIDIA가 없는 AMD 시스템의 시작·새로고침은 `Win32_VideoController`의 `VEN_1002` 장치 식별만 허용하며 ADLX를 초기화하지 않는다. 명시 적용에서만 packaged `radeon-helper.exe`를 호출한다.
+- Radeon helper는 호환 드라이버의 ADLX `I3DSettings`만 사용하고 수직 동기화·Enhanced Sync·Anti-Lag·Chill만 처리한다. GPU tuning·성능 monitoring API와 `InitializeWithIncompatibleDriver`는 금지하며 결과의 `tuningAccessed:false` 계약이 없으면 Rust·Electron 호출자가 실패로 처리한다.
+- Radeon 명시 적용은 모든 대상 GPU의 네 3D 설정을 먼저 snapshot한다. 항목 실패 시 snapshot 복원을 시도하고 최종 목표 상태와 복원 오류를 반환하며, helper reason이 있으면 caller는 게임 VSync를 변경하지 않는다.
 - UI runtime polling은 한 helper 요청 실패로 영구 종료하지 않는다. 실패한 기능의 `running`·`gameActive`를 false로 보정하고 다음 주기에 재조회한다.
 - affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다.
 - 터보키는 0.4.7부터 제품 runtime에서 시작하지 않는다. UI 진입점과 설정·다운로드 IPC는 실행 경로에 도달할 수 없어야 하며, 보존된 helper 구현을 다른 기능에서 호출해서는 안 된다. package와 release assembly는 helper binary나 standalone 약관 파일을 배포하지 않는다.

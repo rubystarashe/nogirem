@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `29`
-- updated_at: `2026-10-15T12:55:00Z`
+- revision: `30`
+- updated_at: `2026-10-15T13:35:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T12:55:00Z`
+- source_reviewed_at: `2026-10-15T13:35:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted channel overlay DPI target based on 200cda75b54e57573c467a612e51261f10ba4e9f`
-- source_review_evidence: `channel_ping.rs monitor effective DPI geometry, overlay interface contract와 독립 리뷰 APPROVED`
-- behavior_verified_at: `2026-10-15T12:55:00Z`
+- source_review_target: `uncommitted graphics routing and AMD restore target based on 061a23a4c7a6fc977ce8b3ec32e43c691ab8d1c0`
+- source_review_evidence: `graphics.rs·ui.rs·radeon helper·Electron compatibility source와 helper binary rebuild`
+- behavior_verified_at: `2026-10-15T13:35:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted channel overlay DPI target based on 200cda75b54e57573c467a612e51261f10ba4e9f`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust channel tests·Node overlay contract·desktop check`
-- behavior_verification_evidence: `channel ping 34/34 PASS, overlay interface 3/3 PASS, backend 112 PASS·3 ignored와 parity 2/2 PASS, Node 206/206 PASS, desktop locked check PASS`
+- behavior_verification_target: `uncommitted graphics routing and AMD restore target based on 061a23a4c7a6fc977ce8b3ec32e43c691ab8d1c0`
+- behavior_verification_environment: `Windows 10.0.26200 x64, RTX 4090 + AMD Radeon(TM) Graphics 혼합 GPU source 실행`
+- behavior_verification_evidence: `실제 graphics status가 NVIDIA GeForce RTX 4090 선택, graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Node 211/211, desktop check PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 채널 overlay monitor effective DPI 변환과 자동 검증 범위를 반영`
-- known_gaps: `실제 3840×2160 150% 게임과 혼합 DPI 모니터 이동 수동 검증은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 고배율 모니터 창 잘림 수정`
-- feature_map: `updated — PING-013과 DPI 표시 보장 추가`
-- architecture_impact: `게임 HWND DPI 대신 대상 모니터 effective DPI를 physicalBounds 기준으로 사용`
-- architecture_contract: `updated — logical-to-physical auxiliary window 경계 추가`
+- freshness_reason: `현재 source의 NVIDIA 우선 routing, AMD 명시 적용과 튜닝 API 금지 경계를 반영`
+- known_gaps: `실제 AMD 단독 GPU에서 적용 전후 언더볼팅 값 유지와 3D 목표 적용은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — 혼합 GPU NVIDIA 선택과 AMD 3D 최적화 복구`
+- feature_map: `updated — revision 2와 GFX-007~010 추가`
+- architecture_impact: `NVIDIA 우선 선택, AMD 상태의 ADLX 미초기화, 명시 적용의 3D 전용 helper 계약`
+- architecture_contract: `updated — revision 29`
 
 ## ID 할당
 
@@ -181,45 +181,45 @@
 ## FEAT-NOGIREM-GRAPHICS-SETTINGS
 
 - canonical_name: `GPU 그래픽 설정 확인·최적화`
-- aliases: `그래픽 최적화`, `NVIDIA 프로필`, `AMD Radeon 설정 보호`
+- aliases: `그래픽 최적화`, `NVIDIA 프로필`, `AMD Radeon 전역 설정`
 - lifecycle: `PARTIAL`
-- lifecycle_reason: `NVIDIA 프로그램 프로필 최적화는 유지하며 AMD는 사용자 튜닝 손실 제보에 따라 장치 확인만 제공하고 모든 드라이버 설정 접근을 차단함`
+- lifecycle_reason: `NVIDIA 프로그램 프로필과 AMD 3D 전역 설정 최적화가 source에 제공되지만 AMD 단독 하드웨어 적용 검증과 package 반영은 남음`
 - owners: `product=nogirem maintainer`, `technical=graphics backend owner`
-- purpose_and_scope: NVIDIA 전용 시스템에서는 마비노기 프로그램 프로필 목표를 확인·적용한다. AMD 장치가 하나라도 있으면 사용자 언더볼팅·오버클럭 프로필 보호를 우선하고 GPU 이름과 보호 상태만 표시한다.
-- exclusions: AMD 3D 전역 설정·GPU tuning 조회·적용·복원, 사용자 언더볼팅 값 저장·복구, 드라이버 설치·재시작은 지원하지 않는다.
-- personas_roles_permissions_accessibility_entry: 시스템 최적화 화면에서 GPU 이름, 설정 상태, 오류와 AMD 보호 이유를 텍스트로 확인한다. NVIDIA 적용은 사용자 조작이 필요하며 AMD 적용 버튼은 비활성화된다.
+- purpose_and_scope: NVIDIA가 있으면 마비노기 프로그램 프로필 목표를 확인·적용한다. NVIDIA가 없는 AMD 시스템은 시작 시 WMI로 장치와 네 3D 목표를 표시하고 사용자 확인 뒤 Radeon 전역 3D 설정을 적용한다.
+- exclusions: GPU tuning·전압·클럭·전력 제한 조회·적용·복원, 사용자 언더볼팅 값 저장·복구, 드라이버 설치·재시작은 지원하지 않는다.
+- personas_roles_permissions_accessibility_entry: 시스템 최적화 화면에서 선택된 GPU, 설정 목표, 전역 적용 범위와 튜닝 미접근 안내를 텍스트로 확인한다. NVIDIA와 AMD 적용 모두 사용자 조작이 필요하다.
 - preconditions_configuration_dependencies: Windows, NVIDIA는 NVAPI driver, AMD 탐지는 `Win32_VideoController`의 PCI vendor `VEN_1002`; 별도 feature flag와 관리자 권한은 없다.
-- normal_error_cancel_retry_flow: AMD 장치 존재를 이름과 분리해 확인하고 이름이 없으면 fallback을 표시한다. AMD 적용 요청은 driver write 전에 거부한다. WMI 조회 실패는 reason으로 보존하며 NVIDIA 전용 시스템의 기존 경로는 계속 확인한다. 사용자는 상태 화면을 닫아 취소하고 다시 열어 재조회할 수 있다.
-- concurrency_partial_failure_recovery: 상태 조회는 지속 상태를 쓰지 않는다. 혼합 AMD/NVIDIA 시스템은 AMD 보호를 우선해 NVAPI·ADLX 설정 접근을 모두 생략한다. 조회 실패 뒤 적용된 부분 상태나 복구할 side effect가 없다.
-- state_transitions_side_effects_limits: AMD는 `detected/read-only/writeProtected` 메모리 응답만 생성하며 registry·driver profile·튜닝값을 쓰지 않는다. NVIDIA 명시 적용만 프로그램 profile과 게임 VSync 설정을 변경할 수 있다.
-- modules_contracts_compatibility: `desktop/src/ui.rs` → `service.rs` → `graphics.rs`; AMD는 PowerShell WMI 읽기만 사용하고 packaged `radeon-helper.exe`를 실행하지 않는다. NVIDIA NVAPI 계약은 유지한다.
-- durable_data_owner_writers_readers_retention: AMD 경로에는 durable data와 writer가 없다. UI는 현재 backend 응답만 읽고 앱 종료 시 폐기한다.
+- normal_error_cancel_retry_flow: NVIDIA status를 먼저 확인하고 감지되면 AMD WMI·helper를 호출하지 않는다. AMD 단독 상태 조회는 WMI만 사용하며 네 목표를 `적용 전`으로 표시한다. AMD 적용 확인 후 helper가 3D 설정과 게임 VSync를 적용·검증한다. helper의 튜닝 미접근 계약이 없거나 호환 드라이버 초기화가 실패하면 적용을 중단한다.
+- concurrency_partial_failure_recovery: 상태 조회는 지속 상태를 쓰지 않는다. 혼합 AMD/NVIDIA 시스템은 NVAPI 프로그램 profile만 사용한다. AMD helper는 모든 GPU의 네 3D 설정을 적용 전에 snapshot하고 항목 실패 시 전체 snapshot 복원을 시도한 뒤 최종 상태와 복원 실패를 반환한다. helper reason이 있으면 게임 VSync는 변경하지 않는다.
+- state_transitions_side_effects_limits: AMD 시작·새로고침은 WMI 읽기만 수행한다. 명시 적용은 수직 동기화, Enhanced Sync, Anti-Lag, Chill과 게임 VSync만 변경하며 tuning API를 호출하지 않는다. NVIDIA 명시 적용은 프로그램 profile과 게임 VSync를 변경한다.
+- modules_contracts_compatibility: `desktop/src/ui.rs` → `service.rs` → `graphics.rs`; WMI 탐지와 `native/radeon-helper`의 ADLX `I3DSettings`가 분리된다. helper는 `tuningAccessed:false` 계약을 반환하며 Rust·Electron 호출자는 누락 결과를 거부한다.
+- durable_data_owner_writers_readers_retention: 그래픽 설정 writer는 NVIDIA의 NVAPI DRS와 AMD helper의 ADLX 3D service다. UI는 backend 응답만 읽으며 별도 사용자 tuning data를 저장하지 않는다.
 - security_privacy_trust_boundaries: 고정된 WMI class와 vendor ID만 조회하고 사용자 입력을 PowerShell에 삽입하지 않는다. GPU 이름 외 튜닝·전압·클럭 값은 수집하거나 진단에 새로 기록하지 않는다.
-- scenarios: `GFX-001 AMD 시작 상태 조회는 ADLX 미호출`, `GFX-002 AMD 적용은 driver write 전 거부`, `GFX-003 혼합 GPU는 AMD 보호 우선`, `GFX-004 이름 없는 AMD 장치 보호`, `GFX-005 AMD WMI 오류가 NVIDIA 전용 경로를 차단하지 않음`, `GFX-006 NVIDIA 기존 프로그램 profile 확인·적용`
-- acceptance_tests_evidence: `graphics.rs unit tests 6개`, backend 전체 tests, desktop locked check, `nogirem-cli --graphics-status` 실제 AMD read-only 실행, `REV-AMD-PROTECTION-001 APPROVED`
-- logs_metrics_traces_alerts: UI의 GPU 이름·`설정 보호됨`·보호 안내와 RPC 오류가 사용자 관측 신호다. 별도 telemetry는 없다.
-- architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 AMD driver 설정 금지와 NVIDIA program-profile 경계.
+- scenarios: `GFX-001 AMD 시작 상태 조회는 ADLX 미호출`, `GFX-006 NVIDIA 프로그램 profile 확인·적용`, `GFX-007 혼합 GPU는 NVIDIA 우선`, `GFX-008 AMD 명시 적용은 네 3D 목표만 처리`, `GFX-009 비호환 드라이버 강제 초기화 금지`, `GFX-010 tuningAccessed 계약 누락 거부`
+- acceptance_tests_evidence: `graphics.rs 6/6`, backend `115 PASS·3 ignored`와 parity `2/2`, Radeon Node `13/13`, Node `211/211`, desktop check, 실제 RTX 4090 graphics status, helper rebuild PASS
+- logs_metrics_traces_alerts: UI의 GPU 이름·목표별 상태·튜닝 미접근 안내와 RPC 오류가 사용자 관측 신호다. 별도 telemetry는 없다.
+- architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 GPU 선택 우선순위와 Radeon 3D 전용 helper 경계.
 - record_id: `FEAT-NOGIREM-GRAPHICS-SETTINGS`
 - owner: `nogirem maintainer`
-- revision: `1`
-- updated_at: `2026-10-15T12:50:00Z`
+- revision: `2`
+- updated_at: `2026-10-15T13:35:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T12:50:00Z`
+- source_reviewed_at: `2026-10-15T13:35:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted target based on da014021ccbb122bb1897ec895da48292669b777`
-- source_review_evidence: `graphics.rs·ui.rs source review와 REV-AMD-PROTECTION-001`
-- behavior_verified_at: `2026-10-15T12:50:00Z`
+- source_review_target: `uncommitted target based on 061a23a4c7a6fc977ce8b3ec32e43c691ab8d1c0`
+- source_review_evidence: `graphics.rs·ui.rs·radeon helper·Electron compatibility source review`
+- behavior_verified_at: `2026-10-15T13:35:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted target based on da014021ccbb122bb1897ec895da48292669b777`
-- behavior_verification_environment: `Windows 10.0.26200 x64 local source, 실제 AMD WMI 장치`
-- behavior_verification_evidence: `graphics 6/6 PASS, backend 111 PASS·3 ignored와 integration parity 2/2 PASS, Node 206/206 PASS, desktop check PASS, AMD status read-only/writeProtected PASS`
+- behavior_verification_target: `uncommitted target based on 061a23a4c7a6fc977ce8b3ec32e43c691ab8d1c0`
+- behavior_verification_environment: `Windows 10.0.26200 x64 local source, RTX 4090 + AMD Radeon(TM) Graphics`
+- behavior_verification_evidence: `실제 NVIDIA 선택, graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Node 211/211, desktop check, Radeon helper rebuild PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 AMD 보호 구현과 NVIDIA 유지 범위를 반영`
-- known_gaps: `제보 RX 6700 XT의 앱 시작 전후 언더볼팅 값 유지와 packaged UI는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — 신규 canonical identity와 AMD 보호 동작`
-- feature_map: `updated — entry 추가`
-- architecture_impact: `AMD WMI read-only와 driver API 차단 경계`
-- architecture_contract: `updated — 관련 canonical section 추가`
+- freshness_reason: `현재 NVIDIA 우선 routing과 AMD 3D 최적화·tuning API 금지 범위를 반영`
+- known_gaps: `AMD 단독 GPU에서 실제 3D 적용과 언더볼팅 값 유지, packaged UI는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — 혼합 GPU routing 수정과 AMD 기능 복구`
+- feature_map: `updated — revision 2`
+- architecture_impact: `AMD WMI 상태 탐지와 명시 3D write 분리, tuning API·비호환 초기화 금지`
+- architecture_contract: `updated — revision 29`
 
 ## FEAT-NOGIREM-DXVK
 
