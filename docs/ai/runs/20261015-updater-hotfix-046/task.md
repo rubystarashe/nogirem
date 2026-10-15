@@ -9,7 +9,7 @@
 - created_at: `2026-10-15T11:50:00Z`
 - updated_at: `2026-10-15T12:18:00Z`
 - source_base: `36e24da646d91b6bcde35ac3aea06c16c4274d63`
-- source_target: `6c8b48d6f80cb11076b2a53b19f823843ac18186`
+- source_target: `6c8b48d9713654d79a8467e8df371ca7a81ef59f`
 - dev_state: `READY_FOR_QA`
 - qa_state: `BLOCKED — 공개 또는 격리된 signed 이전 버전→hotfix 실행 target이 없음`
 - review_verdict: `APPROVED`
@@ -95,7 +95,7 @@
 ## Current disposition
 
 - status: `PARTIALLY_COMPLETED — source·signed candidate 완료, 실제 이전 버전 적용과 배포 미실행`
-- commit: `6c8b48d6f80cb11076b2a53b19f823843ac18186`
+- commit: `6c8b48d9713654d79a8467e8df371ca7a81ef59f`
 - push: `NOT_RUN`
 - tag: `NOT_RUN`
 - deployment: `NOT_RUN`

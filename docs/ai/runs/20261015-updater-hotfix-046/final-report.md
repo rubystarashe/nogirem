@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-UPDATER-HOTFIX-046`
 - owner: `Cursor Agent`
 - source_base: `36e24da646d91b6bcde35ac3aea06c16c4274d63`
-- source_target: `6c8b48d6f80cb11076b2a53b19f823843ac18186`
+- source_target: `6c8b48d9713654d79a8467e8df371ca7a81ef59f`
 - execution_target: `release/dioxus-0.4.6-2026-10-15T12-17-45-499Z`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 0.4.x 작업 파일 신뢰 판정과 설치 handoff`
 - feature_map: `updated — lifecycle PARTIAL, 공개 결함과 미배포 hotfix 상태 반영`
@@ -54,7 +54,7 @@
 
 - 이미 작업 파일 신뢰 판정에서 중단되는 배포 client는 새 payload 실행 전에 실패하므로 수정 설치형 1회 수동 설치가 필요할 수 있다.
 - 공개 v0.4.6 installer·portable·manifest는 대치하지 않았다.
-- commit: `6c8b48d6f80cb11076b2a53b19f823843ac18186`
+- commit: `6c8b48d9713654d79a8467e8df371ca7a81ef59f`
 - push: `NOT_RUN`
 - tag: `NOT_RUN`
 - deployment: `NOT_RUN`
