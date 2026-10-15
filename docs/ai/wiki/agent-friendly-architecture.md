@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `26`
-- updated_at: `2026-10-15T12:55:00Z`
+- revision: `27`
+- updated_at: `2026-10-15T13:07:27Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T12:55:00Z`
+- source_reviewed_at: `2026-10-15T13:07:27Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 200cda75b54e57573c467a612e51261f10ba4e9f + RUN-20261015-CHANNEL-OVERLAY-DPI working target`
-- source_review_evidence: `channel ping monitor effective DPI geometry, physicalBounds 계약과 독립 리뷰 APPROVED`
-- behavior_verified_at: `2026-10-15T12:55:00Z`
+- source_review_target: `base deb6e254c1bd51ed9f3239de115b000c7955bb31 + RUN-20261015-DISABLE-TURBO-047 working target`
+- source_review_evidence: `Rust·Electron startup migration, Dioxus UI 진입점과 turbo IPC 차단 경계 검토`
+- behavior_verified_at: `2026-10-15T13:07:27Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `RUN-20261015-CHANNEL-OVERLAY-DPI uncommitted source target`
-- behavior_verification_environment: `Windows 10.0.26200 x64 source 자동 검사`
-- behavior_verification_evidence: `channel ping 34/34 PASS, overlay interface 3/3 PASS, backend 112 PASS·3 ignored와 parity 2/2 PASS, Node 206/206 PASS, desktop locked check PASS`
+- behavior_verification_target: `RUN-20261015-DISABLE-TURBO-047 uncommitted source target based on deb6e254c1bd51ed9f3239de115b000c7955bb31`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Node·Rust test harness`
+- behavior_verification_evidence: `Node 206/206 PASS, backend 115 PASS·3 ignored와 parity 2/2 PASS, desktop 8/8 PASS, desktop locked check PASS, 독립 review APPROVED`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 channel overlay logical-to-physical DPI 변환 경계를 반영`
-- known_gaps: `실제 3840×2160 150%와 혼합 DPI 모니터 이동 수동 실행은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 고배율 overlay 표시`
-- feature_map: `updated — PING-013과 DPI 표시 보장 추가`
-- architecture_impact: `게임 DPI awareness와 분리된 monitor effective DPI physicalBounds`
-- architecture_contract: `updated — auxiliary window DPI 변환 책임 추가`
+- freshness_reason: `현재 source의 제거된 터보키 실행 금지·설정 migration 경계를 반영`
+- known_gaps: `기존 enabled 사용자 설정을 사용한 실제 설치본 최초 실행은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-TURBO-KEY — REMOVED`
+- feature_map: `updated — 0.4.7 제거 동작과 startup migration 반영`
+- architecture_impact: `저수준 입력 helper의 UI·IPC·startup 실행 경계 폐쇄`
+- architecture_contract: `updated — 제거된 helper의 실행 금지와 단일 migration writer 추가`
 
 ## 계층과 확장 경로
 
@@ -48,7 +48,7 @@
 - NVIDIA 전용 시스템은 기존 NVAPI 프로그램 profile 경로를 사용할 수 있다. AMD WMI 조회 실패만으로 NVIDIA 경로를 차단하지 않되, Radeon 설정 API로 fallback해서는 안 된다.
 - UI runtime polling은 한 helper 요청 실패로 영구 종료하지 않는다. 실패한 기능의 `running`·`gameActive`를 false로 보정하고 다음 주기에 재조회한다.
 - affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다.
-- 터보키는 임의의 `Client.exe` 이름만으로 입력하지 않는다. 정본 설정과 동일한 명시적 게임 폴더 또는 sibling launcher를 검증해야 한다.
+- 터보키는 0.4.7부터 제품 runtime에서 시작하지 않는다. UI 진입점과 설정·다운로드 IPC는 실행 경로에 도달할 수 없어야 하며, 보존된 helper 구현을 다른 기능에서 호출해서는 안 된다.
 - DXVK는 확인되지 않은 게임 경로나 임의 URL에 파일을 쓰지 않는다. manager가 실제 `Client.exe`와 게임 미실행 상태를 확인하고 capability module이 digest·x64 PE·최종 파일 hash를 검증해야 한다.
 - 채널 핑은 사용자 URL·hostname·endpoint를 받지 않는다. 고정 HTTPS source의 제한 크기 CSV를 전부 검증한 뒤에만 cache와 runtime endpoint를 교체한다.
 - 실시간 점수 창은 게임 프로세스에 주입하거나 Windows 키를 차단하지 않는다. 실제 실행 경로가 정본 게임 조건을 충족한 전경 PID가 소유하고 CSV endpoint와 일치하는 established TCP 연결만 조회하며 비활성·click-through 상태를 유지한다. 상단 창은 게임 전경 또는 전체표가 열린 Windows shell 전경에서만 표시하고 일반 앱 전경에서는 마지막 게임 bounds를 재사용하지 않는다.
@@ -63,7 +63,7 @@
 - update manifest: release signing script만 private key를 사용해 작성하며 앱은 embedded public key로 검증만 한다.
 - installer uninstall registry·shortcut writer: NSIS 설치기 하나다.
 - game path state: affinity helper만 `%APPDATA%\마비노기 렘 부스터\game\path.json`을 쓰며 `Environment`와 입력 기능이 읽는다. 터보키의 허용 판단에는 사용하지 않는다.
-- turbo helper installation: `inputs.rs`가 helper version·manifest·binary 교체를 조정하고 native helper는 전달받은 설정과 game path state를 소비한다.
+- removed turbo setting: `inputs.rs`가 시작 시 기존 설정의 키·간격과 설치 파일은 보존하고 `enabled=false`만 기록한다. Electron 전환 호환 경로도 같은 비활성화만 수행하며 helper update·launch를 호출하지 않는다.
 - DXVK state와 DLL: `dxvk.rs` install/apply 경로만 `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 검증된 게임 폴더의 `d3d9_dxvk.dll`을 쓴다.
 - channel ping setting·cache: `channel_ping.rs`만 `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv`를 쓴다. 동일 module이 연결 시험 표본과 실제 5-tuple별 `SmoothedRtt + RttVar` TCP 추정값을 계산하고, 최근 유효 counter보다 재전송·TCP 시간초과·수신 중복 ACK·혼잡 신호 중 하나라도 증가한 표본에는 `SmoothedRtt + 4×RttVar`를 적용한다. 최근 1분 추정 표본 평균·최대, 네 counter delta 표본과 최근 유효 counter 기준은 메모리에만 두며 overlay·UI는 status IPC로 읽는다. 추정 최대는 원시 패킷 RTT 최대나 게임 처리·입력·렌더링 지연을 뜻하지 않는다. rolling outcomes·실제 연결·window mode는 지속하지 않는다.
 - removed game overlay setting: 현재 source에는 `%APPDATA%\마비노기 렘 부스터\overlay\settings.json` writer나 reader가 없다. 기존 사용자 파일은 자동 삭제하지 않으며 어떤 runtime 결정에도 사용하지 않는다.
@@ -74,8 +74,8 @@
 - `helperStartedAt`이 없는 신선한 0.4.2 status와 살아 있는 PID는 migration 대상으로만 인정한다. 새 helper가 lock을 경쟁하기 전에 기존 control 경로로 중단하고 동일 PID·시작 시각 instance의 종료를 확인한다.
 - UI는 2초 runtime polling을 유지한다. 개별 affinity/memory 오류는 사용자에게 한 번 표시할 수 있지만 polling task 자체를 종료하거나 이전 `gameActive=true`를 유지하지 않는다.
 - 게임이 실행 중이 아니어도 helper는 대기 상태일 수 있으며 사용자의 부스트 중단·복원 조작을 차단하지 않는다.
-- 터보키는 전경 프로세스가 `Client.exe`이고 상위 폴더가 `Mabinogi`, `Mabinogi_Test`, `마비노기`, `Nexon` 중 하나이거나 같은 폴더에 `Mabinogi.exe`가 있을 때만 반복 입력한다.
-- 사용자 쓰기 가능한 runtime game path 파일은 터보키 허용 목록으로 신뢰하지 않는다. 새 게임 폴더 지원은 source 정본과 회귀 테스트를 함께 변경한다.
+- 터보키 helper source와 과거의 명시적 게임 경로 검증은 호환 기록으로 보존하지만 0.4.7 제품에서는 실행되지 않는다.
+- 시작 migration은 실행 중일 수 있는 이전 helper에 control 종료 요청을 기록한 뒤 저장된 `enabled`를 false로 바꾸며, 실패 시 helper 실행으로 fallback하지 않는다.
 
 ## DXVK download·file transaction
 

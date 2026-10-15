@@ -246,7 +246,12 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
 
     tokio::time::sleep(Duration::from_millis(900)).await;
     let advanced = inspect(&main, r#"(()=>{const panel=document.querySelector('.creator-content');return {panel:!!panel,headings:panel?[...panel.querySelectorAll('h2')].map(e=>e.textContent):[],scrollable:panel?panel.scrollHeight>panel.clientHeight:false,icons:document.querySelectorAll('.window-controls svg').length,tabs:[...document.querySelectorAll('.creator-tabs button')].map(e=>e.textContent),body:document.body.innerText.slice(0,500)}})()"#).await?;
-    if advanced["scrollable"] != true || advanced["icons"] != 4 {
+    if advanced["scrollable"] != true
+        || advanced["icons"] != 4
+        || advanced["headings"]
+            .as_array()
+            .is_some_and(|headings| headings.iter().any(|heading| heading == "터보 키"))
+    {
         return Err(format!("Advanced structure failed: {advanced}"));
     }
     inspect(&main, "(()=>{const e=document.querySelector('[aria-label=\"게임 마우스 커서 크기\"]');e.scrollIntoView({block:'center'});e.value='25';e.dispatchEvent(new Event('change',{bubbles:true}));})();true").await?;
@@ -259,21 +264,6 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     if state.peek().services["affinity"]["gameCoreSetting"]["gameCoreCount"] != 3 {
         return Err("Inline CPU setting did not reach service".into());
     }
-    inspect(&main, "[...document.querySelectorAll('.developer-tool-row')].find(e=>e.querySelector('h2')?.textContent==='터보 키').querySelector('button').click();true").await?;
-    tokio::time::sleep(Duration::from_millis(300)).await;
-    if let Some(path) =
-        std::env::args().find_map(|a| a.strip_prefix("--capture=").map(str::to_owned))
-    {
-        capture(&main, &format!("{path}-keyboard.png"))?;
-    }
-    inspect(&main, "(()=>{const e=document.querySelector('[role=dialog] select');e.value='5';e.dispatchEvent(new Event('change',{bubbles:true}));})();true").await?;
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    inspect(&main, "[...document.querySelectorAll('[role=dialog] button')].find(e=>e.textContent==='설정 완료').click();true").await?;
-    tokio::time::sleep(Duration::from_millis(300)).await;
-    if state.peek().turbo["intervalMs"] != 5 || state.peek().turbo["enabled"] != true {
-        return Err("Turbo save did not reach service".into());
-    }
-
     tokio::time::sleep(Duration::from_millis(300)).await;
     inspect(
         &main,
@@ -517,10 +507,7 @@ pub async fn audit(
     directory: &str,
 ) -> Result<Value, String> {
     for _ in 0..600 {
-        if state.peek().navigation_ready
-            && state.peek().turbo.is_object()
-            && state.peek().input.is_object()
-        {
+        if state.peek().navigation_ready && state.peek().input.is_object() {
             break;
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -679,21 +666,12 @@ async fn layout_check(
     )
     .await?;
     tokio::time::sleep(Duration::from_millis(850)).await;
-    let previous_turbo = state.peek().turbo.clone();
-    {
-        let mut s = state.write();
-        s.turbo["installed"] = json!(false);
-        s.modal = "turbo".into();
-    }
-    tokio::time::sleep(Duration::from_millis(250)).await;
-    save("terms")?;
-    let terms=inspect(main,"({header:!!document.querySelector('.terms-modal>header'),footer:!!document.querySelector('.terms-modal>footer'),scroll:!!document.querySelector('.terms-scroll')})").await?;
-    if terms["header"] != true || terms["footer"] != true || terms["scroll"] != true {
-        return Err(format!("Terms modal structure mismatch: {terms}"));
+    let turbo_removed=inspect(main,"({card:[...document.querySelectorAll('.developer-tool-row h2')].some(e=>e.textContent==='터보 키'),dialog:!!document.querySelector('.turbo-key-picker,.terms-modal')})").await?;
+    if turbo_removed["card"] == true || turbo_removed["dialog"] == true {
+        return Err(format!("Removed turbo key UI is visible: {turbo_removed}"));
     }
     {
         let mut s = state.write();
-        s.turbo = previous_turbo;
         s.modal = "notice".into();
         s.notice = json!({"id":"layout-fixture","markdown":"# 공지사항\n\n공지 본문입니다.\n\n- 첫 번째 항목\n- 두 번째 항목"});
     }
@@ -705,7 +683,7 @@ async fn layout_check(
         s.notice = Value::Null;
     }
     tokio::time::sleep(Duration::from_millis(200)).await;
-    Ok(json!({"blackbox":blackbox,"optimization":optimization,"tabs":tabs,"terms":terms}))
+    Ok(json!({"blackbox":blackbox,"optimization":optimization,"tabs":tabs,"turboRemoved":turbo_removed}))
 }
 
 async fn window_audit(client: &Client, host: &Host, root: &std::path::Path) -> Result<(), String> {

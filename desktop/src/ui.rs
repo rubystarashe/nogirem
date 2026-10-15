@@ -141,7 +141,6 @@ pub async fn initialize(client: Client, mut state: Signal<State>) {
         Err(error) => state.write().error = error,
     }
     for (channel, key) in [
-        ("application:get-turbo-key-setting", "turbo"),
         ("application:get-input-guard-setting", "input"),
         ("application:get-channel-ping-setting", "channel-ping"),
         ("application:get-startup-tray-setting", "startup"),
@@ -606,11 +605,10 @@ fn Creator() -> Element {
 
 #[component]
 fn Advanced() -> Element {
-    let mut state = use_context::<Signal<State>>();
+    let state = use_context::<Signal<State>>();
     let client = use_context::<Client>();
     let s = state.read().clone();
     let input_loaded = s.input.is_object();
-    let turbo_loaded = s.turbo.is_object();
     rsx! { div { class: "developer-tools",
         div { class: "developer-tool-row",
             div { h2 { "버그 리포트" } p { "문제가 발생한 경우 로그 추출 파일을 전송해 주세요" } }
@@ -629,29 +627,6 @@ fn Advanced() -> Element {
             Action { label: if s.muted { "사용 중" } else { "사용하기" }, channel: "application:set-startup-music-setting", args: json!([!s.muted]), class: if s.muted { "active" } else { "" } }
         }
         div { class: "developer-tool-stack", CpuSettings {} }
-        div { class: "developer-tool-row",
-            div { h2 { "터보 키" } p { if s.turbo["installed"] == true { "키를 누르고 있으면 해당 키를 반복해서 연타합니다" } else { "스킬 키를 미리 누르고 있어도 스킬이 사용될 수 있도록 합니다. 기능을 사용하려면 다운로드가 필요합니다" } } }
-            div { class: "developer-tool-actions",
-                if s.turbo["installed"] == true {
-                    div { class: "turbo-key-installed-actions",
-                        div { class: "turbo-key-primary-actions",
-                            if s.turbo["enabled"] == true {
-                                button { class: "developer-tool-secondary", disabled: !turbo_loaded || s.busy, onclick: move |_| state.write().modal = "turbo".into(), "키 설정" }
-                                Action { label: if s.turbo["running"] == true { "사용 중" } else { "실행 오류" }, channel: "application:set-turbo-key-setting", args: setting_patch(&s.turbo, "enabled", json!(false)), class: if s.turbo["running"] == true { "active" } else { "" } }
-                            } else { button { disabled: !turbo_loaded || s.busy, onclick: move |_| state.write().modal = "turbo".into(), "사용하기" } }
-                        }
-                        Action { label: "터보키 제거하기", channel: "application:remove-turbo-key-helper", class: "turbo-key-remove" }
-                    }
-                } else { button { disabled: !turbo_loaded || s.busy, onclick: move |_| state.write().modal = "turbo".into(), "다운로드" } }
-            }
-        }
-        if s.turbo["installed"] == true && s.turbo["enabled"] == true {
-            label { class: "turbo-key-immediate-option",
-                input { r#type: "checkbox", checked: s.turbo["ignoreInitialDelay"] == true, disabled: s.busy,
-                    onchange: {let client=client.clone(); move |e: Event<FormData>| command(client.clone(), state, "application:set-turbo-key-setting", setting_patch(&state.peek().turbo, "ignoreInitialDelay", json!(e.checked()))) }
-                } span { "키보드 입력 지연을 무시하고 즉시 입력" }
-            }
-        }
         div { class: "developer-tool-row",
             div {
                 h2 { "실시간 게임 서버 모니터링" }

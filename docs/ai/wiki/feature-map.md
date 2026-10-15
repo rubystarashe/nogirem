@@ -140,24 +140,43 @@
 
 - canonical_name: `마비노기 전용 터보키`
 - aliases: `터보 키`, `반복 입력 helper`
-- lifecycle: `ACTIVE`
-- lifecycle_reason: `사용자가 별도 helper를 내려받아 선택 키를 마비노기 전경 창에서만 반복 입력할 수 있음`
+- lifecycle: `REMOVED`
+- lifecycle_reason: `0.4.7부터 일반 배포 제품의 기능 목록·설정·다운로드·자동 실행 경로에서 제거함`
 - owners: `product=nogirem maintainer`, `technical=input helper owner`
-- purpose_and_scope: 선택한 비수정키를 1~30ms 간격으로 반복하며 정식·테스트 서버 `Client.exe`가 전경일 때만 입력한다.
-- exclusions: 마비노기 외 창, 허용되지 않은 modifier/lock/Esc, background 입력, 자동 게임 플레이 판단은 지원하지 않는다.
-- personas_permissions_accessibility_entry: 고급 기능에서 안내 동의 후 helper를 다운로드·설정한다. 실행·업데이트 오류를 텍스트로 표시한다.
-- preconditions_dependencies: Windows x64, 저수준 keyboard hook, 서명 release의 SHA-256 자산, 정본에 명시된 게임 폴더.
-- normal_error_cancel_retry_flow: 키 입력 시 전경 PID의 실제 경로를 확인하고 `Mabinogi`, `Mabinogi_Test`, `마비노기`, `Nexon` 폴더 또는 sibling `Mabinogi.exe`가 있는 경로만 허용한다. 포커스·modifier·부모 앱이 바뀌면 즉시 반복을 취소한다.
-- concurrency_partial_failure_recovery: named mutex가 단일 helper를 보장한다. 앱은 설정 변경·업데이트 전에 이전 helper를 중단하고, 구버전 0.1.7은 동의를 보존한 채 0.1.8로 교체한다.
-- state_side_effects_limits: 저수준 hook과 `SendInput`을 사용하며 설정·설치 manifest·status/control JSON만 지속한다.
-- modules_contracts: `inputs.rs`가 실행 인자와 설치 상태를 소유하고 `native/turbo-key`가 입력 동작과 명시적 게임 폴더 판별을 소유한다.
-- durable_data_owner: turbo 설정·manifest writer는 inputs installer 경로 하나이며 native helper는 실행 중 상태만 기록한다.
-- security_privacy: 실행 파일 PE·digest·GitHub 자산을 검증하고, 전경 PID의 전체 경로가 명시 폴더 또는 launcher 조건을 충족할 때만 입력한다.
-- scenarios: `TURBO-001 정식 서버`, `TURBO-002 테스트 서버`, `TURBO-003 다른 Client.exe 거부`, `TURBO-004 modifier·포커스 이탈 취소`
-- observability_evidence: turbo status JSON, UI 실행 오류, helper 14개 unit test, `test/turbo-key.test.mjs`
-- architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 선택 helper·명시 게임 폴더 경계.
+- purpose_and_scope: `REMOVED` tombstone. 과거에는 선택한 키를 마비노기 전경 창에서 반복 입력했으며, 현재 제품에서는 보이거나 실행되지 않는다.
+- exclusions: 기존 구현 source와 사용자 설치 파일을 삭제·복구하지 않는다. 신규 다운로드·설정 변경·자동 실행은 지원하지 않는다.
+- personas_permissions_accessibility_entry: 사용자 진입점이 없다. 고급 기능 목록과 시작 상태 조회에서 제거했다.
+- preconditions_dependencies: 기존 `%APPDATA%\마비노기 렘 부스터\turbo-key` 설정이 있어도 0.4.7 시작 시 `enabled=false`로 전환한다.
+- normal_error_cancel_retry_flow: Rust와 Electron 전환 호환 backend는 설정·다운로드 요청을 명시적으로 거부한다. 시작 시 control 파일에 종료 요청을 기록하고 저장 설정을 비활성화한다.
+- concurrency_partial_failure_recovery: 기존 helper 구현과 설치 제거 코드는 보존한다. 비활성화 저장 실패는 시작 오류로 기록하며 helper 실행 경로로 대체하지 않는다.
+- state_side_effects_limits: 시작 migration은 기존 키·간격 설정과 설치 파일을 보존하고 `enabled`만 false로 변경한다.
+- modules_contracts: `desktop/src/ui.rs`는 제품 진입점을 제공하지 않는다. `inputs.rs`와 `service/main.mjs`는 시작 비활성화를 소유하며 실행 구현은 사용 불가능한 상태로 보존한다.
+- durable_data_owner: turbo 설정 writer는 기존 inputs 경로를 유지한다. 0.4.7 시작 migration만 `enabled=false`를 기록한다.
+- security_privacy: 저수준 keyboard hook과 `SendInput` helper는 제품 runtime에서 시작하지 않는다.
+- scenarios: `TURBO-005 고급 기능 목록 미노출`, `TURBO-006 기존 enabled 설정 시작 비활성화`, `TURBO-007 설정·다운로드 실행 거부`, `TURBO-008 구현 source 보존`
+- observability_evidence: `inputs.rs` unit test, `test/turbo-key.test.mjs`, desktop compile.
+- architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 제거된 helper 실행 금지 경계.
+- record_id: `FEAT-NOGIREM-TURBO-KEY`
+- owner: `nogirem maintainer`
+- revision: `2`
+- updated_at: `2026-10-15T13:07:27Z`
+- updated_by: `cursor-agent-92251f36`
+- source_reviewed_at: `2026-10-15T13:07:27Z`
+- source_reviewed_by: `cursor-agent-92251f36`
+- source_review_target: `base deb6e254c1bd51ed9f3239de115b000c7955bb31 + RUN-20261015-DISABLE-TURBO-047 working target`
+- source_review_evidence: `desktop/src/ui.rs, desktop/backend/src/inputs.rs·service.rs, service/main.mjs와 turbo 회귀 검사 검토`
+- behavior_verified_at: `2026-10-15T13:07:27Z`
+- behavior_verified_by: `cursor-agent-92251f36`
+- behavior_verification_target: `RUN-20261015-DISABLE-TURBO-047 uncommitted source target based on deb6e254c1bd51ed9f3239de115b000c7955bb31`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Node·Rust test harness`
+- behavior_verification_evidence: `Node 206/206 PASS, backend 115 PASS·3 ignored와 parity 2/2 PASS, desktop 8/8 PASS, desktop locked check PASS, REV-DISABLE-TURBO-047 APPROVED`
 - freshness_status: `CURRENT`
-- known_gaps: `실제 테스트 서버 창에서 1ms~30ms 반복 입력 수동 확인은 NOT_RUN`
+- freshness_reason: `0.4.7 source의 UI 미노출·시작 비활성화·실행 요청 거부 정책을 반영`
+- known_gaps: `실제 0.4.6 enabled 설정을 가진 설치본의 0.4.7 최초 실행 수동 검증은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-TURBO-KEY — 제품 기능 제거와 기존 설정 자동 비활성화`
+- feature_map: `updated — lifecycle REMOVED와 0.4.7 migration·차단 경로 기록`
+- architecture_impact: `저수준 입력 helper의 UI·IPC·startup 실행 경계 폐쇄`
+- architecture_contract: `updated — 제거 기능의 실행 금지와 설정 migration 책임 추가`
 
 ## FEAT-NOGIREM-GRAPHICS-SETTINGS
 

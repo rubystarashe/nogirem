@@ -24,6 +24,11 @@ fn input_normalize(v: &Value) -> Value {
 fn required(v: &Value) -> bool {
     v["enabled"] == true || v["cursorScalePercent"] != 100 || v["cursorWheelModifier"] != "disabled"
 }
+fn disabled_turbo_setting(v: &Value) -> Value {
+    let mut setting = settings::turbo(v);
+    setting["enabled"] = json!(false);
+    setting
+}
 fn validate_pe(bytes: &[u8]) -> Result<()> {
     if bytes.len() < 256 || bytes.len() > 2 * 1024 * 1024 {
         return Err("터보 키 실행 파일의 크기가 올바르지 않습니다".into());
@@ -385,6 +390,22 @@ impl Inputs {
         remove(&self.turbo.directory.join("current.json"))?;
         self.turbo_status()
     }
+    pub fn disable_turbo(&mut self) -> Result<Value> {
+        let path = self.turbo.directory.join("settings.json");
+        let saved = read(&path);
+        let setting = disabled_turbo_setting(&saved);
+        if saved["enabled"] == true {
+            self.save(&path, &setting)?;
+            let _ = self.turbo.control(json!({"command":"stop"}));
+        }
+        self.turbo.stop()?;
+        let mut status = self.turbo_status()?;
+        status["enabled"] = json!(false);
+        status["running"] = json!(false);
+        status["available"] = json!(false);
+        status["reason"] = json!("터보 키 기능은 0.4.7부터 지원하지 않습니다");
+        Ok(status)
+    }
     pub fn start_saved(&mut self) -> Result<()> {
         let input = input_normalize(&read(&self.input.directory.join("settings.json")));
         let mut errors = vec![];
@@ -393,22 +414,8 @@ impl Inputs {
                 errors.push(e)
             }
         }
-        let turbo = settings::turbo(&read(&self.turbo.directory.join("settings.json")));
-        let installed = self.installation()?;
-        if self.env.packaged
-            && installed["updateRequired"] == true
-            && !installed["acceptedAt"].is_null()
-        {
-            if let Err(e) =
-                self.install_binary(env!("CARGO_PKG_VERSION"), installed["acceptedAt"].clone())
-            {
-                errors.push(e);
-            }
-        }
-        if turbo["enabled"] == true && self.installation()?["installed"] == true {
-            if let Err(e) = self.launch_turbo(&turbo) {
-                errors.push(e)
-            }
+        if let Err(e) = self.disable_turbo() {
+            errors.push(e)
         }
         if errors.is_empty() {
             Ok(())
@@ -433,6 +440,22 @@ impl Inputs {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn test_environment(name: &str) -> Environment {
+        let root = std::env::temp_dir().join(format!(
+            "nogirem-{name}-{}-{}",
+            std::process::id(),
+            crate::now_ms()
+        ));
+        Environment {
+            user: root.join("user"),
+            documents: root.join("documents"),
+            videos: root.join("videos"),
+            exe: root.join("nogirem.exe"),
+            root,
+            packaged: false,
+            portable: false,
+        }
+    }
     #[test]
     fn input_defaults_and_bounds() {
         assert_eq!(input_normalize(&Value::Null)["cursorScalePercent"], 100);
@@ -452,5 +475,52 @@ mod tests {
             &json!({"cursorScalePercent":200})
         )));
         assert!(!required(&input_normalize(&json!({}))));
+    }
+    #[test]
+    fn disabled_turbo_setting_preserves_options_but_clears_enabled() {
+        let setting = disabled_turbo_setting(
+            &json!({"enabled":true,"keys":[65,66],"intervalMs":3,"ignoreInitialDelay":true}),
+        );
+        assert_eq!(setting["enabled"], false);
+        assert_eq!(setting["keys"], json!([65, 66]));
+        assert_eq!(setting["intervalMs"], 3);
+        assert_eq!(setting["ignoreInitialDelay"], true);
+    }
+    #[test]
+    fn disable_turbo_migrates_existing_enabled_setting() {
+        let env = test_environment("disable-turbo-existing");
+        let directory = env.user.join("turbo-key");
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("settings.json"),
+            br#"{"enabled":true,"keys":[65,66],"intervalMs":3,"ignoreInitialDelay":true}"#,
+        )
+        .unwrap();
+        let mut inputs = Inputs::new(env.clone());
+        let status = inputs.disable_turbo().unwrap();
+        let saved: Value =
+            serde_json::from_slice(&std::fs::read(directory.join("settings.json")).unwrap())
+                .unwrap();
+        assert_eq!(saved["enabled"], false);
+        assert_eq!(saved["keys"], json!([65, 66]));
+        assert_eq!(saved["intervalMs"], 3);
+        assert_eq!(saved["ignoreInitialDelay"], true);
+        assert_eq!(status["running"], false);
+        assert_eq!(status["available"], false);
+        assert!(directory.join("control.json").is_file());
+        std::fs::remove_dir_all(env.root).unwrap();
+    }
+    #[test]
+    fn disable_turbo_does_not_create_state_for_unused_feature() {
+        let env = test_environment("disable-turbo-unused");
+        let directory = env.user.join("turbo-key");
+        let mut inputs = Inputs::new(env.clone());
+        let status = inputs.disable_turbo().unwrap();
+        assert_eq!(status["enabled"], false);
+        assert_eq!(status["available"], false);
+        assert!(!directory.exists());
+        if env.root.exists() {
+            std::fs::remove_dir_all(env.root).unwrap();
+        }
     }
 }

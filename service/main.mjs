@@ -2068,19 +2068,21 @@ async function uninstallTurboKeyHelper() {
 }
 
 async function ensureTurboKeyStarted() {
-  const settings = await readJson(getTurboKeyPaths().settingsPath)
-  let installation = await getCachedTurboKeyInstallation(
-    getTurboKeyPaths().directory,
-    { refresh: true },
-  )
-  installation = await updateTurboKeyHelperIfNeeded(installation)
-  if (!settings?.enabled) return
-  if (!installation.installed) return
-  await launchTurboKeyHelper(
-    normalizeTurboKeyCodes(settings.keys),
-    normalizeTurboKeyIntervalMs(settings.intervalMs),
-    normalizeTurboKeyIgnoreInitialDelay(settings.ignoreInitialDelay),
-  )
+  const paths = getTurboKeyPaths()
+  if (!existsSync(paths.directory)) return
+  const settings = await readJson(paths.settingsPath)
+  if (settings?.enabled !== true) return
+  await writeJsonAtomic(paths.settingsPath, {
+    enabled: false,
+    keys: normalizeTurboKeyCodes(settings?.keys),
+    intervalMs: normalizeTurboKeyIntervalMs(settings?.intervalMs),
+    ignoreInitialDelay: normalizeTurboKeyIgnoreInitialDelay(settings?.ignoreInitialDelay),
+    updatedAt: Date.now(),
+  })
+  await writeJsonAtomic(paths.controlPath, {
+    command: "stop",
+    requestedAt: Date.now(),
+  }).catch(error => console.error("기존 터보 키 종료 요청 기록 실패", error))
 }
 
 async function waitForInputGuardStatus(predicate, timeoutMs = 3000) {
@@ -5178,7 +5180,7 @@ function registerIpc() {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 터보 키 다운로드 요청입니다")
     }
-    return downloadTurboKeyHelper()
+    throw new Error("터보 키 기능은 0.4.7부터 지원하지 않습니다")
   })
   ipcMain.handle("application:remove-turbo-key-helper", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
@@ -5190,18 +5192,7 @@ function registerIpc() {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {
       throw new Error("허용되지 않은 터보 키 설정 변경 요청입니다")
     }
-    if (
-      !setting
-      || typeof setting !== "object"
-      || typeof setting.enabled !== "boolean"
-      || !Array.isArray(setting.keys)
-      || !Number.isInteger(setting.intervalMs)
-      || normalizeTurboKeyIntervalMs(setting.intervalMs) !== setting.intervalMs
-      || typeof setting.ignoreInitialDelay !== "boolean"
-    ) {
-      throw new Error("터보 키 설정 값이 올바르지 않습니다")
-    }
-    return setTurboKeySetting(setting)
+    throw new Error("터보 키 기능은 0.4.7부터 지원하지 않습니다")
   })
   ipcMain.handle("application:get-input-guard-setting", event => {
     if (BrowserWindow.fromWebContents(event.sender) !== primaryWindow) {

@@ -84,26 +84,29 @@ test("Rust 터보 키는 정본에 등록된 테스트 서버 폴더만 허용�
   assert.match(helperSource, /executable_matches && \(directory_matches \|\| launcher_exists\)/)
 })
 
-test("미설치 helper는 자동 실행하지 않고 제한된 다운로드 IPC만 제공한다", async () => {
-  const [serviceMain, servicePreload] = await Promise.all([
+test("0.4.7은 터보 키 진입점과 자동 실행을 차단한다", async () => {
+  const [serviceMain, servicePreload, applicationView] = await Promise.all([
     readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
     readFile(new URL("../service/preload.js", import.meta.url), "utf8"),
+    readFile(new URL("../desktop/src/ui.rs", import.meta.url), "utf8"),
   ])
 
   assert.match(
     serviceMain,
-    /async function ensureTurboKeyStarted\(\)[\s\S]*if \(!installation\.installed\) return[\s\S]*launchTurboKeyHelper/,
+    /async function ensureTurboKeyStarted\(\)[\s\S]*settings\?\.enabled !== true[\s\S]*enabled: false[\s\S]*command: "stop"/,
   )
-  assert.match(serviceMain, /application:download-turbo-key-helper/)
+  assert.match(
+    serviceMain,
+    /application:download-turbo-key-helper[\s\S]*터보 키 기능은 0\.4\.7부터 지원하지 않습니다/,
+  )
   assert.match(serviceMain, /application:remove-turbo-key-helper/)
   assert.match(
     serviceMain,
-    /async function downloadTurboKeyHelper\(\)[\s\S]*enabled: false[\s\S]*return getTurboKeySetting\(\)/,
+    /application:set-turbo-key-setting[\s\S]*터보 키 기능은 0\.4\.7부터 지원하지 않습니다/,
   )
-  assert.match(
-    serviceMain,
-    /BrowserWindow\.fromWebContents\(event\.sender\) !== primaryWindow[\s\S]*downloadTurboKeyHelper\(\)/,
-  )
+  const advanced = applicationView.match(/fn Advanced\(\)[\s\S]*?\n}\n\nfn setting_patch/)?.[0] ?? ""
+  assert.doesNotMatch(advanced, /터보 키|modal = "turbo"|get-turbo-key-setting/)
+  assert.doesNotMatch(applicationView, /\("application:get-turbo-key-setting", "turbo"\)/)
   assert.match(servicePreload, /downloadTurboKeyHelper:[\s\S]*application:download-turbo-key-helper/)
   assert.match(servicePreload, /removeTurboKeyHelper:[\s\S]*application:remove-turbo-key-helper/)
 })
@@ -195,7 +198,7 @@ test("개발 모드는 AppData 복사본 대신 로컬 빌드 helper를 직접 �
   )
 })
 
-test("기존 동의를 유지한 채 구버전 터보 키 helper를 시작 시 자동 교체한다", async () => {
+test("기존 터보 키 구현은 보존하지만 시작 설정은 비활성화한다", async () => {
   const [serviceMain, installerSource] = await Promise.all([
     readFile(new URL("../service/main.mjs", import.meta.url), "utf8"),
     readFile(new URL("../src/turbo-key-installer.mjs", import.meta.url), "utf8"),
@@ -212,6 +215,10 @@ test("기존 동의를 유지한 채 구버전 터보 키 helper를 시작 시 �
   )
   assert.match(
     serviceMain,
-    /async function ensureTurboKeyStarted\(\)[\s\S]*updateTurboKeyHelperIfNeeded\(installation\)[\s\S]*if \(!settings\?\.enabled\) return/,
+    /async function ensureTurboKeyStarted\(\)[\s\S]*writeJsonAtomic\(paths\.settingsPath[\s\S]*enabled: false[\s\S]*writeJsonAtomic\(paths\.controlPath/,
+  )
+  assert.doesNotMatch(
+    serviceMain.match(/async function ensureTurboKeyStarted\(\)[\s\S]*?\n}/)?.[0] ?? "",
+    /launchTurboKeyHelper|updateTurboKeyHelperIfNeeded/,
   )
 })
