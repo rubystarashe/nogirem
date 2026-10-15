@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-15 22:07 +09:00
+Last Updated: 2026-10-15 22:21 +09:00
 
 ## Current Objective
-0.4.7에서 터보키 구현 source는 보존하되 기능 목록·설정·다운로드·자동 실행 경로를 폐쇄하고 기존 enabled 설정을 시작 시 비활성화했다. 자동 검사와 독립 리뷰는 통과했고 로컬 commit과 실제 기존 설치본 upgrade QA가 남았다.
+터보키 실행·배포 경로를 제거한 source `9a64283a01121406f880206c3d9448d7329ea476`에서 0.4.7 서명 설치형·포터블을 생성·검증했다. 실제 설치·업데이트 수동 QA와 배포는 남았다.
 
 ## Active Runs
+- `20261015-package-047`: source `9a64283a01121406f880206c3d9448d7329ea476`과 사용자 `NOTICE.md` SHA-256 `af1eb83b...f1f2`에서 0.4.7 signed 설치형·포터블을 `release/dioxus-0.4.7-2026-10-15T13-17-35-650Z`에 생성했다. installer `081f0dc4...43fd`, portable `6467b756...501f`; Node 206/206, targeted 18/18, native integration 3/3, package contract·manifest·payload와 독립 review가 통과했다. turbo helper·standalone terms는 package/release asset에 없고 source 구현은 보존된다. 배포·실제 설치는 NOT_RUN이다. (`docs/ai/runs/20261015-package-047/final-report.md`)
 - `20261015-disable-turbo-047`: commit `e3a40177b89679fb40942d0a1e04b41d23595b31`에서 Dioxus 고급 기능의 터보키 카드·초기 상태 요청을 제거하고 Rust·Electron 설정·다운로드 IPC를 차단했다. 기존 enabled=true 사용자는 키·간격·설치 파일을 보존한 채 false로 migration하고 종료 control을 기록하며, 비사용자에게는 파일을 만들지 않는다. Node 206/206, backend 115 PASS·3 ignored와 parity 2/2, desktop 8/8, locked check와 독립 리뷰가 통과했다. 실제 0.4.6 설치본 upgrade와 package·배포는 NOT_RUN이다. (`docs/ai/runs/20261015-disable-turbo-047/task.md`)
 - `20261015-channel-overlay-dpi`: DPI-unaware 게임 HWND의 `GetDpiForWindow`가 150% 모니터에서도 96을 반환해 native 창은 584×400 물리 픽셀에 머물고 WebView 콘텐츠만 확대되던 원인을 수정했다. 대상 모니터 `MDT_EFFECTIVE_DPI`로 expanded·compact logical 크기를 physicalBounds로 환산한다. channel ping 34/34, overlay 3/3, backend 112 PASS·3 ignored와 parity 2/2, Node 206/206, desktop check와 독립 리뷰가 통과했으며 실제 3840×2160 150%·혼합 DPI 게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261015-channel-overlay-dpi/task.md`)
 - `20261015-amd-settings-protection`: 진단 앱 0.4.2가 시작 상태 조회만으로도 Radeon ADLX helper를 실행하던 경로를 확인했다. AMD 장치가 하나라도 있으면 WMI `VEN_1002` 읽기만 수행하고 혼합 GPU에서도 AMD 보호를 우선하며 적용 요청을 driver write 전에 거부한다. 그래픽 회귀 6/6, backend 111 PASS·3 ignored와 parity 2/2, Node 206/206, desktop check와 실제 AMD read-only status가 통과했고 독립 리뷰 `REV-AMD-PROTECTION-001`이 APPROVED다. 제보 RX 6700 XT의 실제 언더볼팅 유지와 package 실행은 NOT_RUN이다. (`docs/ai/runs/20261015-amd-settings-protection/task.md`)
@@ -32,6 +33,13 @@ Last Updated: 2026-10-15 22:07 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- feature_impact: `FEAT-NOGIREM-TURBO-KEY — REMOVED; helper·standalone terms package/release asset 비배포`
+- feature_map: `updated — revision 3, TURBO-009와 signed package evidence`
+- architecture_impact: `저수준 입력 helper의 UI·IPC·startup·package·release 경계 폐쇄`
+- architecture_contract: `updated — revision 28`
+- 0.4.7 package는 `release/dioxus-0.4.7-2026-10-15T13-17-35-650Z`; 설치형 `9,555,690 bytes` SHA-256 `081f0dc41f1f0d73f78f06cc42260e7bb2cc68d38293c1c762516deb24f443fd`, 포터블 `7,773,971 bytes` SHA-256 `6467b756bf013c404ebf09a1a6829af9214a5405704428494c0be2361459501f`.
+- Ed25519 manifest 두 개, 0.4.7 version·size·SHA-256, WebView2 signature, NSIS `/WX`, 10MB 제한, packaged service contract, channel payload와 제거 payload 부재를 검증했다.
+- package·push·tag·GitHub release·배포는 구분한다. package는 완료됐고 외부 게시·실제 설치·업데이트·게임 QA는 수행하지 않았다.
 - feature_impact: `FEAT-NOGIREM-TURBO-KEY — REMOVED; 고급 기능 미노출, 실행 요청 거부, 기존 enabled 설정 비활성화`
 - feature_map: `updated — revision 2, TURBO-005~008과 0.4.7 검증 evidence`
 - architecture_impact: `Rust·Electron의 저수준 입력 helper UI·IPC·startup 실행 경계 폐쇄`

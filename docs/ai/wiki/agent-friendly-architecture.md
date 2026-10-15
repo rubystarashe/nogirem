@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `27`
-- updated_at: `2026-10-15T13:07:27Z`
+- revision: `28`
+- updated_at: `2026-10-15T13:21:02Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T13:07:27Z`
+- source_reviewed_at: `2026-10-15T13:21:02Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base deb6e254c1bd51ed9f3239de115b000c7955bb31 + RUN-20261015-DISABLE-TURBO-047 working target`
-- source_review_evidence: `Rust·Electron startup migration, Dioxus UI 진입점과 turbo IPC 차단 경계 검토`
-- behavior_verified_at: `2026-10-15T13:07:27Z`
+- source_review_target: `9a64283a01121406f880206c3d9448d7329ea476`
+- source_review_evidence: `package·release assembly turbo asset 제거 diff와 REV-PACKAGE-047 APPROVED`
+- behavior_verified_at: `2026-10-15T13:21:02Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `RUN-20261015-DISABLE-TURBO-047 uncommitted source target based on deb6e254c1bd51ed9f3239de115b000c7955bb31`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Node·Rust test harness`
-- behavior_verification_evidence: `Node 206/206 PASS, backend 115 PASS·3 ignored와 parity 2/2 PASS, desktop 8/8 PASS, desktop locked check PASS, 독립 review APPROVED`
+- behavior_verification_target: `release/dioxus-0.4.7-2026-10-15T13-17-35-650Z from source 9a64283a01121406f880206c3d9448d7329ea476`
+- behavior_verification_environment: `Windows 10.0.26200 x64 signed package build와 payload verifier`
+- behavior_verification_evidence: `Node 206/206, targeted 18/18, native integration 3/3, package·manifest·payload 검증 PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 제거된 터보키 실행 금지·설정 migration 경계를 반영`
-- known_gaps: `기존 enabled 사용자 설정을 사용한 실제 설치본 최초 실행은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-TURBO-KEY — REMOVED`
-- feature_map: `updated — 0.4.7 제거 동작과 startup migration 반영`
-- architecture_impact: `저수준 입력 helper의 UI·IPC·startup 실행 경계 폐쇄`
-- architecture_contract: `updated — 제거된 helper의 실행 금지와 단일 migration writer 추가`
+- freshness_reason: `현재 source와 signed package의 제거된 터보키 실행·distribution 금지 경계를 반영`
+- known_gaps: `기존 enabled 사용자 설정을 사용한 실제 설치·업데이트 후 실행은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-TURBO-KEY — REMOVED, helper·standalone terms 비배포`
+- feature_map: `updated — revision 3과 package evidence 반영`
+- architecture_impact: `저수준 입력 helper의 UI·IPC·startup·package·release 경계 폐쇄`
+- architecture_contract: `updated — 제거된 helper의 실행·배포 금지와 단일 migration writer 추가`
 
 ## 계층과 확장 경로
 
@@ -48,7 +48,7 @@
 - NVIDIA 전용 시스템은 기존 NVAPI 프로그램 profile 경로를 사용할 수 있다. AMD WMI 조회 실패만으로 NVIDIA 경로를 차단하지 않되, Radeon 설정 API로 fallback해서는 안 된다.
 - UI runtime polling은 한 helper 요청 실패로 영구 종료하지 않는다. 실패한 기능의 `running`·`gameActive`를 false로 보정하고 다음 주기에 재조회한다.
 - affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다.
-- 터보키는 0.4.7부터 제품 runtime에서 시작하지 않는다. UI 진입점과 설정·다운로드 IPC는 실행 경로에 도달할 수 없어야 하며, 보존된 helper 구현을 다른 기능에서 호출해서는 안 된다.
+- 터보키는 0.4.7부터 제품 runtime에서 시작하지 않는다. UI 진입점과 설정·다운로드 IPC는 실행 경로에 도달할 수 없어야 하며, 보존된 helper 구현을 다른 기능에서 호출해서는 안 된다. package와 release assembly는 helper binary나 standalone 약관 파일을 배포하지 않는다.
 - DXVK는 확인되지 않은 게임 경로나 임의 URL에 파일을 쓰지 않는다. manager가 실제 `Client.exe`와 게임 미실행 상태를 확인하고 capability module이 digest·x64 PE·최종 파일 hash를 검증해야 한다.
 - 채널 핑은 사용자 URL·hostname·endpoint를 받지 않는다. 고정 HTTPS source의 제한 크기 CSV를 전부 검증한 뒤에만 cache와 runtime endpoint를 교체한다.
 - 실시간 점수 창은 게임 프로세스에 주입하거나 Windows 키를 차단하지 않는다. 실제 실행 경로가 정본 게임 조건을 충족한 전경 PID가 소유하고 CSV endpoint와 일치하는 established TCP 연결만 조회하며 비활성·click-through 상태를 유지한다. 상단 창은 게임 전경 또는 전체표가 열린 Windows shell 전경에서만 표시하고 일반 앱 전경에서는 마지막 게임 bounds를 재사용하지 않는다.
@@ -128,7 +128,7 @@
 - renderer IPC channel은 native contract test에서 등록 목록을 검증한다.
 - `update.json`과 `portable-update.json`은 분리된 서명 envelope이며 filename, version, size, SHA-256을 포함한다.
 - 배포된 Rust verifier가 요구하는 `nogirem-dioxus-*`는 manifest용 canonical asset이며 짧은 이름은 byte-identical 수동 다운로드 alias다. Electron legacy 이름은 `latest.yml`의 path·두 sha512·필수 blockmap과 함께 변경한다.
-- generated output: Rust web build, NSIS uninstall manifest, 설치형·포터블 EXE, signed manifests. authoritative input은 source, Cargo/npm lock, app assets, NSIS와 signing config다.
+- generated output: Rust web build, NSIS uninstall manifest, 설치형·포터블 EXE, signed manifests. authoritative input은 source, Cargo/npm lock, app assets, NSIS와 signing config다. 제거된 turbo helper·standalone terms는 generated output이나 release asset 목록에 포함하지 않는다.
 - 생성 명령: `npm run package:win`. 생성된 `release/`과 `target/` 산출물은 source commit에 포함하지 않는다.
 
 ## enforcement

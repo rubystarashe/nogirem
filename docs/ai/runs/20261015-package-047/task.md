@@ -27,10 +27,10 @@
 
 1. `COMPLETED` — 제거된 터보키 helper·약관 파일을 package/release asset에서 제외
 2. `COMPLETED` — 회귀 검사와 독립 review
-3. `IN_PROGRESS` — package source commit과 exact target 고정
-4. `NOT_STARTED` — signed 설치형·포터블·manifest 생성
-5. `NOT_STARTED` — 산출물 hash·서명·payload·제거 경계 검증
-6. `NOT_STARTED` — handoff·최종 보고 local commit
+3. `COMPLETED` — package source commit과 exact target 고정
+4. `COMPLETED` — signed 설치형·포터블·manifest 생성
+5. `COMPLETED` — 산출물 hash·서명·payload·제거 경계 검증
+6. `COMPLETED` — handoff·최종 보고 local commit
 
 ## 수용 기준
 
@@ -43,11 +43,11 @@
 
 ## 현재 상태
 
-- DEV: `READY_FOR_REVIEW`
-- QA: `IN_PROGRESS`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
 - review: `APPROVED`, `INDEPENDENT_REVIEW`
-- source_target: `base bcd5205b1bcd421243b0e4c0b1bb75be523898f2 + package distribution diff`
-- execution_target: `NOT_CREATED`
+- source_target: `9a64283a01121406f880206c3d9448d7329ea476`
+- execution_target: `release/dioxus-0.4.7-2026-10-15T13-17-35-650Z`
 
 ## Source QA·review
 
@@ -60,3 +60,26 @@
 - round_1: `CHANGES_REQUESTED — TURBO_KEY_TERMS.md 재포함을 막는 명시적 회귀 단언 누락`
 - DEV_response: `package script에 TURBO_KEY_TERMS.md 문자열이 없음을 검사하는 단언 추가`
 - round_2: `APPROVED — must-fix 해결, unresolved finding 0`
+
+## Package QA
+
+- package_result: `PASS`, `npm run package:win`, exit code `0`
+- installer: `nogirem-dioxus-setup-0.4.7.exe`, `9,555,690 bytes`, SHA-256 `081f0dc41f1f0d73f78f06cc42260e7bb2cc68d38293c1c762516deb24f443fd`
+- portable: `nogirem-dioxus-portable-0.4.7.exe`, `7,773,971 bytes`, SHA-256 `6467b756bf013c404ebf09a1a6829af9214a5405704428494c0be2361459501f`
+- signed_manifests: `PASS — installer·portable Ed25519 signature, version, size, SHA-256 일치`
+- package_contract: `PASS — Rust service contract, WebView2 signature, NSIS /WX, 10MB 제한, runtimePackages=[]`
+- removal_contract: `PASS — turbo helper·standalone terms·game overlay payload 부재, helper source 보존`
+- required_payload: `PASS — channel ping HTML·preload, 0.4.7 history, 사용자 NOTICE input`
+- native_backend_integration: `PASS 3/3`
+- verifier_correction: `최초 추가 verifier가 channel-ping preload 파일명을 잘못 기대해 FAIL; 정본 이름으로 수정 후 동일 산출물 PASS. package 결함 없음.`
+- evidence: `evidence/package-0.4.7.md`
+- manual_QA: `NOT_RUN — 설치·제거·포터블 실행·업데이트·게임·혼합 DPI`
+
+## Gate 상태
+
+- feature_gate: `PASS — FEAT-NOGIREM-TURBO-KEY REMOVED package가 helper·standalone terms를 배포하지 않음`
+- architecture_gate: `PASS — package와 release assembly의 제거 기능 distribution 경계 폐쇄`
+- review_qa_gate: `PASS — Node 206/206, targeted 18/18, package·통합 검증과 독립 review APPROVED`
+- target_authorization_gate: `PASS — source commit 9a64283, NOTICE 입력 hash 고정, unrelated 변경 보존, 외부 게시 없음`
+- final_status: `COMPLETED for authorized package checkpoint`
+- push_tag_release_deployment: `NOT_RUN`
