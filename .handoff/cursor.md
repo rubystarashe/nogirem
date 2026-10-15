@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-15 21:50 +09:00
+Last Updated: 2026-10-15 21:55 +09:00
 
 ## Current Objective
-AMD Radeon 사용자의 언더볼팅·오버클럭 프로필을 보호하도록 모든 자동·수동 ADLX 접근을 제거한 source를 완료했고, 제보 RX 6700 XT 수동 확인과 package·배포는 남았다.
+3840×2160 150% 모니터의 채널 전체표 잘림을 대상 모니터 effective DPI 기반 physical window 환산으로 수정했고, 실제 게임·혼합 DPI 수동 확인과 package·배포는 남았다.
 
 ## Active Runs
+- `20261015-channel-overlay-dpi`: DPI-unaware 게임 HWND의 `GetDpiForWindow`가 150% 모니터에서도 96을 반환해 native 창은 584×400 물리 픽셀에 머물고 WebView 콘텐츠만 확대되던 원인을 수정했다. 대상 모니터 `MDT_EFFECTIVE_DPI`로 expanded·compact logical 크기를 physicalBounds로 환산한다. channel ping 34/34, overlay 3/3, backend 112 PASS·3 ignored와 parity 2/2, Node 206/206, desktop check와 독립 리뷰가 통과했으며 실제 3840×2160 150%·혼합 DPI 게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261015-channel-overlay-dpi/task.md`)
 - `20261015-amd-settings-protection`: 진단 앱 0.4.2가 시작 상태 조회만으로도 Radeon ADLX helper를 실행하던 경로를 확인했다. AMD 장치가 하나라도 있으면 WMI `VEN_1002` 읽기만 수행하고 혼합 GPU에서도 AMD 보호를 우선하며 적용 요청을 driver write 전에 거부한다. 그래픽 회귀 6/6, backend 111 PASS·3 ignored와 parity 2/2, Node 206/206, desktop check와 실제 AMD read-only status가 통과했고 독립 리뷰 `REV-AMD-PROTECTION-001`이 APPROVED다. 제보 RX 6700 XT의 실제 언더볼팅 유지와 package 실행은 NOT_RUN이다. (`docs/ai/runs/20261015-amd-settings-protection/task.md`)
 - `20261015-updater-hotfix-046`: source `6c8b48d9713654d79a8467e8df371ca7a81ef59f`에서 공개 0.4.6 적용 제보의 `신뢰할 수 없는 업데이트 작업 파일`, helper exit 255, NSIS 실행 중 앱 오판·exit 1을 분리해 수정했다. 모든 신뢰 파일과 후속 state·포터블 복구 파일을 생성·교체마다 High Integrity로 seal하며, NSIS는 실제 부모이자 보호 cache의 정확한 updater PID만 중복 설치 프로세스 탐색을 생략한다. Node 206/206, backend 105 PASS·3 declared ignore, parity 2/2, installer 10/10, signed package 검증과 독립 리뷰가 통과했다. 후보는 `release/dioxus-0.4.6-2026-10-15T12-17-45-499Z`; 실제 이전 버전→후보 적용과 GitHub 자산 대치는 NOT_RUN이다. (`docs/ai/runs/20261015-updater-hotfix-046/task.md`)
 - `20261015-release-046`: source `4838885c2d810b7ec12cd1dfb99a83c0d8fbd21c`에서 최종 공지를 포함한 0.4.6 signed 설치형·포터블과 Electron migration bridge 자산 10개를 [GitHub v0.4.6](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.6)로 공개했다. 공개 재다운로드 10/10 hash와 signed manifest·routing 재검증이 통과했으며 실제 설치·게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261015-release-046/final-report.md`)
@@ -30,6 +31,11 @@ AMD Radeon 사용자의 언더볼팅·오버클럭 프로필을 보호하도록 
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 150%·200%와 혼합 DPI 모니터의 전체표·compact 창 크기`
+- feature_map: `updated — revision 29, PING-013 추가`
+- architecture_impact: `게임 HWND DPI awareness와 분리된 monitor effective DPI logical-to-physical window 변환`
+- architecture_contract: `updated — revision 26`
+- 150%에서 전체표 584×400 logical은 876×600 physical, compact 520×30 logical은 780×45 physical로 표시한다.
 - feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — AMD 언더볼팅·오버클럭 프로필 보호`
 - feature_map: `updated — revision 28, 신규 graphics settings entry`
 - architecture_impact: `AMD WMI read-only 장치 탐지, Radeon ADLX·전역 설정 write 금지, 혼합 GPU 보호 우선`

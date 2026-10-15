@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `25`
-- updated_at: `2026-10-15T12:50:00Z`
+- revision: `26`
+- updated_at: `2026-10-15T12:55:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T12:50:00Z`
+- source_reviewed_at: `2026-10-15T12:55:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base da014021ccbb122bb1897ec895da48292669b777 + RUN-20261015-AMD-SETTINGS-PROTECTION working target`
-- source_review_evidence: `AMD WMI 읽기 전용 탐지, 혼합 GPU 보호 우선순위, driver write 선차단과 독립 리뷰 APPROVED`
-- behavior_verified_at: `2026-10-15T12:50:00Z`
+- source_review_target: `base 200cda75b54e57573c467a612e51261f10ba4e9f + RUN-20261015-CHANNEL-OVERLAY-DPI working target`
+- source_review_evidence: `channel ping monitor effective DPI geometry, physicalBounds 계약과 독립 리뷰 APPROVED`
+- behavior_verified_at: `2026-10-15T12:55:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `RUN-20261015-AMD-SETTINGS-PROTECTION uncommitted source target`
-- behavior_verification_environment: `Windows 10.0.26200 x64 source 자동 검사와 실제 AMD WMI status 실행`
-- behavior_verification_evidence: `graphics 6/6 PASS, backend 111 PASS·3 declared ignore와 integration parity 2/2 PASS, Node 206/206 PASS, desktop check PASS, AMD status read-only/writeProtected PASS`
+- behavior_verification_target: `RUN-20261015-CHANNEL-OVERLAY-DPI uncommitted source target`
+- behavior_verification_environment: `Windows 10.0.26200 x64 source 자동 검사`
+- behavior_verification_evidence: `channel ping 34/34 PASS, overlay interface 3/3 PASS, backend 112 PASS·3 ignored와 parity 2/2 PASS, Node 206/206 PASS, desktop locked check PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 AMD driver 접근 금지와 혼합 GPU 보호 경계를 반영`
-- known_gaps: `제보 RX 6700 XT의 실제 언더볼팅 유지와 packaged UI 수동 실행은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — AMD 사용자 튜닝 보호`
-- feature_map: `updated — 신규 canonical graphics entry 추가`
-- architecture_impact: `Radeon ADLX 자동 조회·전역 write 제거, WMI read-only 장치 탐지`
-- architecture_contract: `updated — AMD driver API 금지와 보호 우선순위 추가`
+- freshness_reason: `현재 source의 channel overlay logical-to-physical DPI 변환 경계를 반영`
+- known_gaps: `실제 3840×2160 150%와 혼합 DPI 모니터 이동 수동 실행은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 고배율 overlay 표시`
+- feature_map: `updated — PING-013과 DPI 표시 보장 추가`
+- architecture_impact: `게임 DPI awareness와 분리된 monitor effective DPI physicalBounds`
+- architecture_contract: `updated — auxiliary window DPI 변환 책임 추가`
 
 ## 계층과 확장 경로
 
@@ -94,7 +94,8 @@
 - 선택한 connection에 한해 Windows TCP EStats 수집을 활성화하고 smoothed RTT·RTT 변동과 최근 유효 poll 사이 `PktsRetrans`·`Timeouts`·`DupAcksIn`·`CongSignals` 증가를 TCP 추정값에 반영한다. 공개 status는 누적값, poll delta와 최근 1분 합계인 `*Recent`를 분리하며 UI는 `packetsRetransmittedRecent`, `tcpTimeoutsRecent`, `duplicateAcksReceivedRecent`, `congestionSignalsRecent`만 읽는다. 일시적으로 RTT가 없는 poll은 네 counter 기준을 덮지 않고, counter 감소는 reset으로 처리해 해당 delta를 0으로 둔 뒤 새 기준을 저장한다. EStats 활성화·조회 실패는 상태에 명시하며 패킷 캡처·게임 메모리 접근·주입은 금지한다.
 - 기능이 꺼져 있으면 TCP 측정·실제 연결 조회를 하지 않고 저수준 input hook도 설치하지 않는다. 기능이 켜진 동안 전용 message thread의 `WH_KEYBOARD_LL`·`WH_MOUSE_LL` callback은 입력을 차단하지 않고 bounded channel에 event를 전달한 뒤 즉시 `CallNextHookEx`를 호출한다.
 - 기능을 켤 때 hidden `channel-ping-live`와 `channel-ping-overlay` WebView를 각각 준비한 뒤 input hook을 설치한다. 따라서 최초 Windows 키 뒤 WebView 생성으로 event 처리가 막히지 않으며, 기능을 끄면 hook과 두 hidden WebView를 모두 제거한다. 메인 창을 트레이로 숨기거나 다시 열 때 일반 보조 창은 정리하지만 두 channel monitor WebView는 제거하지 않으며, main renderer visibility와 무관하게 backend monitor thread가 표시 권한을 계속 판정한다.
-- 검증된 게임이 전경이고 실제 채널 연결이 있으면 client rect·DPI로 계산한 상단 중앙 520×30 live window에 최근 1분 TCP 추정 표본 `최대`와 값이 1 이상인 최근 1분 `재전송·시간초과·중복·혼잡` 발생량만 표시한다. 트래픽량에 따른 표본 갱신 특성을 실제 체감 개선으로 오해하지 않도록 순간값·평균값은 표시하지 않는다. 색상은 최대값 `0~40`, `41~70`, `71~100`, `101+ms`를 녹색·노란색·주황색·빨간색으로 나눈다. 모든 숫자는 `k/m/b` 고정 길이 축약을 적용하고 visible 배경은 `max-content`라 실제 문구와 최소 padding만 감싼다. foreground 판정은 100ms, TCP EStats 갱신은 1초 주기로 분리하며 Windows 키 전체표 중에는 지정된 Windows shell foreground만 예외로 허용한다. 비전경 숨김은 cached state뿐 아니라 `IsWindowVisible`로 실제 HWND를 재확인하고 `ShowWindowAsync(SW_HIDE)`를 반복 적용한다.
+- 검증된 게임이 전경이고 실제 채널 연결이 있으면 client rect·DPI로 계산한 상단 중앙 520×30 logical live window에 최근 1분 TCP 추정 표본 `최대`와 값이 1 이상인 최근 1분 `재전송·시간초과·중복·혼잡` 발생량만 표시한다. 트래픽량에 따른 표본 갱신 특성을 실제 체감 개선으로 오해하지 않도록 순간값·평균값은 표시하지 않는다. 색상은 최대값 `0~40`, `41~70`, `71~100`, `101+ms`를 녹색·노란색·주황색·빨간색으로 나눈다. 모든 숫자는 `k/m/b` 고정 길이 축약을 적용하고 visible 배경은 `max-content`라 실제 문구와 최소 padding만 감싼다. foreground 판정은 100ms, TCP EStats 갱신은 1초 주기로 분리하며 Windows 키 전체표 중에는 지정된 Windows shell foreground만 예외로 허용한다. 비전경 숨김은 cached state뿐 아니라 `IsWindowVisible`로 실제 HWND를 재확인하고 `ShowWindowAsync(SW_HIDE)`를 반복 적용한다.
+- channel monitor 창의 logical 크기는 게임 HWND의 `GetDpiForWindow` 결과에 의존하지 않는다. DPI-unaware 게임은 고배율 모니터에서도 96 DPI를 반환할 수 있으므로 `MonitorFromWindow`와 `GetDpiForMonitor(MDT_EFFECTIVE_DPI)`로 대상 모니터 배율을 구해 584×400 전체표와 520×30 live 창을 physicalBounds로 환산한다. 모니터 DPI 조회가 실패할 때만 `GetDpiForWindow`를 fallback으로 사용하며 client rect·창 bounds·상단 offset은 physical 좌표 단위를 유지한다.
 - 좌·우 Windows 키 down callback이 캡처한 같은 게임 PID로 실제 연결을 재검증하고 별도 584×400 overlay window를 중앙에 함께 표시한다. 두 창은 window ID·visible state·bounds·hide/destroy 수명주기를 공유하지 않는다.
 - expanded 표시 trigger 당시 이미 눌린 입력만 release까지 무시한다. 그 밖의 keyboard·mouse down edge는 expanded만 즉시 숨긴다. live window는 게임 전경일 때 유지하고, expanded가 표시되는 동안에는 Windows shell focus 전환에도 같은 게임 위치에 유지하되 expanded 종료 후 게임이 전경이 아니면 숨긴다. 두 창 모두 focusable=false, always-on-top, skip-taskbar, transparent, ignore-cursor-events이며 `showInactive`로 표시한다.
 - bounded input channel이 포화되면 event를 성공으로 간주하지 않고 fail-safe로 overlay를 숨긴다. backlog를 폐기한 뒤 최소 100ms의 input quiet 구간이 확인될 때까지 새 표시 trigger를 받지 않는다.

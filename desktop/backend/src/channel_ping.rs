@@ -1387,6 +1387,28 @@ pub fn foreground_is_windows_shell() -> bool {
     )
 }
 
+fn dpi_scale(dpi: u32) -> f64 {
+    f64::from(dpi.max(96)) / 96.0
+}
+
+#[cfg(windows)]
+fn effective_monitor_scale(window: windows_sys::Win32::Foundation::HWND) -> f64 {
+    use windows_sys::Win32::{
+        Graphics::Gdi::{MONITOR_DEFAULTTONEAREST, MonitorFromWindow},
+        UI::HiDpi::{GetDpiForMonitor, GetDpiForWindow, MDT_EFFECTIVE_DPI},
+    };
+    let monitor = unsafe { MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST) };
+    let mut dpi_x = 0;
+    let mut dpi_y = 0;
+    if !monitor.is_null()
+        && unsafe { GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) } >= 0
+        && dpi_x > 0
+    {
+        return dpi_scale(dpi_x);
+    }
+    dpi_scale(unsafe { GetDpiForWindow(window) })
+}
+
 #[cfg(windows)]
 fn overlay_bounds(
     env: &Environment,
@@ -1398,7 +1420,6 @@ fn overlay_bounds(
     use windows_sys::Win32::{
         Foundation::{POINT, RECT},
         Graphics::Gdi::ClientToScreen,
-        UI::HiDpi::GetDpiForWindow,
         UI::WindowsAndMessaging::{GetClientRect, GetWindowThreadProcessId},
     };
     let window = window as windows_sys::Win32::Foundation::HWND;
@@ -1432,7 +1453,7 @@ fn overlay_bounds(
     if unsafe { ClientToScreen(window, &mut origin) } == 0 {
         return None;
     }
-    let scale = f64::from(unsafe { GetDpiForWindow(window) }.max(96)) / 96.0;
+    let scale = effective_monitor_scale(window);
     let physical_width = width * scale;
     let physical_height = height * scale;
     let client_width = f64::from(client.right - client.left);
@@ -1634,6 +1655,15 @@ mod tests {
     use super::*;
 
     static INPUT_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn 모니터_dpi를_오버레이_물리_크기로_환산한다() {
+        assert_eq!(dpi_scale(96), 1.0);
+        assert_eq!(dpi_scale(144), 1.5);
+        assert_eq!(dpi_scale(192), 2.0);
+        assert_eq!(584.0 * dpi_scale(144), 876.0);
+        assert_eq!(400.0 * dpi_scale(144), 600.0);
+    }
 
     #[test]
     fn 초기_세_표본은_빠르게_순차_측정한다() {

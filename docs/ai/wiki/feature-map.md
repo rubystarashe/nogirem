@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `28`
-- updated_at: `2026-10-15T12:50:00Z`
+- revision: `29`
+- updated_at: `2026-10-15T12:55:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T12:50:00Z`
+- source_reviewed_at: `2026-10-15T12:55:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted AMD settings protection target based on da014021ccbb122bb1897ec895da48292669b777`
-- source_review_evidence: `graphics.rs AMD WMI 탐지·보호 우선순위·write 선차단, ui.rs 보호 상태와 독립 리뷰 APPROVED`
-- behavior_verified_at: `2026-10-15T12:50:00Z`
+- source_review_target: `uncommitted channel overlay DPI target based on 200cda75b54e57573c467a612e51261f10ba4e9f`
+- source_review_evidence: `channel_ping.rs monitor effective DPI geometry, overlay interface contract와 독립 리뷰 APPROVED`
+- behavior_verified_at: `2026-10-15T12:55:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted AMD settings protection target based on da014021ccbb122bb1897ec895da48292669b777`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust locked tests·desktop check·실제 AMD WMI status 실행`
-- behavior_verification_evidence: `graphics 6/6 PASS, backend 111 PASS·3 declared ignore와 integration parity 2/2 PASS, Node 206/206 PASS, desktop locked check PASS, 실제 AMD status read-only/writeProtected PASS`
+- behavior_verification_target: `uncommitted channel overlay DPI target based on 200cda75b54e57573c467a612e51261f10ba4e9f`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Rust channel tests·Node overlay contract·desktop check`
+- behavior_verification_evidence: `channel ping 34/34 PASS, overlay interface 3/3 PASS, backend 112 PASS·3 ignored와 parity 2/2 PASS, Node 206/206 PASS, desktop locked check PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `AMD 장치의 현재 read-only 탐지와 드라이버 설정 보호 정책을 source·자동 실행 결과에 맞춰 반영`
-- known_gaps: `제보 RX 6700 XT에서 앱 시작 전후 실제 언더볼팅 값 유지 수동 검증과 package 실행은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — AMD 언더볼팅·오버클럭 프로필 보호`
-- feature_map: `updated — 그래픽 설정 identity와 AMD 보호 동작 추가`
-- architecture_impact: `Radeon ADLX 자동 조회·전역 write 제거, Win32_VideoController 읽기 전용 경계`
-- architecture_contract: `updated — AMD 장치 보호 우선순위와 driver API 금지 추가`
+- freshness_reason: `현재 source의 채널 overlay monitor effective DPI 변환과 자동 검증 범위를 반영`
+- known_gaps: `실제 3840×2160 150% 게임과 혼합 DPI 모니터 이동 수동 검증은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 고배율 모니터 창 잘림 수정`
+- feature_map: `updated — PING-013과 DPI 표시 보장 추가`
+- architecture_impact: `게임 HWND DPI 대신 대상 모니터 effective DPI를 physicalBounds 기준으로 사용`
+- architecture_contract: `updated — logical-to-physical auxiliary window 경계 추가`
 
 ## ID 할당
 
@@ -34,7 +34,7 @@
 - lifecycle: `ACTIVE`
 - lifecycle_reason: `GitHub v0.4.5 정식 Release로 설치형·포터블과 signed update manifest를 공개함`
 - owners: `product=nogirem maintainer`, `technical=channel ping backend owner`
-- purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 초기 3표본을 약 30초에 순차 수집하고 이후 60초 주기로 분산 측정해 최근 20회 전체 연결 시험 중 성공 표본의 최근 가중 평균 절대편차 점수와 같은 20회 창의 실패율을 메모리에 유지한다. 기존 성공 표본이 3개 이상일 때 중앙값보다 0.5ms 이상 높고 기존 최대 편차의 3배를 넘는 첫 결과만 같은 endpoint에서 2회 추가 확인하며, 세 결과의 중앙값 하나를 기록한다. 최근 성공 표본은 오래된 성공 표본보다 선형으로 높은 가중치를 가지며 반복 지연은 그대로 점수에 반영한다. 검증된 마비노기 전경 TCP 연결이 CSV endpoint와 일치하면 별도 상단 창에 현재 채널·최근 1분 TCP 추정 표본 최대와 값이 1 이상인 최근 1분 재전송·시간초과·중복·혼잡 발생량만 표시한다. 트래픽량에 따라 갱신 특성이 달라지는 순간값과 평균값은 상단에 표시하지 않는다. 내부 추정 표본은 Windows `SmoothedRtt + RttVar`이며 동일 5-tuple의 최근 유효 표본보다 네 TCP 경로 counter 중 하나라도 증가하면 `SmoothedRtt + 4×RttVar`를 해당 표본에 적용한다. 좌·우 Windows 키로 독립된 중앙 전체 채널표를 함께 펼치며, 중앙 목록 제목은 `채널별 서버 지연 추측`이고 포트를 제외한 서버 IP가 다음 행에서 바뀌는 지점에 구분선과 간격을 둔다. 메인 창을 트레이로 숨겨도 channel monitor thread와 두 표시 창은 유지하며 일반 보조 창만 정리한다.
+- purpose_and_scope: 고급 기능에서 켜면 공개 채널 endpoint의 초기 3표본을 약 30초에 순차 수집하고 이후 60초 주기로 분산 측정해 최근 20회 전체 연결 시험 중 성공 표본의 최근 가중 평균 절대편차 점수와 같은 20회 창의 실패율을 메모리에 유지한다. 기존 성공 표본이 3개 이상일 때 중앙값보다 0.5ms 이상 높고 기존 최대 편차의 3배를 넘는 첫 결과만 같은 endpoint에서 2회 추가 확인하며, 세 결과의 중앙값 하나를 기록한다. 최근 성공 표본은 오래된 성공 표본보다 선형으로 높은 가중치를 가지며 반복 지연은 그대로 점수에 반영한다. 검증된 마비노기 전경 TCP 연결이 CSV endpoint와 일치하면 별도 상단 창에 현재 채널·최근 1분 TCP 추정 표본 최대와 값이 1 이상인 최근 1분 재전송·시간초과·중복·혼잡 발생량만 표시한다. 트래픽량에 따라 갱신 특성이 달라지는 순간값과 평균값은 상단에 표시하지 않는다. 내부 추정 표본은 Windows `SmoothedRtt + RttVar`이며 동일 5-tuple의 최근 유효 표본보다 네 TCP 경로 counter 중 하나라도 증가하면 `SmoothedRtt + 4×RttVar`를 해당 표본에 적용한다. 좌·우 Windows 키로 독립된 중앙 전체 채널표를 함께 펼치며, 중앙 목록 제목은 `채널별 서버 지연 추측`이고 포트를 제외한 서버 IP가 다음 행에서 바뀌는 지점에 구분선과 간격을 둔다. 두 창의 logical content 크기는 대상 모니터 effective DPI로 physical window 크기에 환산해 DPI-unaware 게임과 150%·200% 배율에서도 유지한다. 메인 창을 트레이로 숨겨도 channel monitor thread와 두 표시 창은 유지하며 일반 보조 창만 정리한다.
 - exclusions: TCP 추정값은 ICMP 왕복시간, 개별 패킷 원시 RTT, 게임 서버 처리시간, 입력·렌더링 지연, 직접 패킷 손실 측정이 아니다. 임의 endpoint·URL 입력, Windows 키 차단, 게임 프로세스 주입은 지원하지 않는다.
 - personas_permissions_accessibility_entry: Windows 사용자가 고급 기능에서 선택적으로 켜고 끈다. 목록은 정수 점수와 `측정 중`·`연결 불가`를 표시하고 현재 채널은 `현재` 문구로 구분해 색상에만 의존하지 않는다. 상단 창은 `최대`로 최근 1분 추정 표본의 보수적 최대값임을 나타내고 `0~40`, `41~70`, `71~100`, `101+ms` 구간별 색상을 보조 신호로 사용한다.
 - preconditions_dependencies: Windows, 실행 중인 Rust 앱, 검증 가능한 마비노기 `Client.exe`, 저수준 keyboard·mouse hook, 고정 GitHub raw HTTPS URL, WebView2, 공개 채널 TCP endpoint.
@@ -44,29 +44,29 @@
 - modules_contracts: `desktop/src/ui.rs` → `service.rs` → `channel_ping.rs`; `service_windows.rs`와 `desktop/src/native.rs`가 `channel-ping-live`·`channel-ping-overlay`의 독립 window identity를 중계하고 두 preload는 같은 읽기 전용 status IPC 하나만 노출한다.
 - durable_data_owner: `channel_ping.rs`가 setting과 CSV cache의 유일한 writer다. 패키지 `channel.csv`는 fallback source이며 packager만 배포 payload에 복사한다.
 - security_privacy: 고정 HTTPS URL과 공개 IPv4 literal·port만 허용하며 사용자 endpoint나 인증값을 받지 않는다. 실행 경로가 정본 게임 조건을 충족한 전경 process instance가 소유하고 CSV endpoint와 정확히 일치하는 established 5-tuple만 처리한다. 게임 메모리·패킷을 읽거나 주입하지 않고 공개 endpoint 외 사용자 데이터를 전송하지 않는다.
-- scenarios: `PING-001 startup 원격 갱신`, `PING-002 cache·package fallback`, `PING-003 초기 가속·분산 측정·20회 변동 점수`, `PING-004 실패 중 1시간 갱신`, `PING-005 게임 전경 compact 표시·비전경 숨김`, `PING-006 독립 Win 키 expanded·후속 down은 expanded만 숨김`, `PING-007 실제 PID·endpoint TCP EStats`, `PING-008 비활성·비전경 유휴`, `PING-009 두 HTML·preload package 입력`, `PING-010 점수 색상·최저 강조·IP 구간 간격`, `PING-011 1분 최대·재전송·시간초과·중복·혼잡 delta와 identity 초기화`, `PING-012 트레이 상태에서 측정·compact·expanded 유지`
+- scenarios: `PING-001 startup 원격 갱신`, `PING-002 cache·package fallback`, `PING-003 초기 가속·분산 측정·20회 변동 점수`, `PING-004 실패 중 1시간 갱신`, `PING-005 게임 전경 compact 표시·비전경 숨김`, `PING-006 독립 Win 키 expanded·후속 down은 expanded만 숨김`, `PING-007 실제 PID·endpoint TCP EStats`, `PING-008 비활성·비전경 유휴`, `PING-009 두 HTML·preload package 입력`, `PING-010 점수 색상·최저 강조·IP 구간 간격`, `PING-011 1분 최대·재전송·시간초과·중복·혼잡 delta와 identity 초기화`, `PING-012 트레이 상태에서 측정·compact·expanded 유지`, `PING-013 100%·150%·200%와 혼합 DPI 모니터에서 logical content 크기 유지`
 - observability_evidence: 고급 기능 sync fallback 문구, 상단 `최대`와 0이 아닌 최근 1분 재전송·시간초과·중복·혼잡, overlay 측정 경과 시간·채널 상태, `channel_ping.rs` unit tests, `test/overlay-interface.test.mjs`, native IPC contract test.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 채널 핑 network·input·auxiliary window 경계.
 - record_id: `FEAT-NOGIREM-CHANNEL-PING`
 - owner: `nogirem maintainer`
-- revision: `15`
-- updated_at: `2026-10-05T23:54:00Z`
+- revision: `16`
+- updated_at: `2026-10-15T12:55:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-05T23:54:00Z`
+- source_reviewed_at: `2026-10-15T12:55:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `source commit 66d56b49544219fa7c8f38d5aea77a87f78bb11c, base 543064863d3316478763395929565f1fc78db27a`
-- source_review_evidence: `tray cleanup이 channel-ping-overlay·channel-ping-live를 보존하는 종류별 정책; SELF_REVIEW APPROVED`
-- behavior_verified_at: `2026-10-05T23:54:00Z`
+- source_review_target: `uncommitted target based on 200cda75b54e57573c467a612e51261f10ba4e9f`
+- source_review_evidence: `MonitorFromWindow·GetDpiForMonitor effective DPI geometry와 REV-CHANNEL-DPI-001 APPROVED`
+- behavior_verified_at: `2026-10-15T12:55:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source commit 66d56b49544219fa7c8f38d5aea77a87f78bb11c`
+- behavior_verification_target: `uncommitted target based on 200cda75b54e57573c467a612e51261f10ba4e9f`
 - behavior_verification_environment: `Windows 10.0.26200 x64 automated source target`
-- behavior_verification_evidence: `backend 105 PASS·2 declared ignore, parity 2/2, tray policy regression 1/1, overlay interface 3/3, targeted rustfmt, diff check, IDE diagnostics`
+- behavior_verification_evidence: `channel ping 34/34 PASS, overlay interface 3/3 PASS, backend 112 PASS·3 ignored와 parity 2/2 PASS, Node 206/206 PASS, desktop locked check PASS, IDE diagnostics`
 - freshness_status: `CURRENT`
-- freshness_reason: `트레이 수명주기 fix와 실제 환경 미검증 범위를 구분해 반영`
-- known_gaps: `실제 tray·Windows 키·게임 전경 compact·DPI·설치·제거 종단간은 NOT_RUN; 공개 v0.4.5에는 fix 미포함`
-- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 트레이 상태에서 모니터링 표시 유지`
-- feature_map: `updated — PING-012와 tray window lifecycle을 추가`
-- architecture_impact: `channel ping capability·cache writer·Win32 input·auxiliary window 경계`
+- freshness_reason: `고배율 monitor effective DPI geometry와 실제 환경 미검증 범위를 구분해 반영`
+- known_gaps: `실제 3840×2160 150%·혼합 DPI 이동·게임 전경 compact·설치 종단간은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-CHANNEL-PING — 고배율 창 잘림 수정`
+- feature_map: `updated — PING-013과 monitor DPI 표시 보장 추가`
+- architecture_impact: `channel ping auxiliary window logical-to-physical geometry`
 - architecture_contract: `updated — 관련 contract section과 연결`
 
 ## FEAT-NOGIREM-GAME-OVERLAY
