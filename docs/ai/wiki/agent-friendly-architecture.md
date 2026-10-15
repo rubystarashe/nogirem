@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `30`
-- updated_at: `2026-10-15T18:00:06Z`
+- revision: `31`
+- updated_at: `2026-10-15T18:26:29Z`
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-15T18:00:06Z`
 - source_reviewed_by: `cursor-agent-92251f36`
 - source_review_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
 - source_review_evidence: `installer stop script, NSIS cleanup ordering, exact retired-assets include and installer regression tests`
-- behavior_verified_at: `2026-10-15T18:00:06Z`
+- behavior_verified_at: `2026-10-15T18:26:29Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
-- behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures; installed NSIS uninstall NOT_RUN`
-- behavior_verification_evidence: `installer 11/11, Node 212/212, backend 115 PASS·3 ignored and parity 2/2, desktop check`
+- behavior_verification_target: `source 4ee58f36ceff917b135d80c809f439db39536ccb; public v0.4.7 asset manifest 0ca31983e078d4e64a9ee148f5fb900a925783b10f2a8798b6f49a82f23eac39`
+- behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures and GitHub public downloads; installed NSIS uninstall NOT_RUN`
+- behavior_verification_evidence: `installer 11/11, Node 212/212, backend 115 PASS·3 ignored and parity 2/2, desktop check; public 9/9 hashes, Ed25519, aliases and preserved Electron asset IDs PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 설치·제거 process 종료, 예약 작업과 retired payload cleanup 경계를 반영`
-- known_gaps: `실제 관리자 권한 설치본 제거와 같은 버전 공개 자산 대치 업데이트는 NOT_RUN; AMD 단독 GPU 수동 검증도 남음`
+- freshness_reason: `현재 source의 제거 cleanup과 공개 0.4.7 same-version Rust asset replacement 경계를 반영`
+- known_gaps: `실제 관리자 권한 설치본 제거와 같은 버전 자동 재수신은 NOT_RUN; 수동 reinstall 안내가 필요하며 AMD 단독 GPU 수동 검증도 남음`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 제거 실패 의미와 이전 app payload cleanup`
-- feature_map: `updated — FEAT-NOGIREM-UPDATE-LIFECYCLE revision 6`
-- architecture_impact: `scheduled-task best-effort cleanup, process-stop fail-closed and exact retired-file ownership`
-- architecture_contract: `updated — revision 30`
+- feature_map: `updated — FEAT-NOGIREM-UPDATE-LIFECYCLE revision 7`
+- architecture_impact: `cleanup ownership plus six signed Rust asset replacement with Electron asset identity preservation`
+- architecture_contract: `updated — revision 31`
 
 ## 계층과 확장 경로
 
@@ -132,6 +132,7 @@
 - renderer IPC channel은 native contract test에서 등록 목록을 검증한다.
 - `update.json`과 `portable-update.json`은 분리된 서명 envelope이며 filename, version, size, SHA-256을 포함한다.
 - 배포된 Rust verifier가 요구하는 `nogirem-dioxus-*`는 manifest용 canonical asset이며 짧은 이름은 byte-identical 수동 다운로드 alias다. Electron legacy 이름은 `latest.yml`의 path·두 sha512·필수 blockmap과 함께 변경한다.
+- 같은 버전 hotfix 대치는 실제로 변경된 Rust executable·alias를 먼저 교체하고 signed manifests를 마지막에 교체한다. byte-identical Electron migration assets는 asset ID와 다운로드 연속성을 위해 재업로드하지 않으며 semver 자동 재수신 불가 가능성을 수동 재설치 안내로 공개한다.
 - generated output: Rust web build, NSIS uninstall manifest, 설치형·포터블 EXE, signed manifests. authoritative input은 source, Cargo/npm lock, app assets, NSIS와 signing config다. 제거된 turbo helper·standalone terms는 generated output이나 release asset 목록에 포함하지 않는다.
 - 생성 명령: `npm run package:win`. 생성된 `release/`과 `target/` 산출물은 source commit에 포함하지 않는다.
 

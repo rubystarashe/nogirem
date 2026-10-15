@@ -276,7 +276,7 @@
 - canonical_name: `서명 업데이트·설치·제거 수명주기`
 - aliases: `자동 업데이트`, `설치형 업데이트`, `포터블 업데이트`
 - lifecycle: `PARTIAL`
-- lifecycle_reason: `서명 업데이트와 설치는 제공되고 0.4.7에 작업 파일 신뢰·handoff hotfix가 공개됐지만, 제거 종료 오류와 retired 설치 파일 잔존 hotfix는 동일 버전 대치 전이며 실제 이전 설치본 종단간 검증이 남았다.`
+- lifecycle_reason: `서명 업데이트·설치와 제거 hotfix가 공개 0.4.7에 제공되지만, 실제 이전 설치본의 관리자 제거·빈 설치 폴더 종단간 검증과 같은 버전 자동 재수신 보장은 남았다.`
 - owners: `product=nogirem maintainer`, `technical=release/update owner`
 - purpose: 서명된 새 버전을 다운로드·검증·설치하고 실패 시 rollback하며 사용자가 앱을 잠금 없이 제거하도록 한다.
 - personas_and_entry_points: 일반 사용자는 앱 업데이트 UI, Windows 설치기·제거기, 포터블 EXE로 진입한다. 배포 maintainer는 서명 패키징과 GitHub Release를 사용한다.
@@ -294,26 +294,26 @@
 - compatibility: 0.4.1 updater는 별도 installer 인자 없이도 검증된 부모 `updater.exe`로 인식한다. 배포된 0.4.x URL 검증을 위해 `nogirem-dioxus-*` 자산은 자동 업데이트 전용으로 유지하며 짧은 `nogirem-setup-*`, `nogirem-portable-*`는 동일 payload의 수동 다운로드 alias다. Electron은 `latest.yml`이 긴 legacy migration 이름을 가리킨다.
 - limits_exclusions: OS 종료·전원 손실 전체를 transaction으로 만들지는 않는다. 관련 backup이 없는 오래된 설치는 수동 복구가 필요할 수 있다.
 - scenarios: `UPD-001 설치형 성공`, `UPD-002 건강 확인 실패 rollback`, `UPD-003 포터블 원자 교체`, `UPD-004 직접 제거 중 stale helper`, `UPD-005 늦게 생성된 프로세스`, `UPD-006 0.4.1 부모 updater 호환`, `UPD-007 native mandatory-label 검증`, `UPD-008 retired app asset exact cleanup`, `UPD-009 예약 작업 정리 실패와 process stop 실패 분리`
-- evidence: `test/installer.test.mjs`, `test/portable-release.test.mjs`, Rust updater/update_install tests, `docs/ai/runs/20260929-release-042`, `docs/ai/runs/20261015-updater-hotfix-046/task.md`, `docs/ai/runs/20261016-uninstall-hotfix-047/task.md`
+- evidence: `test/installer.test.mjs`, `test/portable-release.test.mjs`, Rust updater/update_install tests, `docs/ai/runs/20260929-release-042`, `docs/ai/runs/20261015-updater-hotfix-046/task.md`, `docs/ai/runs/20261016-uninstall-hotfix-047/final-report.md`
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).
 - owner: `release/update owner`
-- revision: `6`
-- updated_at: `2026-10-15T18:00:06Z`
+- revision: `7`
+- updated_at: `2026-10-15T18:26:29Z`
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-15T18:00:06Z`
 - source_reviewed_by: `cursor-agent-92251f36`
 - source_review_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
 - source_review_evidence: `scripts/stop-installed-app.ps1, desktop/installer.nsi, desktop/retired-assets-cleanup.nsh, test/installer.test.mjs`
-- behavior_verified_at: `2026-10-15T18:00:06Z`
+- behavior_verified_at: `2026-10-15T18:26:29Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
-- behavior_verification_environment: `Windows 10.0.26200 x64, temporary real-process installer fixtures; actual installed NSIS uninstall NOT_RUN`
-- behavior_verification_evidence: `installer 11/11 including real process termination and retired path contract, Node 212/212, backend 115 PASS·3 ignored and parity 2/2, desktop check`
+- behavior_verification_target: `source 4ee58f36ceff917b135d80c809f439db39536ccb; public v0.4.7 asset manifest 0ca31983e078d4e64a9ee148f5fb900a925783b10f2a8798b6f49a82f23eac39`
+- behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures and GitHub public downloads; actual installed NSIS uninstall NOT_RUN`
+- behavior_verification_evidence: `installer 11/11, Node 212/212, backend 115 PASS·3 ignored and parity 2/2, desktop check; public 9/9 hashes, Ed25519, aliases and Electron asset identity PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `공개 0.4.7과 제거 제보, exact retired cleanup source hotfix 및 아직 남은 종단간 검증을 분리해 기록`
-- known_gaps: `signed 0.4.7 hotfix package 자동 검증은 통과했지만 실제 관리자 권한 설치본의 예약 작업 정리·제거·install directory 소거와 이전 공개 자산→동일 버전 대치 업데이트는 NOT_RUN. 이미 신뢰 판정에서 막힌 client는 수동 설치가 필요할 수 있다.`
+- freshness_reason: `공개 0.4.7 제거 hotfix 대치와 자동 검증, 수동 재설치 요구 및 아직 남은 실제 제거 gap을 분리해 기록`
+- known_gaps: `실제 관리자 권한 설치본의 예약 작업 정리·제거·install directory 소거는 NOT_RUN. 같은 0.4.7 client는 semver상 대치본을 자동 재수신하지 않을 수 있어 새 설치형 수동 덮어쓰기가 필요하다.`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 제거 종료 오류 의미와 retired install payload cleanup`
-- feature_map: `updated — revision 6, same-version uninstall hotfix pending publication`
-- architecture_impact: `NSIS stop-script failure semantics, scheduled-task best-effort cleanup and exact retired asset ownership`
-- architecture_contract: `updated — revision 30 cleanup boundary`
+- feature_map: `updated — revision 7, public same-version hotfix evidence`
+- architecture_impact: `NSIS cleanup boundary and six signed Rust asset replacement while preserving Electron asset identities`
+- architecture_contract: `updated — revision 31 publication boundary`

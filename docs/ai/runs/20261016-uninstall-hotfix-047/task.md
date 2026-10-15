@@ -12,9 +12,9 @@
 - request: `수정하고 재배포해 같은버전 대치로`
 - authorization: `0.4.7 source fix, local commits, origin/main push and existing v0.4.7 asset replacement`
 - roles: `Coordinator=DEV=QA=Documentation maintainer cursor-agent-92251f36; independent reviewer generalPurpose agent 0051f39a-3f3d-46c3-978f-d3bfc2e13bec`
-- dev_state: `READY_FOR_QA`
-- qa_state: `COMPLETE_PASS for source and package checkpoints`
-- review_verdict: `APPROVED for source checkpoint; package publication review pending`
+- dev_state: `DONE`
+- qa_state: `COMPLETE_PASS`
+- review_verdict: `APPROVED after documentation freshness rereview`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 실행 프로세스가 없는데 제거가 차단되고 retired package files가 install directory에 남는 결함`
 - feature_map: `blocked — exact fix and verification evidence pending`
 - architecture_impact: `installer stop-script failure semantics, scheduled-task cleanup ownership and exact retired-asset deletion boundary`
@@ -59,3 +59,25 @@
 - portable: `7,789,387 bytes`, SHA-256 `985c8a241760a90fe2fe456982490c4d15201b6340c0c3a97103191b655ac6e5`
 - result: `PASS — signed manifests, native contract, NSIS /WX, stop-script source identity, exact cleanup source, payload boundary and native integration 3/3`
 - remaining_checkpoint: package publication review, source push, v0.4.7 asset replacement, public re-download verification and final records.
+
+## Same-version replacement plan
+
+- replace only six changed Rust assets: canonical setup, setup alias, canonical portable, portable alias, `update.json`, `portable-update.json`.
+- preserve byte-identical Electron assets and their GitHub asset identities: `latest.yml`, migration EXE and blockmap.
+- replace four executable assets first and both signed manifests last so feeds never advertise a payload before its matching bytes are available.
+- same-version clients may not detect the replacement through semver; release notes and final report must instruct affected 0.4.7 users to manually reinstall the new setup asset.
+
+## Final result
+
+- status: `COMPLETED`
+- completed_at: `2026-10-15T18:26:29Z`
+- public_release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7`
+- public_asset_manifest_sha256: `0ca31983e078d4e64a9ee148f5fb900a925783b10f2a8798b6f49a82f23eac39`
+- replacement: `PASS — four Rust executables/aliases first, two signed manifests last; Electron asset IDs 644166692/693/694 preserved`
+- public_validation: `PASS — 9/9 hashes, Ed25519 payloads, aliases, notes and source containment`
+- review: `INDEPENDENT_REVIEW; implementation issues 2 resolved, publication scope issue 1 resolved, documentation freshness issue resolved after rereview`
+- feature_gate: `PASS — revision 7`
+- architecture_gate: `PASS — revision 31`
+- review_qa_gate: `PASS for automated source, package and public replacement scope`
+- target_authorization_gate: `PASS`
+- manual_QA: `NOT_RUN — actual elevated install/uninstall, task deletion result, empty install directory and same-version automatic rediscovery`

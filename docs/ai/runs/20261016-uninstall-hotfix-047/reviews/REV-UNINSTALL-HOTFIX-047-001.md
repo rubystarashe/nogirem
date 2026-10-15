@@ -41,3 +41,15 @@
 - findings: none
 - verified: installer·portable Ed25519, URL, version, size, SHA-256, build metadata, stop-script identity, retired payload absence, cleanup include ordering, 10MB budget, `runtimePackages=[]` and canonical replacement names.
 - limits: actual install/update/uninstall and public replacement re-download remained `NOT_RUN`.
+
+## Publication rounds
+
+- `PUBLIC-R1 CHANGES_REQUESTED`: `ISSUE-RELEASE-REPLACEMENT-SCOPE-001`, HIGH, must-fix. Generic bundle README would reupload byte-identical Electron assets.
+- DEV response: exact plan limited replacement to four Rust executables/aliases followed by two manifests; three Electron asset IDs were designated preserve-only; manual reinstall notice required.
+- `PUBLIC-R2 APPROVED`: scope issue `RESOLVED`, no new finding.
+- `PUBLIC-R3 CHANGES_REQUESTED`: public 9/9, signatures, aliases, six-asset replacement and Electron IDs passed, but `ISSUE-PUBLICATION-DOC-FRESHNESS-002`, MEDIUM, must-fix recorded canonical documents as pending publication.
+- DEV response: feature map revision 7, architecture revision 31, publication evidence, final report and handoff updated with public hashes, preserved IDs and manual reinstall gap.
+- `PUBLIC-R4 APPROVED`: documentation freshness issue `RESOLVED`; all four ISSUE findings resolved, no new finding.
+- final public target: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7`, asset manifest `0ca31983e078d4e64a9ee148f5fb900a925783b10f2a8798b6f49a82f23eac39`.
+- final-record manifest: `1a6074d82c6253ca9f0dc28faf4775787ef35cd5cc3cadd15280771ca08c4821`.
+- final verdict: `APPROVED`; unresolved findings `0`.
