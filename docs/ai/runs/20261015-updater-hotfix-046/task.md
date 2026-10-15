@@ -9,6 +9,7 @@
 - created_at: `2026-10-15T11:50:00Z`
 - updated_at: `2026-10-15T12:18:00Z`
 - source_base: `36e24da646d91b6bcde35ac3aea06c16c4274d63`
+- source_target: `6c8b48d6f80cb11076b2a53b19f823843ac18186`
 - dev_state: `READY_FOR_QA`
 - qa_state: `BLOCKED — 공개 또는 격리된 signed 이전 버전→hotfix 실행 target이 없음`
 - review_verdict: `APPROVED`
@@ -60,7 +61,7 @@
 1. `COMPLETED` — 공개 manifest·payload 다운로드와 두 제보 단계 분리.
 2. `COMPLETED` — update job·후속 state·포터블 복구·commit seal, 실제 부모에 결속된 updater handoff 수정과 회귀 테스트.
 3. `COMPLETED` — 독립 리뷰 반영 후 signed 0.4.6 package 재생성·package contract 검증.
-4. `IN_PROGRESS` — source target, 정본 freshness·handoff와 local commit.
+4. `COMPLETED` — source target, 정본 freshness·handoff와 local commit.
 
 - mutable_file_owner: `Cursor Agent — desktop/backend/src/update_install.rs, desktop/backend/src/service.rs, scripts/stop-installed-app.ps1, test/installer.test.mjs, affected canonical docs`
 - out_of_scope_dirty_preserved: `data/, native/installer-cleanup/`
@@ -94,7 +95,7 @@
 ## Current disposition
 
 - status: `PARTIALLY_COMPLETED — source·signed candidate 완료, 실제 이전 버전 적용과 배포 미실행`
-- commit: `NOT_RUN`
+- commit: `6c8b48d6f80cb11076b2a53b19f823843ac18186`
 - push: `NOT_RUN`
 - tag: `NOT_RUN`
 - deployment: `NOT_RUN`
