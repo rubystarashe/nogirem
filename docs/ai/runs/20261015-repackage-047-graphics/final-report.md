@@ -38,7 +38,7 @@
 - remaining_risk: AMD 단독 시스템에서 실제 3D 적용 후 기존 언더볼팅·오버클럭 유지와 packaged UI behavior는 수동 검증되지 않았다.
 - package_notice_input: uncommitted user `NOTICE.md`, SHA-256 `af1eb83b4ad8681314cf3123bf70f869f4d910434b401954a7c6825a8625f1f2`.
 - unrelated_preserved: `NOTICE.md`, `data/`, `native/installer-cleanup/`.
-- commit: `pending local documentation checkpoint`.
+- package_record_commit: `efe643447484979dc8c4c3a3df9a9b4c842d04d3`.
 - push: `NOT_RUN`.
 - tag: `NOT_RUN`.
 - GitHub release: `NOT_RUN`.
