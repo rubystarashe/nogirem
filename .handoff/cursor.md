@@ -1,12 +1,13 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-15 22:35 +09:00
+Last Updated: 2026-10-15 23:33 +09:00
 
 ## Current Objective
-혼합 GPU에서 AMD 내장 그래픽이 RTX 4090을 가리던 routing을 NVIDIA 우선으로 수정하고, AMD 단독 시스템의 Radeon 3D 최적화를 tuning API 미접근 경계로 복구했다. 자동 검사, 실제 RTX 4090 선택과 독립 review가 통과했고 implementation commit은 `d1b87085c360133eab49455348142efe94435f78`이다. AMD 단독 하드웨어 수동 QA는 남았다.
+혼합 GPU에서 NVIDIA를 우선 선택하고 AMD 단독 시스템의 Radeon 3D 최적화를 tuning API 미접근 경계로 복구한 source를 signed 0.4.7 설치형·포터블로 패키징했다. package와 독립 payload review가 통과했으며 AMD 단독 하드웨어의 실제 적용·언더볼팅 유지 수동 QA는 남았다.
 
 ## Active Runs
-- `20261015-graphics-routing-amd-restore`: implementation commit `d1b87085c360133eab49455348142efe94435f78`. NVIDIA status를 먼저 확인해 RTX 4090 + AMD Radeon(TM) Graphics 환경에서 NVIDIA 프로그램 profile을 선택한다. AMD 단독 상태 조회는 Rust와 Electron 모두 WMI만 사용하며 명시 적용에서만 `I3DSettings` helper를 호출한다. GPU tuning API·비호환 driver 초기화와 legacy retry를 금지하고, 적용·rollback 후 실제 값 검증과 게임 VSync 선차단을 추가했다. graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Node 211/211, desktop check, helper rebuild와 실제 RTX 4090 status가 통과했다. 독립 review R3는 `APPROVED`이며 AMD 단독 적용 전후 tuning 유지와 package는 NOT_RUN이다. (`docs/ai/runs/20261015-graphics-routing-amd-restore/task.md`)
+- `20261015-repackage-047-graphics`: source `62cf3ae48bb8a091bdb4d77a20c58f5cd7417f87`과 사용자 `NOTICE.md` SHA-256 `af1eb83b...f1f2`에서 GPU 복구가 포함된 signed 0.4.7 설치형·포터블을 `release/dioxus-0.4.7-2026-10-15T14-25-48-115Z`에 생성했다. installer `3b1f78b9...b8ef`, portable `8721f700...8ca4`; 두 Ed25519 manifest, Radeon helper `e1d3a09a...643e8`, required/forbidden payload, native integration 3/3과 독립 review가 통과했다. 실제 설치·실행·업데이트·AMD 단독 GPU·게임은 NOT_RUN이며 외부 게시하지 않았다. (`docs/ai/runs/20261015-repackage-047-graphics/final-report.md`)
+- `20261015-graphics-routing-amd-restore`: implementation commit `d1b87085c360133eab49455348142efe94435f78`. NVIDIA status를 먼저 확인해 RTX 4090 + AMD Radeon(TM) Graphics 환경에서 NVIDIA 프로그램 profile을 선택한다. AMD 단독 상태 조회는 Rust와 Electron 모두 WMI만 사용하며 명시 적용에서만 `I3DSettings` helper를 호출한다. GPU tuning API·비호환 driver 초기화와 legacy retry를 금지하고, 적용·rollback 후 실제 값 검증과 게임 VSync 선차단을 추가했다. graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Node 211/211, desktop check, helper rebuild와 실제 RTX 4090 status가 통과했다. 독립 review R3는 `APPROVED`; 후속 0.4.7 package는 완료됐고 AMD 단독 적용 전후 tuning 유지는 NOT_RUN이다. (`docs/ai/runs/20261015-graphics-routing-amd-restore/task.md`)
 - `20261015-package-047`: source `9a64283a01121406f880206c3d9448d7329ea476`과 사용자 `NOTICE.md` SHA-256 `af1eb83b...f1f2`에서 0.4.7 signed 설치형·포터블을 `release/dioxus-0.4.7-2026-10-15T13-17-35-650Z`에 생성했다. installer `081f0dc4...43fd`, portable `6467b756...501f`; Node 206/206, targeted 18/18, native integration 3/3, package contract·manifest·payload와 독립 review가 통과했다. turbo helper·standalone terms는 package/release asset에 없고 source 구현은 보존된다. 배포·실제 설치는 NOT_RUN이다. (`docs/ai/runs/20261015-package-047/final-report.md`)
 - `20261015-disable-turbo-047`: commit `e3a40177b89679fb40942d0a1e04b41d23595b31`에서 Dioxus 고급 기능의 터보키 카드·초기 상태 요청을 제거하고 Rust·Electron 설정·다운로드 IPC를 차단했다. 기존 enabled=true 사용자는 키·간격·설치 파일을 보존한 채 false로 migration하고 종료 control을 기록하며, 비사용자에게는 파일을 만들지 않는다. Node 206/206, backend 115 PASS·3 ignored와 parity 2/2, desktop 8/8, locked check와 독립 리뷰가 통과했다. 실제 0.4.6 설치본 upgrade와 package·배포는 NOT_RUN이다. (`docs/ai/runs/20261015-disable-turbo-047/task.md`)
 - `20261015-channel-overlay-dpi`: DPI-unaware 게임 HWND의 `GetDpiForWindow`가 150% 모니터에서도 96을 반환해 native 창은 584×400 물리 픽셀에 머물고 WebView 콘텐츠만 확대되던 원인을 수정했다. 대상 모니터 `MDT_EFFECTIVE_DPI`로 expanded·compact logical 크기를 physicalBounds로 환산한다. channel ping 34/34, overlay 3/3, backend 112 PASS·3 ignored와 parity 2/2, Node 206/206, desktop check와 독립 리뷰가 통과했으며 실제 3840×2160 150%·혼합 DPI 게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261015-channel-overlay-dpi/task.md`)
@@ -42,7 +43,9 @@ Last Updated: 2026-10-15 22:35 +09:00
 - AMD 단독 상태는 WMI만 조회하고 네 목표를 `적용 전`으로 표시한다. 명시 적용 helper는 tuning API와 `InitializeWithIncompatibleDriver`를 사용하지 않으며 Rust·Electron이 `tuningAccessed:false` 계약을 강제한다.
 - AMD 명시 적용은 네 3D 설정을 먼저 snapshot하고 실패 시 복원을 시도한다. helper reason이 있으면 게임 VSync를 변경하지 않고 최종 Radeon 상태를 오류로 반환한다.
 - `PASS` — graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Radeon Node 13/13, Node 211/211, desktop check, helper rebuild, diff check와 IDE diagnostics.
-- `NOT_RUN` — AMD 단독 GPU의 실제 적용 전후 언더볼팅 유지, packaged UI, package·push·release·deployment.
+- `PASS` — signed 0.4.7 package 생성, Ed25519 manifest·Radeon helper identity·payload boundary, native integration 3/3과 독립 review.
+- 최신 package는 `release/dioxus-0.4.7-2026-10-15T14-25-48-115Z`; 설치형 `9,568,848 bytes` SHA-256 `3b1f78b97b675a6e1ac06c4eec191e97c719b40b58dca9170171af1ef474b8ef`, 포터블 `7,786,663 bytes` SHA-256 `8721f700865b1ff5db719ff326da06feae62239e1654d6b4f731c5ecbc8c8ca4`.
+- `NOT_RUN` — AMD 단독 GPU의 실제 적용 전후 언더볼팅 유지, packaged UI 실행, push·release·deployment.
 - unrelated_preserved: 사용자 수정 `NOTICE.md`, 비추적 `data/`, `native/installer-cleanup/`
 - feature_impact: `FEAT-NOGIREM-TURBO-KEY — REMOVED; helper·standalone terms package/release asset 비배포`
 - feature_map: `updated — revision 3, TURBO-009와 signed package evidence`

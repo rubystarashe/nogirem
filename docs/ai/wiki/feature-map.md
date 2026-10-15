@@ -183,7 +183,7 @@
 - canonical_name: `GPU 그래픽 설정 확인·최적화`
 - aliases: `그래픽 최적화`, `NVIDIA 프로필`, `AMD Radeon 전역 설정`
 - lifecycle: `PARTIAL`
-- lifecycle_reason: `NVIDIA 프로그램 프로필과 AMD 3D 전역 설정 최적화가 source에 제공되지만 AMD 단독 하드웨어 적용 검증과 package 반영은 남음`
+- lifecycle_reason: `NVIDIA 프로그램 프로필과 AMD 3D 전역 설정 최적화가 source와 0.4.7 package에 제공되지만 AMD 단독 하드웨어 적용 검증은 남음`
 - owners: `product=nogirem maintainer`, `technical=graphics backend owner`
 - purpose_and_scope: NVIDIA가 있으면 마비노기 프로그램 프로필 목표를 확인·적용한다. NVIDIA가 없는 AMD 시스템은 시작 시 WMI로 장치와 네 3D 목표를 표시하고 사용자 확인 뒤 Radeon 전역 3D 설정을 적용한다.
 - exclusions: GPU tuning·전압·클럭·전력 제한 조회·적용·복원, 사용자 언더볼팅 값 저장·복구, 드라이버 설치·재시작은 지원하지 않는다.
@@ -196,13 +196,13 @@
 - durable_data_owner_writers_readers_retention: 그래픽 설정 writer는 NVIDIA의 NVAPI DRS와 AMD helper의 ADLX 3D service다. UI는 backend 응답만 읽으며 별도 사용자 tuning data를 저장하지 않는다.
 - security_privacy_trust_boundaries: 고정된 WMI class와 vendor ID만 조회하고 사용자 입력을 PowerShell에 삽입하지 않는다. GPU 이름 외 튜닝·전압·클럭 값은 수집하거나 진단에 새로 기록하지 않는다.
 - scenarios: `GFX-001 AMD 시작 상태 조회는 ADLX 미호출`, `GFX-006 NVIDIA 프로그램 profile 확인·적용`, `GFX-007 혼합 GPU는 NVIDIA 우선`, `GFX-008 AMD 명시 적용은 네 3D 목표만 처리`, `GFX-009 비호환 드라이버 강제 초기화 금지`, `GFX-010 tuningAccessed 계약 누락 거부`
-- acceptance_tests_evidence: `graphics.rs 6/6`, backend `115 PASS·3 ignored`와 parity `2/2`, Radeon Node `13/13`, Node `211/211`, desktop check, 실제 RTX 4090 graphics status, helper rebuild PASS
+- acceptance_tests_evidence: `graphics.rs 6/6`, backend `115 PASS·3 ignored`와 parity `2/2`, Radeon Node `13/13`, Node `211/211`, desktop check, 실제 RTX 4090 graphics status, helper rebuild PASS; source `62cf3ae48bb8a091bdb4d77a20c58f5cd7417f87`의 signed 0.4.7 setup·portable payload에서 Radeon helper hash와 배포 경계 검증 PASS
 - logs_metrics_traces_alerts: UI의 GPU 이름·목표별 상태·튜닝 미접근 안내와 RPC 오류가 사용자 관측 신호다. 별도 telemetry는 없다.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 GPU 선택 우선순위와 Radeon 3D 전용 helper 경계.
 - record_id: `FEAT-NOGIREM-GRAPHICS-SETTINGS`
 - owner: `nogirem maintainer`
-- revision: `2`
-- updated_at: `2026-10-15T13:35:00Z`
+- revision: `3`
+- updated_at: `2026-10-15T14:33:12Z`
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-15T13:35:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
@@ -214,10 +214,10 @@
 - behavior_verification_environment: `Windows 10.0.26200 x64 local source, RTX 4090 + AMD Radeon(TM) Graphics`
 - behavior_verification_evidence: `실제 NVIDIA 선택, graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Node 211/211, desktop check, Radeon helper rebuild PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 NVIDIA 우선 routing과 AMD 3D 최적화·tuning API 금지 범위를 반영`
-- known_gaps: `AMD 단독 GPU에서 실제 3D 적용과 언더볼팅 값 유지, packaged UI는 NOT_RUN`
+- freshness_reason: `현재 NVIDIA 우선 routing과 AMD 3D 최적화·tuning API 금지 범위 및 0.4.7 package 반영을 기록`
+- known_gaps: `AMD 단독 GPU에서 실제 3D 적용과 언더볼팅 값 유지, packaged UI 실행은 NOT_RUN`
 - feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — 혼합 GPU routing 수정과 AMD 기능 복구`
-- feature_map: `updated — revision 2`
+- feature_map: `updated — revision 3, signed 0.4.7 package evidence`
 - architecture_impact: `AMD WMI 상태 탐지와 명시 3D write 분리, tuning API·비호환 초기화 금지`
 - architecture_contract: `updated — revision 29`
 
