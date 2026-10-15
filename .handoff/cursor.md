@@ -1,12 +1,13 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-15 14:45 +09:00
+Last Updated: 2026-10-15 15:00 +09:00
 
 ## Current Objective
-화면 이미지 인식 기능 금지 결정에 따라 `FEAT-NOGIREM-GAME-OVERLAY`를 제품 source·UI·IPC·package 입력에서 제거하고 `REMOVED` tombstone과 architecture 금지 경계를 검증한다. 화면 pixel을 처리하지 않는 `FEAT-NOGIREM-CHANNEL-PING`의 상단·전체표 창은 유지한다.
+0.4.6 변경 이력에 tray 상태 채널 핑 overlay 수명주기 수정과 화면 이미지 인식 기반 게임 overlay module 제거를 기록하고, 해당 source와 사용자 작성 공지를 포함한 서명 설치형·포터블을 로컬 패키징했다. 배포는 수행하지 않았다.
 
 ## Active Runs
-- `20261015-remove-game-overlay-045`: source base `5f67ca0c41c5a727729b3412458f0c9f886867d3`에서 화면 이미지 인식 기반 게임 오버레이의 UI·backend·monitor·IPC·auxiliary window·package template 입력을 제거하고 canonical feature를 `REMOVED`로 전환 중이다. (`docs/ai/runs/20261015-remove-game-overlay-045/task.md`)
+- `20261015-package-046`: source `cdc477dd775849c7be102e4cc31a90473f74e171`과 사용자 `NOTICE.md` SHA-256 `896a7366...920d`에서 0.4.6 설치형·포터블과 signed manifest를 `release/dioxus-0.4.6-2026-10-15T05-57-08-337Z`에 생성·검증했다. Node 205/205, backend 105 PASS·2 ignore, parity 2/2, desktop 8/8, native integration 3/3과 package 검증이 통과했으며 배포·설치·실행은 NOT_RUN이다. (`docs/ai/runs/20261015-package-046/final-report.md`)
+- `20261015-remove-game-overlay-045`: source `ad6125e425797a146e1ee01af591ede2d3e83173`에서 화면 이미지 인식 기반 게임 오버레이의 UI·backend·monitor·IPC·auxiliary window·package template 입력을 제거하고 canonical feature를 `REMOVED`로 전환했다. (`docs/ai/runs/20261015-remove-game-overlay-045/final-report.md`)
 - `20261006-antivirus-false-positive-045`: 유료 Authenticode 없이 백신 오진 신호를 줄이기 위해 신규 설치에서는 기존 파일이 없을 때 종료 PowerShell을 생략하고, update/uninstall 명령에서 `ExecutionPolicy Bypass`를 제거했으며 설치형·포터블 outer PE 식별 resource를 추가했다. Node 208/208, 미서명 package·NSIS `/WX`·10MB 제한·PE metadata 검증이 통과했다. non-solid LZMA는 설치형이 10MB 제한을 초과해 철회했고 실제 설치·VirusTotal 재분석·배포는 수행하지 않았다. (`docs/ai/runs/20261006-antivirus-false-positive-045/task.md`)
 - `20261006-tray-channel-monitor-045`: tray cleanup이 일반 보조 창만 닫고 `channel-ping-overlay`·`channel-ping-live`를 보존하도록 source `66d56b49544219fa7c8f38d5aea77a87f78bb11c`에서 수정했다. backend 105 PASS·2 declared ignore, parity 2/2, overlay 3/3과 SELF_REVIEW가 통과했다. 실제 tray·게임·Windows 키·DPI QA와 package·push·재배포는 수행하지 않았다. (`docs/ai/runs/20261006-tray-channel-monitor-045/task.md`)
 - `20261005-release-045`: source `2fd708bee4af0513a68b21618e81e0173516c098`에서 signed 설치형·포터블을 만들고 origin/main push, v0.4.5 tag와 [GitHub v0.4.5](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.5) 자산 10개를 공개했다. 공개 10/10 hash·Ed25519 manifest·Electron 0.3.19 bridge 재검증이 통과했다. 실제 설치·게임·혼합 DPI QA는 수행하지 않았다. (`docs/ai/runs/20261005-release-045/task.md`)
@@ -26,6 +27,10 @@ Last Updated: 2026-10-15 14:45 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- 0.4.6 설치형은 `9,572,765 bytes`, SHA-256 `f4b58b6477e118a7279481f8ce79394e6583487d8e3ee47da5da72bd0b3d076c`다.
+- 0.4.6 포터블은 `7,790,678 bytes`, SHA-256 `9a869dee1c6d0c9811c1f383fa278b43301a2364dd53d4ca54ec62efdff32ee1`다.
+- 두 update manifest는 0.4.6 artifact size·SHA-256와 일치하고 Ed25519 자체 검증을 통과했다. channel overlay payload는 존재하고 제거된 game overlay HTML·preload·CSV·condition template은 부재한다.
+- package·source 자동 검사는 통과했으며 실제 설치·제거·포터블 실행·업데이트·게임·혼합 DPI는 NOT_RUN이다. push·tag·release·deployment도 수행하지 않았다.
 - 게임 화면 pixel capture, 체력바·디버프 template matcher, 해상도별 좌표 cache, 디버프 누락 alert, 게임 오버레이 설정·구성 창과 관련 IPC·package 입력을 제거했다.
 - 기존 `%APPDATA%\마비노기 렘 부스터\overlay\settings.json`은 더 이상 읽거나 쓰지 않으며 사용자 데이터 보존을 위해 자동 삭제하지 않는다.
 - `channel-ping-live`·`channel-ping-overlay`는 OS TCP 상태만 표시하고 게임 화면 pixel을 처리하지 않으므로 유지한다.
@@ -219,4 +224,4 @@ Last Updated: 2026-10-15 14:45 +09:00
 - 원격 REPORT 자동 정리 커밋을 병합하고 `v0.3.16` 태그와 GitHub Release를 공개했다. 네 자산의 원격 digest가 로컬 SHA-256과 일치한다.
 
 ## Next Recommended Step
-이 checkpoint의 다음 필수 작업은 없다. 배포가 필요하면 별도 승인된 package·설치 QA checkpoint에서 제거된 파일이 payload에 포함되지 않는지 확인한다.
+이 checkpoint의 다음 필수 작업은 없다. 이후 배포를 검토하려면 별도 승인된 설치형·포터블 실행과 업데이트·게임·혼합 DPI QA를 먼저 수행한다.
