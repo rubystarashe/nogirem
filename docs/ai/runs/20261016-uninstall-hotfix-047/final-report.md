@@ -45,6 +45,6 @@
 - not_run: actual elevated install/update/uninstall, scheduled task deletion result, empty install directory and same-version automatic rediscovery.
 - source_commit: `4ee58f36ceff917b135d80c809f439db39536ccb`.
 - package_record_commit: `9af8653ae48f599c97aa2012dc26935e1bc163e9`.
-- final_record_commit: `pending`.
-- push: `source and package records pushed; final record push pending`.
+- final_record_commit: `c8dd6ee511a94e3486356c75c54df4661e958817`.
+- push: `YES — source, package and final records`.
 - deployment: `YES — public v0.4.7 six-asset replacement`.
