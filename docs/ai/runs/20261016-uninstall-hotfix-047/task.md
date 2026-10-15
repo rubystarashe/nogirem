@@ -1,0 +1,52 @@
+# 0.4.7 제거 hotfix와 동일 버전 대치
+
+- record_id: `RUN-20261016-UNINSTALL-HOTFIX-047`
+- run_id: `20261016-uninstall-hotfix-047`
+- checkpoint_id: `CP-UNINSTALL-HOTFIX-047`
+- owner: `cursor-agent-92251f36`
+- created_at: `2026-10-15T17:53:00Z`
+- repository: `rubystarashe/nogirem`
+- branch: `main`
+- source_base: `e975a26865e1481984a092d93fa560d5abf2fa27`
+- public_release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7`
+- request: `수정하고 재배포해 같은버전 대치로`
+- authorization: `0.4.7 source fix, local commits, origin/main push and existing v0.4.7 asset replacement`
+- roles: `Coordinator=DEV=QA=Documentation maintainer cursor-agent-92251f36; independent reviewer generalPurpose agent 0051f39a-3f3d-46c3-978f-d3bfc2e13bec`
+- dev_state: `READY_FOR_QA`
+- qa_state: `COMPLETE_PASS for source checkpoint`
+- review_verdict: `APPROVED for source checkpoint`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 실행 프로세스가 없는데 제거가 차단되고 retired package files가 install directory에 남는 결함`
+- feature_map: `blocked — exact fix and verification evidence pending`
+- architecture_impact: `installer stop-script failure semantics, scheduled-task cleanup ownership and exact retired-asset deletion boundary`
+- architecture_contract: `blocked — cleanup path and enforcement evidence update pending`
+
+## Diagnosis and scope
+
+- observed_target: installed `C:\Program Files\Nogirem`, registered version `0.4.7`.
+- observed: install/updater process `0`; startup task `Mabinogi Rem Booster Startup` remains; uninstall dialog maps any stop-script nonzero exit to a misleading running-app message.
+- observed: current install contains seven retired payload files absent from 0.4.7 app payload plus `Uninstall.exe`. Current generated uninstall manifest does not own those retired paths, so final non-recursive `RMDir "$INSTDIR"` can leave the directory.
+- objective: make task cleanup failure non-blocking after a precise best-effort attempt, preserve real process-stop failures, remove only enumerated retired app-owned paths during upgrade and uninstall, expose stop-script failure detail, and replace signed 0.4.7 public assets.
+- exclusions: recursive deletion of the whole install directory, deletion of AppData settings/recordings/snapshots, user-created unknown files, actual local installed-app removal without a separate explicit action.
+- risk: `HIGH — privileged uninstall behavior and already-public same-version signed assets change; update cache identity and public download hashes must be revalidated`.
+- unrelated_preserved: user `NOTICE.md`, untracked `data/`, `native/installer-cleanup/`.
+
+## Plan and stop condition
+
+1. Add a narrow retired-assets cleanup include with exact files and empty-directory removal only.
+2. Make startup task cleanup best-effort and show captured stop-script reasons for actual blocking failures.
+3. Add previous-install residual and failure-message regression tests; run installer, Node, backend and desktop checks.
+4. Obtain independent review, resolve mandatory findings, update feature/architecture records and commit exact source.
+5. Rebuild signed 0.4.7 setup/portable and verify manifests, payload and installer cleanup inputs.
+6. Replace all mutable v0.4.7 Rust assets and aliases, preserve Electron bridge assets, publicly re-download and verify, then push final records.
+
+- stop_condition: no unresolved mandatory finding; exact retired paths are removed without broad recursive deletion; actual stop failures expose useful reasons; signed package and public same-version replacement hashes, signatures and routing pass.
+
+## Source checkpoint
+
+- target: `base e975a26865e1481984a092d93fa560d5abf2fa27 + owned 8-file manifest 77ad85838c18dcf54ef417494b9bece98e695d76291e78f1e4041375167c7c9e`
+- implementation: canonical task cleanup requires root path, exact name, one action, exact executable and case-sensitive `--startup-tray`; task cleanup failure is nonblocking.
+- implementation: actual app/updater process failures remain blocking and NSIS displays captured stop-script details.
+- implementation: upgrade and uninstall exact-delete twelve retired app-owned paths and only remove known empty directories.
+- validation: installer `11/11`, full Node `212/212`, backend `115 PASS·3 ignored` plus parity `2/2`, desktop check, PowerShell parse, diff check and lint `0`.
+- review: `INDEPENDENT_REVIEW APPROVED`, two must-fix findings resolved, unresolved `0`.
+- remaining_checkpoint: source commit, signed package, package verification, same-version public replacement and public re-download verification.

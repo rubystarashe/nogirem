@@ -76,13 +76,18 @@ Section "Install"
   Pop $0
   Pop $1
   ${EnableX64FSRedirection}
+  DetailPrint "$1"
   ${If} $0 != 0
     SetErrorLevel 1
-    MessageBox MB_ICONSTOP "실행 중인 앱을 정상 종료한 뒤 다시 설치해 주세요."
+    ${If} $1 == ""
+      StrCpy $1 "앱 종료 작업이 알 수 없는 이유로 실패했습니다."
+    ${EndIf}
+    MessageBox MB_ICONSTOP "기존 앱을 종료하지 못해 설치를 계속할 수 없습니다.$\r$\n$\r$\n$1"
     Abort
   ${EndIf}
   stop_installed_app_done:
   !include "legacy-node-cleanup.nsh"
+  !include "retired-assets-cleanup.nsh"
   SetOutPath "$INSTDIR"
   ClearErrors
   File /r "${APP_DIRECTORY}\*"
@@ -120,13 +125,18 @@ Section "Uninstall"
   Pop $0
   Pop $1
   ${EnableX64FSRedirection}
+  DetailPrint "$1"
   ${If} $0 != 0
     SetErrorLevel 1
-    MessageBox MB_ICONSTOP "실행 중인 앱을 정상 종료한 뒤 다시 제거해 주세요."
+    ${If} $1 == ""
+      StrCpy $1 "앱 종료 작업이 알 수 없는 이유로 실패했습니다."
+    ${EndIf}
+    MessageBox MB_ICONSTOP "앱을 종료하지 못해 제거를 계속할 수 없습니다.$\r$\n$\r$\n$1"
     Abort
   ${EndIf}
   ; 사용자 설정, 녹화 파일, 최적화 원본 스냅샷은 유지한다.
   !include "${UNINSTALL_MANIFEST}"
+  !include "retired-assets-cleanup.nsh"
   Delete "$INSTDIR\Uninstall.exe"
   Delete "$DESKTOP\마비노기 렘 부스터.lnk"
   Delete "$SMPROGRAMS\마비노기 렘 부스터.lnk"

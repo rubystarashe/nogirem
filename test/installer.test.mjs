@@ -5,9 +5,10 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-const [installer, cleanup, service, rustService, desktopMain, updateInstall] = await Promise.all([
+const [installer, cleanup, retiredCleanup, service, rustService, desktopMain, updateInstall] = await Promise.all([
   readFile(new URL('../desktop/installer.nsi', import.meta.url), 'utf8'),
   readFile(new URL('../scripts/stop-installed-app.ps1', import.meta.url), 'utf8'),
+  readFile(new URL('../desktop/retired-assets-cleanup.nsh', import.meta.url), 'utf8'),
   readFile(new URL('../service/main.mjs', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/backend/src/service.rs', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/src/main.rs', import.meta.url), 'utf8'),
@@ -60,9 +61,36 @@ test('설치기는 정상 종료를 기다리고 해당 설치의 예약 작업�
   assert.doesNotMatch(cleanup, /taskkill.*\/IM/i)
   assert.match(rustService, /read_to_string\(&close\)/)
   assert.match(rustService, /next_close_request != close_request/)
-  assert.match(cleanup, /\.Execute\.Trim\('"'\) -eq \$targetExe/)
+  assert.match(cleanup, /Get-ScheduledTask -TaskPath '\\' -TaskName \$startupTaskName/)
+  assert.match(cleanup, /\$task\.TaskName -eq \$startupTaskName/)
+  assert.match(cleanup, /\$actions\.Count -eq 1/)
+  assert.match(cleanup, /GetFullPath\(\$actions\[0\]\.Execute\.Trim\('"'\)\)\.Equals\(\$targetExe/)
+  assert.match(cleanup, /\$actions\[0\]\.Arguments -ceq '--startup-tray'/)
+  assert.match(cleanup, /Unregister-ScheduledTask[\s\S]*catch \{[\s\S]*앱 제거는 계속합니다/)
   assert.match(installer, /UNINSTALL_MANIFEST/)
+  assert.equal([...installer.matchAll(/!include "retired-assets-cleanup\.nsh"/g)].length, 2)
+  assert.match(installer, /DetailPrint "\$1"[\s\S]*MessageBox MB_ICONSTOP[\s\S]*\$1/)
   assert.doesNotMatch(installer, /RMDir \/r/i)
+})
+test('이전 설치형의 제거된 앱 파일만 정확히 정리한다', () => {
+  const expected = [
+    'TURBO_KEY_TERMS.md',
+    'overlay-settings.html',
+    'debuff-region-overlay.html',
+    'debuff-alert-overlay.html',
+    'overlay-configuration.html',
+    'debuff.csv',
+    'service\\overlay-settings-preload.js',
+    'service\\debuff-region-overlay-preload.js',
+    'service\\debuff-alert-overlay-preload.js',
+    'service\\overlay-configuration-preload.js',
+    'public\\main3.jpg',
+    'public\\doc_minimize\\introduce.png',
+  ]
+  const deleted = [...retiredCleanup.matchAll(/^\s*Delete "\$INSTDIR\\([^"\r\n]+)"$/gm)].map(match => match[1])
+  assert.deepEqual(deleted, expected)
+  assert.doesNotMatch(retiredCleanup, /(?:Delete|RMDir)\s+\/r|\*/)
+  assert.doesNotMatch(retiredCleanup, /\$APPDATA|\$LOCALAPPDATA|\.\.|:/)
 })
 test('업데이트 건강 확인은 UI 열기 뒤 애니메이션 완료 전에 기록한다', () => {
   const start = rustService.match(/pub fn start\(self: &Arc<Self>\) -> Result<\(\)> \{[\s\S]*?\n    \}/)?.[0] ?? ''

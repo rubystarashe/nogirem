@@ -56,8 +56,24 @@ if ($UpdaterPid -gt 0) {
     $preservedUpdaterPid = $parentPid
 }
 if ($Uninstall) {
-    # 제거가 중단돼도 재부팅 때 같은 앱이 다시 시작되지 않도록 대상 예약 작업을 먼저 해제한다.
-    Get-ScheduledTask | Where-Object { @($_.Actions | Where-Object { $_.Execute -and $_.Execute.Trim('"') -eq $targetExe }).Count -gt 0 } | Unregister-ScheduledTask -Confirm:$false
+    # 예약 작업 정리 실패는 앱 프로세스 종료 실패로 오인하지 않고 제거를 계속한다.
+    try {
+        $startupTaskName = 'Mabinogi Rem Booster Startup'
+        $startupTasks = @(Get-ScheduledTask -TaskPath '\' -TaskName $startupTaskName -ErrorAction SilentlyContinue)
+        foreach ($task in $startupTasks) {
+            $actions = @($task.Actions)
+            if ($task.TaskPath -eq '\' -and
+                $task.TaskName -eq $startupTaskName -and
+                $actions.Count -eq 1 -and
+                $actions[0].Execute -and
+                [IO.Path]::GetFullPath($actions[0].Execute.Trim('"')).Equals($targetExe, [StringComparison]::OrdinalIgnoreCase) -and
+                $actions[0].Arguments -ceq '--startup-tray') {
+                Unregister-ScheduledTask -InputObject $task -Confirm:$false -ErrorAction Stop
+            }
+        }
+    } catch {
+        [Console]::Error.WriteLine("시작 예약 작업을 정리하지 못했지만 앱 제거는 계속합니다: $($_.Exception.Message)")
+    }
 }
 $updaters = Get-UpdaterProcesses
 if ($updaters.Count -gt 0) {

@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `29`
-- updated_at: `2026-10-15T13:35:00Z`
+- revision: `30`
+- updated_at: `2026-10-15T18:00:06Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T13:35:00Z`
+- source_reviewed_at: `2026-10-15T18:00:06Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `d1b87085c360133eab49455348142efe94435f78`
-- source_review_evidence: `NVIDIA 우선 routing, WMI 상태 탐지, Radeon I3DSettings-only helper와 Electron compatibility 경계`
-- behavior_verified_at: `2026-10-15T13:35:00Z`
+- source_review_target: `base e975a26865e1481984a092d93fa560d5abf2fa27 + RUN-20261016-UNINSTALL-HOTFIX-047 working target`
+- source_review_evidence: `installer stop script, NSIS cleanup ordering, exact retired-assets include and installer regression tests`
+- behavior_verified_at: `2026-10-15T18:00:06Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `reviewed code hashes committed in d1b87085c360133eab49455348142efe94435f78`
-- behavior_verification_environment: `Windows 10.0.26200 x64 source checks와 RTX 4090 + AMD Radeon(TM) Graphics`
-- behavior_verification_evidence: `실제 NVIDIA status 선택, graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Radeon Node 13/13, Node 211/211, desktop check, Radeon helper rebuild PASS`
+- behavior_verification_target: `base e975a26865e1481984a092d93fa560d5abf2fa27 + RUN-20261016-UNINSTALL-HOTFIX-047 working target`
+- behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures; installed NSIS uninstall NOT_RUN`
+- behavior_verification_evidence: `installer 11/11, Node 212/212, backend 115 PASS·3 ignored and parity 2/2, desktop check`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 GPU 선택 순서와 AMD 상태·적용 API 경계를 반영`
-- known_gaps: `AMD 단독 GPU의 실제 3D 적용과 언더볼팅 유지 수동 검증, package 실행은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — 혼합 GPU NVIDIA 선택과 AMD 3D 최적화 복구`
-- feature_map: `updated — revision 2`
-- architecture_impact: `NVIDIA 우선 routing, AMD 상태 조회의 ADLX 미호출, 명시 적용의 3D-only contract`
-- architecture_contract: `updated — revision 29`
+- freshness_reason: `현재 source의 설치·제거 process 종료, 예약 작업과 retired payload cleanup 경계를 반영`
+- known_gaps: `실제 관리자 권한 설치본 제거와 같은 버전 공개 자산 대치 업데이트는 NOT_RUN; AMD 단독 GPU 수동 검증도 남음`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 제거 실패 의미와 이전 app payload cleanup`
+- feature_map: `updated — FEAT-NOGIREM-UPDATE-LIFECYCLE revision 6`
+- architecture_impact: `scheduled-task best-effort cleanup, process-stop fail-closed and exact retired-file ownership`
+- architecture_contract: `updated — revision 30`
 
 ## 계층과 확장 경로
 
@@ -121,6 +121,8 @@
 - 직접 설치·제거는 보호 updater 경로의 stale helper를 종료한다. 설치 폴더 프로세스가 정상 종료 중 다시 생길 수 있으므로 안정 구간까지 반복 조회한다.
 - 서명 update helper는 기록된 app·backend PID 종료와 worker flush를 완료한 뒤 NSIS를 실행한다. NSIS stop script는 전달된 PID가 보호 cache의 정확한 `updater.exe`인지 검증한 경우 설치 폴더 프로세스를 다시 탐색하지 않는다. 직접 설치·제거와 인자 없는 0.4.1 호환 경로만 반복 종료 탐색을 소유한다.
 - 신규 설치 대상에 기존 파일이 없으면 프로세스 종료 PowerShell을 실행하지 않는다. 기존 설치 업데이트와 제거에서만 package가 생성한 고정 script를 `-NoProfile -NonInteractive -File`로 실행하며 `ExecutionPolicy Bypass`를 사용하지 않는다.
+- 루트의 정본 `Mabinogi Rem Booster Startup` 작업이 단일 action으로 정확한 설치 실행 파일과 `--startup-tray`를 사용할 때만 해제를 시도한다. 예약 작업 해제 실패는 실제 앱 process 종료 실패로 오인하거나 제거를 차단하지 않는다. 실제 process·updater 종료 실패만 fail-closed하며 NSIS는 stop script의 한국어 원인을 사용자에게 표시한다.
+- 이전 installer가 소유한 제거 기능·source-only asset은 versioned exact cleanup 목록으로만 지운다. 설치 폴더 전체, wildcard, `/r`, AppData와 알 수 없는 파일은 이 경로에서 삭제하지 않는다.
 - 설치형·포터블 outer PE는 제품명, 설명, file/product version, internal/original filename과 copyright resource를 포함한다. 이는 Authenticode를 대체하지 않으며 update manifest의 Ed25519 서명도 Windows publisher 신뢰를 제공하지 않는다.
 - 배포 압축은 파일 공유 10MB 제한 때문에 solid LZMA를 유지한다. non-solid 변경은 실제 0.4.5 payload에서 설치형 `10,132,758 bytes`로 제한을 초과했으므로 적용하지 않으며, 이로 인한 NSIS overlay 휴리스틱 gap을 숨기지 않는다.
 - retry는 새 attempt identity와 현재 target을 사용하며 이전 attempt의 늦은 callback이 현재 상태를 덮지 못한다.
