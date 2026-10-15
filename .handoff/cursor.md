@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-15 23:33 +09:00
+Last Updated: 2026-10-15 23:44 +09:00
 
 ## Current Objective
-혼합 GPU에서 NVIDIA를 우선 선택하고 AMD 단독 시스템의 Radeon 3D 최적화를 tuning API 미접근 경계로 복구한 source를 signed 0.4.7 설치형·포터블로 패키징했다. package와 독립 payload review가 통과했으며 AMD 단독 하드웨어의 실제 적용·언더볼팅 유지 수동 QA는 남았다.
+혼합 GPU에서 NVIDIA를 우선 선택하고 AMD 단독 시스템의 Radeon 3D 최적화를 tuning API 미접근 경계로 복구한 signed 0.4.7을 GitHub에 공개했다. source·release records를 origin/main에 push했고 공개 자산 9/9 재검증이 통과했으며 AMD 단독 하드웨어의 실제 적용·언더볼팅 유지 수동 QA는 남았다.
 
 ## Active Runs
+- `20261015-release-047`: exact package source `62cf3ae48bb8a091bdb4d77a20c58f5cd7417f87`을 annotated `v0.4.7`로 고정하고 [GitHub v0.4.7](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7)에 signed 설치형·포터블, manifests, 수동 다운로드 aliases와 Electron migration bridge 자산 9개를 공개했다. 제거된 turbo helper asset은 배포하지 않았다. 공개 재다운로드 9/9 hash, Ed25519, alias identity와 Electron routing이 통과했고 실제 설치·업데이트·AMD 단독 GPU·게임은 NOT_RUN이다. (`docs/ai/runs/20261015-release-047/final-report.md`)
 - `20261015-repackage-047-graphics`: source `62cf3ae48bb8a091bdb4d77a20c58f5cd7417f87`과 사용자 `NOTICE.md` SHA-256 `af1eb83b...f1f2`에서 GPU 복구가 포함된 signed 0.4.7 설치형·포터블을 `release/dioxus-0.4.7-2026-10-15T14-25-48-115Z`에 생성했다. installer `3b1f78b9...b8ef`, portable `8721f700...8ca4`; 두 Ed25519 manifest, Radeon helper `e1d3a09a...643e8`, required/forbidden payload, native integration 3/3과 독립 review가 통과했다. 실제 설치·실행·업데이트·AMD 단독 GPU·게임은 NOT_RUN이며 외부 게시하지 않았다. (`docs/ai/runs/20261015-repackage-047-graphics/final-report.md`)
 - `20261015-graphics-routing-amd-restore`: implementation commit `d1b87085c360133eab49455348142efe94435f78`. NVIDIA status를 먼저 확인해 RTX 4090 + AMD Radeon(TM) Graphics 환경에서 NVIDIA 프로그램 profile을 선택한다. AMD 단독 상태 조회는 Rust와 Electron 모두 WMI만 사용하며 명시 적용에서만 `I3DSettings` helper를 호출한다. GPU tuning API·비호환 driver 초기화와 legacy retry를 금지하고, 적용·rollback 후 실제 값 검증과 게임 VSync 선차단을 추가했다. graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Node 211/211, desktop check, helper rebuild와 실제 RTX 4090 status가 통과했다. 독립 review R3는 `APPROVED`; 후속 0.4.7 package는 완료됐고 AMD 단독 적용 전후 tuning 유지는 NOT_RUN이다. (`docs/ai/runs/20261015-graphics-routing-amd-restore/task.md`)
 - `20261015-package-047`: source `9a64283a01121406f880206c3d9448d7329ea476`과 사용자 `NOTICE.md` SHA-256 `af1eb83b...f1f2`에서 0.4.7 signed 설치형·포터블을 `release/dioxus-0.4.7-2026-10-15T13-17-35-650Z`에 생성했다. installer `081f0dc4...43fd`, portable `6467b756...501f`; Node 206/206, targeted 18/18, native integration 3/3, package contract·manifest·payload와 독립 review가 통과했다. turbo helper·standalone terms는 package/release asset에 없고 source 구현은 보존된다. 배포·실제 설치는 NOT_RUN이다. (`docs/ai/runs/20261015-package-047/final-report.md`)
@@ -45,7 +46,8 @@ Last Updated: 2026-10-15 23:33 +09:00
 - `PASS` — graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Radeon Node 13/13, Node 211/211, desktop check, helper rebuild, diff check와 IDE diagnostics.
 - `PASS` — signed 0.4.7 package 생성, Ed25519 manifest·Radeon helper identity·payload boundary, native integration 3/3과 독립 review.
 - 최신 package는 `release/dioxus-0.4.7-2026-10-15T14-25-48-115Z`; 설치형 `9,568,848 bytes` SHA-256 `3b1f78b97b675a6e1ac06c4eec191e97c719b40b58dca9170171af1ef474b8ef`, 포터블 `7,786,663 bytes` SHA-256 `8721f700865b1ff5db719ff326da06feae62239e1654d6b4f731c5ecbc8c8ca4`.
-- `NOT_RUN` — AMD 단독 GPU의 실제 적용 전후 언더볼팅 유지, packaged UI 실행, push·release·deployment.
+- `PASS` — origin/main push, annotated `v0.4.7`, public GitHub Release와 공개 assets 9/9 재검증.
+- `NOT_RUN` — AMD 단독 GPU의 실제 적용 전후 언더볼팅 유지, packaged UI 실행과 실제 업데이트.
 - unrelated_preserved: 사용자 수정 `NOTICE.md`, 비추적 `data/`, `native/installer-cleanup/`
 - feature_impact: `FEAT-NOGIREM-TURBO-KEY — REMOVED; helper·standalone terms package/release asset 비배포`
 - feature_map: `updated — revision 3, TURBO-009와 signed package evidence`
