@@ -28,7 +28,7 @@
 3. `COMPLETED` — 설정·다운로드 실행 요청 거부, helper 구현·제거 경로 보존
 4. `COMPLETED` — 0.4.7 버전·변경 기록·feature map·architecture contract 갱신
 5. `COMPLETED` — 자동 검사, exact target self-review와 독립 review
-6. `IN_PROGRESS` — handoff·최종 기록과 로컬 commit
+6. `COMPLETED` — handoff·최종 기록과 로컬 commit
 
 ## 수용 기준·QA
 
@@ -41,7 +41,7 @@
 
 ## 현재 상태
 
-- DEV: `READY_FOR_REVIEW`
+- DEV: `DONE`
 - QA: `COMPLETE_PASS`
 - review: `APPROVED`, `INDEPENDENT_REVIEW`
 - target: `base deb6e254c1bd51ed9f3239de115b000c7955bb31 + uncommitted owned files`
@@ -71,8 +71,11 @@
 - feature_gate: `PASS — FEAT-NOGIREM-TURBO-KEY를 REMOVED로 갱신하고 TURBO-005~008과 자동 근거 기록`
 - architecture_gate: `PASS — UI·IPC·startup 실행 경계 폐쇄, enabled migration 단일 writer와 no-fallback 정책 기록`
 - review_qa_gate: `PASS — 필수 자동 검사와 독립 리뷰 APPROVED, unresolved must-fix 0`
-- target_authorization_gate: `PENDING — owned 파일만 stage·commit 후 최종 SHA 기록 예정`
+- target_authorization_gate: `PASS — owned 18개 파일만 commit e3a40177b89679fb40942d0a1e04b41d23595b31에 포함하고 사용자 NOTICE.md와 비추적 파일을 보존`
 - feature_impact: `FEAT-NOGIREM-TURBO-KEY — REMOVED, 기존 enabled 설정 자동 비활성화`
 - feature_map: `updated — revision 2와 0.4.7 검증 evidence 기록`
 - architecture_impact: `저수준 입력 helper의 제품 실행 경계 폐쇄와 startup migration`
 - architecture_contract: `updated — revision 27`
+- final_status: `COMPLETED`
+- source_target: `e3a40177b89679fb40942d0a1e04b41d23595b31`
+- commit_status: `local commit completed; push·package·deployment NOT_RUN`
