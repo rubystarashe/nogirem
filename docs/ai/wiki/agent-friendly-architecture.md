@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `24`
-- updated_at: `2026-10-15T12:00:00Z`
+- revision: `25`
+- updated_at: `2026-10-15T12:50:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T12:00:00Z`
+- source_reviewed_at: `2026-10-15T12:50:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 36e24da646d91b6bcde35ac3aea06c16c4274d63 + RUN-20261015-UPDATER-HOTFIX-046 working target`
-- source_review_evidence: `update job 파일별 seal, commit seal, 검증된 updater PID handoff와 NSIS 종료 책임 SELF_REVIEW`
-- behavior_verified_at: `null`
-- behavior_verified_by: `NOT_RUN`
-- behavior_verification_target: `NOT_RUN — hotfix signed package와 이전 버전 실행 target 미확정`
-- behavior_verification_environment: `Windows 10.0.26200 x64 source 자동 검사만 수행`
-- behavior_verification_evidence: `backend 105 PASS·3 declared ignore, parity 2/2 PASS, installer 회귀 10/10 PASS; 실제 update transaction은 NOT_RUN`
+- source_review_target: `base da014021ccbb122bb1897ec895da48292669b777 + RUN-20261015-AMD-SETTINGS-PROTECTION working target`
+- source_review_evidence: `AMD WMI 읽기 전용 탐지, 혼합 GPU 보호 우선순위, driver write 선차단과 독립 리뷰 APPROVED`
+- behavior_verified_at: `2026-10-15T12:50:00Z`
+- behavior_verified_by: `cursor-agent-92251f36`
+- behavior_verification_target: `RUN-20261015-AMD-SETTINGS-PROTECTION uncommitted source target`
+- behavior_verification_environment: `Windows 10.0.26200 x64 source 자동 검사와 실제 AMD WMI status 실행`
+- behavior_verification_evidence: `graphics 6/6 PASS, backend 111 PASS·3 declared ignore와 integration parity 2/2 PASS, Node 206/206 PASS, desktop check PASS, AMD status read-only/writeProtected PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 update 보호 파일과 프로세스 종료 책임 경계를 반영하며 미배포·미실행 상태를 명시`
-- known_gaps: `signed hotfix package 자동 검증은 통과했으나 공개 이전 버전에서의 실제 관리자 update transaction은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 작업 파일 신뢰 판정과 설치 handoff`
-- feature_map: `updated — lifecycle PARTIAL과 미검증 hotfix 상태 반영`
-- architecture_impact: `update job 파일별 High Integrity seal, Rust updater와 NSIS process terminator 책임`
-- architecture_contract: `updated — 상속 레이블 비의존과 검증된 handoff 단일 종료 경계`
+- freshness_reason: `현재 source의 AMD driver 접근 금지와 혼합 GPU 보호 경계를 반영`
+- known_gaps: `제보 RX 6700 XT의 실제 언더볼팅 유지와 packaged UI 수동 실행은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — AMD 사용자 튜닝 보호`
+- feature_map: `updated — 신규 canonical graphics entry 추가`
+- architecture_impact: `Radeon ADLX 자동 조회·전역 write 제거, WMI read-only 장치 탐지`
+- architecture_contract: `updated — AMD driver API 금지와 보호 우선순위 추가`
 
 ## 계층과 확장 경로
 
@@ -44,6 +44,8 @@
 - 포터블 배포 EXE를 실행 중 직접 덮어쓰지 않는다. 보호 staging, digest, backup과 launcher 종료 경로를 사용한다.
 - 사용자 설정·녹화 파일은 설치 manifest와 제거 manifest에 포함하지 않는다.
 - Electron 호환 코드는 새 Rust backend authoritative state의 두 번째 writer가 될 수 없다.
+- AMD 장치가 하나라도 있으면 그래픽 상태 조회와 적용은 `Win32_VideoController`의 `VEN_1002` 장치 식별만 허용한다. Radeon ADLX·ADL·GPU tuning·3D 전역 설정 API와 packaged `radeon-helper.exe`를 시작·새로고침·적용 경로에서 호출하지 않으며 혼합 GPU에서도 AMD 보호를 NVIDIA 최적화보다 우선한다.
+- NVIDIA 전용 시스템은 기존 NVAPI 프로그램 profile 경로를 사용할 수 있다. AMD WMI 조회 실패만으로 NVIDIA 경로를 차단하지 않되, Radeon 설정 API로 fallback해서는 안 된다.
 - UI runtime polling은 한 helper 요청 실패로 영구 종료하지 않는다. 실패한 기능의 `running`·`gameActive`를 false로 보정하고 다음 주기에 재조회한다.
 - affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다.
 - 터보키는 임의의 `Client.exe` 이름만으로 입력하지 않는다. 정본 설정과 동일한 명시적 게임 폴더 또는 sibling launcher를 검증해야 한다.

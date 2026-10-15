@@ -1,4 +1,4 @@
-use crate::{Result, command};
+use crate::{Result, command, powershell};
 use serde_json::{Value, json};
 use std::{collections::HashMap, ffi::c_void, path::Path};
 type Handle = *mut c_void;
@@ -525,92 +525,133 @@ pub fn normalize_radeon(raw: &Value, game: Value) -> Result<Value> {
     let goals = raw["goals"]
         .as_array()
         .ok_or("Radeon helper가 올바르지 않은 결과를 반환했습니다")?;
-    let mut goals:Vec<_>=goals.iter().map(|g|json!({"key":g["key"].as_str().unwrap_or(""),"label":g["label"].as_str().or(g["key"].as_str()).unwrap_or(""),"supported":g["supported"]==true,"met":g["supported"]==true&&g["met"]==true,"currentValue":if g["currentValue"].is_null(){Value::Null}else if g["currentValue"].is_string(){g["currentValue"].clone()}else{json!(g["currentValue"].to_string())}})).collect();
-    for g in &mut goals {
-        if g["key"] == "verticalSyncOff" && g["supported"] == true && !game.is_null() {
+    let mut goals: Vec<_> = goals
+        .iter()
+        .map(|goal| {
+            json!({
+                "key": goal["key"].as_str().unwrap_or(""),
+                "label": goal["label"].as_str().or(goal["key"].as_str()).unwrap_or(""),
+                "supported": goal["supported"] == true,
+                "met": goal["supported"] == true && goal["met"] == true,
+                "currentValue": if goal["currentValue"].is_null() {
+                    Value::Null
+                } else if goal["currentValue"].is_string() {
+                    goal["currentValue"].clone()
+                } else {
+                    json!(goal["currentValue"].to_string())
+                }
+            })
+        })
+        .collect();
+    for goal in &mut goals {
+        if goal["key"] == "verticalSyncOff" && goal["supported"] == true && !game.is_null() {
             let off = game["available"] == true && game["enabled"] == false;
-            g["met"] = json!(g["met"] == true && off);
+            goal["met"] = json!(goal["met"] == true && off);
             if !off {
-                g["currentValue"] = json!(format!(
+                goal["currentValue"] = json!(format!(
                     "{} · 게임 설정 켜기",
-                    g["currentValue"].as_str().unwrap_or("드라이버 확인")
+                    goal["currentValue"].as_str().unwrap_or("드라이버 확인")
                 ))
             }
         }
     }
     let detected = raw["detected"] == true && !gpus.is_empty();
-    let applicable: Vec<_> = goals.iter().filter(|g| g["supported"] == true).collect();
-    Ok(
-        json!({"supported":true,"detected":detected,"amd":detected,"vendor":if detected{json!("amd")}else{Value::Null},"vendorLabel":if detected{json!("AMD Radeon")}else{Value::Null},"title":"AMD Radeon 전역 설정","scope":"global","scopeLabel":"Radeon GPU 전역 설정","persistentGlobal":detected,"reason":raw["reason"],"gpus":gpus.iter().map(|g|json!({"name":g["name"].as_str().unwrap_or("AMD Radeon GPU")})).collect::<Vec<_>>(),"gameVerticalSync":game,"goalsList":goals,"allMet":detected&&raw["reason"].is_null()&&raw["allMet"]==true&&!applicable.is_empty()&&applicable.iter().all(|g|g["met"]==true)}),
-    )
+    let applicable: Vec<_> = goals
+        .iter()
+        .filter(|goal| goal["supported"] == true)
+        .collect();
+    Ok(json!({
+        "supported": true,
+        "detected": detected,
+        "amd": detected,
+        "vendor": if detected { json!("amd") } else { Value::Null },
+        "vendorLabel": if detected { json!("AMD Radeon") } else { Value::Null },
+        "title": "AMD Radeon 전역 설정",
+        "scope": "global",
+        "scopeLabel": "Radeon GPU 전역 설정",
+        "persistentGlobal": detected,
+        "reason": raw["reason"],
+        "gpus": gpus
+            .iter()
+            .map(|gpu| json!({"name":gpu["name"].as_str().unwrap_or("AMD Radeon GPU")}))
+            .collect::<Vec<_>>(),
+        "gameVerticalSync": game,
+        "goalsList": goals,
+        "allMet": detected
+            && raw["reason"].is_null()
+            && raw["allMet"] == true
+            && !applicable.is_empty()
+            && applicable.iter().all(|goal| goal["met"] == true)
+    }))
 }
-fn radeon(root: &Path, apply: bool) -> Result<Value> {
-    let exe = root.join("native/radeon-helper/bin/radeon-helper.exe");
-    if !exe.is_file() {
-        return normalize_radeon(
-            &json!({"detected":false,"gpus":[],"goals":[],"reason":"Radeon 설정 helper를 찾지 못했습니다"}),
-            Value::Null,
-        );
-    }
-    let mut last_error = String::new();
-    for legacy in [false, true] {
-        let mut args = vec![];
-        if legacy {
-            args.push("--legacy-driver".into())
-        }
+fn normalize_radeon_devices(raw: &Value) -> Value {
+    let devices = raw["gpus"].as_array().cloned().unwrap_or_default();
+    let detected = !devices.is_empty();
+    let gpus = devices
+        .iter()
+        .map(|gpu| {
+            let name = gpu["name"]
+                .as_str()
+                .filter(|name| !name.trim().is_empty())
+                .unwrap_or("AMD Radeon GPU");
+            json!({"name":name})
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "supported": true,
+        "detected": detected,
+        "amd": detected,
+        "vendor": if detected { json!("amd") } else { Value::Null },
+        "vendorLabel": if detected { json!("AMD Radeon") } else { Value::Null },
+        "title": if detected { "AMD Radeon 설정 보호" } else { "그래픽 설정" },
+        "scope": if detected { json!("read-only") } else { Value::Null },
+        "scopeLabel": if detected { json!("Radeon 설정 자동 변경 안 함") } else { Value::Null },
+        "persistentGlobal": false,
+        "writeProtected": detected,
+        "protectionNote": if detected {
+            json!("사용자 언더볼팅·오버클럭 프로필을 보호하기 위해 AMD 드라이버 설정을 조회하거나 변경하지 않습니다.")
+        } else {
+            Value::Null
+        },
+        "reason": if detected { Value::Null } else { json!("AMD Radeon GPU를 찾지 못했습니다") },
+        "gpus": gpus,
+        "gameVerticalSync": Value::Null,
+        "goalsList": [],
+        "allMet": false
+    })
+}
+fn detect_radeon() -> Result<Value> {
+    let raw = powershell::json(
+        r#"$devices = @(Get-CimInstance Win32_VideoController | Where-Object { $_.PNPDeviceID -match 'VEN_1002' } | ForEach-Object { [ordered]@{ name = $_.Name } })
+[ordered]@{ gpus = $devices } | ConvertTo-Json -Depth 4 -Compress"#,
+        15000,
+    )?;
+    Ok(normalize_radeon_devices(&raw))
+}
+fn run_with(
+    game: &str,
+    apply: bool,
+    detect_amd: impl FnOnce() -> Result<Value>,
+    run_nvidia: impl Fn(&str, bool) -> Result<Value>,
+) -> Result<Value> {
+    let amd = detect_amd().unwrap_or_else(|error| {
+        let mut status = normalize_radeon_devices(&json!({"gpus":[]}));
+        status["reason"] = json!(format!("AMD Radeon GPU 확인 실패: {error}"));
+        status
+    });
+    if amd["detected"] == true {
         if apply {
-            args.push("--apply".into())
+            return Err("사용자 언더볼팅·오버클럭 프로필을 보호하기 위해 AMD Radeon 설정 변경을 지원하지 않습니다".into());
         }
-        match command::run(&exe, &args, 30000, 1024 * 1024) {
-            Ok(out) => match serde_json::from_slice::<Value>(&out.stdout) {
-                Ok(raw) => {
-                    if apply && raw["detected"] != true {
-                        return Err(raw["reason"]
-                            .as_str()
-                            .unwrap_or("AMD Radeon GPU 또는 드라이버를 찾지 못했습니다")
-                            .into());
-                    }
-                    let game = if apply {
-                        set_game_vsync()?
-                    } else {
-                        game_vsync()
-                    };
-                    let result = normalize_radeon(&raw, game)?;
-                    if apply && result["allMet"] != true {
-                        return Err(format!(
-                            "Radeon 최적화 적용 후 검증 실패: {}",
-                            result["goalsList"]
-                        ));
-                    }
-                    return Ok(result);
-                }
-                Err(e) if out.success => {
-                    return Err(format!("Radeon 설정 helper 응답을 해석할 수 없습니다: {e}"));
-                }
-                Err(_) => {
-                    last_error = format!(
-                        "Radeon 설정 helper가 비정상 종료되었습니다 (종료 코드 {:?})",
-                        out.code
-                    )
-                }
-            },
-            Err(e) => last_error = e,
-        }
+        return Ok(amd);
     }
-    Err(last_error)
-}
-pub fn run(root: &Path, game: &str, apply: bool) -> Result<Value> {
-    let nv = nvidia(game, false)?;
+    let nv = run_nvidia(game, false)?;
     if nv["nvidia"] == true {
         return Ok(normalize_nvidia(if apply {
-            nvidia(game, true)?
+            run_nvidia(game, true)?
         } else {
             nv
         }));
-    }
-    let amd = radeon(root, apply)?;
-    if amd["detected"] == true {
-        return Ok(amd);
     }
     let reason = [nv["reason"].as_str(), amd["reason"].as_str()]
         .into_iter()
@@ -623,4 +664,112 @@ pub fn run(root: &Path, game: &str, apply: bool) -> Result<Value> {
     Ok(
         json!({"supported":true,"detected":false,"vendor":null,"vendorLabel":null,"title":"그래픽 설정","scope":null,"scopeLabel":null,"gpus":[],"goalsList":[],"allMet":false,"reason":reason}),
     )
+}
+pub fn run(_root: &Path, game: &str, apply: bool) -> Result<Value> {
+    run_with(game, apply, detect_radeon, nvidia)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+
+    #[test]
+    fn amd_device_detection_is_read_only_and_write_protected() {
+        let status = normalize_radeon_devices(&json!({"gpus":[{"name":"AMD Radeon RX 6700 XT"}]}));
+
+        assert_eq!(status["vendor"], "amd");
+        assert_eq!(status["writeProtected"], true);
+        assert_eq!(status["persistentGlobal"], false);
+        assert_eq!(status["allMet"], false);
+        assert_eq!(status["goalsList"], json!([]));
+    }
+
+    #[test]
+    fn missing_amd_device_is_not_detected() {
+        let status = normalize_radeon_devices(&json!({"gpus":[]}));
+
+        assert_eq!(status["detected"], false);
+        assert_eq!(status["writeProtected"], false);
+        assert!(
+            status["reason"]
+                .as_str()
+                .unwrap()
+                .contains("찾지 못했습니다")
+        );
+    }
+
+    #[test]
+    fn amd_device_with_missing_name_still_enables_protection() {
+        let status = normalize_radeon_devices(&json!({"gpus":[{"name":null}]}));
+
+        assert_eq!(status["detected"], true);
+        assert_eq!(status["writeProtected"], true);
+        assert_eq!(status["gpus"][0]["name"], "AMD Radeon GPU");
+    }
+
+    #[test]
+    fn amd_status_never_initializes_nvidia_or_driver_setting_helpers() {
+        let calls = Cell::new(0);
+        let status = run_with(
+            "Client.exe",
+            false,
+            || {
+                Ok(normalize_radeon_devices(
+                    &json!({"gpus":[{"name":"AMD Radeon"}]}),
+                ))
+            },
+            |_, _| {
+                calls.set(calls.get() + 1);
+                Err("호출되면 안 됩니다".into())
+            },
+        )
+        .unwrap();
+
+        assert_eq!(status["writeProtected"], true);
+        assert_eq!(calls.get(), 0);
+    }
+
+    #[test]
+    fn amd_apply_is_rejected_before_any_driver_write() {
+        let calls = Cell::new(0);
+        let error = run_with(
+            "Client.exe",
+            true,
+            || {
+                Ok(normalize_radeon_devices(
+                    &json!({"gpus":[{"name":"AMD Radeon"}]}),
+                ))
+            },
+            |_, _| {
+                calls.set(calls.get() + 1);
+                Err("호출되면 안 됩니다".into())
+            },
+        )
+        .unwrap_err();
+
+        assert!(error.contains("프로필을 보호"));
+        assert_eq!(calls.get(), 0);
+    }
+
+    #[test]
+    fn amd_detection_failure_does_not_block_nvidia_only_systems() {
+        let status = run_with(
+            "Client.exe",
+            false,
+            || Err("WMI를 사용할 수 없습니다".into()),
+            |_, _| {
+                Ok(json!({
+                    "supported": true,
+                    "nvidia": true,
+                    "gpus": [{"name":"NVIDIA GPU"}],
+                    "goals": {"support": {}}
+                }))
+            },
+        )
+        .unwrap();
+
+        assert_eq!(status["vendor"], "nvidia");
+        assert_eq!(status["detected"], true);
+    }
 }

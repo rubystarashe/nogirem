@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `27`
-- updated_at: `2026-10-15T05:45:00Z`
+- revision: `28`
+- updated_at: `2026-10-15T12:50:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T05:45:00Z`
+- source_reviewed_at: `2026-10-15T12:50:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted removal target based on 5f67ca0c41c5a727729b3412458f0c9f886867d3`
-- source_review_evidence: `게임 오버레이 UI·backend module·capture monitor·IPC·auxiliary windows·package inputs·templates 제거 SELF_REVIEW`
-- behavior_verified_at: `2026-10-15T05:46:17Z`
+- source_review_target: `uncommitted AMD settings protection target based on da014021ccbb122bb1897ec895da48292669b777`
+- source_review_evidence: `graphics.rs AMD WMI 탐지·보호 우선순위·write 선차단, ui.rs 보호 상태와 독립 리뷰 APPROVED`
+- behavior_verified_at: `2026-10-15T12:50:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted removal target based on 5f67ca0c41c5a727729b3412458f0c9f886867d3`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust locked build와 Node 자동 검사`
-- behavior_verification_evidence: `Node 205/205 PASS, backend 105 PASS·2 declared ignore와 integration parity 2/2 PASS, desktop locked check PASS, 금지 경로 enforcement PASS`
+- behavior_verification_target: `uncommitted AMD settings protection target based on da014021ccbb122bb1897ec895da48292669b777`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Rust locked tests·desktop check·실제 AMD WMI status 실행`
+- behavior_verification_evidence: `graphics 6/6 PASS, backend 111 PASS·3 declared ignore와 integration parity 2/2 PASS, Node 206/206 PASS, desktop locked check PASS, 실제 AMD status read-only/writeProtected PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `화면 이미지 인식 금지 결정에 따른 FEAT-NOGIREM-GAME-OVERLAY 제거 상태와 source 삭제 범위를 반영`
-- known_gaps: `기존 사용자 AppData의 overlay/settings.json은 더 이상 읽거나 실행하지 않지만 자동 삭제하지 않음; 실제 package 생성·설치·기존 설정 보유 상태 수동 실행은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-GAME-OVERLAY — 화면 이미지 인식 기반 기능 전체 제거`
-- feature_map: `updated — identity를 REMOVED tombstone으로 전환`
-- architecture_impact: `게임 화면 pixel capture·template matcher·전용 overlay windows·settings writer 경계 제거 및 재도입 금지`
-- architecture_contract: `updated — 화면 이미지 인식 금지 경계로 교체`
+- freshness_reason: `AMD 장치의 현재 read-only 탐지와 드라이버 설정 보호 정책을 source·자동 실행 결과에 맞춰 반영`
+- known_gaps: `제보 RX 6700 XT에서 앱 시작 전후 실제 언더볼팅 값 유지 수동 검증과 package 실행은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — AMD 언더볼팅·오버클럭 프로필 보호`
+- feature_map: `updated — 그래픽 설정 identity와 AMD 보호 동작 추가`
+- architecture_impact: `Radeon ADLX 자동 조회·전역 write 제거, Win32_VideoController 읽기 전용 경계`
+- architecture_contract: `updated — AMD 장치 보호 우선순위와 driver API 금지 추가`
 
 ## ID 할당
 
@@ -158,6 +158,49 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 선택 helper·명시 게임 폴더 경계.
 - freshness_status: `CURRENT`
 - known_gaps: `실제 테스트 서버 창에서 1ms~30ms 반복 입력 수동 확인은 NOT_RUN`
+
+## FEAT-NOGIREM-GRAPHICS-SETTINGS
+
+- canonical_name: `GPU 그래픽 설정 확인·최적화`
+- aliases: `그래픽 최적화`, `NVIDIA 프로필`, `AMD Radeon 설정 보호`
+- lifecycle: `PARTIAL`
+- lifecycle_reason: `NVIDIA 프로그램 프로필 최적화는 유지하며 AMD는 사용자 튜닝 손실 제보에 따라 장치 확인만 제공하고 모든 드라이버 설정 접근을 차단함`
+- owners: `product=nogirem maintainer`, `technical=graphics backend owner`
+- purpose_and_scope: NVIDIA 전용 시스템에서는 마비노기 프로그램 프로필 목표를 확인·적용한다. AMD 장치가 하나라도 있으면 사용자 언더볼팅·오버클럭 프로필 보호를 우선하고 GPU 이름과 보호 상태만 표시한다.
+- exclusions: AMD 3D 전역 설정·GPU tuning 조회·적용·복원, 사용자 언더볼팅 값 저장·복구, 드라이버 설치·재시작은 지원하지 않는다.
+- personas_roles_permissions_accessibility_entry: 시스템 최적화 화면에서 GPU 이름, 설정 상태, 오류와 AMD 보호 이유를 텍스트로 확인한다. NVIDIA 적용은 사용자 조작이 필요하며 AMD 적용 버튼은 비활성화된다.
+- preconditions_configuration_dependencies: Windows, NVIDIA는 NVAPI driver, AMD 탐지는 `Win32_VideoController`의 PCI vendor `VEN_1002`; 별도 feature flag와 관리자 권한은 없다.
+- normal_error_cancel_retry_flow: AMD 장치 존재를 이름과 분리해 확인하고 이름이 없으면 fallback을 표시한다. AMD 적용 요청은 driver write 전에 거부한다. WMI 조회 실패는 reason으로 보존하며 NVIDIA 전용 시스템의 기존 경로는 계속 확인한다. 사용자는 상태 화면을 닫아 취소하고 다시 열어 재조회할 수 있다.
+- concurrency_partial_failure_recovery: 상태 조회는 지속 상태를 쓰지 않는다. 혼합 AMD/NVIDIA 시스템은 AMD 보호를 우선해 NVAPI·ADLX 설정 접근을 모두 생략한다. 조회 실패 뒤 적용된 부분 상태나 복구할 side effect가 없다.
+- state_transitions_side_effects_limits: AMD는 `detected/read-only/writeProtected` 메모리 응답만 생성하며 registry·driver profile·튜닝값을 쓰지 않는다. NVIDIA 명시 적용만 프로그램 profile과 게임 VSync 설정을 변경할 수 있다.
+- modules_contracts_compatibility: `desktop/src/ui.rs` → `service.rs` → `graphics.rs`; AMD는 PowerShell WMI 읽기만 사용하고 packaged `radeon-helper.exe`를 실행하지 않는다. NVIDIA NVAPI 계약은 유지한다.
+- durable_data_owner_writers_readers_retention: AMD 경로에는 durable data와 writer가 없다. UI는 현재 backend 응답만 읽고 앱 종료 시 폐기한다.
+- security_privacy_trust_boundaries: 고정된 WMI class와 vendor ID만 조회하고 사용자 입력을 PowerShell에 삽입하지 않는다. GPU 이름 외 튜닝·전압·클럭 값은 수집하거나 진단에 새로 기록하지 않는다.
+- scenarios: `GFX-001 AMD 시작 상태 조회는 ADLX 미호출`, `GFX-002 AMD 적용은 driver write 전 거부`, `GFX-003 혼합 GPU는 AMD 보호 우선`, `GFX-004 이름 없는 AMD 장치 보호`, `GFX-005 AMD WMI 오류가 NVIDIA 전용 경로를 차단하지 않음`, `GFX-006 NVIDIA 기존 프로그램 profile 확인·적용`
+- acceptance_tests_evidence: `graphics.rs unit tests 6개`, backend 전체 tests, desktop locked check, `nogirem-cli --graphics-status` 실제 AMD read-only 실행, `REV-AMD-PROTECTION-001 APPROVED`
+- logs_metrics_traces_alerts: UI의 GPU 이름·`설정 보호됨`·보호 안내와 RPC 오류가 사용자 관측 신호다. 별도 telemetry는 없다.
+- architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 AMD driver 설정 금지와 NVIDIA program-profile 경계.
+- record_id: `FEAT-NOGIREM-GRAPHICS-SETTINGS`
+- owner: `nogirem maintainer`
+- revision: `1`
+- updated_at: `2026-10-15T12:50:00Z`
+- updated_by: `cursor-agent-92251f36`
+- source_reviewed_at: `2026-10-15T12:50:00Z`
+- source_reviewed_by: `cursor-agent-92251f36`
+- source_review_target: `uncommitted target based on da014021ccbb122bb1897ec895da48292669b777`
+- source_review_evidence: `graphics.rs·ui.rs source review와 REV-AMD-PROTECTION-001`
+- behavior_verified_at: `2026-10-15T12:50:00Z`
+- behavior_verified_by: `cursor-agent-92251f36`
+- behavior_verification_target: `uncommitted target based on da014021ccbb122bb1897ec895da48292669b777`
+- behavior_verification_environment: `Windows 10.0.26200 x64 local source, 실제 AMD WMI 장치`
+- behavior_verification_evidence: `graphics 6/6 PASS, backend 111 PASS·3 ignored와 integration parity 2/2 PASS, Node 206/206 PASS, desktop check PASS, AMD status read-only/writeProtected PASS`
+- freshness_status: `CURRENT`
+- freshness_reason: `현재 AMD 보호 구현과 NVIDIA 유지 범위를 반영`
+- known_gaps: `제보 RX 6700 XT의 앱 시작 전후 언더볼팅 값 유지와 packaged UI는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — 신규 canonical identity와 AMD 보호 동작`
+- feature_map: `updated — entry 추가`
+- architecture_impact: `AMD WMI read-only와 driver API 차단 경계`
+- architecture_contract: `updated — 관련 canonical section 추가`
 
 ## FEAT-NOGIREM-DXVK
 

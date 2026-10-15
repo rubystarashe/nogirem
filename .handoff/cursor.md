@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-15 21:22 +09:00
+Last Updated: 2026-10-15 21:50 +09:00
 
 ## Current Objective
-0.4.6 자동 업데이트의 작업 파일 신뢰 오판과 NSIS 실행 중 앱 오판 hotfix source·signed 후보를 완료했고, 공개 대치 전 이전 버전 종단간 검증이 남았다.
+AMD Radeon 사용자의 언더볼팅·오버클럭 프로필을 보호하도록 모든 자동·수동 ADLX 접근을 제거한 source를 완료했고, 제보 RX 6700 XT 수동 확인과 package·배포는 남았다.
 
 ## Active Runs
+- `20261015-amd-settings-protection`: 진단 앱 0.4.2가 시작 상태 조회만으로도 Radeon ADLX helper를 실행하던 경로를 확인했다. AMD 장치가 하나라도 있으면 WMI `VEN_1002` 읽기만 수행하고 혼합 GPU에서도 AMD 보호를 우선하며 적용 요청을 driver write 전에 거부한다. 그래픽 회귀 6/6, backend 111 PASS·3 ignored와 parity 2/2, Node 206/206, desktop check와 실제 AMD read-only status가 통과했고 독립 리뷰 `REV-AMD-PROTECTION-001`이 APPROVED다. 제보 RX 6700 XT의 실제 언더볼팅 유지와 package 실행은 NOT_RUN이다. (`docs/ai/runs/20261015-amd-settings-protection/task.md`)
 - `20261015-updater-hotfix-046`: source `6c8b48d9713654d79a8467e8df371ca7a81ef59f`에서 공개 0.4.6 적용 제보의 `신뢰할 수 없는 업데이트 작업 파일`, helper exit 255, NSIS 실행 중 앱 오판·exit 1을 분리해 수정했다. 모든 신뢰 파일과 후속 state·포터블 복구 파일을 생성·교체마다 High Integrity로 seal하며, NSIS는 실제 부모이자 보호 cache의 정확한 updater PID만 중복 설치 프로세스 탐색을 생략한다. Node 206/206, backend 105 PASS·3 declared ignore, parity 2/2, installer 10/10, signed package 검증과 독립 리뷰가 통과했다. 후보는 `release/dioxus-0.4.6-2026-10-15T12-17-45-499Z`; 실제 이전 버전→후보 적용과 GitHub 자산 대치는 NOT_RUN이다. (`docs/ai/runs/20261015-updater-hotfix-046/task.md`)
 - `20261015-release-046`: source `4838885c2d810b7ec12cd1dfb99a83c0d8fbd21c`에서 최종 공지를 포함한 0.4.6 signed 설치형·포터블과 Electron migration bridge 자산 10개를 [GitHub v0.4.6](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.6)로 공개했다. 공개 재다운로드 10/10 hash와 signed manifest·routing 재검증이 통과했으며 실제 설치·게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261015-release-046/final-report.md`)
 - `20261015-package-046`: source `cdc477dd775849c7be102e4cc31a90473f74e171`과 사용자 `NOTICE.md` SHA-256 `896a7366...920d`에서 0.4.6 설치형·포터블과 signed manifest를 `release/dioxus-0.4.6-2026-10-15T05-57-08-337Z`에 생성·검증했다. Node 205/205, backend 105 PASS·2 ignore, parity 2/2, desktop 8/8, native integration 3/3과 package 검증이 통과했으며 배포·설치·실행은 NOT_RUN이다. (`docs/ai/runs/20261015-package-046/final-report.md`)
@@ -29,6 +30,11 @@ Last Updated: 2026-10-15 21:22 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — AMD 언더볼팅·오버클럭 프로필 보호`
+- feature_map: `updated — revision 28, 신규 graphics settings entry`
+- architecture_impact: `AMD WMI read-only 장치 탐지, Radeon ADLX·전역 설정 write 금지, 혼합 GPU 보호 우선`
+- architecture_contract: `updated — revision 25`
+- AMD 시작·새로고침·적용은 packaged `radeon-helper.exe`와 ADLX를 호출하지 않는다. UI는 `AMD Radeon 설정 보호`와 `설정 보호됨`을 표시한다.
 - 자동 업데이트 hotfix signed 설치형은 `9,576,758 bytes`, SHA-256 `3327260676e2b754314956ef2ba2f625452f2070f2430e6868bb1560afd56920`; 포터블은 `7,795,362 bytes`, SHA-256 `a03315ef4cf647d00fa4075b9503284761804506ec4c7f87adf58ec56450a2b1`이다.
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 작업 파일 신뢰 판정과 설치 handoff`
 - feature_map: `updated — lifecycle PARTIAL, 공개 결함과 미배포 hotfix 상태 반영`
@@ -181,7 +187,7 @@ Last Updated: 2026-10-15 21:22 +09:00
 - 실제 관리자 토큰의 High label 종단간 QA는 Cursor sandbox의 `icacls` 오류 1299 때문에 실행하지 못했다.
 - affinity reset은 프로세스별 저장 mask 대신 현재 세션에 전체 mask를 적용하며 worker 시작 시 이전 runtime state를 삭제해 비정상 종료 전 custom affinity의 정확한 복원을 보장하지 않는다.
 - 네트워크 되돌리기는 패스트핑과 RSS 원본을 다루지만 TCP receive autotuning의 이전 값은 저장·복원하지 않는다.
-- NVIDIA/Radeon/VSync 최적화는 이전 설정 snapshot과 restore 경로가 없고 Radeon은 전역 설정이다.
+- NVIDIA/VSync 최적화는 이전 설정 snapshot과 restore 경로가 없다. Radeon은 사용자 튜닝 보호를 위해 조회·적용을 차단했으며 제보 RX 6700 XT 수동 확인은 남아 있다.
 - 설치형 업데이트 rollback은 기존 파일을 다시 복사하지만 새 설치기가 추가한 파일 제거를 보장하지 않는다.
 - 이미 배포된 0.4.1 포터블은 같은 버전의 대체 자산을 자동 업데이트로 선택하지 않으므로 수정본을 한 번 직접 내려받아야 한다.
 - 전체 데스크톱 스모크는 메인 viewport 640×290 검증을 통과한 뒤 기존 고급 기능 화면 진입 단계에서 `Advanced structure failed: null`로 두 번 실패했으며 시작 애니메이션 단독 스모크는 통과했다.

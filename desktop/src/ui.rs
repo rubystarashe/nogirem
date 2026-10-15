@@ -769,9 +769,9 @@ fn Modal() -> Element {
                     }
                 },
                 "graphics-confirm" => rsx! {
-                    p { class: "modal-eyebrow", "AMD Radeon 최적화" } h2 { "Radeon 전역 설정을 변경합니다" }
-                    div { class: "modal-content", p { class: "modal-description", "수직 동기화, Enhanced Sync, Anti-Lag, Chill 설정이 Radeon GPU 전역에 적용되며 다른 게임에서도 유지됩니다. 최대 프레임 제한은 변경하지 않습니다." }
-                        div { class: "modal-actions", button { class: "secondary", disabled: snapshot.busy, onclick: {let client=client.clone();move |_| close_modal(client.clone(),state)}, "취소" } Action { class: "monochrome", label: "계속하기", channel: "optimization:optimize-graphics" } }
+                    p { class: "modal-eyebrow", "AMD Radeon 설정 보호" } h2 { "Radeon 설정을 변경하지 않습니다" }
+                    div { class: "modal-content", p { class: "modal-description", "사용자 언더볼팅·오버클럭 프로필을 보호하기 위해 Radeon 드라이버 설정 조회와 최적화 적용을 사용하지 않습니다." }
+                        div { class: "modal-actions", button { class: "monochrome", disabled: snapshot.busy, onclick: {let client=client.clone();move |_| close_modal(client.clone(),state)}, "확인" } }
                     }
                 },
                 "reset" => rsx! { h2 { "부스트 설정 초기화" } p { class: "modal-description", "적용한 CPU 및 NIC 부스트 설정을 되돌립니다." } div { class: "modal-actions", button { class: "secondary", onclick: {let client=client.clone();move |_| close_modal(client.clone(),state)}, "취소" } Action { class: "monochrome", label: "초기화", channel: "optimization:reset-frame-boost" } } },
@@ -813,17 +813,18 @@ fn OptimizationDetails() -> Element {
                 section { class: "optimization-detail", aria_labelledby: "graphics-status-title",
                     header {
                         div { class: "detail-heading-copy", span { class: "detail-category", "그래픽 설정" } h3 { id: "graphics-status-title", {graphics["title"].as_str().unwrap_or("그래픽 설정")} } }
-                        button { class: if graphics_ready { "detail-action complete" } else { "detail-action" }, disabled: s.busy || graphics["detected"] != true || graphics_ready,
+                        button { class: if graphics_ready || graphics["writeProtected"] == true { "detail-action complete" } else { "detail-action" }, disabled: s.busy || graphics["detected"] != true || graphics_ready || graphics["writeProtected"] == true,
                             onclick: { let client = client.clone(); move |_| {
                                 if state.peek().services["graphics"]["vendor"] == "amd" { state.write().modal = "graphics-confirm".into(); }
                                 else { command(client.clone(), state, "optimization:optimize-graphics", json!([])); }
                             } },
-                            if graphics_busy { "적용 중" } else if graphics_ready { "완료됨" } else { "최적화" }
+                            if graphics_busy { "적용 중" } else if graphics["writeProtected"] == true { "설정 보호됨" } else if graphics_ready { "완료됨" } else { "최적화" }
                         }
                     }
                     if let Some(error) = error_text(&graphics["error"]) { p { class: "detail-error", "{error}" } }
                     else if graphics["detected"] == true {
                         p { class: "detail-device", {graphics["gpus"].as_array().map(|gpus|gpus.iter().filter_map(|gpu|gpu["name"].as_str()).collect::<Vec<_>>().join(", ")).unwrap_or_default()} }
+                        if let Some(note) = graphics["protectionNote"].as_str() { p { class: "detail-note", "{note}" } }
                         dl { class: "detail-list",
                             if let Some(goals) = graphics["goalsList"].as_array() {
                                 for goal in goals { div {
