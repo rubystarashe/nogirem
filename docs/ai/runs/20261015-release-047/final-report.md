@@ -16,7 +16,7 @@
 
 ## Delivered and verified
 
-- origin/main fast-forward pushed through release coordination commit `2c548f6c8654f40b18adc27a3e0b29d04e9ef858`; final record push follows.
+- origin/main fast-forward pushed through release record commit `313a96688b8fc02ac2a03b09cda16f9eb154bec8`.
 - annotated `v0.4.7` points to exact packaged source `62cf3ae48bb8a091bdb4d77a20c58f5cd7417f87`.
 - GitHub Release is public, Latest, non-draft and non-prerelease.
 - assets: `9/9`; removed turbo helper is intentionally absent.
@@ -37,7 +37,7 @@
 - target_authorization_gate: `PASS`.
 - failed_or_blocked_checks: `none`.
 - not_run: `actual install, uninstall, automatic update, portable launch, game, AMD-only hardware and mixed DPI`.
-- commit: `final record commit follows`.
+- release_record_commit: `313a96688b8fc02ac2a03b09cda16f9eb154bec8`.
 - push: `YES`.
 - tag: `YES — v0.4.7`.
 - deployment: `YES — public GitHub Release`.
