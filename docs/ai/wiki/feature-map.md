@@ -298,22 +298,22 @@
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).
 - owner: `release/update owner`
-- revision: `8`
-- updated_at: `2026-10-16T06:07:23Z`
+- revision: `9`
+- updated_at: `2026-10-16T06:16:04Z`
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-16T06:03:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
 - source_review_target: `8d52c2f440f5256c9459d06e361188836bb968f2`
 - source_review_evidence: `native/installer-cleanup, desktop/installer.nsi, scripts/package-dioxus.mjs, test/installer.test.mjs, independent review REV-NATIVE-INSTALLER-047-001`
-- behavior_verified_at: `2026-10-16T06:07:23Z`
+- behavior_verified_at: `2026-10-16T06:16:04Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source 8d52c2f440f5256c9459d06e361188836bb968f2; package and public replacement NOT_RUN`
-- behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures and NSIS /WX compile; actual installed NSIS uninstall NOT_RUN`
-- behavior_verification_evidence: `native unit 6/6, installer 12/12, Node 213/213, backend 115 PASS·3 ignored and parity 2/2, desktop check, strict clippy, NSIS compile and independent review PASS`
+- behavior_verification_target: `source faee6cf2492b8247a11b4a787f3c0f8cf710b060; signed installer 23039c63...04d6c and portable 4b164625...49f0; public replacement NOT_RUN`
+- behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures and signed package verification; actual installed NSIS uninstall NOT_RUN`
+- behavior_verification_evidence: `source checks and review PASS; signed package, Ed25519, payload boundaries, aliases and native integration PASS in EVID-NATIVE-INSTALLER-047-PACKAGE`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 native cleanup과 자동 검증은 반영했고 아직 PowerShell 기반인 공개 0.4.7 replacement gap을 명시했다.`
-- known_gaps: `signed package와 공개 same-version replacement, 실제 제한 policy 설치, 관리자 권한 예약 작업 정리·제거·install directory 소거는 NOT_RUN. 기존 같은 버전 client는 대치본을 자동 재수신하지 않을 수 있다.`
+- freshness_reason: `현재 source와 signed native-helper package를 반영했고 아직 PowerShell 기반인 공개 0.4.7 replacement gap을 명시했다.`
+- known_gaps: `공개 same-version replacement, 실제 제한 policy 설치, 관리자 권한 예약 작업 정리·제거·install directory 소거는 NOT_RUN. 기존 같은 버전 client는 대치본을 자동 재수신하지 않을 수 있다.`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — PowerShell policy와 무관한 native install/uninstall cleanup`
-- feature_map: `updated — revision 8, source fix verified and publication pending`
+- feature_map: `updated — revision 9, signed package verified and publication pending`
 - architecture_impact: `NSIS-to-native helper boundary, handle identity termination and exact task ownership`
-- architecture_contract: `updated — revision 32 source boundary`
+- architecture_contract: `updated — revision 33 package boundary`

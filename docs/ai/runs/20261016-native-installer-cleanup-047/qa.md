@@ -6,13 +6,13 @@
 - owner: `cursor-agent-92251f36`
 - role_disclosure: `DEV-as-QA; independent code review participated separately`
 - updated_at: `2026-10-16T06:07:23Z`
-- qa_state: `COMPLETE_PASS for automated source checks; installed-app manual scenarios remain NOT_RUN`
+- qa_state: `COMPLETE_PASS for automated source and signed package checks; installed-app manual scenarios remain NOT_RUN`
 - source_target: `commit 8d52c2f440f5256c9459d06e361188836bb968f2; reviewed implementation patch SHA-256 a097ac7a912c367663747f7661d76626e6c5ee92a4c91c190624b76a9174043b`
-- execution_target: `Windows 10.0.26200 x64; Rust host and x86_64-pc-windows-msvc release helper; temporary real cmd.exe process fixtures`
+- execution_target: `Windows 10.0.26200 x64; source fixtures plus release/dioxus-0.4.7-2026-10-16T06-12-38-463Z`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — native install/uninstall cleanup`
-- feature_map: `updated — revision 8 source state; publication evidence pending`
+- feature_map: `updated — revision 9 signed package; publication evidence pending`
 - architecture_impact: `native process identity, Task Scheduler CLI ownership query and NSIS adapter`
-- architecture_contract: `updated — revision 32 source state`
+- architecture_contract: `updated — revision 33 signed package state`
 
 ## Executed scenarios
 
@@ -36,4 +36,5 @@
 - `NATIVE-MANUAL-001` NOT_RUN: actual elevated 0.4.7 overwrite install under a restrictive PowerShell execution policy.
 - `NATIVE-MANUAL-002` NOT_RUN: actual elevated uninstall, canonical task deletion and empty `C:\Program Files\Nogirem`.
 - `NATIVE-MANUAL-003` NOT_RUN: forced Windows PID reuse and protected-process termination denial; source uses same-handle path/creation-time checks and fail-closed errors.
-- `NATIVE-PUBLIC-001` NOT_RUN: signed package and GitHub same-version asset replacement belong to the next authorized steps.
+- `NATIVE-PACKAGE-001` PASS: signed package, Ed25519 envelopes, URL/size/SHA-256, no `.ps1`, required payload boundaries, aliases and native backend integration.
+- `NATIVE-PUBLIC-001` NOT_RUN: GitHub same-version asset replacement belongs to the next authorized step.
