@@ -58,31 +58,37 @@ Section "Install"
     MessageBox MB_ICONSTOP "Windows x64가 필요합니다."
     Abort
   ${EndIf}
-  StrCpy $8 ""
+  StrCpy $8 "0"
   ${GetParameters} $1
   ClearErrors
   ${GetOptions} "$1" "/NOGIREMUPDATE=" $2
   IfErrors update_flag_done
-  StrCpy $8 "-UpdaterPid $2"
+  IntFmt $3 "%u" $2
+  StrCmp $3 $2 0 update_flag_invalid
+  IntCmpU $3 0 update_flag_invalid update_flag_invalid update_flag_valid
+  update_flag_invalid:
+    MessageBox MB_ICONSTOP "업데이트 설치 프로세스 ID가 올바르지 않습니다."
+    Abort
+  update_flag_valid:
+  StrCpy $8 $3
   update_flag_done:
   Call EnsureWebView
   IfFileExists "$INSTDIR\*.*" 0 stop_installed_app_done
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
-  File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
+  File /oname=installer-cleanup.exe "${CLEANUP_HELPER}"
   System::Call 'kernel32::GetCurrentProcessId() i.r9'
-  ${DisableX64FSRedirection}
-  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 $8'
+  ${If} $8 == "0"
+    nsExec::ExecToStack '"$PLUGINSDIR\installer-cleanup.exe" --install-directory "$INSTDIR" --caller-pid $9'
+  ${Else}
+    nsExec::ExecToStack '"$PLUGINSDIR\installer-cleanup.exe" --install-directory "$INSTDIR" --caller-pid $9 --updater-pid $8'
+  ${EndIf}
   Pop $0
   Pop $1
-  ${EnableX64FSRedirection}
-  DetailPrint "$1"
+  DetailPrint "앱 종료 helper 반환 코드: $0"
   ${If} $0 != 0
     SetErrorLevel 1
-    ${If} $1 == ""
-      StrCpy $1 "앱 종료 작업이 알 수 없는 이유로 실패했습니다."
-    ${EndIf}
-    MessageBox MB_ICONSTOP "기존 앱을 종료하지 못해 설치를 계속할 수 없습니다.$\r$\n$\r$\n$1"
+    MessageBox MB_ICONSTOP "기존 앱을 종료하지 못해 설치를 계속할 수 없습니다. 작업 관리자에서 앱과 앱 업데이트를 종료한 뒤 다시 시도해 주세요."
     Abort
   ${EndIf}
   stop_installed_app_done:
@@ -118,20 +124,15 @@ Section "Uninstall"
   SetRegView 64
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
-  File /oname=stop-installed-app.ps1 "${STOP_SCRIPT}"
+  File /oname=installer-cleanup.exe "${CLEANUP_HELPER}"
   System::Call 'kernel32::GetCurrentProcessId() i.r9'
-  ${DisableX64FSRedirection}
-  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File "$PLUGINSDIR\stop-installed-app.ps1" -InstallDirectory "$INSTDIR" -CallerPid $9 -Uninstall'
+  nsExec::ExecToStack '"$PLUGINSDIR\installer-cleanup.exe" --install-directory "$INSTDIR" --caller-pid $9 --uninstall'
   Pop $0
   Pop $1
-  ${EnableX64FSRedirection}
-  DetailPrint "$1"
+  DetailPrint "앱 종료 helper 반환 코드: $0"
   ${If} $0 != 0
     SetErrorLevel 1
-    ${If} $1 == ""
-      StrCpy $1 "앱 종료 작업이 알 수 없는 이유로 실패했습니다."
-    ${EndIf}
-    MessageBox MB_ICONSTOP "앱을 종료하지 못해 제거를 계속할 수 없습니다.$\r$\n$\r$\n$1"
+    MessageBox MB_ICONSTOP "앱을 종료하지 못해 제거를 계속할 수 없습니다. 작업 관리자에서 앱과 앱 업데이트를 종료한 뒤 다시 시도해 주세요."
     Abort
   ${EndIf}
   ; 사용자 설정, 녹화 파일, 최적화 원본 스냅샷은 유지한다.

@@ -5,9 +5,20 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+const cleanupExecutable = fileURLToPath(new URL('../native/installer-cleanup/bin/installer-cleanup.exe', import.meta.url))
+const cleanupBuild = spawn(process.execPath, [fileURLToPath(new URL('../scripts/build-installer-cleanup.mjs', import.meta.url))], {
+  cwd: fileURLToPath(new URL('..', import.meta.url)),
+  windowsHide: true,
+  stdio: 'inherit',
+})
+const cleanupBuildCode = await new Promise((resolve, reject) => {
+  cleanupBuild.once('error', reject)
+  cleanupBuild.once('exit', resolve)
+})
+if (cleanupBuildCode !== 0) throw new Error(`native installer cleanup build exited ${cleanupBuildCode}`)
 const [installer, cleanup, retiredCleanup, service, rustService, desktopMain, updateInstall] = await Promise.all([
   readFile(new URL('../desktop/installer.nsi', import.meta.url), 'utf8'),
-  readFile(new URL('../scripts/stop-installed-app.ps1', import.meta.url), 'utf8'),
+  readFile(new URL('../native/installer-cleanup/src/main.rs', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/retired-assets-cleanup.nsh', import.meta.url), 'utf8'),
   readFile(new URL('../service/main.mjs', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/backend/src/service.rs', import.meta.url), 'utf8'),
@@ -35,41 +46,43 @@ test('UI 이전 로그는 보호된 캐시와 고정 panic 단계만 사용한�
   assert.match(updateInstall, /GetFileInformationByHandle\(guard\.0/)
   assert.match(updateInstall, /require_high_integrity\(&path\)/)
 })
-test('설치기는 정상 종료를 기다리고 해당 설치의 예약 작업만 제거한다', () => {
+test('설치기는 PowerShell 없이 native 종료 helper로 해당 설치의 예약 작업만 제거한다', () => {
   assert.match(cleanup, /installer-close-request/)
-  assert.match(cleanup, /Guid\]::NewGuid/)
-  assert.match(cleanup, /StartsWith\(\$prefix/)
-  assert.match(cleanup, /\$_\.Id -eq \$PID/)
-  assert.match(cleanup, /\$_\.Id -eq \$CallerPid/)
-  assert.match(cleanup, /function Get-UpdaterProcesses/)
-  assert.match(cleanup, /NogiremUpdater\\updates/)
-  assert.match(cleanup, /while \(\$true\)[\s\S]*Get-InstalledProcesses/)
-  assert.match(cleanup, /Get-CimInstance Win32_Process[\s\S]*ParentProcessId/)
-  assert.match(cleanup, /\[int\]\$UpdaterPid = 0/)
-  assert.match(installer, /-CallerPid \$9/)
-  assert.match(installer, /nsExec::ExecToStack[\s\S]*stop-installed-app\.ps1/)
+  assert.match(cleanup, /SystemTime::now\(\)/)
+  assert.match(cleanup, /path_is_under\(&process\.path/)
+  assert.match(cleanup, /current_pid/)
+  assert.match(cleanup, /caller_pid/)
+  assert.match(cleanup, /fn stop_updaters/)
+  assert.match(cleanup, /NogiremUpdater\/updates/)
+  assert.match(cleanup, /loop \{[\s\S]*matching_processes\(install_prefix/)
+  assert.match(cleanup, /caller\.parent_pid/)
+  assert.match(cleanup, /updater_pid: u32/)
+  assert.match(installer, /--caller-pid \$9/)
+  assert.match(installer, /nsExec::ExecToStack[\s\S]*installer-cleanup\.exe/)
   assert.match(installer, /IfFileExists "\$INSTDIR\\\*\.\*" 0 stop_installed_app_done/)
-  assert.doesNotMatch(installer, /ExecutionPolicy Bypass/)
-  assert.match(installer, /\/NOGIREMUPDATE=[\s\S]*-UpdaterPid \$2/)
+  assert.doesNotMatch(installer, /powershell|\.ps1|ExecutionPolicy/i)
+  assert.match(installer, /\/NOGIREMUPDATE=[\s\S]*--updater-pid \$8/)
+  assert.match(installer, /IntFmt \$3 "%u" \$2[\s\S]*IntCmpU \$3 0/)
+  assert.doesNotMatch(installer, /--caller-pid \$9 \$8/)
   assert.match(updateInstall, /format!\("\/NOGIREMUPDATE=\{\}",std::process::id\(\)\)/)
   assert.match(updateInstall, /fn seal_path[\s\S]*set_file_integrity\(path,"H"\)[\s\S]*require_high_integrity\(path\)/)
   assert.match(updateInstall, /fn trusted_state[\s\S]*seal_path\(&dir\.join\("result\.json"\),"result\.json"\)/)
   assert.match(updateInstall, /seal_path\(&backup,"previous-portable\.exe"\)[\s\S]*seal_path\(&recovery,"portable-recovery\.json"\)/)
   assert.match(updateInstall, /pub fn seal_commit[\s\S]*seal_path\(&dir\.join\("commit"\),"commit"\)/)
-  assert.match(cleanup, /if \(\$UpdaterPid -gt 0\)[\s\S]*\$parentPid -ne \$UpdaterPid[\s\S]*Test-UpdaterPid \$UpdaterPid[\s\S]*exit 0/)
-  assert.match(cleanup, /Stop-Process -Force/)
+  assert.match(cleanup, /if options\.updater_pid > 0[\s\S]*caller\.parent_pid != options\.updater_pid[\s\S]*trusted_updater/)
+  assert.match(cleanup, /TerminateProcess/)
   assert.doesNotMatch(cleanup, /taskkill.*\/IM/i)
   assert.match(rustService, /read_to_string\(&close\)/)
   assert.match(rustService, /next_close_request != close_request/)
-  assert.match(cleanup, /Get-ScheduledTask -TaskPath '\\' -TaskName \$startupTaskName/)
-  assert.match(cleanup, /\$task\.TaskName -eq \$startupTaskName/)
-  assert.match(cleanup, /\$actions\.Count -eq 1/)
-  assert.match(cleanup, /GetFullPath\(\$actions\[0\]\.Execute\.Trim\('"'\)\)\.Equals\(\$targetExe/)
-  assert.match(cleanup, /\$actions\[0\]\.Arguments -ceq '--startup-tray'/)
-  assert.match(cleanup, /Unregister-ScheduledTask[\s\S]*catch \{[\s\S]*앱 제거는 계속합니다/)
+  assert.match(cleanup, /schtasks\.exe/)
+  assert.match(cleanup, /xml\.match_indices\("<Exec>"\)\.count\(\) != 1/)
+  assert.match(cleanup, /normalized_path\(Path::new\(command\.trim_matches\('"'\)\)\)/)
+  assert.match(cleanup, /arguments == STARTUP_ARGUMENTS/)
+  assert.match(cleanup, /cleanup_owned_startup_task[\s\S]*앱 제거는 계속합니다/)
   assert.match(installer, /UNINSTALL_MANIFEST/)
   assert.equal([...installer.matchAll(/!include "retired-assets-cleanup\.nsh"/g)].length, 2)
-  assert.match(installer, /DetailPrint "\$1"[\s\S]*MessageBox MB_ICONSTOP[\s\S]*\$1/)
+  assert.match(installer, /DetailPrint "앱 종료 helper 반환 코드: \$0"/)
+  assert.doesNotMatch(installer, /MessageBox MB_ICONSTOP[^\n]*\$1/)
   assert.doesNotMatch(installer, /RMDir \/r/i)
 })
 test('이전 설치형의 제거된 앱 파일만 정확히 정리한다', () => {
@@ -98,22 +111,21 @@ test('업데이트 건강 확인은 UI 열기 뒤 애니메이션 완료 전에 
   const animation = rustService.match(/"application:complete-startup-animation"=>[^\n]+/)?.[0] ?? ''
   assert.doesNotMatch(animation, /mark_healthy/)
 })
-test('제거 종료 스크립트는 자신을 실행한 제거기를 종료하지 않는다', async () => {
+test('native 제거 helper는 자신을 실행한 제거기를 종료하지 않는다', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'nogirem-uninstaller-'))
   const caller = join(directory, 'Uninstall.exe')
   await copyFile(process.env.ComSpec, caller)
   const sleeper = spawn(caller, ['/d', '/c', 'ping', '127.0.0.1', '-n', '30'], { windowsHide: true, stdio: 'ignore' })
   try {
-    const powershell = join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
     const environment = {
       ...process.env,
       APPDATA: join(directory, 'roaming'),
       LOCALAPPDATA: join(directory, 'local'),
     }
-    const check = spawn(powershell, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', fileURLToPath(new URL('../scripts/stop-installed-app.ps1', import.meta.url)), '-InstallDirectory', directory, '-CallerPid', String(sleeper.pid), '-Uninstall'], { windowsHide: true, stdio: 'ignore', env: environment })
+    const check = spawn(cleanupExecutable, ['--install-directory', directory, '--caller-pid', String(sleeper.pid), '--uninstall'], { windowsHide: true, stdio: 'ignore', env: environment })
     const code = await Promise.race([
       new Promise(resolve => check.once('exit', resolve)),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('종료 스크립트 시간 초과')), 8000)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('native 종료 helper 시간 초과')), 8000)),
     ])
     assert.equal(code, 0)
     assert.equal(sleeper.exitCode, null)
@@ -125,10 +137,38 @@ test('제거 종료 스크립트는 자신을 실행한 제거기를 종료하�
     await rm(directory, { recursive: true, force: true })
   }
 })
-test('종료 스크립트는 updater와 대기 중 새로 생성된 설치 프로세스를 종료한다', async () => {
+test('native 종료 helper는 중복 인자로 설치 경로를 덮어쓰지 않는다', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'nogirem-argument-injection-'))
+  const install = join(directory, 'Nogirem')
+  await mkdir(install, { recursive: true })
+  const app = join(install, 'nogirem.exe')
+  await copyFile(process.env.ComSpec, app)
+  const sleeper = spawn(app, ['/d', '/c', 'ping', '127.0.0.1', '-n', '30'], { windowsHide: true, stdio: 'ignore' })
+  try {
+    const check = spawn(cleanupExecutable, [
+      '--install-directory', install,
+      '--caller-pid', String(process.pid),
+      '--install-directory', directory,
+      '--graceful-timeout-seconds', '1',
+    ], { windowsHide: true, stdio: 'ignore' })
+    const code = await Promise.race([
+      new Promise(resolve => check.once('exit', resolve)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('중복 인자 검사 시간 초과')), 8000)),
+    ])
+    assert.notEqual(code, 0)
+    assert.equal(sleeper.exitCode, null)
+  } finally {
+    if (sleeper.exitCode === null) {
+      sleeper.kill()
+      await new Promise(resolve => sleeper.once('exit', resolve))
+    }
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+test('native 종료 helper는 updater와 대기 중 새로 생성된 설치 프로세스를 종료한다', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'nogirem-rescan-'))
   const local = join(directory, 'local')
-  const install = join(directory, 'install')
+  const install = join(directory, '설치 폴더 É')
   const updaterDirectory = join(local, 'NogiremUpdater', 'updates', 'job-test')
   await mkdir(install, { recursive: true })
   await mkdir(updaterDirectory, { recursive: true })
@@ -141,24 +181,21 @@ test('종료 스크립트는 updater와 대기 중 새로 생성된 설치 프�
     spawn(updater, ['/d', '/c', 'ping', '127.0.0.1', '-n', '30'], { windowsHide: true, stdio: 'ignore' }),
   ]
   try {
-    const powershell = join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
     const environment = {
       ...process.env,
       APPDATA: join(directory, 'roaming'),
       LOCALAPPDATA: local,
     }
-    const check = spawn(powershell, [
-      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-      '-File', fileURLToPath(new URL('../scripts/stop-installed-app.ps1', import.meta.url)),
-      '-InstallDirectory', install,
-      '-CallerPid', String(process.pid),
-      '-GracefulTimeoutSeconds', '1',
+    const check = spawn(cleanupExecutable, [
+      '--install-directory', install,
+      '--caller-pid', String(process.pid),
+      '--graceful-timeout-seconds', '1',
     ], { windowsHide: true, stdio: 'ignore', env: environment })
     await new Promise(resolve => setTimeout(resolve, 300))
     children.push(spawn(app, ['/d', '/c', 'ping', '127.0.0.1', '-n', '30'], { windowsHide: true, stdio: 'ignore' }))
     const code = await Promise.race([
       new Promise(resolve => check.once('exit', resolve)),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('재탐색 종료 스크립트 시간 초과')), 8000)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('native 재탐색 종료 helper 시간 초과')), 8000)),
     ])
     assert.equal(code, 0)
     for (const child of children) assert.notEqual(child.exitCode, null)
@@ -213,32 +250,27 @@ test('검증된 updater 설치는 이미 종료를 마친 앱을 다시 탐색�
       }
     }
     assert.ok(installerPid > 0)
-    const powershell = join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
     const environment = {
       ...process.env,
       APPDATA: join(directory, 'roaming'),
       LOCALAPPDATA: local,
     }
-    const forged = spawn(powershell, [
-      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-      '-File', fileURLToPath(new URL('../scripts/stop-installed-app.ps1', import.meta.url)),
-      '-InstallDirectory', install,
-      '-CallerPid', String(installerPid),
-      '-UpdaterPid', String(unrelatedUpdaterProcess.pid),
-      '-GracefulTimeoutSeconds', '1',
+    const forged = spawn(cleanupExecutable, [
+      '--install-directory', install,
+      '--caller-pid', String(installerPid),
+      '--updater-pid', String(unrelatedUpdaterProcess.pid),
+      '--graceful-timeout-seconds', '1',
     ], { windowsHide: true, stdio: 'ignore', env: environment })
     const forgedCode = await Promise.race([
       new Promise(resolve => forged.once('exit', resolve)),
       new Promise((_, reject) => setTimeout(() => reject(new Error('위조 updater PID 검사 시간 초과')), 8000)),
     ])
     assert.notEqual(forgedCode, 0)
-    const check = spawn(powershell, [
-      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-      '-File', fileURLToPath(new URL('../scripts/stop-installed-app.ps1', import.meta.url)),
-      '-InstallDirectory', install,
-      '-CallerPid', String(installerPid),
-      '-UpdaterPid', String(updaterProcess.pid),
-      '-GracefulTimeoutSeconds', '1',
+    const check = spawn(cleanupExecutable, [
+      '--install-directory', install,
+      '--caller-pid', String(installerPid),
+      '--updater-pid', String(updaterProcess.pid),
+      '--graceful-timeout-seconds', '1',
     ], { windowsHide: true, stdio: 'ignore', env: environment })
     const code = await Promise.race([
       new Promise(resolve => check.once('exit', resolve)),
@@ -290,18 +322,15 @@ test('0.4.1 updater가 인자 없이 실행한 새 설치기는 검증된 부모
       }
     }
     assert.ok(installerPid > 0)
-    const powershell = join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
     const environment = {
       ...process.env,
       APPDATA: join(directory, 'roaming'),
       LOCALAPPDATA: local,
     }
-    const check = spawn(powershell, [
-      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-      '-File', fileURLToPath(new URL('../scripts/stop-installed-app.ps1', import.meta.url)),
-      '-InstallDirectory', install,
-      '-CallerPid', String(installerPid),
-      '-GracefulTimeoutSeconds', '1',
+    const check = spawn(cleanupExecutable, [
+      '--install-directory', install,
+      '--caller-pid', String(installerPid),
+      '--graceful-timeout-seconds', '1',
     ], { windowsHide: true, stdio: 'ignore', env: environment })
     const code = await Promise.race([
       new Promise(resolve => check.once('exit', resolve)),

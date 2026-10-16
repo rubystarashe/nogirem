@@ -12,6 +12,7 @@
     "app": "node scripts/run-dioxus.mjs",
     "app:dev": "node scripts/run-dioxus.mjs",
     "app:build": "cargo build --release --locked --manifest-path desktop/Cargo.toml",
+    "native:installer-cleanup": "node scripts/build-installer-cleanup.mjs",
     "native:input-guard": "node scripts/build-input-guard-helper.mjs",
     "native:radeon": "node scripts/build-radeon-helper.mjs",
     "native:recorder": "node scripts/build-recorder-helper.mjs",
