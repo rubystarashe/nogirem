@@ -7,12 +7,12 @@
 - role_disclosure: `DEV-as-QA; independent code review participated separately`
 - updated_at: `2026-10-16T06:07:23Z`
 - qa_state: `COMPLETE_PASS for automated source checks; installed-app manual scenarios remain NOT_RUN`
-- source_target: `base 880ab9f533f5844f1ffcfde67de9352ba00e4ef9 + staged implementation patch SHA-256 a097ac7a912c367663747f7661d76626e6c5ee92a4c91c190624b76a9174043b`
+- source_target: `commit 8d52c2f440f5256c9459d06e361188836bb968f2; reviewed implementation patch SHA-256 a097ac7a912c367663747f7661d76626e6c5ee92a4c91c190624b76a9174043b`
 - execution_target: `Windows 10.0.26200 x64; Rust host and x86_64-pc-windows-msvc release helper; temporary real cmd.exe process fixtures`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — native install/uninstall cleanup`
-- feature_map: `blocked — canonical update follows source commit and signed package`
+- feature_map: `updated — revision 8 source state; publication evidence pending`
 - architecture_impact: `native process identity, Task Scheduler CLI ownership query and NSIS adapter`
-- architecture_contract: `blocked — canonical update follows source commit`
+- architecture_contract: `updated — revision 32 source state`
 
 ## Executed scenarios
 

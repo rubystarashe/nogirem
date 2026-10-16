@@ -276,7 +276,7 @@
 - canonical_name: `서명 업데이트·설치·제거 수명주기`
 - aliases: `자동 업데이트`, `설치형 업데이트`, `포터블 업데이트`
 - lifecycle: `PARTIAL`
-- lifecycle_reason: `서명 업데이트·설치와 제거 hotfix가 공개 0.4.7에 제공되지만, 실제 이전 설치본의 관리자 제거·빈 설치 폴더 종단간 검증과 같은 버전 자동 재수신 보장은 남았다.`
+- lifecycle_reason: `서명 업데이트·설치는 제공되지만 공개 0.4.7 설치·제거 helper가 제한된 PowerShell 실행 정책에서 차단된다. native source fix는 완료됐고 signed same-version replacement와 실제 관리자 제거 검증이 남았다.`
 - owners: `product=nogirem maintainer`, `technical=release/update owner`
 - purpose: 서명된 새 버전을 다운로드·검증·설치하고 실패 시 rollback하며 사용자가 앱을 잠금 없이 제거하도록 한다.
 - personas_and_entry_points: 일반 사용자는 앱 업데이트 UI, Windows 설치기·제거기, 포터블 EXE로 진입한다. 배포 maintainer는 서명 패키징과 GitHub Release를 사용한다.
@@ -288,32 +288,32 @@
 - partial_failure_recovery: helper 중단 포터블 작업은 launcher PID·경로·backup digest를 검증해 복원한다. 설치형은 설치 전 파일과 설정을 복사해 rollback한다.
 - uninstall_flow: 루트의 정본 `Mabinogi Rem Booster Startup` 작업이 단일 action으로 정확한 설치 실행 파일과 `--startup-tray` 인자를 사용할 때만 해제를 시도하고, 실패해도 실제 process stop 결과로 오인하지 않는다. 보호 updater 경로의 stale helper를 종료한 뒤 설치 폴더 프로세스를 매 반복 재탐색하고, 30초 정상 종료 후에도 남은 소유 프로세스만 제한 종료한다. 현재와 이전 manifest가 소유한 파일 및 명시된 retired app assets만 삭제하며 알 수 없는 파일이나 AppData는 재귀 삭제하지 않는다.
 - state_and_side_effects: `%LOCALAPPDATA%\NogiremUpdater\updates\job-*` 작업 상태, 설치 파일, registry uninstall 항목, 바로가기, 시작 예약 작업을 관리한다.
-- dependencies_and_contracts: Rust updater가 유일한 update 작업 writer이며 NSIS는 설치 파일 writer, stop script는 경로 제한 process terminator다. 검증된 updater handoff에서는 Rust가 app·backend·worker 종료를 완료하고 NSIS는 정확한 보호 cache updater PID를 확인한 뒤 중복 설치 폴더 탐색을 생략한다. Electron 0.3.19는 Rust 전환 manifest로 연결된다.
+- dependencies_and_contracts: Rust updater가 유일한 update 작업 writer이며 NSIS는 설치 파일 writer, `native/installer-cleanup`은 경로·PID·생성 시각으로 제한된 process terminator다. 검증된 updater handoff에서는 Rust가 app·backend·worker 종료를 완료하고 NSIS와 native helper가 정확한 보호 cache updater parent identity를 확인한 뒤 중복 설치 폴더 탐색을 생략한다. Electron 0.3.19는 Rust 전환 manifest로 연결된다.
 - durable_data: 작업 `job.json/result.json/healthy.json`과 설치 승인 `commit`은 updater가 쓰고 service는 검증된 작업의 건강 확인만 쓴다. 모든 helper 신뢰 입력은 생성 뒤 파일별 High Integrity seal과 재검증을 거친다. 사용자 설정과 녹화 파일은 제거·업데이트 대상이 아니다.
 - security_privacy: manifest 서명·digest, reparse 방지, 파일별 Win32 mandatory-label authority·NO_WRITE_UP·High/System RID, exact executable path와 parent PID 검증을 사용한다. 개인 데이터나 signing key를 자산에 포함하지 않는다.
 - compatibility: 0.4.1 updater는 별도 installer 인자 없이도 검증된 부모 `updater.exe`로 인식한다. 배포된 0.4.x URL 검증을 위해 `nogirem-dioxus-*` 자산은 자동 업데이트 전용으로 유지하며 짧은 `nogirem-setup-*`, `nogirem-portable-*`는 동일 payload의 수동 다운로드 alias다. Electron은 `latest.yml`이 긴 legacy migration 이름을 가리킨다.
 - limits_exclusions: OS 종료·전원 손실 전체를 transaction으로 만들지는 않는다. 관련 backup이 없는 오래된 설치는 수동 복구가 필요할 수 있다.
-- scenarios: `UPD-001 설치형 성공`, `UPD-002 건강 확인 실패 rollback`, `UPD-003 포터블 원자 교체`, `UPD-004 직접 제거 중 stale helper`, `UPD-005 늦게 생성된 프로세스`, `UPD-006 0.4.1 부모 updater 호환`, `UPD-007 native mandatory-label 검증`, `UPD-008 retired app asset exact cleanup`, `UPD-009 예약 작업 정리 실패와 process stop 실패 분리`
-- evidence: `test/installer.test.mjs`, `test/portable-release.test.mjs`, Rust updater/update_install tests, `docs/ai/runs/20260929-release-042`, `docs/ai/runs/20261015-updater-hotfix-046/task.md`, `docs/ai/runs/20261016-uninstall-hotfix-047/final-report.md`
+- scenarios: `UPD-001 설치형 성공`, `UPD-002 건강 확인 실패 rollback`, `UPD-003 포터블 원자 교체`, `UPD-004 직접 제거 중 stale helper`, `UPD-005 늦게 생성된 프로세스`, `UPD-006 0.4.1 부모 updater 호환`, `UPD-007 native mandatory-label 검증`, `UPD-008 retired app asset exact cleanup`, `UPD-009 예약 작업 정리 실패와 process stop 실패 분리`, `UPD-010 제한된 PowerShell policy에서도 native install/uninstall cleanup`
+- evidence: `test/installer.test.mjs`, `native/installer-cleanup/src/main.rs`, `test/portable-release.test.mjs`, Rust updater/update_install tests, `docs/ai/runs/20260929-release-042`, `docs/ai/runs/20261015-updater-hotfix-046/task.md`, `docs/ai/runs/20261016-uninstall-hotfix-047/final-report.md`, `docs/ai/runs/20261016-native-installer-cleanup-047`
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).
 - owner: `release/update owner`
-- revision: `7`
-- updated_at: `2026-10-15T18:26:29Z`
+- revision: `8`
+- updated_at: `2026-10-16T06:07:23Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T18:00:06Z`
+- source_reviewed_at: `2026-10-16T06:03:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
-- source_review_evidence: `scripts/stop-installed-app.ps1, desktop/installer.nsi, desktop/retired-assets-cleanup.nsh, test/installer.test.mjs`
-- behavior_verified_at: `2026-10-15T18:26:29Z`
+- source_review_target: `8d52c2f440f5256c9459d06e361188836bb968f2`
+- source_review_evidence: `native/installer-cleanup, desktop/installer.nsi, scripts/package-dioxus.mjs, test/installer.test.mjs, independent review REV-NATIVE-INSTALLER-047-001`
+- behavior_verified_at: `2026-10-16T06:07:23Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source 4ee58f36ceff917b135d80c809f439db39536ccb; public v0.4.7 asset manifest 0ca31983e078d4e64a9ee148f5fb900a925783b10f2a8798b6f49a82f23eac39`
-- behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures and GitHub public downloads; actual installed NSIS uninstall NOT_RUN`
-- behavior_verification_evidence: `installer 11/11, Node 212/212, backend 115 PASS·3 ignored and parity 2/2, desktop check; public 9/9 hashes, Ed25519, aliases and Electron asset identity PASS`
+- behavior_verification_target: `source 8d52c2f440f5256c9459d06e361188836bb968f2; package and public replacement NOT_RUN`
+- behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures and NSIS /WX compile; actual installed NSIS uninstall NOT_RUN`
+- behavior_verification_evidence: `native unit 6/6, installer 12/12, Node 213/213, backend 115 PASS·3 ignored and parity 2/2, desktop check, strict clippy, NSIS compile and independent review PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `공개 0.4.7 제거 hotfix 대치와 자동 검증, 수동 재설치 요구 및 아직 남은 실제 제거 gap을 분리해 기록`
-- known_gaps: `실제 관리자 권한 설치본의 예약 작업 정리·제거·install directory 소거는 NOT_RUN. 같은 0.4.7 client는 semver상 대치본을 자동 재수신하지 않을 수 있어 새 설치형 수동 덮어쓰기가 필요하다.`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 제거 종료 오류 의미와 retired install payload cleanup`
-- feature_map: `updated — revision 7, public same-version hotfix evidence`
-- architecture_impact: `NSIS cleanup boundary and six signed Rust asset replacement while preserving Electron asset identities`
-- architecture_contract: `updated — revision 31 publication boundary`
+- freshness_reason: `현재 source의 native cleanup과 자동 검증은 반영했고 아직 PowerShell 기반인 공개 0.4.7 replacement gap을 명시했다.`
+- known_gaps: `signed package와 공개 same-version replacement, 실제 제한 policy 설치, 관리자 권한 예약 작업 정리·제거·install directory 소거는 NOT_RUN. 기존 같은 버전 client는 대치본을 자동 재수신하지 않을 수 있다.`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — PowerShell policy와 무관한 native install/uninstall cleanup`
+- feature_map: `updated — revision 8, source fix verified and publication pending`
+- architecture_impact: `NSIS-to-native helper boundary, handle identity termination and exact task ownership`
+- architecture_contract: `updated — revision 32 source boundary`

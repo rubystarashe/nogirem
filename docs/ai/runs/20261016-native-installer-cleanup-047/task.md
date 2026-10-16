@@ -16,9 +16,9 @@
 - qa_state: `COMPLETE_PASS for automated source checks; installed-app manual scenarios NOT_RUN`
 - review_verdict: `APPROVED — REV-NATIVE-INSTALLER-047-001`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — install/uninstall must work without PowerShell script execution policy`
-- feature_map: `blocked — native helper implementation and evidence pending`
+- feature_map: `updated — revision 8 source checkpoint`
 - architecture_impact: `NSIS cleanup adapter changes from extracted PowerShell script to packaged native executable`
-- architecture_contract: `blocked — native helper ownership, build and enforcement pending`
+- architecture_contract: `updated — revision 32 source checkpoint`
 
 ## Scope and risk
 
@@ -47,3 +47,5 @@
 - validation: native unit `6/6`, installer `12/12`, Node `213/213`, backend `115 PASS + 3 ignored`, parity `2/2`, desktop check, clippy strict, syntax/diff/IDE checks and NSIS `/WX` compile PASS.
 - review: independent rounds resolved `ISSUE-NATIVE-001..004`; final `APPROVED`.
 - next_authorized_action: create and push the source checkpoint, update canonical records to the immutable commit, then build and verify the signed 0.4.7 package before replacing public assets.
+- implementation_commit: `8d52c2f440f5256c9459d06e361188836bb968f2`
+- revised_next_authorized_action: commit and push canonical records, then build and verify signed 0.4.7 before replacing public assets.

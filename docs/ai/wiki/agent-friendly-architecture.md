@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `31`
-- updated_at: `2026-10-15T18:26:29Z`
+- revision: `32`
+- updated_at: `2026-10-16T06:07:23Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T18:00:06Z`
+- source_reviewed_at: `2026-10-16T06:03:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `4ee58f36ceff917b135d80c809f439db39536ccb`
-- source_review_evidence: `installer stop script, NSIS cleanup ordering, exact retired-assets include and installer regression tests`
-- behavior_verified_at: `2026-10-15T18:26:29Z`
+- source_review_target: `8d52c2f440f5256c9459d06e361188836bb968f2`
+- source_review_evidence: `native installer-cleanup source/build, NSIS fixed argument branches, process identity termination, task XML ownership, package wiring, tests and REV-NATIVE-INSTALLER-047-001`
+- behavior_verified_at: `2026-10-16T06:07:23Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source 4ee58f36ceff917b135d80c809f439db39536ccb; public v0.4.7 asset manifest 0ca31983e078d4e64a9ee148f5fb900a925783b10f2a8798b6f49a82f23eac39`
-- behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures and GitHub public downloads; installed NSIS uninstall NOT_RUN`
-- behavior_verification_evidence: `installer 11/11, Node 212/212, backend 115 PASS·3 ignored and parity 2/2, desktop check; public 9/9 hashes, Ed25519, aliases and preserved Electron asset IDs PASS`
+- behavior_verification_target: `source 8d52c2f440f5256c9459d06e361188836bb968f2; signed package and public replacement NOT_RUN`
+- behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures and NSIS /WX compile; installed NSIS uninstall NOT_RUN`
+- behavior_verification_evidence: `native unit 6/6, installer 12/12, Node 213/213, backend 115 PASS·3 ignored and parity 2/2, desktop check, strict clippy, NSIS compile and independent review PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 제거 cleanup과 공개 0.4.7 same-version Rust asset replacement 경계를 반영`
-- known_gaps: `실제 관리자 권한 설치본 제거와 같은 버전 자동 재수신은 NOT_RUN; 수동 reinstall 안내가 필요하며 AMD 단독 GPU 수동 검증도 남음`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 제거 실패 의미와 이전 app payload cleanup`
-- feature_map: `updated — FEAT-NOGIREM-UPDATE-LIFECYCLE revision 7`
-- architecture_impact: `cleanup ownership plus six signed Rust asset replacement with Electron asset identity preservation`
-- architecture_contract: `updated — revision 31`
+- freshness_reason: `현재 source의 native installer cleanup boundary와 아직 PowerShell 기반인 공개 asset gap을 분리해 반영`
+- known_gaps: `signed package·public replacement와 실제 제한 policy 설치·관리자 제거는 NOT_RUN; 같은 버전 자동 재수신은 보장되지 않음`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — execution-policy independent cleanup`
+- feature_map: `updated — FEAT-NOGIREM-UPDATE-LIFECYCLE revision 8`
+- architecture_impact: `native cleanup ownership, process handle identity, Task Scheduler CLI adapter and NSIS argument trust`
+- architecture_contract: `updated — revision 32`
 
 ## 계층과 확장 경로
 
@@ -29,9 +29,10 @@
 3. `desktop/backend/src/<capability>.rs`: 기능별 authoritative logic과 Windows adapter 호출.
 4. `desktop/backend/src/powershell`: PowerShell이 필요한 좁은 Windows adapter. 사용자 입력을 문자열로 직접 삽입하지 않는다.
 5. `desktop/installer.nsi`, `desktop/portable.nsi`: 배포 bootstrap과 파일 설치·캐시 준비만 담당한다.
-6. `scripts/package-dioxus.mjs`, `sign-update.mjs`: 재현 가능한 payload 조립과 매니페스트 서명 경로다.
-7. `scripts/release-assets.mjs`, `prepare-release.mjs`: 서명된 원본을 자동 업데이트 호환 이름과 사용자 권장 alias로 조립하고 Electron feed·sha512·blockmap을 검증한다.
-8. `src`, `service`: 0.3.x Electron 전환 호환 경로이며 Rust 신기능의 정본이 아니다.
+6. `native/installer-cleanup`: 설치·제거 중 소유 process와 정본 시작 작업만 정리하는 Rust/Win32 adapter다.
+7. `scripts/package-dioxus.mjs`, `sign-update.mjs`: 재현 가능한 payload 조립과 매니페스트 서명 경로다.
+8. `scripts/release-assets.mjs`, `prepare-release.mjs`: 서명된 원본을 자동 업데이트 호환 이름과 사용자 권장 alias로 조립하고 Electron feed·sha512·blockmap을 검증한다.
+9. `src`, `service`: 0.3.x Electron 전환 호환 경로이며 Rust 신기능의 정본이 아니다.
 
 새 제품 기능은 capability module과 제한된 service 등록점을 사용한다. `service.rs`, NSIS root, update root에 기능별 분기를 늘릴 때는 등록·수명주기 조정만 두고 실제 동작은 소유 module이나 script에 둔다.
 
@@ -117,11 +118,12 @@
 - manifest 서명과 payload SHA-256 검증 전에 설치를 시작하지 않는다.
 - updater 작업은 migration mutex로 직렬화하고 보호 cache의 reparse와 Win32 mandatory-label ACL을 검증한다. `update.json`, payload, helper, `job.json`, `result.json`, 설치 승인 `commit`은 디렉터리 상속에만 의존하지 않고 생성 직후 파일별 High Integrity를 적용·재검증한다. PowerShell SDDL 문자열 표현은 신뢰 판정에 사용하지 않으며 label authority, NO_WRITE_UP 정책과 High/System RID를 모두 요구한다.
 - 설치형은 파일·설정 backup 후 설치하고 건강 확인 실패 시 복원한다. 포터블은 동일 볼륨 원자 교체와 backup digest를 사용한다.
-- 새 updater는 installer에 자신의 PID를 전달한다. 이전 0.4.1 updater는 인자가 없으므로 installer 종료 script가 검증된 parent `updater.exe` 하나를 자동 보존한다.
+- 새 updater는 installer에 자신의 PID를 전달한다. NSIS는 canonical positive decimal만 helper에 고정 인자로 전달한다. 이전 0.4.1 updater는 인자가 없으므로 native helper가 경로와 생성 시각으로 검증한 parent `updater.exe` 하나를 자동 보존한다.
 - 직접 설치·제거는 보호 updater 경로의 stale helper를 종료한다. 설치 폴더 프로세스가 정상 종료 중 다시 생길 수 있으므로 안정 구간까지 반복 조회한다.
-- 서명 update helper는 기록된 app·backend PID 종료와 worker flush를 완료한 뒤 NSIS를 실행한다. NSIS stop script는 전달된 PID가 보호 cache의 정확한 `updater.exe`인지 검증한 경우 설치 폴더 프로세스를 다시 탐색하지 않는다. 직접 설치·제거와 인자 없는 0.4.1 호환 경로만 반복 종료 탐색을 소유한다.
-- 신규 설치 대상에 기존 파일이 없으면 프로세스 종료 PowerShell을 실행하지 않는다. 기존 설치 업데이트와 제거에서만 package가 생성한 고정 script를 `-NoProfile -NonInteractive -File`로 실행하며 `ExecutionPolicy Bypass`를 사용하지 않는다.
-- 루트의 정본 `Mabinogi Rem Booster Startup` 작업이 단일 action으로 정확한 설치 실행 파일과 `--startup-tray`를 사용할 때만 해제를 시도한다. 예약 작업 해제 실패는 실제 앱 process 종료 실패로 오인하거나 제거를 차단하지 않는다. 실제 process·updater 종료 실패만 fail-closed하며 NSIS는 stop script의 한국어 원인을 사용자에게 표시한다.
+- 서명 update helper는 기록된 app·backend PID 종료와 worker flush를 완료한 뒤 NSIS를 실행한다. native cleanup helper는 전달된 PID가 보호 cache의 정확한 parent `updater.exe` identity인지 검증한 경우 설치 폴더 프로세스를 다시 탐색하지 않는다. 직접 설치·제거와 인자 없는 0.4.1 호환 경로만 반복 종료 탐색을 소유한다.
+- 신규 설치 대상에 기존 파일이 없으면 cleanup helper를 실행하지 않는다. 기존 설치 업데이트와 제거에서는 package가 현재 source로 빌드해 embedded한 `installer-cleanup.exe`만 실행하며 end-user PowerShell·`.ps1`·execution policy에 의존하지 않는다.
+- helper는 설치 폴더와 보호 updater 폴더의 lexical/canonical UTF-16 경계를 사용한다. 종료 직전 같은 process handle에서 실행 경로와 생성 시각을 재검증하고 API·권한 실패를 fail-closed한다. PID가 재사용됐으면 새 process를 종료하지 않는다.
+- 루트의 정본 `Mabinogi Rem Booster Startup` 작업 XML이 단일 `Exec` action으로 정확한 설치 실행 파일과 `--startup-tray`를 사용할 때만 `schtasks.exe`로 해제를 시도한다. 예약 작업 해제 실패는 실제 앱 process 종료 실패로 오인하거나 제거를 차단하지 않는다. 실제 process·updater 종료 실패만 fail-closed하며 NSIS는 encoding에 의존하지 않는 고정 한국어 오류를 표시한다.
 - 이전 installer가 소유한 제거 기능·source-only asset은 versioned exact cleanup 목록으로만 지운다. 설치 폴더 전체, wildcard, `/r`, AppData와 알 수 없는 파일은 이 경로에서 삭제하지 않는다.
 - 설치형·포터블 outer PE는 제품명, 설명, file/product version, internal/original filename과 copyright resource를 포함한다. 이는 Authenticode를 대체하지 않으며 update manifest의 Ed25519 서명도 Windows publisher 신뢰를 제공하지 않는다.
 - 배포 압축은 파일 공유 10MB 제한 때문에 solid LZMA를 유지한다. non-solid 변경은 실제 0.4.5 payload에서 설치형 `10,132,758 bytes`로 제한을 초과했으므로 적용하지 않으며, 이로 인한 NSIS overlay 휴리스틱 gap을 숨기지 않는다.
@@ -138,7 +140,7 @@
 
 ## enforcement
 
-- `npm test`: renderer/preload 계약, 설치·제거 실프로세스, 포터블·서명 정적 계약, 신규 설치 PowerShell gate·policy와 outer PE resource 입력.
+- `npm test`: renderer/preload 계약, 현재 source로 빌드한 native 설치·제거 실프로세스, 포터블·서명 정적 계약과 outer PE resource 입력.
 - `cargo test --locked --manifest-path desktop/backend/Cargo.toml`: backend 기능·update 보안 경계.
 - `cargo check --locked --manifest-path desktop/Cargo.toml`: desktop/backend compile 경계.
 - package script: native service contract, Node/Electron payload 부재, Microsoft bootstrap signature, NSIS warning-as-error, 파일 크기, signing key/public key 일치.

@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-16 03:26 +09:00
+Last Updated: 2026-10-16 15:07 +09:00
 
 ## Current Objective
-실행 중인 앱이 없는데 제거가 차단되고 이전 앱 파일 때문에 `C:\Program Files\Nogirem`이 남는 결함을 수정해 공개 v0.4.7의 Rust 자산 6개를 같은 버전으로 대치했다. 공개 9/9 hash·서명과 Electron asset identity 보존이 통과했으며 기존 0.4.7 사용자는 새 설치형을 수동 덮어 설치해야 할 수 있다.
+제한된 Windows PowerShell 실행 정책이 공개 v0.4.7의 설치·제거 `stop-installed-app.ps1`를 차단하는 결함을 native Rust/Win32 helper로 교체했다. source `8d52c2f440f5256c9459d06e361188836bb968f2`와 자동·독립 검증은 통과했고 signed 0.4.7 재패키징과 공개 Rust 자산 6개 대치가 다음 단계다.
 
 ## Active Runs
+- `20261016-native-installer-cleanup-047`: source `8d52c2f440f5256c9459d06e361188836bb968f2`에서 NSIS install/uninstall의 end-user PowerShell 실행을 제거하고 current-source `installer-cleanup.exe`를 embedded한다. helper는 UTF-16 canonical path, PID·생성 시각 identity, caller/updater parent trust, graceful/forced stop과 exact task ownership을 보존한다. native unit 6/6, installer 12/12, Node 213/213, backend 115 PASS·3 ignored와 parity 2/2, desktop check, strict clippy, NSIS `/WX` compile, 독립 review가 통과했다. signed package·public same-version replacement와 실제 관리자 install/uninstall은 아직 NOT_RUN이다. (`docs/ai/runs/20261016-native-installer-cleanup-047/handoff.md`)
 - `20261016-uninstall-hotfix-047`: source `4ee58f36ceff917b135d80c809f439db39536ccb`에서 정본 시작 task cleanup 실패를 실제 process 오류와 분리하고, process 종료 실패만 차단하며, 이전 앱 소유 파일 12개를 upgrade·uninstall에서 exact-delete한다. signed 설치형 `5d01a715...bff1c`, 포터블 `985c8a24...c6e5`로 [GitHub v0.4.7](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7)의 Rust 자산 6개만 대치하고 Electron 3개 asset ID를 보존했다. 공개 9/9, Ed25519, aliases와 독립 review가 통과했다. 실제 관리자 제거·빈 설치 폴더와 같은 버전 자동 재수신은 NOT_RUN이므로 affected 0.4.7 사용자는 새 설치형 수동 덮어쓰기가 필요하다. (`docs/ai/runs/20261016-uninstall-hotfix-047/final-report.md`)
 - `20261015-release-047`: exact package source `62cf3ae48bb8a091bdb4d77a20c58f5cd7417f87`을 annotated `v0.4.7`로 고정하고 [GitHub v0.4.7](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7)에 signed 설치형·포터블, manifests, 수동 다운로드 aliases와 Electron migration bridge 자산 9개를 공개했다. 제거된 turbo helper asset은 배포하지 않았다. 공개 재다운로드 9/9 hash, Ed25519, alias identity와 Electron routing이 통과했고 실제 설치·업데이트·AMD 단독 GPU·게임은 NOT_RUN이다. (`docs/ai/runs/20261015-release-047/final-report.md`)
 - `20261015-repackage-047-graphics`: source `62cf3ae48bb8a091bdb4d77a20c58f5cd7417f87`과 사용자 `NOTICE.md` SHA-256 `af1eb83b...f1f2`에서 GPU 복구가 포함된 signed 0.4.7 설치형·포터블을 `release/dioxus-0.4.7-2026-10-15T14-25-48-115Z`에 생성했다. installer `3b1f78b9...b8ef`, portable `8721f700...8ca4`; 두 Ed25519 manifest, Radeon helper `e1d3a09a...643e8`, required/forbidden payload, native integration 3/3과 독립 review가 통과했다. 실제 설치·실행·업데이트·AMD 단독 GPU·게임은 NOT_RUN이며 외부 게시하지 않았다. (`docs/ai/runs/20261015-repackage-047-graphics/final-report.md`)
@@ -37,13 +38,13 @@ Last Updated: 2026-10-16 03:26 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — 제거 false block과 retired install files cleanup`
-- feature_map: `updated — revision 7, public same-version hotfix evidence`
-- architecture_impact: `canonical task ownership, process-stop fail-closed, exact cleanup and six-asset replacement`
-- architecture_contract: `updated — revision 31`
-- 최신 공개 설치형은 `9,569,870 bytes`, SHA-256 `5d01a715a04d89bd2fbb531a2b3fb8fa9d85f0f0ee9e2cbd66aff17325ebff1c`; 포터블은 `7,789,387 bytes`, SHA-256 `985c8a241760a90fe2fe456982490c4d15201b6340c0c3a97103191b655ac6e5`.
-- `PASS` — installer 11/11, Node 212/212, backend 115 PASS·3 ignored와 parity 2/2, desktop check, signed package, public 9/9와 독립 review.
-- `NOT_RUN` — 실제 관리자 권한 제거·예약 작업 결과·빈 `C:\Program Files\Nogirem`, 같은 0.4.7 자동 재수신.
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — PowerShell policy와 무관한 native install/uninstall cleanup`
+- feature_map: `updated — revision 8, source fix verified and publication pending`
+- architecture_impact: `NSIS native helper, process handle identity, exact task ownership and fail-closed stop`
+- architecture_contract: `updated — revision 32`
+- 현재 source checkpoint는 `8d52c2f440f5256c9459d06e361188836bb968f2`; 공개 설치형은 아직 PowerShell 기반 `5d01a715...bff1c`이므로 replacement 전까지 제한 policy 결함이 남아 있다.
+- `PASS` — native unit 6/6, installer 12/12, Node 213/213, backend 115 PASS·3 ignored와 parity 2/2, desktop check, strict clippy, NSIS compile와 독립 review.
+- `NOT_RUN` — signed native-helper package, public replacement, 실제 관리자 권한 제한-policy install/uninstall·예약 작업·빈 `C:\Program Files\Nogirem`.
 - recovery: 기존 0.4.7 사용자는 [새 설치형](https://github.com/rubystarashe/nogirem/releases/download/v0.4.7/nogirem-setup-0.4.7.exe)을 관리자 권한으로 수동 덮어 설치한다.
 - feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — 혼합 GPU NVIDIA 선택과 AMD 3D 최적화 복구`
 - feature_map: `updated — revision 2와 GFX-007~010`
