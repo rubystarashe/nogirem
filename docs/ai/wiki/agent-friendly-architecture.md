@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `33`
-- updated_at: `2026-10-16T06:16:04Z`
+- revision: `34`
+- updated_at: `2026-10-16T06:21:00Z`
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-16T06:03:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
 - source_review_target: `8d52c2f440f5256c9459d06e361188836bb968f2`
 - source_review_evidence: `native installer-cleanup source/build, NSIS fixed argument branches, process identity termination, task XML ownership, package wiring, tests and REV-NATIVE-INSTALLER-047-001`
-- behavior_verified_at: `2026-10-16T06:16:04Z`
+- behavior_verified_at: `2026-10-16T06:21:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source faee6cf2492b8247a11b4a787f3c0f8cf710b060; signed installer 23039c63...04d6c and portable 4b164625...49f0; public replacement NOT_RUN`
-- behavior_verification_environment: `Windows 10.0.26200 x64 source fixtures and signed package verification; installed NSIS uninstall NOT_RUN`
-- behavior_verification_evidence: `source checks and review PASS; signed package, Ed25519, payload boundaries, aliases and native integration PASS in EVID-NATIVE-INSTALLER-047-PACKAGE`
+- behavior_verification_target: `source faee6cf2492b8247a11b4a787f3c0f8cf710b060; public v0.4.7 asset manifest 0636b672540c3f3acad2701cb7a4fa64b99554e0ed05cceeb2e00d2430851b1c`
+- behavior_verification_environment: `Windows 10.0.26200 x64 source fixtures, signed package and GitHub public re-downloads; installed NSIS uninstall NOT_RUN`
+- behavior_verification_evidence: `source checks and review PASS; public 9/9 candidate hashes, Ed25519, aliases, feed order, Electron IDs and pushed provenance PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source와 signed native installer cleanup package, 아직 PowerShell 기반인 공개 asset gap을 분리해 반영`
-- known_gaps: `public replacement와 실제 제한 policy 설치·관리자 제거는 NOT_RUN; 같은 버전 자동 재수신은 보장되지 않음`
+- freshness_reason: `현재 source와 공개 native installer cleanup asset, 실제 installed-app 수동 gap을 분리해 반영`
+- known_gaps: `실제 제한 policy 설치·관리자 제거는 NOT_RUN; 같은 버전 자동 재수신은 보장되지 않음`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — execution-policy independent cleanup`
-- feature_map: `updated — FEAT-NOGIREM-UPDATE-LIFECYCLE revision 9`
+- feature_map: `updated — FEAT-NOGIREM-UPDATE-LIFECYCLE revision 10`
 - architecture_impact: `native cleanup ownership, process handle identity, Task Scheduler CLI adapter and NSIS argument trust`
-- architecture_contract: `updated — revision 33`
+- architecture_contract: `updated — revision 34`
 
 ## 계층과 확장 경로
 

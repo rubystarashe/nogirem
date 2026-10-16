@@ -276,7 +276,7 @@
 - canonical_name: `서명 업데이트·설치·제거 수명주기`
 - aliases: `자동 업데이트`, `설치형 업데이트`, `포터블 업데이트`
 - lifecycle: `PARTIAL`
-- lifecycle_reason: `서명 업데이트·설치는 제공되지만 공개 0.4.7 설치·제거 helper가 제한된 PowerShell 실행 정책에서 차단된다. native source fix는 완료됐고 signed same-version replacement와 실제 관리자 제거 검증이 남았다.`
+- lifecycle_reason: `PowerShell 실행 정책에 의존하지 않는 native 설치·제거 cleanup이 공개 0.4.7 same-version replacement로 제공된다. 실제 관리자 제거·빈 설치 폴더 종단간 검증과 같은 버전 자동 재수신 보장은 남았다.`
 - owners: `product=nogirem maintainer`, `technical=release/update owner`
 - purpose: 서명된 새 버전을 다운로드·검증·설치하고 실패 시 rollback하며 사용자가 앱을 잠금 없이 제거하도록 한다.
 - personas_and_entry_points: 일반 사용자는 앱 업데이트 UI, Windows 설치기·제거기, 포터블 EXE로 진입한다. 배포 maintainer는 서명 패키징과 GitHub Release를 사용한다.
@@ -298,22 +298,22 @@
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).
 - owner: `release/update owner`
-- revision: `9`
-- updated_at: `2026-10-16T06:16:04Z`
+- revision: `10`
+- updated_at: `2026-10-16T06:21:00Z`
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-16T06:03:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
 - source_review_target: `8d52c2f440f5256c9459d06e361188836bb968f2`
 - source_review_evidence: `native/installer-cleanup, desktop/installer.nsi, scripts/package-dioxus.mjs, test/installer.test.mjs, independent review REV-NATIVE-INSTALLER-047-001`
-- behavior_verified_at: `2026-10-16T06:16:04Z`
+- behavior_verified_at: `2026-10-16T06:21:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source faee6cf2492b8247a11b4a787f3c0f8cf710b060; signed installer 23039c63...04d6c and portable 4b164625...49f0; public replacement NOT_RUN`
-- behavior_verification_environment: `Windows 10.0.26200 x64 temporary real-process fixtures and signed package verification; actual installed NSIS uninstall NOT_RUN`
-- behavior_verification_evidence: `source checks and review PASS; signed package, Ed25519, payload boundaries, aliases and native integration PASS in EVID-NATIVE-INSTALLER-047-PACKAGE`
+- behavior_verification_target: `source faee6cf2492b8247a11b4a787f3c0f8cf710b060; public v0.4.7 asset manifest 0636b672540c3f3acad2701cb7a4fa64b99554e0ed05cceeb2e00d2430851b1c`
+- behavior_verification_environment: `Windows 10.0.26200 x64 source fixtures, signed package and GitHub public re-downloads; actual installed NSIS uninstall NOT_RUN`
+- behavior_verification_evidence: `source checks and review PASS; public 9/9 candidate hashes, Ed25519, aliases, feed order, Electron IDs and pushed provenance PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source와 signed native-helper package를 반영했고 아직 PowerShell 기반인 공개 0.4.7 replacement gap을 명시했다.`
-- known_gaps: `공개 same-version replacement, 실제 제한 policy 설치, 관리자 권한 예약 작업 정리·제거·install directory 소거는 NOT_RUN. 기존 같은 버전 client는 대치본을 자동 재수신하지 않을 수 있다.`
+- freshness_reason: `현재 source와 공개 native-helper 0.4.7 replacement 및 실제 설치 수동 gap을 분리해 반영했다.`
+- known_gaps: `실제 제한 policy 설치, 관리자 권한 예약 작업 정리·제거·install directory 소거는 NOT_RUN. 기존 같은 버전 client는 대치본을 자동 재수신하지 않을 수 있다.`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — PowerShell policy와 무관한 native install/uninstall cleanup`
-- feature_map: `updated — revision 9, signed package verified and publication pending`
+- feature_map: `updated — revision 10, public same-version replacement verified`
 - architecture_impact: `NSIS-to-native helper boundary, handle identity termination and exact task ownership`
-- architecture_contract: `updated — revision 33 package boundary`
+- architecture_contract: `updated — revision 34 public boundary`

@@ -12,13 +12,13 @@
 - trigger: `public replacement installer exposes UnauthorizedAccess because Windows execution policy rejects extracted stop-installed-app.ps1`
 - authorization: `replace installer PowerShell dependency, commit, push, rebuild signed 0.4.7 and replace public assets at the same version`
 - roles: `Coordinator=DEV=QA=Documentation maintainer cursor-agent-92251f36; independent reviewer pending`
-- dev_state: `READY_FOR_QA — signed package verified; public replacement pending`
-- qa_state: `COMPLETE_PASS for automated source checks; installed-app manual scenarios NOT_RUN`
+- dev_state: `DONE`
+- qa_state: `COMPLETE_PASS for mandatory automated source, package and public checks; installed-app manual scenarios NOT_RUN`
 - review_verdict: `APPROVED — REV-NATIVE-INSTALLER-047-001`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — install/uninstall must work without PowerShell script execution policy`
-- feature_map: `updated — revision 9 signed package`
+- feature_map: `updated — revision 10 public replacement`
 - architecture_impact: `NSIS cleanup adapter changes from extracted PowerShell script to packaged native executable`
-- architecture_contract: `updated — revision 33 signed package`
+- architecture_contract: `updated — revision 34 public replacement`
 
 ## Scope and risk
 
@@ -52,3 +52,5 @@
 - package_target: `release/dioxus-0.4.7-2026-10-16T06-12-38-463Z`
 - package_result: `PASS — installer 9,761,105 bytes SHA-256 23039c63...04d6c; portable 7,787,597 bytes SHA-256 4b164625...49f0; Ed25519 and payload boundaries verified`
 - next_authorized_action: commit and push package evidence, replace the four executable assets first and two signed manifests last, then publicly re-download and verify all nine assets while preserving three Electron asset identities.
+- publication_result: `PASS — public 9/9 candidate hash match, Ed25519, aliases, feed ordering, preserved Electron IDs, release notes and source provenance`
+- final_stop_condition: `satisfied for requested fix, same-version replacement and push; installed-app manual scenarios remain explicitly NOT_RUN`
