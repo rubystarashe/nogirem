@@ -1,12 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-19 18:08 +09:00
+Last Updated: 2026-10-19 18:14 +09:00
 
 ## Current Objective
-균형 CPU 기본 모드와 0.4.8 변경 기록을 포함한 signed 설치형·포터블 패키지를 생성하고 검증한다. 외부 push·tag·GitHub Release·배포는 수행하지 않는다.
+균형 CPU 기본 모드와 사용자 공지를 포함한 signed 0.4.8 설치형·포터블 패키지 생성·검증을 완료했다. 외부 push·tag·GitHub Release·배포는 수행하지 않았다.
 
 ## Active Runs
-- `20261019-package-048`: package/Cargo 버전을 0.4.8로 동기화했고 Node 213/213과 desktop compile이 통과했다. 사용자 `NOTICE.md`는 package 입력으로만 포함하고 source commit에서는 제외한다. signed package 생성·검증이 진행 중이며 push·배포는 금지다. (`docs/ai/runs/20261019-package-048/task.md`)
+- `20261019-package-048`: source `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa`와 사용자 `NOTICE.md` SHA-256 `90b88036...cba3`에서 signed 0.4.8 설치형·포터블을 `release/dioxus-0.4.8-2026-10-19T09-10-32-162Z`에 생성했다. installer `3c697b54...e0fe`, portable `cf3d565b...415e`; Node 213/213, desktop compile, native integration 3/3, Ed25519·payload·NOTICE 검증이 통과했다. 실제 설치·실행·업데이트·게임과 push·배포는 수행하지 않았다. (`docs/ai/runs/20261019-package-048/final-report.md`)
 - `20261019-cpu-topology-priority`: CPU 설정이 없는 신규 기본값을 `균형 모드`로 변경하고 normalization, topology·boost·worker·UI fallback과 fixture를 통일했다. 기존 명시 CPU 설정과 channel ping 기본 비활성화는 보존한다. backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, locked cargo check가 통과했다. 실제 UI smoke·game QA·push·deploy는 수행하지 않았다. (`docs/ai/runs/20261019-cpu-topology-priority/handoff.md`)
 - `20261016-native-installer-cleanup-047`: source `faee6cf2492b8247a11b4a787f3c0f8cf710b060`에서 NSIS install/uninstall의 end-user PowerShell 실행을 제거하고 current-source `installer-cleanup.exe`를 embedded한다. helper는 UTF-16 canonical path, PID·생성 시각 identity, caller/updater parent trust, graceful/forced stop과 exact task ownership을 보존한다. native unit 6/6, installer 12/12, Node 213/213, backend 115 PASS·3 ignored와 parity 2/2, desktop check, strict clippy, 독립 review와 signed package 검증이 통과했다. 설치형 `9,761,105 bytes` SHA-256 `23039c63...04d6c`, 포터블 `7,787,597 bytes` SHA-256 `4b164625...49f0`와 manifests를 [GitHub v0.4.7](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7)에 feed-safe order로 대치하고 공개 9/9와 Electron ID 보존을 재검증했다. 실제 관리자 install/uninstall은 NOT_RUN이다. (`docs/ai/runs/20261016-native-installer-cleanup-047/handoff.md`)
 - `20261016-uninstall-hotfix-047`: source `4ee58f36ceff917b135d80c809f439db39536ccb`에서 정본 시작 task cleanup 실패를 실제 process 오류와 분리하고, process 종료 실패만 차단하며, 이전 앱 소유 파일 12개를 upgrade·uninstall에서 exact-delete한다. signed 설치형 `5d01a715...bff1c`, 포터블 `985c8a24...c6e5`로 [GitHub v0.4.7](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7)의 Rust 자산 6개만 대치하고 Electron 3개 asset ID를 보존했다. 공개 9/9, Ed25519, aliases와 독립 review가 통과했다. 실제 관리자 제거·빈 설치 폴더와 같은 버전 자동 재수신은 NOT_RUN이므로 affected 0.4.7 사용자는 새 설치형 수동 덮어쓰기가 필요하다. (`docs/ai/runs/20261016-uninstall-hotfix-047/final-report.md`)
@@ -40,6 +40,13 @@ Last Updated: 2026-10-19 18:08 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 균형 기본 CPU 모드가 포함된 signed 0.4.8 package`
+- feature_map: `updated — canonical revision 34, feature revision 13`
+- architecture_impact: `none — 기존 signed package 경로와 payload 경계를 변경하지 않음`
+- architecture_contract: `no_change — revision 41을 exact package target에 재평가`
+- 0.4.8 package는 `release/dioxus-0.4.8-2026-10-19T09-10-32-162Z`; 설치형 `9,823,145 bytes` SHA-256 `3c697b541da666ed4c1127bbc2cfc73b0eb58a0d89dc8f84369fbe9fc6f0e0fe`, 포터블 `7,836,262 bytes` SHA-256 `cf3d565bcda0888290e1e21934d14773313418623d2b521f72e0bfb67887415e`.
+- `PASS` — Node 213/213, desktop compile, native integration 3/3, Ed25519·version·size·hash, Rust contract, WebView2 signature, NSIS `/WX`, payload·NOTICE identity.
+- `NOT_RUN` — 실제 설치·제거·포터블 실행·업데이트·게임, push·tag·GitHub Release·배포.
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — PowerShell policy와 무관한 native install/uninstall cleanup`
 - feature_map: `updated — revision 10, public replacement verified`
 - architecture_impact: `NSIS native helper, process handle identity, exact task ownership and fail-closed stop`

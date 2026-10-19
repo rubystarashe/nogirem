@@ -6,13 +6,13 @@
 - owner: `cursor-agent-92251f36`
 - roles: `Coordinator=DEV=QA=Reviewer=Documentation maintainer=cursor-agent-92251f36`
 - created_at: `2026-10-19T09:08:00Z`
-- status: `IN_PROGRESS`
-- DEV: `IN_PROGRESS`
-- QA: `IN_PROGRESS`
+- status: `COMPLETED`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
 - review_mode: `SELF_REVIEW`
-- review_verdict: `NOT_REVIEWED`
+- review_verdict: `APPROVED`
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 균형 기본 CPU 모드가 포함된 0.4.8 배포 후보 생성`
-- feature_map: `no_change — revision 33의 구현 설명은 정확하며 package evidence만 완료 후 갱신`
+- feature_map: `updated — canonical revision 34, feature revision 13에 package evidence 연결`
 - architecture_impact: `none — 기존 signed installer·portable package 경로를 그대로 사용`
 - architecture_contract: `no_change — revision 41의 package 경계가 현재 source와 일치`
 
@@ -28,10 +28,10 @@
 
 ## 계획과 수용 기준
 
-1. `IN_PROGRESS` — package/Cargo 버전과 lock을 0.4.8로 동기화하고 source target을 고정한다.
-2. `PENDING` — `npm run package:win`으로 signed 설치형·포터블·manifest를 생성한다.
-3. `PENDING` — version·size·SHA-256·Ed25519, Rust service contract, WebView2 signature, NSIS `/WX`, 10MB 제한과 필수/금지 payload를 검증한다.
-4. `PENDING` — evidence, handoff, canonical freshness와 최종 보고를 갱신한다.
+1. `COMPLETED` — package/Cargo 버전과 lock을 0.4.8로 동기화하고 source target을 고정했다.
+2. `COMPLETED` — `npm run package:win`으로 signed 설치형·포터블·manifest를 생성했다.
+3. `COMPLETED` — version·size·SHA-256·Ed25519, Rust service contract, WebView2 signature, NSIS `/WX`, 10MB 제한과 필수/금지 payload를 검증했다.
+4. `COMPLETED` — evidence, handoff, canonical freshness와 최종 보고를 갱신했다.
 
 - acceptance: installer·portable 이름과 내부 `version.json`이 0.4.8이다.
 - acceptance: signed manifest의 version·size·SHA-256와 실제 파일이 일치하고 Ed25519 자체 검증을 통과한다.
@@ -44,4 +44,15 @@
 - `PASS` — Node 213/213.
 - `PASS` — Cargo version lock update와 desktop compile.
 - source_base: `500e17444bc016d1283a82fe78e48ea77016b820`
-- source_target: `0.4.8 version synchronization working target; local commit pending`
+- source_target: `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa`
+- execution_target: `release/dioxus-0.4.8-2026-10-19T09-10-32-162Z`
+- package_result: `PASS`
+- installer: `9,823,145 bytes`, SHA-256 `3c697b541da666ed4c1127bbc2cfc73b0eb58a0d89dc8f84369fbe9fc6f0e0fe`
+- portable: `7,836,262 bytes`, SHA-256 `cf3d565bcda0888290e1e21934d14773313418623d2b521f72e0bfb67887415e`
+- signed_manifests: `PASS — installer·portable Ed25519 signature, version, size, SHA-256 일치`
+- package_contract: `PASS — Rust service contract, WebView2 signature, NSIS /WX, 10MB 제한, runtimePackages=[]`
+- payload_contract: `PASS — channel ping 필수 payload와 사용자 NOTICE 포함, Node/Electron backend·turbo·제거 overlay payload 부재`
+- manual_QA_result: `NOT_RUN — 설치·제거·포터블 실행·업데이트·게임`
+- review_summary: `SELF_REVIEW — source target, package logs, manifests, hashes, required/forbidden payload와 NOTICE identity 검토; unresolved mandatory finding 0`
+- gates: `feature PASS; architecture PASS; review/QA PASS for automated package scope; target/authorization PASS`
+- push_tag_release_deployment: `NOT_RUN`

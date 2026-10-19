@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `33`
-- updated_at: `2026-10-19T09:02:06Z`
+- revision: `34`
+- updated_at: `2026-10-19T09:14:20Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T09:02:06Z`
+- source_reviewed_at: `2026-10-19T09:14:20Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
-- source_review_evidence: `settings normalization, topology/runtime/UI fallbacks and fixture/smoke contract SELF_REVIEW`
+- source_review_target: `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa + NOTICE input 90b88036...cba3`
+- source_review_evidence: `0.4.8 package app·portable version, history, NOTICE identity, signed manifests and payload contract SELF_REVIEW`
 - behavior_verified_at: `2026-10-19T09:02:06Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
+- behavior_verification_target: `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa; version-only delta에 대해 500e174 behavior evidence applicability 재평가`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust backend/desktop test target`
-- behavior_verification_evidence: `backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, desktop locked cargo check PASS`
+- behavior_verification_evidence: `500e174 backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8 evidence 재사용; af36bc1 Node 213/213, desktop compile, package contract와 native integration 3/3 PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `저장 설정이 없을 때 balanced preset을 선택하는 현재 source와 검증 결과를 반영`
-- known_gaps: `변경 target 실제 UI smoke와 마비노기 프레임·입력 체감은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 신규 기본 CPU preset을 균형 모드로 변경`
-- feature_map: `updated — revision 33, feature revision 12`
-- architecture_impact: `CPU 설정 부재 시 normalization과 방어 fallback의 canonical balanced 기본값`
-- architecture_contract: `updated — revision 41`
+- freshness_reason: `균형 기본 CPU 모드를 포함한 signed 0.4.8 package와 exact source·NOTICE 입력을 반영`
+- known_gaps: `실제 설치·포터블 실행·업데이트·UI smoke와 마비노기 프레임·입력 체감은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 균형 기본 CPU 모드가 포함된 0.4.8 package evidence`
+- feature_map: `updated — revision 34, feature revision 13`
+- architecture_impact: `none — 기존 signed package 경로와 payload 경계를 변경하지 않음`
+- architecture_contract: `no_change — revision 41을 package target에 재평가`
 
 ## ID 할당
 
@@ -135,25 +135,25 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `12`
-- updated_at: `2026-10-19T09:02:06Z`
+- revision: `13`
+- updated_at: `2026-10-19T09:14:20Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T09:02:06Z`
+- source_reviewed_at: `2026-10-19T09:14:20Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
-- source_review_evidence: `SELF_REVIEW of settings normalization, topology/runtime/UI fallbacks and fixture/smoke assertions`
+- source_review_target: `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa + NOTICE input 90b88036...cba3`
+- source_review_evidence: `SELF_REVIEW of signed 0.4.8 package version, history, NOTICE identity, manifests and payload`
 - behavior_verified_at: `2026-10-19T09:02:06Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
+- behavior_verification_target: `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa; version-only delta에 대해 500e174 behavior evidence applicability 재평가`
 - behavior_verification_environment: `Windows 10.0.26200 x64; Rust backend/desktop test target`
-- behavior_verification_evidence: `backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, desktop locked cargo check PASS`
+- behavior_verification_evidence: `500e174 backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8 evidence 재사용; af36bc1 Node 213/213, desktop compile, package contract와 native integration 3/3 PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `current no-setting balanced default and explicit-setting preservation are reflected`
-- known_gaps: `변경 target 실제 UI smoke와 실제 마비노기 frame·입력 체감은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 신규 기본 CPU preset을 균형 모드로 변경`
-- feature_map: `updated — revision 12`
-- architecture_impact: `CPU 설정 부재 시 normalization과 방어 fallback의 canonical balanced 기본값`
-- architecture_contract: `updated — revision 41`
+- freshness_reason: `signed 0.4.8 package contains the balanced default source, version history and exact NOTICE input`
+- known_gaps: `실제 설치·포터블 실행·업데이트·UI smoke와 실제 마비노기 frame·입력 체감은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 균형 기본 CPU 모드가 포함된 0.4.8 package evidence`
+- feature_map: `updated — revision 13`
+- architecture_impact: `none — 기존 signed package 경로와 payload 경계를 변경하지 않음`
+- architecture_contract: `no_change — revision 41을 package target에 재평가`
 
 ## FEAT-NOGIREM-TURBO-KEY
 
