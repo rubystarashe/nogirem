@@ -21,7 +21,7 @@ async fn inspect(window: &dioxus::desktop::DesktopContext, script: &str) -> Resu
     serde_json::from_str(&text).map_err(|e| format!("{e}: {text}"))
 }
 
-pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Value, String> {
+pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result<Value, String> {
     for _ in 0..100 {
         if state.peek().ready && !state.peek().services.is_null() {
             break;
@@ -227,6 +227,22 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     {
         return Err(format!("메인 CPU 프리셋 위치가 올바르지 않습니다: {presets}"));
     }
+    state
+        .write()
+        .pending
+        .insert("optimization:set-cpu-mode".into());
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let preset_applying = inspect(&main, "(()=>{const e=document.querySelector('.cpu-preset-selector select');return{value:e.value,text:e.options[e.selectedIndex]?.textContent,disabled:e.disabled}})()").await?;
+    if preset_applying
+        != json!({"value":"applying","text":"설정 변경중","disabled":true})
+    {
+        return Err(format!("CPU 프리셋 변경 상태가 올바르지 않습니다: {preset_applying}"));
+    }
+    state
+        .write()
+        .pending
+        .remove("optimization:set-cpu-mode");
+    tokio::time::sleep(Duration::from_millis(100)).await;
     inspect(&main, "(()=>{const e=document.querySelector('.cpu-preset-selector select');e.value='balanced';e.dispatchEvent(new Event('change',{bubbles:true}));return true})()").await?;
     tokio::time::sleep(Duration::from_millis(300)).await;
     if state.peek().services["affinity"]["gameCoreSetting"]["cpuMode"] != "balanced"
@@ -279,9 +295,12 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     tokio::time::sleep(Duration::from_millis(900)).await;
 
     tokio::time::sleep(Duration::from_millis(900)).await;
-    let advanced = inspect(&main, r#"(()=>{const panel=document.querySelector('.creator-content');return {panel:!!panel,headings:panel?[...panel.querySelectorAll('h2')].map(e=>e.textContent):[],scrollable:panel?panel.scrollHeight>panel.clientHeight:false,icons:document.querySelectorAll('.window-controls svg').length,tabs:[...document.querySelectorAll('.creator-tabs button')].map(e=>e.textContent),body:document.body.innerText.slice(0,500)}})()"#).await?;
+    let advanced = inspect(&main, r#"(()=>{const panel=document.querySelector('.creator-content');const stacks=[...document.querySelectorAll('.developer-tools>.developer-tool-stack')];return {panel:!!panel,headings:panel?[...panel.querySelectorAll('h2')].map(e=>e.textContent):[],cpuSections:stacks.map((e,index)=>({index,heading:e.querySelector('h2')?.textContent})).filter(e=>e.heading==='게임 CPU 코어 할당 개수'||e.heading==='고급 CPU 설정'),scrollable:panel?panel.scrollHeight>panel.clientHeight:false,icons:document.querySelectorAll('.window-controls svg').length,tabs:[...document.querySelectorAll('.creator-tabs button')].map(e=>e.textContent),body:document.body.innerText.slice(0,500)}})()"#).await?;
     if advanced["scrollable"] != true
         || advanced["icons"] != 4
+        || advanced["cpuSections"].as_array().is_none_or(|sections| {
+            sections.len() != 2 || sections[0]["index"] == sections[1]["index"]
+        })
         || advanced["headings"]
             .as_array()
             .is_some_and(|headings| headings.iter().any(|heading| heading == "터보 키"))

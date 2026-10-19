@@ -120,13 +120,13 @@
 - lifecycle: `ACTIVE`
 - lifecycle_reason: `Rust/Dioxus 앱이 게임 실행 상태에 따라 affinity·메모리 helper를 유지하고 사용자가 적용·중단할 수 있음`
 - owners: `product=nogirem maintainer`, `technical=boost/affinity backend owner`
-- purpose_and_scope: 관리자 권한 Windows 사용자의 마비노기 실행을 감지한다. CPU Set의 `EfficiencyClass`로 P/E 소속을 판별하고 `SchedulingClass`는 같은 P-core 후보의 우선순위에만 사용하며, GLPIEx 물리 코어·SMT·L3·processor group을 결합해 물리 P-core를 같은 L3 domain부터 배정한다. 메인 화면은 `게임 집중`, `균형`, `안전` preset을 제공하고 고급 기능은 P-core 수동 override를 제공한다. Ryzen 7 9800X3D에서 게임 집중은 6P hard affinity, 균형은 4P hard affinity, 안전은 4P background 분할과 game affinity 미고정이다.
+- purpose_and_scope: 관리자 권한 Windows 사용자의 마비노기 실행을 감지한다. CPU Set의 `EfficiencyClass`로 P/E 소속을 판별하고 `SchedulingClass`는 같은 P-core 후보의 우선순위에만 사용하며, GLPIEx 물리 코어·SMT·L3·processor group을 결합해 물리 P-core를 같은 L3 domain부터 배정한다. 메인 화면은 `게임 집중`, `균형`, `안전 모드` preset dropdown을 제공하고 고급 기능은 P-core 수동 override와 독립 advanced CPU section을 제공한다. Ryzen 7 9800X3D에서 게임 집중은 6P hard affinity, 균형은 4P hard affinity, 안전은 4P background 분할과 game affinity 미고정이다.
 - exclusions: 복수 processor group과 단일 P-core 비하이브리드처럼 유효한 두 역할 mask를 표현할 수 없는 topology는 CPU 분할 대상이 아니다. L3 크기를 성능 등급으로 해석하지 않으며 하드웨어·드라이버 교착 복구, 외부 affinity/priority writer 통제, 실제 frame 향상을 보장하지 않는다.
 - personas_permissions_accessibility_entry: 일반 사용자가 메인 화면을 클릭해 적용·중단하며 관리자 권한이 필요하다. 상태는 문구로 표시하고 오류는 확인 가능한 alert로 제공한다.
 - preconditions_dependencies: Windows CPU topology, `config.json`, affinity/memory helper, Win32 process query, `%APPDATA%\마비노기 렘 부스터` 상태 폴더.
 - normal_error_cancel_retry_flow: helper 상태의 PID·시작 시각·생존을 함께 확인한다. 게임이 없으면 대기하지만 중단 버튼은 활성이다. CPU 구성이 안전하게 표현되지 않으면 사유를 표시하고 affinity만 건너뛰며 다른 boost 기능은 유지한다. runtime 조회 실패 시 화면 상태를 중단으로 보정하고 polling을 계속한다.
 - concurrency_partial_failure_recovery: affinity·memory operation lock이 작업을 직렬화한다. affinity/priority는 열거 후 같은 process handle에서 생성 시각을 확인한 뒤 적용한다. 원본과 앱 적용값을 변경 전에 durable ledger에 기록하고, 복원 시 현재 값이 앱 적용값과 같은 항목만 원본으로 되돌려 외부 변경을 보존한다. 실패한 복원 entry는 다음 시작 복구를 위해 남긴다.
-- state_side_effects_limits: `게임 집중`은 균형 자동값보다 P-core를 최대 2개 더 선택하고, `균형`은 기존 자동값을 사용하며 두 preset 모두 game hard affinity를 적용한다. `안전 모드`는 균형 자동값을 사용하지만 game affinity를 고정하지 않는다. 고급 수동 count와 안전 모드 toggle은 서로의 값을 보존한다. main dropdown은 standard 상태에 세 preset을 제공하고, effective mode/count가 모두와 다르면 네 번째 `사용자화` option을 추가해 선택한다. standard preset 선택 시 custom count를 제거해 해당 자동값으로 복귀한다.
+- state_side_effects_limits: `게임 집중`은 균형 자동값보다 P-core를 최대 2개 더 선택하고, `균형`은 기존 자동값을 사용하며 두 preset 모두 game hard affinity를 적용한다. `안전 모드`는 균형 자동값을 사용하지만 game affinity를 고정하지 않는다. 고급 수동 count와 안전 모드 toggle은 서로의 값을 보존한다. main dropdown은 standard 상태에 세 preset을 제공하고, effective mode/count가 모두와 다르면 네 번째 `사용자화` option을 추가해 선택한다. preset 변경 pending 동안 `설정 변경중`을 표시하며, standard preset 선택 시 custom count를 제거해 해당 자동값으로 복귀한다.
 - modules_contracts: `desktop/src/ui.rs` → `service.rs` → `boost.rs` → `affinity_worker.rs`/`affinity.rs`. helper PID와 최신 timestamp가 실행 상태의 필수 조건이다.
 - durable_data_owner: affinity helper가 `runtime-state.json`, runtime status와 `game/path.json`의 유일한 writer다. backend service만 `game-core-setting.json`을 정규화해 쓰고 helper/UI가 읽는다.
 - security_privacy: 다른 `Client.exe` 오탐을 막기 위해 정본의 명시적 게임 폴더를 사용하며 진단 내 사용자 경로는 마스킹한다.
@@ -135,25 +135,25 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `6`
-- updated_at: `2026-10-19T06:55:00Z`
+- revision: `7`
+- updated_at: `2026-10-19T07:42:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T06:55:00Z`
+- source_reviewed_at: `2026-10-19T07:42:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 60588e80b2002df7e160a4fa469e2301090e2dd9 + CP-CPU-CUSTOMIZED-005 uncommitted owned-file target`
-- source_review_evidence: `SELF_REVIEW of effective preset projection, preserving safe-mode control and UI states`
-- behavior_verified_at: `2026-10-19T06:55:00Z`
+- source_review_target: `base 60e83bbb97f86e96d9051f230c2afbaf54757b94 + CP-CPU-UI-LAYOUT-006 uncommitted owned-file target`
+- source_review_evidence: `SELF_REVIEW of independent advanced section, transparent dropdown and pending feedback`
+- behavior_verified_at: `2026-10-19T07:47:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 60588e80b2002df7e160a4fa469e2301090e2dd9 + CP-CPU-CUSTOMIZED-005 uncommitted owned-file target`
+- behavior_verification_target: `base 60e83bbb97f86e96d9051f230c2afbaf54757b94 + CP-CPU-UI-LAYOUT-006 uncommitted owned-file target`
 - behavior_verification_environment: `Windows 10.0.26200 x64; Rust test processes and Node v22.20.0`
-- behavior_verification_evidence: `backend mode fixtures and full locked tests, desktop locked check/tests, Node service contract tests; exact counts are in follow-up QA`
+- behavior_verification_evidence: `desktop main smoke verified separate CPU sections, pending label and standard/custom preset roundtrip; main screenshot visually reviewed`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 main presets, advanced count/safe customization projection과 topology 동작을 반영`
+- freshness_reason: `current UI follow-up source and smoke behavior are reflected`
 - known_gaps: `실제 마비노기 frame·입력 체감, 강제 종료 후 packaged UI 복구는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — customized CPU setting indicator and preserving safe toggle`
-- feature_map: `updated — revision 6`
-- architecture_impact: `effective preset projection and preserving advanced safe control`
-- architecture_contract: `updated — revision 39`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — independent advanced CPU section and preset pending feedback`
+- feature_map: `updated — revision 7`
+- architecture_impact: `none — UI composition only`
+- architecture_contract: `no_change — revision 39 remains accurate`
 
 ## FEAT-NOGIREM-TURBO-KEY
 

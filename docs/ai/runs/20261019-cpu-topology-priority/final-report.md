@@ -54,3 +54,18 @@
 - review: `REV-CPU-CUSTOMIZED-005-R2 APPROVED`, `SELF_REVIEW`; no independent reviewer and no unresolved mandatory finding.
 - gates: feature `PASS` for implemented UI/settings scope; architecture `PASS`; review/QA `PASS`; target/authorization `PASS`.
 - commit/push/deploy: follow-up local checkpoint contains this report and its resulting SHA is reported externally; push/deploy/release not performed or authorized.
+
+## Final current disposition — CP-CPU-UI-LAYOUT-006
+
+- disposition: `COMPLETED`
+- target: `base 60e83bbb97f86e96d9051f230c2afbaf54757b94 + owned UI-layout target committed with this report; resulting SHA is reported externally`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — independent advanced CPU section and preset pending feedback`
+- feature_map: `updated — revision 7`
+- architecture_impact: `none — service/data/topology boundaries unchanged`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- delivered: independent advanced CPU section; transparent borderless larger preset dropdown with increased top spacing; pending `설정 변경중`.
+- automated-test-passing: desktop locked check, desktop 8/8, main smoke and edited-file lints.
+- manually exercised: smoke DOM state and screenshot visual review.
+- review: `REV-CPU-UI-LAYOUT-006-R1 APPROVED`, `SELF_REVIEW`; no independent reviewer and no unresolved mandatory finding.
+- actual game workload: `NOT_RUN`.
+- commit/push/deploy: local checkpoint contains this report and its resulting SHA is reported externally; push/deploy/release not performed or authorized.

@@ -632,6 +632,7 @@ fn Advanced() -> Element {
             Action { label: if s.muted { "사용 중" } else { "사용하기" }, channel: "application:set-startup-music-setting", args: json!([!s.muted]), class: if s.muted { "active" } else { "" } }
         }
         div { class: "developer-tool-stack", CpuSettings {} }
+        div { class: "developer-tool-stack", CpuAdvancedSettings {} }
         div { class: "developer-tool-row",
             div {
                 h2 { "실시간 게임 서버 모니터링" }
@@ -757,7 +758,7 @@ fn Modal() -> Element {
                 "reset" => rsx! { h2 { "부스트 설정 초기화" } p { class: "modal-description", "적용한 CPU 및 NIC 부스트 설정을 되돌립니다." } div { class: "modal-actions", button { class: "secondary", onclick: {let client=client.clone();move |_| close_modal(client.clone(),state)}, "취소" } Action { class: "monochrome", label: "초기화", channel: "optimization:reset-frame-boost" } } },
                 "turbo" => rsx! { Turbo {} },
                 "input" => rsx! { InputSettings {} },
-                "cpu" => rsx! { CpuSettings {} },
+                "cpu" => rsx! { CpuSettings {} CpuAdvancedSettings {} },
                 "notice" => rsx! { h2 { "공지" } Markdown { text: snapshot.notice["markdown"].as_str().unwrap_or("").to_owned() } Action { label: "확인", channel: "application:dismiss-notice", args: json!([snapshot.notice["id"]]) } },
                 "report" => rsx! {
                     h2 { {snapshot.reports[0]["title"].as_str().unwrap_or("버그 리포트 답변").to_owned()} }
@@ -974,7 +975,7 @@ fn CpuPresetSelector(entered: bool) -> Element {
     rsx! {
         div { class: format!("cpu-preset-selector {}", if entered { "entered" } else { "" }), aria_label: "CPU 모드 프리셋",
             select {
-                value: selected_value,
+                value: if applying { "applying" } else { selected_value },
                 disabled: snapshot.busy || applying || setting["supported"] != true,
                 onchange: {let client=client.clone(); move |event| {
                     let value = event.value();
@@ -982,11 +983,15 @@ fn CpuPresetSelector(entered: bool) -> Element {
                         command(client.clone(), state, "optimization:set-cpu-mode", json!([value]))
                     }
                 }},
-                option { value: "focus", "게임 집중" }
-                option { value: "balanced", "균형" }
-                option { value: "safe", "안전 모드" }
-                if customized {
-                    option { value: "custom", "사용자화" }
+                if applying {
+                    option { value: "applying", "설정 변경중" }
+                } else {
+                    option { value: "focus", "게임 집중" }
+                    option { value: "balanced", "균형" }
+                    option { value: "safe", "안전 모드" }
+                    if customized {
+                        option { value: "custom", "사용자화" }
+                    }
                 }
             }
         }
@@ -1025,10 +1030,6 @@ fn CpuSettings() -> Element {
     let p = setting["performanceCoreCount"].as_u64();
     let e = setting["efficiencyCoreCount"].as_u64();
     let applying = s.pending.contains("optimization:set-game-cpu-core-count");
-    let safe_applying = s.pending.contains("optimization:set-safe-cpu-mode");
-    let priority_applying = s
-        .pending
-        .contains("optimization:set-lower-background-priority");
     rsx! {
         div {
             h2 { "게임 CPU 코어 할당 개수" }
@@ -1059,8 +1060,22 @@ fn CpuSettings() -> Element {
                 Action { label: "다시 확인", class: "developer-tool-secondary", channel: "optimization:refresh-game-cpu-core-setting" }
             }
         }
+    }
+}
+
+#[component]
+fn CpuAdvancedSettings() -> Element {
+    let state = use_context::<Signal<State>>();
+    let client = use_context::<Client>();
+    let s = state.read().clone();
+    let setting = s.services["affinity"]["gameCoreSetting"].clone();
+    let safe_applying = s.pending.contains("optimization:set-safe-cpu-mode");
+    let priority_applying = s
+        .pending
+        .contains("optimization:set-lower-background-priority");
+    rsx! {
         div { class: "cpu-advanced-options",
-            h3 { "고급 CPU 설정" }
+            h2 { "고급 CPU 설정" }
             label {
                 input {
                     r#type: "checkbox",

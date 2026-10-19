@@ -124,3 +124,20 @@ Mandatory source and automated scenarios for this checkpoint passed. Actual game
 - `cargo check --manifest-path desktop/Cargo.toml --locked`: `PASS` after dropdown correction.
 - edited-file IDE lints: `PASS`, no diagnostics.
 - actual game workload performance: `NOT_RUN`.
+
+## Follow-up CP-CPU-UI-LAYOUT-006
+
+- qa_state: `COMPLETE_PASS`
+- source_target: `base 60e83bbb97f86e96d9051f230c2afbaf54757b94 + owned UI-layout target`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — independent advanced CPU section and preset pending feedback`
+- feature_map: `updated — revision 7`
+- architecture_impact: `none — UI composition only`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- `SCN-CPU-UI-001`: `PASS` — core count와 advanced CPU heading이 서로 다른 direct `.developer-tool-stack`에 있음을 smoke가 확인했다.
+- `SCN-CPU-UI-002`: `PASS` — mode pending 상태에서 dropdown value/text/disabled가 `applying / 설정 변경중 / true`였다.
+- `SCN-CPU-UI-003`: `PASS` — screenshot에서 border/background 없는 큰 font dropdown과 늘어난 top spacing을 확인했다.
+- desktop locked check: `PASS`.
+- desktop tests: `PASS`, 8/8.
+- main desktop smoke: `PASS`.
+- edited-file lints: `PASS`.
+- actual game workload: `NOT_RUN`.

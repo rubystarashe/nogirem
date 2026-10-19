@@ -62,7 +62,7 @@
 
 - updated_at: `2026-10-19T06:45:00Z`
 - supersedes: `CP-CPU-MODES-002`, `CP-CPU-MODE-SPLIT-003` for final product behavior
-- active_checkpoint: `CHECKPOINT_COMMIT`
+- active_checkpoint: `COMPLETE`
 - DEV: `READY_FOR_REVIEW`
 - QA: `COMPLETE_PASS`
 - review: `APPROVED`, `SELF_REVIEW`
@@ -88,3 +88,18 @@
 - architecture_contract: `updated — revision 39`
 - open mandatory findings: `none`
 - ownership: same single-agent writer; `NOTICE.md` and `data/` remain out of scope.
+
+## Follow-up CP-CPU-UI-LAYOUT-006
+
+- updated_at: `2026-10-19T07:47:00Z`
+- active_checkpoint: `CHECKPOINT_COMMIT`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
+- review: `REV-CPU-UI-LAYOUT-006-R1 APPROVED`, `SELF_REVIEW`
+- exact_target: `base 60e83bbb97f86e96d9051f230c2afbaf54757b94 + owned UI-layout target`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — advanced CPU hierarchy and preset feedback`
+- feature_map: `updated — revision 7`
+- architecture_impact: `none — UI composition only`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- open mandatory findings: `none`
+- ownership: single-agent writer; `NOTICE.md` and `data/` remain out of scope.
