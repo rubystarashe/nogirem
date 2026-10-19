@@ -141,3 +141,20 @@ Mandatory source and automated scenarios for this checkpoint passed. Actual game
 - main desktop smoke: `PASS`.
 - edited-file lints: `PASS`.
 - actual game workload: `NOT_RUN`.
+
+## Follow-up CP-CPU-DROPDOWN-007
+
+- qa_state: `COMPLETE_PASS`
+- source_target: `base f8c4411 + owned dropdown/action target`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode presentation and top-level advanced CPU options`
+- feature_map: `updated — revision 8`
+- architecture_impact: `none — UI composition only`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- `SCN-CPU-DROPDOWN-001`: `PASS` — computed border `0px`, transparent background, appearance `none`, 11px font, left 9px와 `부스트 모드` label을 확인했다.
+- `SCN-CPU-DROPDOWN-002`: `PASS` — standard labels가 `게임 집중 모드 / 균형 모드 / 안전 모드`이고 custom/pending roundtrip이 유지됐다.
+- `SCN-CPU-ADVANCED-001`: `PASS` — core count, safe action, priority action, CPU reorder가 direct order로 배치되고 두 option button이 `사용하기`를 표시했다.
+- desktop locked check: `PASS`.
+- desktop tests: `PASS`, 8/8.
+- main desktop smoke: `PASS`.
+- edited-file lints: `PASS`.
+- actual game workload: `NOT_RUN`.

@@ -219,9 +219,15 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
     )
     .await?;
     tokio::time::sleep(Duration::from_millis(200)).await;
-    let presets = inspect(&main, "(()=>{const p=document.querySelector('.cpu-preset-selector');const d=document.querySelector('.dxvk-update-link');const s=p.querySelector('select');return {labels:[...s.options].map(e=>e.textContent),value:s.value,top:p.getBoundingClientRect().top,dxvkBottom:d.getBoundingClientRect().bottom}})()").await?;
-    if presets["labels"] != json!(["게임 집중", "균형", "안전 모드"])
+    let presets = inspect(&main, "(()=>{const p=document.querySelector('.cpu-preset-selector');const d=document.querySelector('.dxvk-update-link');const s=p.querySelector('select');const style=getComputedStyle(s);return {labels:[...s.options].map(e=>e.textContent),value:s.value,ruby:p.querySelector('.cpu-preset-ruby')?.textContent,left:p.getBoundingClientRect().left,top:p.getBoundingClientRect().top,dxvkBottom:d.getBoundingClientRect().bottom,border:style.borderTopWidth,background:style.backgroundColor,fontSize:style.fontSize,appearance:style.appearance}})()").await?;
+    if presets["labels"] != json!(["게임 집중 모드", "균형 모드", "안전 모드"])
         || presets["value"] != "focus"
+        || presets["ruby"] != "부스트 모드"
+        || presets["left"] != 9
+        || presets["border"] != "0px"
+        || presets["background"] != "rgba(0, 0, 0, 0)"
+        || presets["fontSize"] != "11px"
+        || presets["appearance"] != "none"
         || presets["top"].as_f64().unwrap_or(0.0)
             < presets["dxvkBottom"].as_f64().unwrap_or(f64::MAX)
     {
@@ -295,11 +301,23 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
     tokio::time::sleep(Duration::from_millis(900)).await;
 
     tokio::time::sleep(Duration::from_millis(900)).await;
-    let advanced = inspect(&main, r#"(()=>{const panel=document.querySelector('.creator-content');const stacks=[...document.querySelectorAll('.developer-tools>.developer-tool-stack')];return {panel:!!panel,headings:panel?[...panel.querySelectorAll('h2')].map(e=>e.textContent):[],cpuSections:stacks.map((e,index)=>({index,heading:e.querySelector('h2')?.textContent})).filter(e=>e.heading==='게임 CPU 코어 할당 개수'||e.heading==='고급 CPU 설정'),scrollable:panel?panel.scrollHeight>panel.clientHeight:false,icons:document.querySelectorAll('.window-controls svg').length,tabs:[...document.querySelectorAll('.creator-tabs button')].map(e=>e.textContent),body:document.body.innerText.slice(0,500)}})()"#).await?;
+    let advanced = inspect(&main, r#"(()=>{const panel=document.querySelector('.creator-content');const items=[...document.querySelector('.developer-tools').children].map((e,index)=>({index,heading:e.querySelector('h2')?.textContent??'',action:e.matches('.developer-tool-row')?(e.querySelector(':scope>button')?.textContent??''):''}));const wanted=new Set(['게임 CPU 코어 할당 개수','안전 모드 사용','일반 백그라운드 프로세스 우선순위 낮춤','CPU 재정렬']);return {panel:!!panel,headings:panel?[...panel.querySelectorAll('h2')].map(e=>e.textContent):[],cpuOptions:items.filter(e=>wanted.has(e.heading)),scrollable:panel?panel.scrollHeight>panel.clientHeight:false,icons:document.querySelectorAll('.window-controls svg').length,tabs:[...document.querySelectorAll('.creator-tabs button')].map(e=>e.textContent),body:document.body.innerText.slice(0,500)}})()"#).await?;
     if advanced["scrollable"] != true
         || advanced["icons"] != 4
-        || advanced["cpuSections"].as_array().is_none_or(|sections| {
-            sections.len() != 2 || sections[0]["index"] == sections[1]["index"]
+        || advanced["cpuOptions"].as_array().is_none_or(|options| {
+            options.len() != 4
+                || options[0]["heading"] != "게임 CPU 코어 할당 개수"
+                || options[1]["heading"] != "안전 모드 사용"
+                || options[1]["action"] != "사용하기"
+                || options[2]["heading"] != "일반 백그라운드 프로세스 우선순위 낮춤"
+                || options[2]["action"] != "사용하기"
+                || options[3]["heading"] != "CPU 재정렬"
+                || !(options[0]["index"].as_u64().unwrap_or(u64::MAX)
+                    < options[1]["index"].as_u64().unwrap_or(0)
+                    && options[1]["index"].as_u64().unwrap_or(u64::MAX)
+                        < options[2]["index"].as_u64().unwrap_or(0)
+                    && options[2]["index"].as_u64().unwrap_or(u64::MAX)
+                        < options[3]["index"].as_u64().unwrap_or(0))
         })
         || advanced["headings"]
             .as_array()
@@ -319,7 +337,7 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
     {
         return Err("CPU 코어 개수 설정이 서비스에 전달되지 않았습니다".into());
     }
-    inspect(&main, "[...document.querySelectorAll('.cpu-advanced-options label')].find(e=>e.textContent.includes('안전 모드 사용')).querySelector('input').click();true").await?;
+    inspect(&main, "[...document.querySelectorAll('.developer-tool-row')].find(e=>e.querySelector('h2')?.textContent==='안전 모드 사용').querySelector('button').click();true").await?;
     tokio::time::sleep(Duration::from_millis(300)).await;
     if state.peek().services["affinity"]["gameCoreSetting"]["gameCoreCount"] != 5
         || state.peek().services["affinity"]["gameCoreSetting"]["cpuMode"] != "safe"
@@ -334,7 +352,8 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
     tokio::time::sleep(Duration::from_millis(900)).await;
     let customized = inspect(&main, "(()=>{const e=document.querySelector('.cpu-preset-selector select');return{value:e.value,options:[...e.options].map(o=>o.textContent)}})()").await?;
     if customized["value"] != "custom"
-        || customized["options"] != json!(["게임 집중", "균형", "안전 모드", "사용자화"])
+        || customized["options"]
+            != json!(["게임 집중 모드", "균형 모드", "안전 모드", "사용자화"])
     {
         return Err(format!("사용자화 CPU 설정 표시가 올바르지 않습니다: {customized}"));
     }

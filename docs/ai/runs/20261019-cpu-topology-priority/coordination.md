@@ -77,7 +77,7 @@
 ## Follow-up CP-CPU-CUSTOMIZED-005
 
 - updated_at: `2026-10-19T07:05:00Z`
-- active_checkpoint: `CHECKPOINT_COMMIT`
+- active_checkpoint: `COMPLETE`
 - DEV: `DONE`
 - QA: `COMPLETE_PASS`
 - review: `REV-CPU-CUSTOMIZED-005-R2 APPROVED`, `SELF_REVIEW`
@@ -99,6 +99,21 @@
 - exact_target: `base 60e83bbb97f86e96d9051f230c2afbaf54757b94 + owned UI-layout target`
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST — advanced CPU hierarchy and preset feedback`
 - feature_map: `updated — revision 7`
+- architecture_impact: `none — UI composition only`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- open mandatory findings: `none`
+- ownership: single-agent writer; `NOTICE.md` and `data/` remain out of scope.
+
+## Follow-up CP-CPU-DROPDOWN-007
+
+- updated_at: `2026-10-19T07:59:00Z`
+- active_checkpoint: `CHECKPOINT_COMMIT`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
+- review: `REV-CPU-DROPDOWN-007-R1 APPROVED`, `SELF_REVIEW`
+- exact_target: `base f8c4411 + owned dropdown/action target`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode presentation and top-level advanced CPU options`
+- feature_map: `updated — revision 8`
 - architecture_impact: `none — UI composition only`
 - architecture_contract: `no_change — revision 39 remains accurate`
 - open mandatory findings: `none`

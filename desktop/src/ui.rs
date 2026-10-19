@@ -631,8 +631,6 @@ fn Advanced() -> Element {
             div { h2 { "시작 음악 음소거" } p { "프로그램을 실행할 때 나오는 시작 음악을 재생하지 않습니다" } }
             Action { label: if s.muted { "사용 중" } else { "사용하기" }, channel: "application:set-startup-music-setting", args: json!([!s.muted]), class: if s.muted { "active" } else { "" } }
         }
-        div { class: "developer-tool-stack", CpuSettings {} }
-        div { class: "developer-tool-stack", CpuAdvancedSettings {} }
         div { class: "developer-tool-row",
             div {
                 h2 { "실시간 게임 서버 모니터링" }
@@ -666,6 +664,8 @@ fn Advanced() -> Element {
             }
         }
         if let Some(error) = s.input["error"].as_str() { span { class: "developer-tool-status", "{error}" } }
+        div { class: "developer-tool-stack", CpuSettings {} }
+        CpuAdvancedSettings {}
         div { class: "developer-tool-row",
             div { h2 { "CPU 재정렬" } p { "게임 코어 고정을 켠 상태에서 CPU 격리 구성을 재설정하여 캐시 초기화를 유도합니다" } }
             Action { label: "CPU 재정렬", channel: "optimization:run-cpu-reorder", disabled: !(s.services["affinity"]["running"] == true && s.services["memory"]["running"] == true && s.services["affinity"]["gameActive"] == true && s.services["affinity"]["gameCoreSetting"]["cpuMode"] != "safe") }
@@ -974,25 +974,29 @@ fn CpuPresetSelector(entered: bool) -> Element {
     let applying = snapshot.pending.contains("optimization:set-cpu-mode");
     rsx! {
         div { class: format!("cpu-preset-selector {}", if entered { "entered" } else { "" }), aria_label: "CPU 모드 프리셋",
-            select {
-                value: if applying { "applying" } else { selected_value },
-                disabled: snapshot.busy || applying || setting["supported"] != true,
-                onchange: {let client=client.clone(); move |event| {
-                    let value = event.value();
-                    if value != "custom" {
-                        command(client.clone(), state, "optimization:set-cpu-mode", json!([value]))
-                    }
-                }},
-                if applying {
-                    option { value: "applying", "설정 변경중" }
-                } else {
-                    option { value: "focus", "게임 집중" }
-                    option { value: "balanced", "균형" }
-                    option { value: "safe", "안전 모드" }
-                    if customized {
-                        option { value: "custom", "사용자화" }
+            span { class: "cpu-preset-ruby", "부스트 모드" }
+            div { class: "cpu-preset-field",
+                select {
+                    value: if applying { "applying" } else { selected_value },
+                    disabled: snapshot.busy || applying || setting["supported"] != true,
+                    onchange: {let client=client.clone(); move |event| {
+                        let value = event.value();
+                        if value != "custom" {
+                            command(client.clone(), state, "optimization:set-cpu-mode", json!([value]))
+                        }
+                    }},
+                    if applying {
+                        option { value: "applying", "설정 변경중" }
+                    } else {
+                        option { value: "focus", "게임 집중 모드" }
+                        option { value: "balanced", "균형 모드" }
+                        option { value: "safe", "안전 모드" }
+                        if customized {
+                            option { value: "custom", "사용자화" }
+                        }
                     }
                 }
+                span { class: "cpu-preset-arrow", aria_hidden: "true", "⌄" }
             }
         }
     }
@@ -1066,7 +1070,6 @@ fn CpuSettings() -> Element {
 #[component]
 fn CpuAdvancedSettings() -> Element {
     let state = use_context::<Signal<State>>();
-    let client = use_context::<Client>();
     let s = state.read().clone();
     let setting = s.services["affinity"]["gameCoreSetting"].clone();
     let safe_applying = s.pending.contains("optimization:set-safe-cpu-mode");
@@ -1074,28 +1077,31 @@ fn CpuAdvancedSettings() -> Element {
         .pending
         .contains("optimization:set-lower-background-priority");
     rsx! {
-        div { class: "cpu-advanced-options",
-            h2 { "고급 CPU 설정" }
-            label {
-                input {
-                    r#type: "checkbox",
-                    checked: setting["cpuMode"] == "safe",
-                    disabled: s.busy || safe_applying || setting["supported"] != true,
-                    onchange: {let client=client.clone(); move |event| command(client.clone(), state, "optimization:set-safe-cpu-mode", json!([event.checked()]))}
-                }
-                "안전 모드 사용"
+        div { class: "developer-tool-row",
+            div {
+                h2 { "안전 모드 사용" }
+                p { "게임 affinity를 고정하지 않고 Windows 스케줄러에 맡기며, 수동 코어 개수는 유지합니다" }
             }
-            small { "게임 affinity를 고정하지 않고 Windows 스케줄러에 맡기며, 수동 코어 개수는 유지합니다" }
-            label {
-                input {
-                    r#type: "checkbox",
-                    checked: setting["lowerBackgroundPriority"] == true,
-                    disabled: s.busy || priority_applying,
-                    onchange: {let client=client.clone(); move |event| command(client.clone(), state, "optimization:set-lower-background-priority", json!([event.checked()]))}
-                }
-                "일반 백그라운드 프로세스 우선순위 낮춤"
+            Action {
+                label: if setting["cpuMode"] == "safe" { "사용 중" } else { "사용하기" },
+                channel: "optimization:set-safe-cpu-mode",
+                args: json!([setting["cpuMode"] != "safe"]),
+                disabled: safe_applying || setting["supported"] != true,
+                class: if setting["cpuMode"] == "safe" { "active" } else { "" }
             }
-            small { "게임, 입력·오디오 등 지연 민감 프로세스와 제외 프로세스의 우선순위는 변경하지 않습니다" }
+        }
+        div { class: "developer-tool-row",
+            div {
+                h2 { "일반 백그라운드 프로세스 우선순위 낮춤" }
+                p { "게임, 입력·오디오 등 지연 민감 프로세스와 제외 프로세스의 우선순위는 변경하지 않습니다" }
+            }
+            Action {
+                label: if setting["lowerBackgroundPriority"] == true { "사용 중" } else { "사용하기" },
+                channel: "optimization:set-lower-background-priority",
+                args: json!([setting["lowerBackgroundPriority"] != true]),
+                disabled: priority_applying,
+                class: if setting["lowerBackgroundPriority"] == true { "active" } else { "" }
+            }
         }
     }
 }

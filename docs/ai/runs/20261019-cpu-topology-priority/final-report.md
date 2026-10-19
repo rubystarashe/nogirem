@@ -69,3 +69,18 @@
 - review: `REV-CPU-UI-LAYOUT-006-R1 APPROVED`, `SELF_REVIEW`; no independent reviewer and no unresolved mandatory finding.
 - actual game workload: `NOT_RUN`.
 - commit/push/deploy: local checkpoint contains this report and its resulting SHA is reported externally; push/deploy/release not performed or authorized.
+
+## Final current disposition — CP-CPU-DROPDOWN-007
+
+- disposition: `COMPLETED`
+- target: `base f8c4411 + owned dropdown/action target committed with this report; resulting SHA is reported externally`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode presentation and top-level advanced CPU options`
+- feature_map: `updated — revision 8`
+- architecture_impact: `none — service/data/topology boundaries unchanged`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- delivered: boxless transparent dropdown with ruby label/custom arrow/color transition; normalized mode names; core count/safe/priority top-level actions before CPU reorder.
+- automated-test-passing: desktop locked check, desktop 8/8, main smoke and edited-file lints.
+- manually exercised: computed style, DOM order/actions, preset roundtrip and screenshot review.
+- review: `REV-CPU-DROPDOWN-007-R1 APPROVED`, `SELF_REVIEW`; no independent reviewer and no unresolved mandatory finding.
+- actual game workload: `NOT_RUN`.
+- commit/push/deploy: local checkpoint contains this report and its resulting SHA is reported externally; push/deploy/release not performed or authorized.
