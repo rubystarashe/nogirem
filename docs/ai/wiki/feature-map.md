@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `30`
-- updated_at: `2026-10-15T13:35:00Z`
+- revision: `31`
+- updated_at: `2026-10-19T05:35:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-15T13:35:00Z`
+- source_reviewed_at: `2026-10-19T05:35:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `d1b87085c360133eab49455348142efe94435f78`
-- source_review_evidence: `graphics.rs·ui.rs·radeon helper·Electron compatibility source와 helper binary rebuild`
-- behavior_verified_at: `2026-10-15T13:35:00Z`
+- source_review_target: `base 1502358cc77df6a35e3515cf5ec98ddd2f0737ab + RUN 20261019-cpu-topology-priority owned-file manifest`
+- source_review_evidence: `topology.rs, process.rs, affinity.rs, worker/settings/service/UI diff SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T05:35:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `reviewed code hashes committed in d1b87085c360133eab49455348142efe94435f78`
-- behavior_verification_environment: `Windows 10.0.26200 x64, RTX 4090 + AMD Radeon(TM) Graphics 혼합 GPU source 실행`
-- behavior_verification_evidence: `실제 graphics status가 NVIDIA GeForce RTX 4090 선택, graphics 6/6, backend 115 PASS·3 ignored와 parity 2/2, Node 211/211, desktop check PASS`
+- behavior_verification_target: `base 1502358cc77df6a35e3515cf5ec98ddd2f0737ab + RUN 20261019-cpu-topology-priority owned-file manifest`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Rust backend/desktop test target and Node v22.20.0`
+- behavior_verification_evidence: `backend 124 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, desktop locked check, live topology query와 child-process priority roundtrip`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 NVIDIA 우선 routing, AMD 명시 적용과 튜닝 API 금지 경계를 반영`
-- known_gaps: `실제 AMD 단독 GPU에서 적용 전후 언더볼팅 값 유지와 3D 목표 적용은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-GRAPHICS-SETTINGS — 혼합 GPU NVIDIA 선택과 AMD 3D 최적화 복구`
-- feature_map: `updated — revision 2와 GFX-007~010 추가`
-- architecture_impact: `NVIDIA 우선 선택, AMD 상태의 ADLX 미초기화, 명시 적용의 3D 전용 helper 계약`
-- architecture_contract: `updated — revision 29`
+- freshness_reason: `현재 source의 CPU topology 결합, 선택적 affinity/priority와 durable recovery를 반영`
+- known_gaps: `실제 마비노기 프레임·입력 체감과 helper 강제 종료 복구 UI는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — CPU topology, 비중첩 allocation, 저코어 보호, 선택적 affinity/priority`
+- feature_map: `updated — revision 31, BOOST-006~011 추가`
+- architecture_impact: `topology authority, same-handle process adapter, durable original-state ledger and settings IPC`
+- architecture_contract: `updated — revision 35`
 
 ## ID 할당
 
@@ -120,21 +120,40 @@
 - lifecycle: `ACTIVE`
 - lifecycle_reason: `Rust/Dioxus 앱이 게임 실행 상태에 따라 affinity·메모리 helper를 유지하고 사용자가 적용·중단할 수 있음`
 - owners: `product=nogirem maintainer`, `technical=boost/affinity backend owner`
-- purpose_and_scope: 관리자 권한 Windows 사용자의 마비노기 실행을 감지해 게임과 백그라운드 CPU 범위를 관리하고, 게임 미실행 중에는 대기 상태를 표시하며 언제든 중단·복원한다.
-- exclusions: 하드웨어·드라이버 교착 복구, 타 프로그램의 별도 affinity writer 통제, 비정상 종료 전 임의 custom mask의 완전한 원상복구는 보장하지 않는다.
+- purpose_and_scope: 관리자 권한 Windows 사용자의 마비노기 실행을 감지한다. CPU Set의 efficiency·scheduling class와 GLPIEx 물리 코어·SMT·L3·processor group 정보를 결합해 요청한 P-core를 같은 L3 domain부터 선택하고, 일반 백그라운드를 남은 P-core와 E-core의 겹치지 않는 mask로 이동한다. 기본은 게임을 고정하지 않으며 사용자가 고급 설정을 켠 경우에만 게임 affinity를 선택 mask에 고정한다.
+- exclusions: 물리 코어 4개 이하와 복수 processor group은 CPU 분할 대상이 아니다. L3 크기를 성능 등급으로 해석하지 않으며 하드웨어·드라이버 교착 복구, 외부 affinity/priority writer 통제, 실제 frame 향상을 보장하지 않는다.
 - personas_permissions_accessibility_entry: 일반 사용자가 메인 화면을 클릭해 적용·중단하며 관리자 권한이 필요하다. 상태는 문구로 표시하고 오류는 확인 가능한 alert로 제공한다.
 - preconditions_dependencies: Windows CPU topology, `config.json`, affinity/memory helper, Win32 process query, `%APPDATA%\마비노기 렘 부스터` 상태 폴더.
-- normal_error_cancel_retry_flow: helper 상태의 PID·시작 시각·생존을 함께 확인한다. 게임이 없으면 대기하지만 중단 버튼은 활성이다. runtime 조회 실패 시 화면 상태를 중단으로 보정하고 polling을 계속한다. `helperStartedAt`이 없는 살아 있는 0.4.2 helper는 control 명령으로 종료한 뒤 0.4.3 helper로 교체한다.
-- concurrency_partial_failure_recovery: affinity·memory operation lock이 작업을 직렬화한다. 두 helper 중 하나가 실패하면 해당 runtime을 비실행으로 표시하며 사용자가 중단하거나 ensure 경로가 재시작한다.
-- state_side_effects_limits: 프로세스 affinity, memory cleanup, 선택적 NIC RSS를 변경한다. `status.json`, `control.json`, `runtime-state.json`, `applied-marker.json`, `events.log`를 사용한다.
+- normal_error_cancel_retry_flow: helper 상태의 PID·시작 시각·생존을 함께 확인한다. 게임이 없으면 대기하지만 중단 버튼은 활성이다. CPU 구성이 안전하게 표현되지 않으면 사유를 표시하고 affinity만 건너뛰며 다른 boost 기능은 유지한다. runtime 조회 실패 시 화면 상태를 중단으로 보정하고 polling을 계속한다.
+- concurrency_partial_failure_recovery: affinity·memory operation lock이 작업을 직렬화한다. affinity/priority는 열거 후 같은 process handle에서 생성 시각을 확인한 뒤 적용한다. 원본과 앱 적용값을 변경 전에 durable ledger에 기록하고, 복원 시 현재 값이 앱 적용값과 같은 항목만 원본으로 되돌려 외부 변경을 보존한다. 실패한 복원 entry는 다음 시작 복구를 위해 남긴다.
+- state_side_effects_limits: 기본 모드는 일반 background affinity만 변경한다. `bindGameAffinity=true`일 때만 게임 affinity를, `lowerBackgroundPriority=true`일 때만 일반 background priority를 `BELOW_NORMAL_PRIORITY_CLASS`로 변경한다. 게임·latency-sensitive·Windows/system·명시 제외 process의 priority는 변경하지 않는다. memory cleanup과 선택적 NIC RSS는 독립적으로 유지한다.
 - modules_contracts: `desktop/src/ui.rs` → `service.rs` → `boost.rs` → `affinity_worker.rs`/`affinity.rs`. helper PID와 최신 timestamp가 실행 상태의 필수 조건이다.
-- durable_data_owner: affinity helper가 affinity runtime과 `game/path.json`의 유일한 writer이며 backend/UI가 읽는다.
+- durable_data_owner: affinity helper가 `runtime-state.json`, runtime status와 `game/path.json`의 유일한 writer다. backend service만 `game-core-setting.json`을 정규화해 쓰고 helper/UI가 읽는다.
 - security_privacy: 다른 `Client.exe` 오탐을 막기 위해 정본의 명시적 게임 폴더를 사용하며 진단 내 사용자 경로는 마스킹한다.
-- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 0.4.2 helper 인계`, `BOOST-005 게임 시작·종료 affinity 적용·복원`
-- observability_evidence: UI 상태 문구, `affinity/events.log`, diagnostics affinity snapshot, `boost::tests`, `test/application-reliability.test.mjs`
+- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 legacy helper 인계`, `BOOST-005 게임 시작·종료 원본 복원`, `BOOST-006 hybrid 요청 P-core와 background 비중첩`, `BOOST-007 L3 locality·SMT on/off`, `BOOST-008 4-core·복수 group fail-safe`, `BOOST-009 게임 binding 기본 false와 opt-in`, `BOOST-010 background-only priority opt-in`, `BOOST-011 PID 재사용·외부 변경 보존·재시작 복구`
+- observability_evidence: UI topology 사유와 고급 설정, `affinity/events.log`, diagnostics affinity snapshot, `topology::tests`, `affinity::tests`, `process::tests::child_priority_roundtrip_uses_one_verified_handle`, backend parity와 Node service contract tests.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
+- record_id: `FEAT-NOGIREM-FRAME-BOOST`
+- owner: `nogirem maintainer`
+- revision: `2`
+- updated_at: `2026-10-19T05:35:00Z`
+- updated_by: `cursor-agent-92251f36`
+- source_reviewed_at: `2026-10-19T05:35:00Z`
+- source_reviewed_by: `cursor-agent-92251f36`
+- source_review_target: `base 1502358cc77df6a35e3515cf5ec98ddd2f0737ab + RUN 20261019-cpu-topology-priority owned-file manifest`
+- source_review_evidence: `SELF_REVIEW of topology/process/affinity/worker/settings/service/UI source and exact diff`
+- behavior_verified_at: `2026-10-19T05:35:00Z`
+- behavior_verified_by: `cursor-agent-92251f36`
+- behavior_verification_target: `base 1502358cc77df6a35e3515cf5ec98ddd2f0737ab + RUN 20261019-cpu-topology-priority owned-file manifest`
+- behavior_verification_environment: `Windows 10.0.26200 x64; Rust test processes and Node v22.20.0`
+- behavior_verification_evidence: `backend 124 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, live topology query, child priority roundtrip`
 - freshness_status: `CURRENT`
-- known_gaps: `helper 강제 종료와 실제 게임 종료를 결합한 수동 UI QA는 NOT_RUN`
+- freshness_reason: `현재 source의 topology·설정·복구 동작과 자동 실행 evidence를 반영`
+- known_gaps: `실제 마비노기 frame·입력 체감, 강제 종료 후 packaged UI 복구는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — topology, affinity, priority and recovery behavior updated`
+- feature_map: `updated — revision 2`
+- architecture_impact: `topology authority, process handle adapter, durable ledger, settings IPC`
+- architecture_contract: `updated — revision 35`
 
 ## FEAT-NOGIREM-TURBO-KEY
 

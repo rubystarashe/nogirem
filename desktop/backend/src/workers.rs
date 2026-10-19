@@ -1,4 +1,4 @@
-use crate::{Result, storage};
+use crate::{Result, settings, storage};
 use serde_json::{Value, json};
 use std::{
     io::{BufRead, BufReader},
@@ -74,7 +74,12 @@ impl Environment {
         config["gameExecutable"].as_str().unwrap_or("").into()
     }
     pub fn core_count(&self) -> Option<i64> {
-        read(&self.user.join("affinity/game-core-setting.json"))["gameCoreCount"].as_i64()
+        self.cpu_setting()["gameCoreCount"].as_i64()
+    }
+    pub fn cpu_setting(&self) -> Value {
+        settings::cpu(&read(
+            &self.user.join("affinity/game-core-setting.json"),
+        ))
     }
 }
 pub fn read(path: &Path) -> Value {

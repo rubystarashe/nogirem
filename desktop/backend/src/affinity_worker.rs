@@ -1,4 +1,8 @@
-use crate::{Result, affinity::Manager, nic, process, storage, topology};
+use crate::{
+    Result,
+    affinity::{Manager, Options},
+    nic, process, storage, topology,
+};
 use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
@@ -57,7 +61,7 @@ fn renderer(manager: &Manager, executable: &str) -> Value {
 }
 fn cpu_info(manager: &Manager) -> Value {
     let a = &manager.allocation;
-    json!({"source":a.source,"hybrid":a.hybrid,"physicalCoreCount":a.physical_core_count,"performanceCoreCount":a.performance_core_count,"efficiencyCoreCount":a.efficiency_core_count,"gameCoreCount":a.game_core_count,"defaultGameCoreCount":a.default_game_core_count,"maxGameCoreCount":a.max_game_core_count,"backgroundCpuRange":topology::cpu_range(&a.background_cpu_indexes),"gameCpuRange":topology::cpu_range(&a.game_cpu_indexes)})
+    json!({"source":a.source,"supported":a.supported,"processorGroupCount":a.processor_group_count,"hybrid":a.hybrid,"physicalCoreCount":a.physical_core_count,"performanceCoreCount":a.performance_core_count,"efficiencyCoreCount":a.efficiency_core_count,"gameCoreCount":a.game_core_count,"defaultGameCoreCount":a.default_game_core_count,"maxGameCoreCount":a.max_game_core_count,"backgroundCpuRange":topology::cpu_range(&a.background_cpu_indexes),"gameCpuRange":topology::cpu_range(&a.game_cpu_indexes),"error":a.topology_error})
 }
 struct Status {
     path: PathBuf,
@@ -150,21 +154,25 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
     let marker_path = path("applied-marker-path")?;
     let _lock = storage::HelperLock::acquire(&status_path, 0, &control)?;
     let config = storage::read_json(&root.join("config.json"))?.ok_or("config.json missing")?;
-    let requested = arg("game-core-count").and_then(|s| s.parse::<i64>().ok());
+    let mut requested = arg("game-core-count").and_then(|s| s.parse::<i64>().ok());
+    let mut bind_game = arg("bind-game-affinity").as_deref() == Some("true");
+    let mut lower_background_priority =
+        arg("lower-background-priority").as_deref() == Some("true");
     let mut manager = Manager::new(
         config.clone(),
         state.clone(),
         true,
         true,
-        requested,
-        false,
-        false,
+        Options {
+            requested_game_core_count: requested,
+            bind_game,
+            lower_background_priority,
+            ..Default::default()
+        },
     )?;
-    process::set_affinity(std::process::id(), manager.allocation.background_mask)?;
-    match std::fs::remove_file(&state) {
-        Ok(()) => (),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-        Err(e) => return Err(e.to_string()),
+    manager.recover()?;
+    if manager.allocation.supported {
+        process::set_affinity(std::process::id(), manager.allocation.background_mask)?;
     }
     let saved = storage::read_json(&game_path)?.unwrap_or(Value::Null);
     let previous = storage::read_json(&status_path)?.unwrap_or(Value::Null);
@@ -204,23 +212,72 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
                         status.reconfigure = json!({"requestId":command["requestId"],"state":"running","requestedAt":command["requestedAt"]});
                         status.write(&manager, true, None)?;
                         let result = (|| -> Result<()> {
-                            let requested = command["gameCoreCount"]
+                            let next_requested = command["gameCoreCount"]
                                 .as_i64()
                                 .ok_or("마비노기 CPU 코어 수가 올바르지 않습니다")?;
                             manager.reset_all()?;
+                            requested = Some(next_requested);
                             manager = Manager::new(
                                 config.clone(),
                                 state.clone(),
                                 true,
                                 true,
-                                Some(requested),
-                                false,
-                                false,
+                                Options {
+                                    requested_game_core_count: requested,
+                                    bind_game,
+                                    lower_background_priority,
+                                    ..Default::default()
+                                },
                             )?;
-                            process::set_affinity(
-                                std::process::id(),
-                                manager.allocation.background_mask,
+                            if manager.allocation.supported {
+                                process::set_affinity(
+                                    std::process::id(),
+                                    manager.allocation.background_mask,
+                                )?;
+                            }
+                            manager.tick()
+                        })();
+                        status.reconfigure["state"] = json!(if result.is_ok() {
+                            "completed"
+                        } else {
+                            "failed"
+                        });
+                        status.reconfigure["completedAt"] = json!(crate::now_ms());
+                        if let Err(e) = result {
+                            status.reconfigure["error"] = json!({"message":e});
+                        }
+                    }
+                    "set-cpu-options" => {
+                        status.reconfigure = json!({"requestId":command["requestId"],"state":"running","requestedAt":command["requestedAt"]});
+                        status.write(&manager, true, None)?;
+                        let result = (|| -> Result<()> {
+                            let next_bind = command["bindGameAffinity"]
+                                .as_bool()
+                                .ok_or("게임 affinity 설정이 올바르지 않습니다")?;
+                            let next_priority = command["lowerBackgroundPriority"]
+                                .as_bool()
+                                .ok_or("백그라운드 priority 설정이 올바르지 않습니다")?;
+                            manager.reset_all()?;
+                            bind_game = next_bind;
+                            lower_background_priority = next_priority;
+                            manager = Manager::new(
+                                config.clone(),
+                                state.clone(),
+                                true,
+                                true,
+                                Options {
+                                    requested_game_core_count: requested,
+                                    bind_game,
+                                    lower_background_priority,
+                                    ..Default::default()
+                                },
                             )?;
+                            if manager.allocation.supported {
+                                process::set_affinity(
+                                    std::process::id(),
+                                    manager.allocation.background_mask,
+                                )?;
+                            }
                             manager.tick()
                         })();
                         status.reconfigure["state"] = json!(if result.is_ok() {

@@ -191,6 +191,13 @@ pub fn turbo_keys(v: &Value) -> Vec<u64> {
 pub fn turbo(v: &Value) -> Value {
     json!({"enabled":v["enabled"]==true,"keys":turbo_keys(&v["keys"]),"intervalMs":choice(&v["intervalMs"],&[1,3,5,10,20,30],1),"ignoreInitialDelay":v["ignoreInitialDelay"]==true})
 }
+pub fn cpu(v: &Value) -> Value {
+    json!({
+        "gameCoreCount": v["gameCoreCount"].as_i64().filter(|count| *count > 0),
+        "bindGameAffinity": v["bindGameAffinity"] == true,
+        "lowerBackgroundPriority": v["lowerBackgroundPriority"] == true
+    })
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,5 +223,17 @@ mod tests {
         assert_eq!(s["featureEnabled"], true);
         assert_eq!(s["maxDurationSeconds"], 604800);
         assert_eq!(s["capacityGb"], 50);
+    }
+    #[test]
+    fn cpu_advanced_options_default_to_disabled() {
+        let defaults = cpu(&Value::Null);
+        assert_eq!(defaults["bindGameAffinity"], false);
+        assert_eq!(defaults["lowerBackgroundPriority"], false);
+        let enabled = cpu(
+            &json!({"gameCoreCount":4,"bindGameAffinity":true,"lowerBackgroundPriority":true}),
+        );
+        assert_eq!(enabled["gameCoreCount"], 4);
+        assert_eq!(enabled["bindGameAffinity"], true);
+        assert_eq!(enabled["lowerBackgroundPriority"], true);
     }
 }

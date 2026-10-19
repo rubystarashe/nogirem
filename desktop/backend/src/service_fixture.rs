@@ -57,6 +57,15 @@ pub fn invoke(s: &Arc<Service>, id: u64, channel: &str, args: &Value) -> Option<
             state["status"]["affinity"]["data"]["gameCoreSetting"]["gameCoreCount"] = v.clone();
             state["status"]["affinity"]["data"].clone()
         }
+        "optimization:set-bind-game-affinity" => {
+            state["status"]["affinity"]["data"]["gameCoreSetting"]["bindGameAffinity"] = v.clone();
+            state["status"]["affinity"]["data"].clone()
+        }
+        "optimization:set-lower-background-priority" => {
+            state["status"]["affinity"]["data"]["gameCoreSetting"]["lowerBackgroundPriority"] =
+                v.clone();
+            state["status"]["affinity"]["data"].clone()
+        }
         "application:get-update-state" => state.get("update").cloned().unwrap_or(json!({"phase":"idle","percent":0})),
         "application:check-update" => {
             if !matches!(state["update"]["phase"].as_str(),Some("downloading"|"downloaded"|"installing")) {

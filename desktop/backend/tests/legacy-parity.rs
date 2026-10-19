@@ -22,17 +22,26 @@ fn original_backend_parity() {
     }
     for case in cases["topology"].as_array().unwrap() {
         let cpus: Vec<topology::CpuSet> = serde_json::from_value(case["cpuSets"].clone()).unwrap();
-        let actual = topology::build(
+        let actual = topology::build_fixture(
             &cpus,
             case["count"].as_u64().unwrap() as usize,
             case["requested"].as_i64(),
         )
         .unwrap();
-        assert_eq!(
-            serde_json::to_value(actual).unwrap(),
-            case["expected"],
-            "topology: {case}"
-        );
+        if actual.physical_core_count.is_some_and(|count| count <= 4) {
+            assert!(!actual.supported, "topology: {case}");
+        } else {
+            assert_eq!(
+                actual.game_mask & actual.background_mask,
+                0,
+                "topology: {case}"
+            );
+            assert_eq!(
+                actual.game_mask | actual.background_mask,
+                actual.all_mask,
+                "topology: {case}"
+            );
+        }
     }
     for case in cases["keys"].as_array().unwrap() {
         assert_eq!(

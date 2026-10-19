@@ -78,6 +78,16 @@ fn topology_failure(detail: &str) -> String {
     if detail.contains("Inconsistent efficiency class") {
         return "Windows CPU 성능 코어 분류 정보가 일관되지 않습니다".into();
     }
+    if detail.contains("processor group") {
+        return "64개를 초과하는 논리 프로세서 구성에서는 CPU 분할을 사용하지 않습니다".into();
+    }
+    if detail.contains("물리 코어") {
+        return detail.into();
+    }
+    if detail.contains("GetLogicalProcessorInformationEx") {
+        return "Windows 물리 코어와 캐시 구성을 확인하지 못해 CPU 분할을 사용하지 않습니다"
+            .into();
+    }
     if detail.is_empty() {
         "CPU 코어 구성 분석에 실패했습니다".into()
     } else {
@@ -140,14 +150,15 @@ impl Boost {
         Ok(status)
     }
     pub fn core_setting(&self) -> Result<Value> {
-        let requested = self.env.core_count();
+        let saved = self.env.cpu_setting();
+        let requested = saved["gameCoreCount"].as_i64();
         let allocation = topology::resolve(requested)?;
         let detail = allocation
             .topology_error
             .as_ref()
             .and_then(|e| e["message"].as_str());
         Ok(
-            json!({"supported":allocation.game_core_count.is_some()&&allocation.max_game_core_count.is_some(),"gameCoreCount":allocation.game_core_count,"defaultGameCoreCount":allocation.default_game_core_count,"maxGameCoreCount":allocation.max_game_core_count,"physicalCoreCount":allocation.physical_core_count,"performanceCoreCount":allocation.performance_core_count,"efficiencyCoreCount":allocation.efficiency_core_count,"hybrid":allocation.hybrid,"customized":requested.is_some(),"failureReason":detail.map(topology_failure),"failureDetail":detail}),
+            json!({"supported":allocation.supported,"gameCoreCount":allocation.game_core_count,"defaultGameCoreCount":allocation.default_game_core_count,"maxGameCoreCount":allocation.max_game_core_count,"physicalCoreCount":allocation.physical_core_count,"performanceCoreCount":allocation.performance_core_count,"efficiencyCoreCount":allocation.efficiency_core_count,"hybrid":allocation.hybrid,"processorGroupCount":allocation.processor_group_count,"customized":requested.is_some(),"bindGameAffinity":saved["bindGameAffinity"],"lowerBackgroundPriority":saved["lowerBackgroundPriority"],"failureReason":detail.map(topology_failure),"failureDetail":detail}),
         )
     }
     pub fn simplification(&self) -> Value {
@@ -300,6 +311,14 @@ impl Boost {
         if setting["supported"] == true {
             args.push(format!("--game-core-count={}", setting["gameCoreCount"]));
         }
+        args.push(format!(
+            "--bind-game-affinity={}",
+            setting["bindGameAffinity"] == true
+        ));
+        args.push(format!(
+            "--lower-background-priority={}",
+            setting["lowerBackgroundPriority"] == true
+        ));
         self.launch("affinity", args, 45000)
     }
     fn stop_worker(&self, kind: &str, reset: bool) -> Result<()> {
@@ -430,9 +449,12 @@ impl Boost {
         if !parsed.is_finite() || parsed.fract() != 0. || parsed < 1. || parsed > max as f64 {
             return Err(format!("마비노기 CPU 코어 수는 1~{max} 사이여야 합니다"));
         }
+        let mut saved = self.env.cpu_setting();
+        saved["gameCoreCount"] = json!(parsed as u64);
+        saved["updatedAt"] = json!(crate::app_services::iso());
         storage::write_json(
             &self.directory("affinity").join("game-core-setting.json"),
-            &json!({"gameCoreCount":parsed as u64,"updatedAt":crate::app_services::iso()}),
+            &saved,
         )?;
         let current = self.affinity_runtime()?;
         if current["running"] != true
@@ -447,6 +469,38 @@ impl Boost {
         self.control(
             "affinity",
             json!({"command":"set-game-core-count","requestId":id,"gameCoreCount":parsed as u64}),
+        )?;
+        self.wait_request("gameCoreReconfigure", &id, 10000)?;
+        self.affinity_status(false)
+    }
+    pub fn set_cpu_option(&self, name: &str, enabled: bool) -> Result<Value> {
+        let _operation = self.affinity_operation.lock().unwrap();
+        if !matches!(name, "bindGameAffinity" | "lowerBackgroundPriority") {
+            return Err("지원하지 않는 CPU 고급 설정입니다".into());
+        }
+        let mut saved = self.env.cpu_setting();
+        saved[name] = json!(enabled);
+        saved["updatedAt"] = json!(crate::app_services::iso());
+        storage::write_json(
+            &self.directory("affinity").join("game-core-setting.json"),
+            &saved,
+        )?;
+        let current = self.affinity_runtime()?;
+        if current["running"] != true {
+            return self.affinity_status(false);
+        }
+        if current["cpuReorder"]["state"] == "running" {
+            return Err("CPU 재정렬이 끝난 뒤 고급 설정을 변경해 주세요".into());
+        }
+        let id = uuid::Uuid::new_v4().to_string();
+        self.control(
+            "affinity",
+            json!({
+                "command":"set-cpu-options",
+                "requestId":id,
+                "bindGameAffinity":saved["bindGameAffinity"],
+                "lowerBackgroundPriority":saved["lowerBackgroundPriority"]
+            }),
         )?;
         self.wait_request("gameCoreReconfigure", &id, 10000)?;
         self.affinity_status(false)

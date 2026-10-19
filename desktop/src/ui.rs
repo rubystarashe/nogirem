@@ -316,6 +316,8 @@ fn command(client: Client, mut state: Signal<State>, channel: &'static str, args
                         }
                     }
                     "optimization:set-game-cpu-core-count"
+                    | "optimization:set-bind-game-affinity"
+                    | "optimization:set-lower-background-priority"
                     | "optimization:refresh-game-cpu-core-setting"
                     | "optimization:run-cpu-reorder" => state.services["affinity"] = value,
                     _ => {}
@@ -661,8 +663,8 @@ fn Advanced() -> Element {
         }
         if let Some(error) = s.input["error"].as_str() { span { class: "developer-tool-status", "{error}" } }
         div { class: "developer-tool-row",
-            div { h2 { "CPU 재정렬" } p { "CPU 격리 구성을 재설정하여 캐시 초기화를 유도합니다" } }
-            Action { label: "CPU 재정렬", channel: "optimization:run-cpu-reorder", disabled: !(s.services["affinity"]["running"] == true && s.services["memory"]["running"] == true && s.services["affinity"]["gameActive"] == true) }
+            div { h2 { "CPU 재정렬" } p { "게임 코어 고정을 켠 상태에서 CPU 격리 구성을 재설정하여 캐시 초기화를 유도합니다" } }
+            Action { label: "CPU 재정렬", channel: "optimization:run-cpu-reorder", disabled: !(s.services["affinity"]["running"] == true && s.services["memory"]["running"] == true && s.services["affinity"]["gameActive"] == true && s.services["affinity"]["gameCoreSetting"]["bindGameAffinity"] == true) }
         }
     } }
 }
@@ -975,6 +977,10 @@ fn CpuSettings() -> Element {
     let p = setting["performanceCoreCount"].as_u64();
     let e = setting["efficiencyCoreCount"].as_u64();
     let applying = s.pending.contains("optimization:set-game-cpu-core-count");
+    let bind_applying = s.pending.contains("optimization:set-bind-game-affinity");
+    let priority_applying = s
+        .pending
+        .contains("optimization:set-lower-background-priority");
     rsx! {
         div {
             h2 { "마비노기 CPU 우선 점유 비율 설정" }
@@ -1003,6 +1009,29 @@ fn CpuSettings() -> Element {
                 if let Some(detail)=setting["failureDetail"].as_str() { small { "상세: {detail}" } }
                 Action { label: "다시 확인", class: "developer-tool-secondary", channel: "optimization:refresh-game-cpu-core-setting" }
             }
+        }
+        div { class: "cpu-advanced-options",
+            h3 { "고급 CPU 설정" }
+            label {
+                input {
+                    r#type: "checkbox",
+                    checked: setting["bindGameAffinity"] == true,
+                    disabled: s.busy || bind_applying || setting["supported"] != true,
+                    onchange: {let client=client.clone(); move |event| command(client.clone(), state, "optimization:set-bind-game-affinity", json!([event.checked()]))}
+                }
+                "게임을 선택한 코어에 고정"
+            }
+            small { "끄면 백그라운드만 이동하고 게임 코어 선택은 Windows 스케줄러에 맡깁니다" }
+            label {
+                input {
+                    r#type: "checkbox",
+                    checked: setting["lowerBackgroundPriority"] == true,
+                    disabled: s.busy || priority_applying,
+                    onchange: {let client=client.clone(); move |event| command(client.clone(), state, "optimization:set-lower-background-priority", json!([event.checked()]))}
+                }
+                "일반 백그라운드 프로세스 우선순위 낮춤"
+            }
+            small { "게임, 입력·오디오 등 지연 민감 프로세스와 제외 프로세스의 우선순위는 변경하지 않습니다" }
         }
     }
 }

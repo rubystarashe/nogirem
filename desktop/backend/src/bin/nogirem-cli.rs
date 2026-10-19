@@ -1,6 +1,6 @@
 use nogirem_backend::{
     Result,
-    affinity::Manager,
+    affinity::{Manager, Options},
     graphics, memory, muo,
     network::{self, Operations},
     nic, process, storage,
@@ -114,9 +114,12 @@ fn run() -> Result<()> {
         root.join("runtime-state.json"),
         apply,
         true,
-        None,
-        has("--last-core"),
-        has("--passive"),
+        Options {
+            last_core: has("--last-core"),
+            passive: has("--passive"),
+            bind_game: true,
+            ..Default::default()
+        },
     )?;
     if has("--reset-all") {
         print(affinity.reset_all()?);

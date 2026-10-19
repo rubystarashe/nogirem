@@ -10,9 +10,11 @@ use windows_sys::Win32::{
         },
         RemoteDesktop::ProcessIdToSessionId,
         Threading::{
-            GetProcessAffinityMask, GetProcessTimes, OpenProcess,
+            BELOW_NORMAL_PRIORITY_CLASS, GetPriorityClass, GetProcessAffinityMask,
+            GetProcessTimes, OpenProcess,
             PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SET_INFORMATION, PROCESS_SYNCHRONIZE,
-            QueryFullProcessImageNameW, SetProcessAffinityMask, WaitForSingleObject,
+            QueryFullProcessImageNameW, SetPriorityClass, SetProcessAffinityMask,
+            WaitForSingleObject,
         },
     },
 };
@@ -34,6 +36,73 @@ fn open(pid: u32, writable: bool) -> Result<Handle> {
         Ok(Handle(h))
     }
 }
+pub const BACKGROUND_PRIORITY_CLASS: u32 = BELOW_NORMAL_PRIORITY_CLASS;
+
+pub struct ProcessHandle {
+    handle: Handle,
+}
+impl ProcessHandle {
+    pub fn open(pid: u32, writable: bool) -> Result<Self> {
+        Ok(Self {
+            handle: open(pid, writable)?,
+        })
+    }
+    pub fn start_ms(&self) -> Result<i64> {
+        let mut creation = FILETIME::default();
+        let mut exit = FILETIME::default();
+        let mut kernel = FILETIME::default();
+        let mut user = FILETIME::default();
+        if unsafe {
+            GetProcessTimes(
+                self.handle.0,
+                &mut creation,
+                &mut exit,
+                &mut kernel,
+                &mut user,
+            )
+        } == 0
+        {
+            return Err(std::io::Error::last_os_error().to_string());
+        }
+        let ticks = ((creation.dwHighDateTime as u64) << 32) | creation.dwLowDateTime as u64;
+        Ok(((ticks as i128 - 116444736000000000) / 10000) as i64)
+    }
+    pub fn start_time(&self) -> Option<String> {
+        chrono::DateTime::from_timestamp_millis(self.start_ms().ok()?)
+            .map(|date| date.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
+    }
+    pub fn affinity(&self) -> Result<u64> {
+        let (mut process, mut system) = (0, 0);
+        if unsafe { GetProcessAffinityMask(self.handle.0, &mut process, &mut system) } == 0 {
+            return Err(std::io::Error::last_os_error().to_string());
+        }
+        Ok(process as u64)
+    }
+    pub fn set_affinity(&self, mask: u64) -> Result<()> {
+        if mask == 0 {
+            return Err("CPU affinity mask cannot be zero".into());
+        }
+        if unsafe { SetProcessAffinityMask(self.handle.0, mask as usize) } == 0 {
+            return Err(std::io::Error::last_os_error().to_string());
+        }
+        Ok(())
+    }
+    pub fn priority(&self) -> Result<u32> {
+        let value = unsafe { GetPriorityClass(self.handle.0) };
+        if value == 0 {
+            Err(std::io::Error::last_os_error().to_string())
+        } else {
+            Ok(value)
+        }
+    }
+    pub fn set_priority(&self, priority: u32) -> Result<()> {
+        if unsafe { SetPriorityClass(self.handle.0, priority) } == 0 {
+            Err(std::io::Error::last_os_error().to_string())
+        } else {
+            Ok(())
+        }
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Process {
@@ -53,34 +122,19 @@ pub fn path(pid: u32) -> Result<String> {
     Ok(String::from_utf16_lossy(&data[..len as usize]))
 }
 pub fn affinity(pid: u32) -> Result<u64> {
-    let h = open(pid, false)?;
-    let (mut process, mut system) = (0, 0);
-    if unsafe { GetProcessAffinityMask(h.0, &mut process, &mut system) } == 0 {
-        return Err(std::io::Error::last_os_error().to_string());
-    }
-    Ok(process as u64)
+    ProcessHandle::open(pid, false)?.affinity()
 }
 pub fn set_affinity(pid: u32, mask: u64) -> Result<()> {
-    if mask == 0 {
-        return Err("CPU affinity mask cannot be zero".into());
-    }
-    let h = open(pid, true)?;
-    if unsafe { SetProcessAffinityMask(h.0, mask as usize) } == 0 {
-        return Err(std::io::Error::last_os_error().to_string());
-    }
-    Ok(())
+    ProcessHandle::open(pid, true)?.set_affinity(mask)
+}
+pub fn priority(pid: u32) -> Result<u32> {
+    ProcessHandle::open(pid, false)?.priority()
+}
+pub fn set_priority(pid: u32, priority: u32) -> Result<()> {
+    ProcessHandle::open(pid, true)?.set_priority(priority)
 }
 pub fn start_ms(pid: u32) -> Result<i64> {
-    let h = open(pid, false)?;
-    let mut creation = FILETIME::default();
-    let mut exit = FILETIME::default();
-    let mut kernel = FILETIME::default();
-    let mut user = FILETIME::default();
-    if unsafe { GetProcessTimes(h.0, &mut creation, &mut exit, &mut kernel, &mut user) } == 0 {
-        return Err(std::io::Error::last_os_error().to_string());
-    }
-    let ticks = ((creation.dwHighDateTime as u64) << 32) | creation.dwLowDateTime as u64;
-    Ok(((ticks as i128 - 116444736000000000) / 10000) as i64)
+    ProcessHandle::open(pid, false)?.start_ms()
 }
 pub fn start_time(pid: u32) -> Option<String> {
     chrono::DateTime::from_timestamp_millis(start_ms(pid).ok()?)
@@ -172,9 +226,7 @@ pub fn matches_game(info: &Process, config: &serde_json::Value) -> bool {
         .parent()
         .is_some_and(|d| d.join("Mabinogi.exe").is_file())
 }
-// Keep a handle to the verified process, rather than enumerating every process
-// on each memory-cleaner tick. A handle remains tied to the original process
-// after exit, so a reused PID cannot be mistaken for the game.
+// 검증한 프로세스의 handle을 유지해 재사용된 PID를 게임으로 오인하지 않는다.
 #[derive(Default)]
 pub struct GameWatch {
     process: Option<Handle>,
@@ -239,6 +291,25 @@ mod tests {
         assert!(start_ms(pid).unwrap() > 0);
         assert!(affinity(pid).unwrap() > 0);
         assert!(alive(pid));
+    }
+    #[test]
+    fn child_priority_roundtrip_uses_one_verified_handle() {
+        use std::{os::windows::process::CommandExt, process::Command};
+        let mut child = Command::new("cmd.exe")
+            .args(["/d", "/c", "ping -n 10 127.0.0.1 >nul"])
+            .creation_flags(0x08000000)
+            .spawn()
+            .unwrap();
+        let handle = ProcessHandle::open(child.id(), true).unwrap();
+        let started = handle.start_ms().unwrap();
+        let original = handle.priority().unwrap();
+        handle.set_priority(BACKGROUND_PRIORITY_CLASS).unwrap();
+        assert_eq!(handle.start_ms().unwrap(), started);
+        assert_eq!(handle.priority().unwrap(), BACKGROUND_PRIORITY_CLASS);
+        handle.set_priority(original).unwrap();
+        assert_eq!(handle.priority().unwrap(), original);
+        child.kill().unwrap();
+        child.wait().unwrap();
     }
     #[test]
     fn game_identification_excludes_other_clients() {

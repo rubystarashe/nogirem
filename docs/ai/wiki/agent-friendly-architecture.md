@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `34`
-- updated_at: `2026-10-16T06:21:00Z`
+- revision: `35`
+- updated_at: `2026-10-19T05:35:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-16T06:03:00Z`
+- source_reviewed_at: `2026-10-19T05:35:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `8d52c2f440f5256c9459d06e361188836bb968f2`
-- source_review_evidence: `native installer-cleanup source/build, NSIS fixed argument branches, process identity termination, task XML ownership, package wiring, tests and REV-NATIVE-INSTALLER-047-001`
-- behavior_verified_at: `2026-10-16T06:21:00Z`
+- source_review_target: `base 1502358cc77df6a35e3515cf5ec98ddd2f0737ab + RUN 20261019-cpu-topology-priority owned-file manifest`
+- source_review_evidence: `topology/process/affinity/worker/settings/service/UI exact diff SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T05:35:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source faee6cf2492b8247a11b4a787f3c0f8cf710b060; public v0.4.7 asset manifest 0636b672540c3f3acad2701cb7a4fa64b99554e0ed05cceeb2e00d2430851b1c`
-- behavior_verification_environment: `Windows 10.0.26200 x64 source fixtures, signed package and GitHub public re-downloads; installed NSIS uninstall NOT_RUN`
-- behavior_verification_evidence: `source checks and review PASS; public 9/9 candidate hashes, Ed25519, aliases, feed order, Electron IDs and pushed provenance PASS`
+- behavior_verification_target: `base 1502358cc77df6a35e3515cf5ec98ddd2f0737ab + RUN 20261019-cpu-topology-priority owned-file manifest`
+- behavior_verification_environment: `Windows 10.0.26200 x64 Rust/Node source execution`
+- behavior_verification_evidence: `backend 124 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, desktop locked check, live topology query and process priority roundtrip`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source와 공개 native installer cleanup asset, 실제 installed-app 수동 gap을 분리해 반영`
-- known_gaps: `실제 제한 policy 설치·관리자 제거는 NOT_RUN; 같은 버전 자동 재수신은 보장되지 않음`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — execution-policy independent cleanup`
-- feature_map: `updated — FEAT-NOGIREM-UPDATE-LIFECYCLE revision 10`
-- architecture_impact: `native cleanup ownership, process handle identity, Task Scheduler CLI adapter and NSIS argument trust`
-- architecture_contract: `updated — revision 34`
+- freshness_reason: `현재 source의 CPU topology authority, process-handle mutation and durable ledger boundary를 반영`
+- known_gaps: `실제 game 성능과 packaged helper 강제 종료 복구는 NOT_RUN; multi-group affinity 적용은 지원하지 않음`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — topology-aware CPU allocation and optional background priority`
+- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 2`
+- architecture_impact: `topology authority, same-handle process adapter, durable original-state ledger and settings IPC`
+- architecture_contract: `updated — revision 35`
 
 ## 계층과 확장 경로
 
@@ -51,6 +51,9 @@
 - Radeon 명시 적용은 모든 대상 GPU의 네 3D 설정을 먼저 snapshot한다. 항목 실패 시 snapshot 복원을 시도하고 최종 목표 상태와 복원 오류를 반환하며, helper reason이 있으면 caller는 게임 VSync를 변경하지 않는다.
 - UI runtime polling은 한 helper 요청 실패로 영구 종료하지 않는다. 실패한 기능의 `running`·`gameActive`를 false로 보정하고 다음 주기에 재조회한다.
 - affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다.
+- CPU topology와 mask 계산은 `topology.rs`만 소유한다. CPU Set의 efficiency·scheduling class를 GLPIEx의 physical core·SMT mask·L3 cache·processor group과 `(group, logical processor)`로 결합하고, 같은 L3 domain을 우선하되 cache 크기를 성능 등급으로 사용하지 않는다.
+- 단일 `u64` process affinity로 표현할 수 없는 복수 processor group과 물리 코어 4개 이하에서는 CPU 분할을 fail-safe로 비활성화한다. UI와 status에 사유를 전달하며 logical-half fallback이나 잘린 mask를 적용해서는 안 된다.
+- 외부 process mutation은 `process.rs`의 같은 handle에서 생성 시각, affinity, priority를 확인한 뒤 수행한다. 열거 뒤 PID만 다시 열어 검증·변경을 분리하는 경로를 추가해서는 안 된다.
 - 터보키는 0.4.7부터 제품 runtime에서 시작하지 않는다. UI 진입점과 설정·다운로드 IPC는 실행 경로에 도달할 수 없어야 하며, 보존된 helper 구현을 다른 기능에서 호출해서는 안 된다. package와 release assembly는 helper binary나 standalone 약관 파일을 배포하지 않는다.
 - DXVK는 확인되지 않은 게임 경로나 임의 URL에 파일을 쓰지 않는다. manager가 실제 `Client.exe`와 게임 미실행 상태를 확인하고 capability module이 digest·x64 PE·최종 파일 hash를 검증해야 한다.
 - 채널 핑은 사용자 URL·hostname·endpoint를 받지 않는다. 고정 HTTPS source의 제한 크기 CSV를 전부 검증한 뒤에만 cache와 runtime endpoint를 교체한다.
@@ -66,6 +69,8 @@
 - update manifest: release signing script만 private key를 사용해 작성하며 앱은 embedded public key로 검증만 한다.
 - installer uninstall registry·shortcut writer: NSIS 설치기 하나다.
 - game path state: affinity helper만 `%APPDATA%\마비노기 렘 부스터\game\path.json`을 쓰며 `Environment`와 입력 기능이 읽는다. 터보키의 허용 판단에는 사용하지 않는다.
+- CPU setting: backend `Boost` service만 `affinity/game-core-setting.json`을 정규화해 쓴다. `bindGameAffinity`와 `lowerBackgroundPriority` 기본값은 false이며 helper와 UI는 이 설정을 읽거나 좁은 control IPC로 갱신한다.
+- affinity original-state ledger: affinity helper만 `runtime-state.json`을 쓴다. 변경 전 원본·앱 적용 affinity와 optional priority를 process identity와 함께 durable하게 기록하며, 시작 시 파일을 삭제하지 않는다. 복원은 현재 값이 앱 적용값과 같은 항목만 원본으로 바꾸고 외부 변경은 보존한다. 접근 오류로 복원하지 못한 entry는 ledger에 남긴다.
 - removed turbo setting: `inputs.rs`가 시작 시 기존 설정의 키·간격과 설치 파일은 보존하고 `enabled=false`만 기록한다. Electron 전환 호환 경로도 같은 비활성화만 수행하며 helper update·launch를 호출하지 않는다.
 - DXVK state와 DLL: `dxvk.rs` install/apply 경로만 `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 검증된 게임 폴더의 `d3d9_dxvk.dll`을 쓴다.
 - channel ping setting·cache: `channel_ping.rs`만 `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv`를 쓴다. 동일 module이 연결 시험 표본과 실제 5-tuple별 `SmoothedRtt + RttVar` TCP 추정값을 계산하고, 최근 유효 counter보다 재전송·TCP 시간초과·수신 중복 ACK·혼잡 신호 중 하나라도 증가한 표본에는 `SmoothedRtt + 4×RttVar`를 적용한다. 최근 1분 추정 표본 평균·최대, 네 counter delta 표본과 최근 유효 counter 기준은 메모리에만 두며 overlay·UI는 status IPC로 읽는다. 추정 최대는 원시 패킷 RTT 최대나 게임 처리·입력·렌더링 지연을 뜻하지 않는다. rolling outcomes·실제 연결·window mode는 지속하지 않는다.
@@ -74,6 +79,7 @@
 ## 실시간 helper 상태와 게임 경로
 
 - affinity worker는 `status.json`에 `helperPid`, `updatedAt`, `running`, `gameActive`를 함께 기록한다. backend는 최신 timestamp와 실제 PID 생존을 모두 만족할 때만 실행 중으로 노출한다.
+- 기본 affinity 정책은 일반 background process만 남은 P-core와 E-core mask로 이동하고 게임은 Windows scheduler에 맡긴다. 게임 binding은 명시적 opt-in이며 background priority 하향도 별도 opt-in이다. priority는 일반 background role에만 적용하고 game, latency-sensitive, Windows/system, 명시 제외 process에는 적용하지 않는다.
 - `helperStartedAt`이 없는 신선한 0.4.2 status와 살아 있는 PID는 migration 대상으로만 인정한다. 새 helper가 lock을 경쟁하기 전에 기존 control 경로로 중단하고 동일 PID·시작 시각 instance의 종료를 확인한다.
 - UI는 2초 runtime polling을 유지한다. 개별 affinity/memory 오류는 사용자에게 한 번 표시할 수 있지만 polling task 자체를 종료하거나 이전 `gameActive=true`를 유지하지 않는다.
 - 게임이 실행 중이 아니어도 helper는 대기 상태일 수 있으며 사용자의 부스트 중단·복원 조작을 차단하지 않는다.

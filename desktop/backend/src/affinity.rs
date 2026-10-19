@@ -58,6 +58,10 @@ pub struct Entry {
     pub original_mask: String,
     pub applied_mask: String,
     pub role: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_priority_class: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub applied_priority_class: Option<u32>,
 }
 fn mask(s: &str) -> Result<u64> {
     if let Some(n) = s.strip_prefix("0x") {
@@ -69,6 +73,12 @@ fn mask(s: &str) -> Result<u64> {
 }
 fn key(p: &Process) -> String {
     format!("{}:{}", p.pid, p.start_time.as_deref().unwrap_or("null"))
+}
+fn priority_target(role: &str, enabled: bool) -> Option<u32> {
+    (enabled && role == "background").then_some(process::BACKGROUND_PRIORITY_CLASS)
+}
+fn original_if_unchanged<T: Copy + Eq>(current: T, applied: T, original: T) -> Option<T> {
+    (current == applied && original != current).then_some(original)
 }
 fn names(v: &Value) -> HashSet<String> {
     v.as_array()
@@ -97,6 +107,8 @@ pub struct Manager {
     event_path: PathBuf,
     apply_changes: bool,
     restore_on_exit: bool,
+    affinity_enabled: bool,
+    lower_background_priority: bool,
     game_mask: Option<u64>,
     background_mask: u64,
     latency_mask: u64,
@@ -109,29 +121,41 @@ pub struct Manager {
     handled: HashSet<String>,
     normal_mode: bool,
 }
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Options {
+    pub requested_game_core_count: Option<i64>,
+    pub last_core: bool,
+    pub passive: bool,
+    pub bind_game: bool,
+    pub lower_background_priority: bool,
+}
+fn reorder_enabled(options: Options) -> bool {
+    options.bind_game && !options.last_core && !options.passive
+}
 impl Manager {
     pub fn new(
         config: Value,
         state_path: PathBuf,
         apply_changes: bool,
         restore_on_exit: bool,
-        requested: Option<i64>,
-        last_core: bool,
-        passive: bool,
+        options: Options,
     ) -> Result<Self> {
-        let allocation = topology::resolve(requested)?;
-        let game_mask = if passive {
+        let allocation = topology::resolve(options.requested_game_core_count)?;
+        let affinity_enabled = allocation.supported;
+        let game_mask = if options.passive || !options.bind_game || !affinity_enabled {
             None
         } else {
-            Some(if last_core {
+            Some(if options.last_core {
                 allocation.last_performance_core_mask
             } else {
                 allocation.game_mask
             })
         };
-        let background_mask = if passive {
+        let background_mask = if !affinity_enabled {
+            allocation.all_mask
+        } else if options.passive {
             allocation.game_mask
-        } else if last_core {
+        } else if options.last_core {
             allocation.all_mask ^ game_mask.unwrap()
         } else {
             allocation.background_mask
@@ -153,6 +177,8 @@ impl Manager {
             event_path,
             apply_changes,
             restore_on_exit,
+            affinity_enabled,
+            lower_background_priority: options.lower_background_priority,
             game_mask,
             background_mask,
             latency_mask,
@@ -163,18 +189,21 @@ impl Manager {
             running_process_names: HashSet::new(),
             changed: BTreeMap::new(),
             handled: HashSet::new(),
-            normal_mode: !last_core && !passive,
+            normal_mode: reorder_enabled(options),
         };
         manager.event(
             "helper-created",
             json!({
                 "applyChanges": apply_changes,
                 "restoreOnExit": restore_on_exit,
-                "requestedGameCoreCount": requested,
+                "requestedGameCoreCount": options.requested_game_core_count,
                 "gameMask": manager.game_mask.map(|value| format!("0x{value:x}")),
                 "backgroundMask": format!("0x{:x}", manager.background_mask),
                 "latencyMask": format!("0x{:x}", manager.latency_mask),
                 "allocationSource": manager.allocation.source
+                ,"bindGameAffinity": options.bind_game
+                ,"lowerBackgroundPriority": options.lower_background_priority
+                ,"affinitySupported": manager.affinity_enabled
             }),
         );
         Ok(manager)
@@ -222,36 +251,53 @@ impl Manager {
             && (self.latency_names.contains(&p.name.to_lowercase())
                 || self.latency_patterns.iter().any(|r| r.is_match(&p.name)))
     }
-    fn apply_one(&mut self, p: &Process, target: u64, role: &str) -> Result<()> {
+    fn apply_one(&mut self, p: &Process, target: Option<u64>, role: &str) -> Result<()> {
         let key = key(p);
         if self.handled.contains(&key) {
             return Ok(());
         }
         let result = (|| {
-            let original = process::affinity(p.pid)?;
-            if original == target {
+            let priority_target = priority_target(role, self.lower_background_priority);
+            if target.is_none() && priority_target.is_none() {
+                return Ok(());
+            }
+            let handle = process::ProcessHandle::open(p.pid, true)?;
+            if handle.start_time() != p.start_time {
+                return Err("Process identity changed".into());
+            }
+            let original_mask = handle.affinity()?;
+            let original_priority = handle.priority()?;
+            let applied_mask = target.unwrap_or(original_mask);
+            let applied_priority = priority_target.unwrap_or(original_priority);
+            if original_mask == applied_mask && original_priority == applied_priority {
                 return Ok(());
             }
             if !self.apply_changes {
                 return Ok(());
             }
-            // Avoid acting on a reused PID after enumeration.
-            if process::start_time(p.pid) != p.start_time {
-                return Err("Process identity changed".into());
-            }
-            process::set_affinity(p.pid, target)?;
             self.changed.insert(
                 key.clone(),
                 Entry {
                     pid: p.pid,
                     start_time: p.start_time.clone(),
                     name: p.name.clone(),
-                    original_mask: format!("0x{original:x}"),
-                    applied_mask: format!("0x{target:x}"),
+                    original_mask: format!("0x{original_mask:x}"),
+                    applied_mask: format!("0x{applied_mask:x}"),
                     role: role.into(),
+                    original_priority_class: (original_priority != applied_priority)
+                        .then_some(original_priority),
+                    applied_priority_class: (original_priority != applied_priority)
+                        .then_some(applied_priority),
                 },
             );
-            self.save()
+            self.save()?;
+            if original_mask != applied_mask {
+                handle.set_affinity(applied_mask)?;
+            }
+            if original_priority != applied_priority {
+                handle.set_priority(applied_priority)?;
+            }
+            Ok(())
         })();
         self.handled.insert(key);
         result
@@ -267,11 +313,17 @@ impl Manager {
         let (mut targeted, mut failed) = (0, 0);
         for p in processes {
             let target = if process::matches_game(p, &self.config) {
-                self.game_mask.map(|m| (m, "game"))
+                Some((self.game_mask, "game"))
             } else if self.latency(p) {
-                Some((self.latency_mask, "latency"))
+                Some((
+                    self.affinity_enabled.then_some(self.latency_mask),
+                    "latency",
+                ))
             } else if self.eligible(p) {
-                Some((self.background_mask, "background"))
+                Some((
+                    self.affinity_enabled.then_some(self.background_mask),
+                    "background",
+                ))
             } else {
                 None
             };
@@ -358,9 +410,17 @@ impl Manager {
         Ok(())
     }
     pub fn restore_entries(&self, entries: &[Entry]) -> Result<()> {
-        self.restore_entries_with_reason(entries, "explicit")
+        let unresolved = self.restore_entries_with_reason(entries, "explicit")?;
+        if unresolved.is_empty() {
+            Ok(())
+        } else {
+            Err(format!(
+                "{}개 프로세스의 원본 상태 복원을 완료하지 못했습니다",
+                unresolved.len()
+            ))
+        }
     }
-    fn restore_entries_with_reason(&self, entries: &[Entry], reason: &str) -> Result<()> {
+    fn restore_entries_with_reason(&self, entries: &[Entry], reason: &str) -> Result<Vec<Entry>> {
         let started = Instant::now();
         self.event(
             "affinity-restore-started",
@@ -377,7 +437,9 @@ impl Manager {
             }
         };
         let identities: HashSet<_> = live.iter().map(key).collect();
-        let (mut missing, mut identity_changed, mut restored, mut failed) = (0, 0, 0, 0);
+        let (mut missing, mut identity_changed, mut restored, mut preserved, mut failed) =
+            (0, 0, 0, 0, 0);
+        let mut unresolved = Vec::new();
         for e in entries {
             if !identities.contains(&format!(
                 "{}:{}",
@@ -388,14 +450,55 @@ impl Manager {
                 continue;
             }
             if self.apply_changes {
-                if process::start_time(e.pid) != e.start_time {
+                let handle = match process::ProcessHandle::open(e.pid, true) {
+                    Ok(handle) => handle,
+                    Err(error) => {
+                        failed += 1;
+                        unresolved.push(e.clone());
+                        eprintln!("[restore-skip] PID={}: {error}", e.pid);
+                        continue;
+                    }
+                };
+                if handle.start_time() != e.start_time {
                     identity_changed += 1;
                     continue;
                 }
-                match mask(&e.original_mask).and_then(|m| process::set_affinity(e.pid, m)) {
-                    Ok(()) => restored += 1,
+                let result = (|| -> Result<(bool, bool)> {
+                    let mut changed = false;
+                    let mut externally_changed = false;
+                    let current_mask = handle.affinity()?;
+                    let applied_mask = mask(&e.applied_mask)?;
+                    let original_mask = mask(&e.original_mask)?;
+                    if let Some(original) =
+                        original_if_unchanged(current_mask, applied_mask, original_mask)
+                    {
+                        handle.set_affinity(original)?;
+                        changed = true;
+                    } else if current_mask != applied_mask {
+                        externally_changed = true;
+                    }
+                    if let (Some(original), Some(applied)) =
+                        (e.original_priority_class, e.applied_priority_class)
+                    {
+                        let current = handle.priority()?;
+                        if let Some(original) =
+                            original_if_unchanged(current, applied, original)
+                        {
+                            handle.set_priority(original)?;
+                            changed = true;
+                        } else if current != applied {
+                            externally_changed = true;
+                        }
+                    }
+                    Ok((changed, externally_changed))
+                })();
+                match result {
+                    Ok((true, _)) => restored += 1,
+                    Ok((false, true)) => preserved += 1,
+                    Ok((false, false)) => (),
                     Err(error) => {
                         failed += 1;
+                        unresolved.push(e.clone());
                         eprintln!("[restore-skip] PID={}: {error}", e.pid);
                     }
                 }
@@ -409,31 +512,56 @@ impl Manager {
                 "entryCount": entries.len(),
                 "liveProcessCount": live.len(),
                 "restoredCount": restored,
+                "externallyChangedCount": preserved,
                 "missingCount": missing,
                 "identityChangedCount": identity_changed,
                 "failedCount": failed
             }),
         );
-        Ok(())
+        Ok(unresolved)
     }
     pub fn restore_all(&mut self) -> Result<()> {
         self.restore_all_with_reason("explicit-all")
     }
     fn restore_all_with_reason(&mut self, reason: &str) -> Result<()> {
-        self.restore_entries_with_reason(&self.entries(), reason)?;
-        self.clear()
+        let unresolved = self.restore_entries_with_reason(&self.entries(), reason)?;
+        self.changed = unresolved
+            .into_iter()
+            .map(|entry| {
+                (
+                    format!(
+                        "{}:{}",
+                        entry.pid,
+                        entry.start_time.as_deref().unwrap_or("null")
+                    ),
+                    entry,
+                )
+            })
+            .collect();
+        self.handled.clear();
+        self.save_or_remove()?;
+        if self.changed.is_empty() {
+            Ok(())
+        } else {
+            Err(format!(
+                "{}개 프로세스의 상태 복원이 남아 있습니다",
+                self.changed.len()
+            ))
+        }
     }
     pub fn stop_without_restore(&mut self) -> Result<()> {
-        self.clear()
+        self.save_or_remove()
     }
-    fn clear(&mut self) -> Result<()> {
-        self.changed.clear();
-        self.handled.clear();
+    fn save_or_remove(&self) -> Result<()> {
         if self.apply_changes {
-            match std::fs::remove_file(&self.state_path) {
-                Ok(()) => (),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-                Err(e) => return Err(e.to_string()),
+            if self.changed.is_empty() {
+                match std::fs::remove_file(&self.state_path) {
+                    Ok(()) => (),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+                    Err(e) => return Err(e.to_string()),
+                }
+            } else {
+                self.save()?;
             }
         }
         Ok(())
@@ -442,35 +570,43 @@ impl Manager {
         if let Some(v) = storage::read_json(&self.state_path)? {
             let entries: Vec<Entry> =
                 serde_json::from_value(v["entries"].clone()).map_err(|e| e.to_string())?;
-            self.restore_entries_with_reason(&entries, "startup-recovery")?;
-            self.clear()?;
+            let unresolved = self.restore_entries_with_reason(&entries, "startup-recovery")?;
+            self.changed = unresolved
+                .into_iter()
+                .map(|entry| {
+                    (
+                        format!(
+                            "{}:{}",
+                            entry.pid,
+                            entry.start_time.as_deref().unwrap_or("null")
+                        ),
+                        entry,
+                    )
+                })
+                .collect();
+            self.handled.clear();
+            self.save_or_remove()?;
         }
         Ok(())
     }
     pub fn reset_all(&mut self) -> Result<Value> {
-        let processes = process::list(true)?;
-        let eligible: Vec<_> = processes
-            .iter()
-            .filter(|p| {
-                p.pid > 4 && p.pid != std::process::id() && p.session_id == self.current_session
-            })
-            .collect();
-        let result = self.force(&eligible, self.allocation.all_mask);
-        self.clear()?;
-        Ok(result)
+        let entry_count = self.changed.len();
+        self.restore_all_with_reason("reset-all")?;
+        Ok(json!({"restoredEntryCount":entry_count}))
     }
     fn force(&self, processes: &[&Process], target: u64) -> Value {
         let (mut changed, mut already, mut skipped) = (0, 0, 0);
         for p in processes {
-            let result = process::affinity(p.pid).and_then(|current| {
+            let result = process::ProcessHandle::open(p.pid, true).and_then(|handle| {
+                if handle.start_time() != p.start_time {
+                    return Err("Process identity changed".into());
+                }
+                let current = handle.affinity()?;
                 if current == target {
                     return Ok(false);
                 }
                 if self.apply_changes {
-                    if process::start_time(p.pid) != p.start_time {
-                        return Err("Process identity changed".into());
-                    }
-                    process::set_affinity(p.pid, target)?;
+                    handle.set_affinity(target)?;
                 }
                 Ok(true)
             });
@@ -484,7 +620,7 @@ impl Manager {
     }
     pub fn reorder(&mut self) -> Result<Value> {
         if !self.normal_mode {
-            return Err("CPU 재정렬은 기본 절반 분할 모드에서만 사용할 수 있습니다".into());
+            return Err("CPU 재정렬은 게임 코어 고정을 켠 상태에서만 사용할 수 있습니다".into());
         }
         let before = process::list(true)?;
         let games: Vec<_> = before
@@ -561,12 +697,24 @@ impl Manager {
 }
 pub fn has_live_entries(entries: &[Entry]) -> bool {
     entries.iter().any(|e| {
-        e.start_time.is_some()
-            && process::start_time(e.pid) == e.start_time
-            && mask(&e.applied_mask)
-                .ok()
-                .zip(process::affinity(e.pid).ok())
-                .is_some_and(|(a, b)| a == b)
+        let Ok(handle) = process::ProcessHandle::open(e.pid, false) else {
+            return false;
+        };
+        if e.start_time.is_none() || handle.start_time() != e.start_time {
+            return false;
+        }
+        let affinity_matches = mask(&e.original_mask)
+            .ok()
+            .zip(mask(&e.applied_mask).ok())
+            .zip(handle.affinity().ok())
+            .is_some_and(|((original, applied), current)| {
+                original != applied && applied == current
+            });
+        let priority_matches = e
+            .applied_priority_class
+            .zip(handle.priority().ok())
+            .is_some_and(|(applied, current)| applied == current);
+        affinity_matches || priority_matches
     })
 }
 
@@ -607,5 +755,38 @@ mod tests {
         assert!(path.with_extension("log.previous").is_file());
         assert!(std::fs::metadata(&path).unwrap().len() < EVENT_LOG_MAX_BYTES);
         std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn background_priority_is_opt_in_and_excludes_other_roles() {
+        assert_eq!(priority_target("background", false), None);
+        assert_eq!(
+            priority_target("background", true),
+            Some(process::BACKGROUND_PRIORITY_CLASS)
+        );
+        for role in ["game", "latency", "excluded"] {
+            assert_eq!(priority_target(role, true), None);
+        }
+    }
+
+    #[test]
+    fn restore_only_replaces_the_value_applied_by_this_app() {
+        assert_eq!(original_if_unchanged(5, 5, 9), Some(9));
+        assert_eq!(original_if_unchanged(7, 5, 9), None);
+        assert_eq!(original_if_unchanged(5, 5, 5), None);
+    }
+
+    #[test]
+    fn cpu_reorder_requires_explicit_game_binding() {
+        assert!(!reorder_enabled(Options::default()));
+        assert!(reorder_enabled(Options {
+            bind_game: true,
+            ..Default::default()
+        }));
+        assert!(!reorder_enabled(Options {
+            bind_game: true,
+            passive: true,
+            ..Default::default()
+        }));
     }
 }
