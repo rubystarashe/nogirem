@@ -114,3 +114,21 @@
 - review: `REV-CPU-DROPDOWN-007-R1 APPROVED`, `SELF_REVIEW`; no independent reviewer and no unresolved mandatory finding.
 - actual game workload: `NOT_RUN`.
 - commit/push/deploy: local checkpoint contains this report and its resulting SHA is reported externally; push/deploy/release not performed or authorized.
+
+## Final current disposition — CP-CPU-FOCUS-PRIORITY-010
+
+- disposition: `PARTIALLY_COMPLETED`
+- requested_scope: focus preset에서 background priority 하향 활성화, chevron 추가 좌측 이동, selector 상단 간격 확대.
+- target: `base 9b7a82ddd0d9bacab0a016d0a531eefe8c2e588e + owned source/docs target committed with this report; resulting SHA is reported externally`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — focus preset priority and selector spacing`
+- feature_map: `updated — global revision 32, feature revision 11`
+- architecture_impact: `preset settings writer and effective projection include priority`
+- architecture_contract: `updated — revision 40`
+- implemented: focus preset은 priority 하향 true, balanced/safe는 false로 저장·실시간 재구성한다. explicit advanced override를 보존하고 mode/count/priority 불일치는 사용자화로 표시한다. field는 100px, top은 109px다.
+- automated-test-passing: backend 127 PASS·3 ignored와 parity 2/2, desktop 8/8, locked check, targeted settings test, edited-file lints와 diff check.
+- blocked: UI smoke는 기존 elevated debug app의 executable lock으로 standard build가 실패했고 alternate target은 임시 디스크 공간 부족으로 실패했다. 임시 1.8GiB는 제거했다.
+- manually_exercised: `NOT_RUN — 변경 target screenshot 없음`.
+- actual game workload: `NOT_RUN`.
+- review: `SELF_REVIEW APPROVED`; no independent reviewer, mandatory finding 없음.
+- gates: feature/source `PASS`, architecture `PASS`, automated QA `PASS`, UI smoke `BLOCKED`, target `PASS after local checkpoint`.
+- push/deploy/release: `NOT_RUN — 승인되지 않음`.

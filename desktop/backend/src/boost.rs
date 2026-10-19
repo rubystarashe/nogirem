@@ -484,6 +484,7 @@ impl Boost {
         let mut saved = self.env.cpu_setting();
         saved["cpuMode"] = json!(mode);
         saved["bindGameAffinity"] = json!(mode != "safe");
+        saved["lowerBackgroundPriority"] = json!(mode == "focus");
         saved["gameCoreCount"] = Value::Null;
         saved["updatedAt"] = json!(crate::app_services::iso());
         storage::write_json(

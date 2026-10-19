@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `39`
-- updated_at: `2026-10-19T06:55:00Z`
+- revision: `40`
+- updated_at: `2026-10-19T08:37:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T06:55:00Z`
+- source_reviewed_at: `2026-10-19T08:37:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 60588e80b2002df7e160a4fa469e2301090e2dd9 + CP-CPU-CUSTOMIZED-005 uncommitted owned-file target`
-- source_review_evidence: `effective preset projection and preserving advanced safe-mode control SELF_REVIEW`
-- behavior_verified_at: `2026-10-19T06:55:00Z`
+- source_review_target: `base 9b7a82ddd0d9bacab0a016d0a531eefe8c2e588e + CP-CPU-FOCUS-PRIORITY-010 owned target`
+- source_review_evidence: `preset settings writer, normalization, effective projection and runtime control SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T08:36:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 60588e80b2002df7e160a4fa469e2301090e2dd9 + CP-CPU-CUSTOMIZED-005 uncommitted owned-file target`
+- behavior_verification_target: `base 9b7a82ddd0d9bacab0a016d0a531eefe8c2e588e + CP-CPU-FOCUS-PRIORITY-010 owned target`
 - behavior_verification_environment: `Windows 10.0.26200 x64 Rust/Node source execution`
-- behavior_verification_evidence: `backend mode fixtures/full locked tests, desktop locked check/tests, Node service contract tests`
+- behavior_verification_evidence: `backend 127 PASS·3 ignored와 parity 2/2, desktop 8/8, desktop locked check; UI smoke는 기존 관리자 앱 잠금으로 BLOCKED`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 main preset/custom projection과 preserving advanced control을 반영`
-- known_gaps: `실제 game 성능과 packaged helper 강제 종료 복구는 NOT_RUN; multi-group affinity 적용은 지원하지 않음`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — customized indicator and safe-mode customization`
-- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 6`
-- architecture_impact: `effective preset projection and preserving advanced IPC; process ledger unchanged`
-- architecture_contract: `updated — revision 39`
+- freshness_reason: `현재 source의 focus priority preset, explicit override 보존과 custom projection을 반영`
+- known_gaps: `변경 target UI smoke는 기존 관리자 앱 잠금으로 BLOCKED; 실제 game 성능과 packaged helper 강제 종료 복구는 NOT_RUN; multi-group affinity 적용은 지원하지 않음`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — focus preset priority와 custom override`
+- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 11`
+- architecture_impact: `preset settings writer와 effective projection에 priority 값 포함; process ledger unchanged`
+- architecture_contract: `updated — revision 40`
 
 ## 계층과 확장 경로
 
@@ -80,7 +80,7 @@
 ## 실시간 helper 상태와 게임 경로
 
 - affinity worker는 `status.json`에 `helperPid`, `updatedAt`, `running`, `gameActive`를 함께 기록한다. backend는 최신 timestamp와 실제 PID 생존을 모두 만족할 때만 실행 중으로 노출한다.
-- 메인 화면의 Vulkan 관리 control 아래에서 focus/balanced/safe preset을 선택한다. focus/balanced는 게임을 계산된 P-core mask에 고정하고 safe는 Windows scheduler에 맡긴다. 고급 기능에서 custom count를 선택할 수 있다. background priority 하향은 별도 opt-in이며 일반 background role에만 적용한다.
+- 메인 화면의 Vulkan 관리 control 아래에서 focus/balanced/safe preset을 선택한다. focus/balanced는 게임을 계산된 P-core mask에 고정하고 safe는 Windows scheduler에 맡긴다. focus preset은 일반 background role의 priority 하향도 함께 켜며 balanced/safe는 끈다. 고급 기능에서 count·safe·priority를 독립 변경할 수 있고 표준 조합과 다르면 사용자화로 투영한다.
 - `helperStartedAt`이 없는 신선한 0.4.2 status와 살아 있는 PID는 migration 대상으로만 인정한다. 새 helper가 lock을 경쟁하기 전에 기존 control 경로로 중단하고 동일 PID·시작 시각 instance의 종료를 확인한다.
 - UI는 2초 runtime polling을 유지한다. 개별 affinity/memory 오류는 사용자에게 한 번 표시할 수 있지만 polling task 자체를 종료하거나 이전 `gameActive=true`를 유지하지 않는다.
 - 게임이 실행 중이 아니어도 helper는 대기 상태일 수 있으며 사용자의 부스트 중단·복원 조작을 차단하지 않는다.

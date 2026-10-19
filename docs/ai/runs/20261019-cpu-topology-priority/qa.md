@@ -142,6 +142,21 @@ Mandatory source and automated scenarios for this checkpoint passed. Actual game
 - edited-file lints: `PASS`.
 - actual game workload: `NOT_RUN`.
 
+## Follow-up CP-CPU-FOCUS-PRIORITY-010
+
+- qa_state: `COMPLETE_PASS for automated source checks; UI smoke BLOCKED`
+- source_target: `base 9b7a82ddd0d9bacab0a016d0a531eefe8c2e588e + owned focus-priority/arrow/spacing target`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — focus preset priority and selector spacing`
+- feature_map: `updated — revision 11`
+- architecture_impact: `preset writer and effective projection include priority`
+- architecture_contract: `updated — revision 40`
+- `BOOST-013`: `PASS` — settings normalization defaults missing focus priority to true while preserving explicit false; preset writer sets focus true and balanced/safe false.
+- backend locked tests: `PASS — 127 passed, 3 ignored, parity 2/2`.
+- desktop locked tests/check: `PASS — 8/8 and compile`.
+- edited-file lints and diff check: `PASS`.
+- UI smoke: `BLOCKED — elevated debug app locks the standard executable; alternate target build exhausted temporary disk space and was cleaned`.
+- screenshot and actual game workload: `NOT_RUN`.
+
 ## Follow-up CP-CPU-DROPDOWN-009
 
 - qa_state: `COMPLETE_PASS`

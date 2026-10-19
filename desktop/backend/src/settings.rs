@@ -212,7 +212,9 @@ pub fn cpu(v: &Value) -> Value {
         "gameCoreCount": v["gameCoreCount"].as_i64().filter(|count| *count > 0),
         "cpuMode": mode,
         "bindGameAffinity": mode != "safe",
-        "lowerBackgroundPriority": v["lowerBackgroundPriority"] == true
+        "lowerBackgroundPriority": v["lowerBackgroundPriority"]
+            .as_bool()
+            .unwrap_or(mode == "focus")
     })
 }
 #[cfg(test)]
@@ -246,7 +248,7 @@ mod tests {
         let defaults = cpu(&Value::Null);
         assert_eq!(defaults["cpuMode"], "focus");
         assert_eq!(defaults["bindGameAffinity"], true);
-        assert_eq!(defaults["lowerBackgroundPriority"], false);
+        assert_eq!(defaults["lowerBackgroundPriority"], true);
         let enabled = cpu(
             &json!({"gameCoreCount":4,"bindGameAffinity":true,"lowerBackgroundPriority":true}),
         );
@@ -257,5 +259,9 @@ mod tests {
         let safe = cpu(&json!({"bindGameAffinity":false}));
         assert_eq!(safe["cpuMode"], "safe");
         assert_eq!(safe["bindGameAffinity"], false);
+        assert_eq!(safe["lowerBackgroundPriority"], false);
+        let customized_focus =
+            cpu(&json!({"cpuMode":"focus","lowerBackgroundPriority":false}));
+        assert_eq!(customized_focus["lowerBackgroundPriority"], false);
     }
 }

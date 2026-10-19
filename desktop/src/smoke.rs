@@ -224,9 +224,9 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
         || presets["value"] != "focus"
         || presets["ruby"] != "부스트 모드 선택"
         || presets["left"] != 9
-        || presets["vulkanGap"].as_f64().unwrap_or(0.0) < 10.0
+        || presets["vulkanGap"].as_f64().unwrap_or(0.0) < 14.0
         || presets["rubyGap"].as_f64().unwrap_or(f64::MAX) > 0.0
-        || presets["fieldWidth"] != "110px"
+        || presets["fieldWidth"] != "100px"
         || presets["paddingRight"] != "15px"
         || presets["border"] != "0px"
         || presets["background"] != "rgba(0, 0, 0, 0)"
@@ -258,6 +258,7 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
     tokio::time::sleep(Duration::from_millis(300)).await;
     if state.peek().services["affinity"]["gameCoreSetting"]["cpuMode"] != "balanced"
         || state.peek().services["affinity"]["gameCoreSetting"]["gameCoreCount"] != 4
+        || state.peek().services["affinity"]["gameCoreSetting"]["lowerBackgroundPriority"] != false
     {
         return Err("균형 CPU 프리셋이 서비스에 전달되지 않았습니다".into());
     }
@@ -265,6 +266,7 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
     tokio::time::sleep(Duration::from_millis(300)).await;
     if state.peek().services["affinity"]["gameCoreSetting"]["cpuMode"] != "safe"
         || state.peek().services["affinity"]["gameCoreSetting"]["gameCoreCount"] != 4
+        || state.peek().services["affinity"]["gameCoreSetting"]["lowerBackgroundPriority"] != false
     {
         return Err("안전 CPU 프리셋이 서비스에 전달되지 않았습니다".into());
     }
@@ -272,6 +274,7 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
     tokio::time::sleep(Duration::from_millis(300)).await;
     if state.peek().services["affinity"]["gameCoreSetting"]["cpuMode"] != "focus"
         || state.peek().services["affinity"]["gameCoreSetting"]["gameCoreCount"] != 6
+        || state.peek().services["affinity"]["gameCoreSetting"]["lowerBackgroundPriority"] != true
     {
         return Err("게임 집중 CPU 프리셋이 서비스에 전달되지 않았습니다".into());
     }
@@ -318,7 +321,7 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
                     .is_some_and(|text| text.contains("게임 CPU 선호도") && !text.contains("affinity"))
                 || options[1]["action"] != "사용하기"
                 || options[2]["heading"] != "일반 백그라운드 프로세스 우선순위 낮춤"
-                || options[2]["action"] != "사용하기"
+                || options[2]["action"] != "사용 중"
                 || options[3]["heading"] != "CPU 재정렬"
                 || !(options[0]["index"].as_u64().unwrap_or(u64::MAX)
                     < options[1]["index"].as_u64().unwrap_or(0)

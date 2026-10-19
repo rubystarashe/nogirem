@@ -493,7 +493,7 @@ footer {
 
 .cpu-preset-selector {
   position: fixed;
-  top: 105px;
+  top: 109px;
   left: 9px;
   display: grid;
   gap: 1px;
@@ -520,7 +520,7 @@ footer {
 
 .cpu-preset-field {
   position: relative;
-  width: 110px;
+  width: 100px;
   margin-top: -3px;
 }
 

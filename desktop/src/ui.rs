@@ -959,10 +959,11 @@ fn CpuPresetSelector(entered: bool) -> Element {
     let count = setting["gameCoreCount"].as_u64();
     let focus_count = setting["focusGameCoreCount"].as_u64();
     let balanced_count = setting["balancedGameCoreCount"].as_u64();
+    let lower_background_priority = setting["lowerBackgroundPriority"] == true;
     let active_preset = match mode {
-        "focus" if count == focus_count => Some("focus"),
-        "balanced" if count == balanced_count => Some("balanced"),
-        "safe" if count == balanced_count => Some("safe"),
+        "focus" if count == focus_count && lower_background_priority => Some("focus"),
+        "balanced" if count == balanced_count && !lower_background_priority => Some("balanced"),
+        "safe" if count == balanced_count && !lower_background_priority => Some("safe"),
         _ => None,
     };
     let customized = setting["supported"] == true
