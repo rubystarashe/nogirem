@@ -70,6 +70,21 @@
 - actual game workload: `NOT_RUN`.
 - commit/push/deploy: local checkpoint contains this report and its resulting SHA is reported externally; push/deploy/release not performed or authorized.
 
+## Final current disposition — CP-CPU-DROPDOWN-009
+
+- disposition: `COMPLETED`
+- target: `base 4df74e239ffaad517911a46f62682958337fdeec + owned label/inset target committed with this report; resulting SHA is reported externally`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode label and compact arrow placement`
+- feature_map: `updated — revision 10`
+- architecture_impact: `none — visual text and spacing only`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- delivered: `부스트 모드 선택` label; 110px field, 15px right padding and 6px chevron inset.
+- automated-test-passing: desktop locked check, clean-process main smoke and edited-file lints.
+- evidence limitation: first smoke hit an unrelated transient WebView2 tab error; exact rerun passed.
+- review: `REV-CPU-DROPDOWN-009-R1 APPROVED`, `SELF_REVIEW`; no independent reviewer.
+- actual game workload: `NOT_RUN`.
+- commit/push/deploy: local checkpoint contains this report and its resulting SHA is reported externally; push/deploy/release not performed or authorized.
+
 ## Final current disposition — CP-CPU-DROPDOWN-008
 
 - disposition: `COMPLETED`

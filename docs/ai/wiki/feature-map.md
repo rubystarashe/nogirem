@@ -135,24 +135,24 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `9`
-- updated_at: `2026-10-19T08:05:00Z`
+- revision: `10`
+- updated_at: `2026-10-19T08:16:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T08:05:00Z`
+- source_reviewed_at: `2026-10-19T08:16:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 593bd05a5829b07a951583429308fd35930a450c + CP-CPU-DROPDOWN-008 uncommitted owned-file target`
-- source_review_evidence: `SELF_REVIEW of CSS chevron, vertical spacing and safe-mode user terminology`
-- behavior_verified_at: `2026-10-19T08:10:00Z`
+- source_review_target: `base 4df74e239ffaad517911a46f62682958337fdeec + CP-CPU-DROPDOWN-009 uncommitted owned-file target`
+- source_review_evidence: `SELF_REVIEW of boost mode label and compact field/arrow spacing`
+- behavior_verified_at: `2026-10-19T08:19:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 593bd05a5829b07a951583429308fd35930a450c + CP-CPU-DROPDOWN-008 uncommitted owned-file target`
+- behavior_verification_target: `base 4df74e239ffaad517911a46f62682958337fdeec + CP-CPU-DROPDOWN-009 uncommitted owned-file target`
 - behavior_verification_environment: `Windows 10.0.26200 x64; Rust test processes and Node v22.20.0`
-- behavior_verification_evidence: `desktop smoke verified Vulkan/ruby gap, CSS chevron borders, user-facing CPU preference copy and existing preset/action roundtrips; screenshot visually reviewed`
+- behavior_verification_evidence: `desktop smoke verified 부스트 모드 선택 label, 110px field, 15px right padding, 6px arrow inset and existing CPU UI roundtrips; screenshot visually reviewed`
 - freshness_status: `CURRENT`
-- freshness_reason: `current spacing/copy source and smoke behavior are reflected`
+- freshness_reason: `current label/inset source and smoke behavior are reflected`
 - known_gaps: `실제 마비노기 frame·입력 체감, 강제 종료 후 packaged UI 복구는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode chevron/spacing and safe-mode terminology`
-- feature_map: `updated — revision 9`
-- architecture_impact: `none — visual and user-facing copy only`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode label and compact arrow placement`
+- feature_map: `updated — revision 10`
+- architecture_impact: `none — visual text and spacing only`
 - architecture_contract: `no_change — revision 39 remains accurate`
 
 ## FEAT-NOGIREM-TURBO-KEY

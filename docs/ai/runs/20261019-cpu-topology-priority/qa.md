@@ -142,6 +142,20 @@ Mandatory source and automated scenarios for this checkpoint passed. Actual game
 - edited-file lints: `PASS`.
 - actual game workload: `NOT_RUN`.
 
+## Follow-up CP-CPU-DROPDOWN-009
+
+- qa_state: `COMPLETE_PASS`
+- source_target: `base 4df74e239ffaad517911a46f62682958337fdeec + owned label/inset target`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode label and compact arrow placement`
+- feature_map: `updated — revision 10`
+- architecture_impact: `none — visual text and spacing only`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- `SCN-CPU-DROPDOWN-004`: `PASS` — `부스트 모드 선택`, 110px field, 15px right padding, 6px arrow inset 확인.
+- desktop locked check: `PASS`.
+- main desktop smoke: first run `FAIL` on unrelated transient WebView2 tab transition; clean-process rerun `PASS`.
+- edited-file lints: `PASS`.
+- actual game workload: `NOT_RUN`.
+
 ## Follow-up CP-CPU-DROPDOWN-008
 
 - qa_state: `COMPLETE_PASS`

@@ -520,14 +520,14 @@ footer {
 
 .cpu-preset-field {
   position: relative;
-  width: 120px;
+  width: 110px;
   margin-top: -3px;
 }
 
 .cpu-preset-selector select {
   width: 100%;
   height: 22px;
-  padding: 0 19px 0 5px;
+  padding: 0 15px 0 5px;
   border: 0;
   outline: 0;
   color: #555;
@@ -553,7 +553,7 @@ footer {
 .cpu-preset-arrow {
   position: absolute;
   top: 50%;
-  right: 7px;
+  right: 6px;
   width: 5px;
   height: 5px;
   border-right: 1px solid #777;

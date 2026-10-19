@@ -974,7 +974,7 @@ fn CpuPresetSelector(entered: bool) -> Element {
     let applying = snapshot.pending.contains("optimization:set-cpu-mode");
     rsx! {
         div { class: format!("cpu-preset-selector {}", if entered { "entered" } else { "" }), aria_label: "CPU 모드 프리셋",
-            span { class: "cpu-preset-ruby", "부스트 모드" }
+            span { class: "cpu-preset-ruby", "부스트 모드 선택" }
             div { class: "cpu-preset-field",
                 select {
                     value: if applying { "applying" } else { selected_value },

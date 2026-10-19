@@ -104,6 +104,21 @@
 - open mandatory findings: `none`
 - ownership: single-agent writer; `NOTICE.md` and `data/` remain out of scope.
 
+## Follow-up CP-CPU-DROPDOWN-009
+
+- updated_at: `2026-10-19T08:19:00Z`
+- active_checkpoint: `COMPLETE`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
+- review: `REV-CPU-DROPDOWN-009-R1 APPROVED`, `SELF_REVIEW`
+- exact_target: `base 4df74e239ffaad517911a46f62682958337fdeec + owned label/inset target`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode label and compact arrow placement`
+- feature_map: `updated — revision 10`
+- architecture_impact: `none — visual text and spacing only`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- open mandatory findings: `none`
+- ownership: single-agent writer; `NOTICE.md` and `data/` remain out of scope.
+
 ## Follow-up CP-CPU-DROPDOWN-008
 
 - updated_at: `2026-10-19T08:10:00Z`
