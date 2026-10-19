@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `38`
-- updated_at: `2026-10-19T18:10:00Z`
+- revision: `39`
+- updated_at: `2026-10-19T18:54:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T18:10:00Z`
+- source_reviewed_at: `2026-10-19T18:54:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base af244d2ea823dd51b6bd0da9f9d8f81be6f11105 + CP-NONSOLID-PACKAGE-048 owned target`
-- source_review_evidence: `non-solid NSIS, single recorder helper, external WebView2 prerequisite, 128kbps music와 package contract SELF_REVIEW`
-- behavior_verified_at: `2026-10-19T18:16:00Z`
+- source_review_target: `a2db18fb08eecf201de4d77759c814bb74c3eaa8`
+- source_review_evidence: `non-solid NSIS, single recorder helper, external WebView2 prerequisite, 128kbps music, package contract와 replacement Release SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T18:54:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base af244d2ea823dd51b6bd0da9f9d8f81be6f11105 + CP-NONSOLID-PACKAGE-048; signed package release/dioxus-0.4.8-2026-10-19T18-14-22-935Z`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust locked tests, NSIS 3.0.4.1`
-- behavior_verification_evidence: `targeted 24/24, Node 213/213, backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, native integration 3/3, signed package·10MB·payload 검사 PASS`
+- behavior_verification_target: `source a2db18fb08eecf201de4d77759c814bb74c3eaa8; GitHub public v0.4.8 non-solid replacement`
+- behavior_verification_environment: `Windows 10.0.26200 x64 package QA와 GitHub public Release 재다운로드`
+- behavior_verification_evidence: `자동 source/package checks와 공개 9/9 candidate hash, Ed25519, aliases, Electron asset ID·routing PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 package source와 signed non-solid 후보의 update/install 전달 경계를 반영`
-- known_gaps: `WebView2 미설치 PC의 공식 페이지 안내, 실제 설치·제거·포터블 실행, VirusTotal 비교와 공개 배포는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — external WebView2 prerequisite와 non-solid package 전달`
-- feature_map: `updated — canonical revision 38, feature revision 11`
+- freshness_reason: `현재 source와 public 0.4.8 non-solid replacement의 update/install 전달 경계를 반영`
+- known_gaps: `WebView2 미설치 PC의 공식 페이지 안내, 실제 설치·제거·포터블 실행과 same-version 자동 재수신은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — external WebView2 prerequisite와 non-solid package 공개 대치`
+- feature_map: `updated — canonical revision 39, feature revision 12`
 - architecture_impact: `single recorder helper, non-solid LZMA, WebView2 external prerequisite와 10MB package gate`
-- architecture_contract: `updated — revision 43`
+- architecture_contract: `no_change — revision 43이 public target에도 정확`
 
 ## ID 할당
 
@@ -317,22 +317,22 @@
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).
 - owner: `release/update owner`
-- revision: `11`
-- updated_at: `2026-10-19T18:10:00Z`
+- revision: `12`
+- updated_at: `2026-10-19T18:54:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T18:10:00Z`
+- source_reviewed_at: `2026-10-19T18:54:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base af244d2ea823dd51b6bd0da9f9d8f81be6f11105 + CP-NONSOLID-PACKAGE-048 owned target`
-- source_review_evidence: `installer/portable NSIS, package script, recorder runtime·utility paths, audio metadata와 package tests SELF_REVIEW`
-- behavior_verified_at: `2026-10-19T18:16:00Z`
+- source_review_target: `a2db18fb08eecf201de4d77759c814bb74c3eaa8`
+- source_review_evidence: `installer/portable NSIS, package script, recorder runtime·utility paths, audio metadata, package tests와 replacement Release SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T18:54:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base af244d2ea823dd51b6bd0da9f9d8f81be6f11105 + CP-NONSOLID-PACKAGE-048; signed package release/dioxus-0.4.8-2026-10-19T18-14-22-935Z`
-- behavior_verification_environment: `Windows 10.0.26200 x64 source fixtures, Node 22.20.0, Rust locked tests, NSIS 3.0.4.1`
-- behavior_verification_evidence: `targeted 24/24, Node 213/213, backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, native integration 3/3, signed package 8,014,317 bytes·single helper·external WebView2 payload contract PASS`
+- behavior_verification_target: `source a2db18fb08eecf201de4d77759c814bb74c3eaa8; GitHub public v0.4.8 non-solid replacement`
+- behavior_verification_environment: `Windows 10.0.26200 x64 package QA와 GitHub public Release 재다운로드`
+- behavior_verification_evidence: `자동 source/package checks와 공개 9/9 candidate hash, Ed25519, aliases, Electron asset ID·routing PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source와 signed non-solid package 후보의 prerequisite·payload 경계를 반영했다.`
-- known_gaps: `WebView2 미설치 PC의 안내 UI, 실제 설치·제거·포터블 실행, VirusTotal 재분석과 공개 배포는 NOT_RUN. 기존 같은 버전 client는 후속 대치본을 자동 재수신하지 않을 수 있다.`
+- freshness_reason: `현재 source와 public 0.4.8 non-solid replacement의 prerequisite·payload 경계를 반영했다.`
+- known_gaps: `WebView2 미설치 PC의 안내 UI, 실제 설치·제거·포터블 실행과 same-version 자동 재수신은 NOT_RUN. 기존 같은 버전 client는 대치본을 자동 재수신하지 않을 수 있다.`
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — external WebView2 prerequisite, non-solid package와 recorder helper 단일화`
-- feature_map: `updated — revision 11`
+- feature_map: `updated — revision 12`
 - architecture_impact: `package bootstrap·compression·native helper payload boundary`
-- architecture_contract: `updated — revision 43`
+- architecture_contract: `no_change — revision 43이 public target에도 정확`

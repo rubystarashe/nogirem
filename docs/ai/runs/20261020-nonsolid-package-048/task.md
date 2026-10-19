@@ -74,3 +74,29 @@
 - review_qa_gate: `PASS for automated package scope; manual install·VirusTotal은 후속 범위`.
 - target_authorization_gate: `PASS — generated package는 local only, push·release·deploy 없음, 비추적 data 보존`.
 - next_action: 사용자 승인 시 새 candidate를 VirusTotal에 비교 업로드하거나 별도 배포 checkpoint에서 0.4.8 자산을 대치한다.
+
+## CP-NONSOLID-REPLACEMENT-048
+
+- requested_at: `2026-10-19T18:49:00Z`
+- request: `signed non-solid 0.4.8 후보를 같은 버전 대치 방식으로 배포`
+- status: `COMPLETED`
+- source_target: `a2db18fb08eecf201de4d77759c814bb74c3eaa8`
+- candidate_target: `release/ready-v0.4.8-2026-10-19T18-50-42-158Z`
+- public_download_target: `release/public-v0.4.8-nonsolid-2026-10-19T18-53-00Z`
+- release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.8`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — non-solid·single-helper 0.4.8 package와 external WebView2 prerequisite 공개 대치`
+- feature_map: `updated — canonical revision 39, feature revision 12`
+- architecture_impact: `documented revision 43 package bootstrap·compression·helper 경계를 public target에 실행`
+- architecture_contract: `no_change — revision 43의 현재 source/package 경계와 일치`
+
+### 배포 결과
+
+- `PASS` — exact package source `a2db18fb08eecf201de4d77759c814bb74c3eaa8` origin/main push.
+- `PASS` — canonical·alias installer/portable 실행 파일 4개를 먼저 대치하고 `update.json`·`portable-update.json`을 마지막에 대치.
+- `PASS` — 공개 9/9 candidate SHA-256 일치, installer·portable alias byte identity.
+- `PASS` — 공개 Ed25519 manifests, version `0.4.8`, size와 payload SHA-256.
+- `PASS` — Electron 자산 ID `655808752`, `655808750`, `655808755`와 content identity 보존.
+- `PASS` — annotated tag object `9909ec0d6d8be82356045277f661a34d3715daff`, target `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa` 불변.
+- `PASS` — public Latest Release note에 package 분석성·용량·WebView2 prerequisite 반영.
+- `NOT_RUN` — 실제 설치·제거·포터블 실행·same-version 자동 재수신.
+- evidence: `evidence/replacement-release.md`.
