@@ -955,7 +955,7 @@ fn CpuPresetSelector(entered: bool) -> Element {
     let client = use_context::<Client>();
     let snapshot = state.read().clone();
     let setting = &snapshot.services["affinity"]["gameCoreSetting"];
-    let mode = setting["cpuMode"].as_str().unwrap_or("focus");
+    let mode = setting["cpuMode"].as_str().unwrap_or("balanced");
     let count = setting["gameCoreCount"].as_u64();
     let focus_count = setting["focusGameCoreCount"].as_u64();
     let balanced_count = setting["balancedGameCoreCount"].as_u64();

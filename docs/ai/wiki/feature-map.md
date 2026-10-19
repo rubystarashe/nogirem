@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `32`
-- updated_at: `2026-10-19T08:37:00Z`
+- revision: `33`
+- updated_at: `2026-10-19T09:02:06Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T08:37:00Z`
+- source_reviewed_at: `2026-10-19T09:02:06Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 9b7a82ddd0d9bacab0a016d0a531eefe8c2e588e + CP-CPU-FOCUS-PRIORITY-010 owned target`
-- source_review_evidence: `preset writer, settings normalization, effective preset projection, fixture/smoke contract and CSS diff SELF_REVIEW`
-- behavior_verified_at: `2026-10-19T08:36:00Z`
+- source_review_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
+- source_review_evidence: `settings normalization, topology/runtime/UI fallbacks and fixture/smoke contract SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T09:02:06Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 9b7a82ddd0d9bacab0a016d0a531eefe8c2e588e + CP-CPU-FOCUS-PRIORITY-010 owned target`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust backend/desktop test target and Node v22.20.0`
-- behavior_verification_evidence: `backend 127 PASS·3 ignored와 parity 2/2, desktop 8/8, desktop locked check와 edited-file lints; 변경 target UI smoke는 기존 관리자 앱 잠금으로 BLOCKED`
+- behavior_verification_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Rust backend/desktop test target`
+- behavior_verification_evidence: `backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, desktop locked cargo check PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 focus priority preset, custom projection과 tighter selector arrow를 반영`
-- known_gaps: `변경 target UI smoke는 기존 관리자 앱 잠금으로 BLOCKED; 실제 마비노기 프레임·입력 체감과 helper 강제 종료 복구 UI는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — focus preset priority와 selector spacing`
-- feature_map: `updated — revision 32, feature revision 11`
-- architecture_impact: `preset settings writer와 effective projection에 priority 값 포함`
-- architecture_contract: `updated — revision 40`
+- freshness_reason: `저장 설정이 없을 때 balanced preset을 선택하는 현재 source와 검증 결과를 반영`
+- known_gaps: `변경 target 실제 UI smoke와 마비노기 프레임·입력 체감은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 신규 기본 CPU preset을 균형 모드로 변경`
+- feature_map: `updated — revision 33, feature revision 12`
+- architecture_impact: `CPU 설정 부재 시 normalization과 방어 fallback의 canonical balanced 기본값`
+- architecture_contract: `updated — revision 41`
 
 ## ID 할당
 
@@ -126,34 +126,34 @@
 - preconditions_dependencies: Windows CPU topology, `config.json`, affinity/memory helper, Win32 process query, `%APPDATA%\마비노기 렘 부스터` 상태 폴더.
 - normal_error_cancel_retry_flow: helper 상태의 PID·시작 시각·생존을 함께 확인한다. 게임이 없으면 대기하지만 중단 버튼은 활성이다. CPU 구성이 안전하게 표현되지 않으면 사유를 표시하고 affinity만 건너뛰며 다른 boost 기능은 유지한다. runtime 조회 실패 시 화면 상태를 중단으로 보정하고 polling을 계속한다.
 - concurrency_partial_failure_recovery: affinity·memory operation lock이 작업을 직렬화한다. affinity/priority는 열거 후 같은 process handle에서 생성 시각을 확인한 뒤 적용한다. 원본과 앱 적용값을 변경 전에 durable ledger에 기록하고, 복원 시 현재 값이 앱 적용값과 같은 항목만 원본으로 되돌려 외부 변경을 보존한다. 실패한 복원 entry는 다음 시작 복구를 위해 남긴다.
-- state_side_effects_limits: `게임 집중`은 균형 자동값보다 P-core를 최대 2개 더 선택하고 game hard affinity와 일반 background priority 하향을 함께 적용한다. `균형`은 기존 자동값과 game hard affinity를 사용하고 priority 하향은 끈다. `안전 모드`는 균형 자동값을 사용하지만 game affinity를 고정하지 않고 priority 하향도 끈다. 고급 수동 count, 안전 모드와 priority toggle은 명시 값을 보존한다. main dropdown은 mode/count/priority가 모두 표준 조합과 같을 때 세 preset을 표시하고, 하나라도 다르면 네 번째 `사용자화` option을 추가해 선택한다. preset 변경 pending 동안 `설정 변경중`을 표시하며, standard preset 선택 시 custom count를 제거해 해당 자동값으로 복귀한다.
+- state_side_effects_limits: 저장된 CPU 설정이 없으면 `균형`을 기본으로 사용하며 기존 명시 설정은 보존한다. `게임 집중`은 균형 자동값보다 P-core를 최대 2개 더 선택하고 game hard affinity와 일반 background priority 하향을 함께 적용한다. `균형`은 기존 자동값과 game hard affinity를 사용하고 priority 하향은 끈다. `안전 모드`는 균형 자동값을 사용하지만 game affinity를 고정하지 않고 priority 하향도 끈다. 고급 수동 count, 안전 모드와 priority toggle은 명시 값을 보존한다. main dropdown은 mode/count/priority가 모두 표준 조합과 같을 때 세 preset을 표시하고, 하나라도 다르면 네 번째 `사용자화` option을 추가해 선택한다. preset 변경 pending 동안 `설정 변경중`을 표시하며, standard preset 선택 시 custom count를 제거해 해당 자동값으로 복귀한다.
 - modules_contracts: `desktop/src/ui.rs` → `service.rs` → `boost.rs` → `affinity_worker.rs`/`affinity.rs`. helper PID와 최신 timestamp가 실행 상태의 필수 조건이다.
 - durable_data_owner: affinity helper가 `runtime-state.json`, runtime status와 `game/path.json`의 유일한 writer다. backend service만 `game-core-setting.json`을 정규화해 쓰고 helper/UI가 읽는다.
 - security_privacy: 다른 `Client.exe` 오탐을 막기 위해 정본의 명시적 게임 폴더를 사용하며 진단 내 사용자 경로는 마스킹한다.
-- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 legacy helper 인계`, `BOOST-005 게임 시작·종료 원본 복원`, `BOOST-006 hybrid P-core 선택과 필요 시 한 P-core 공유`, `BOOST-007 L3 locality·SMT·SchedulingClass 우선순위`, `BOOST-008 저코어 분할·복수 group fail-safe`, `BOOST-009 main focus 6/8P·balanced/safe 4/8P dropdown`, `BOOST-010 background-only priority 적용과 role 제외`, `BOOST-011 PID 재사용·외부 변경 보존·재시작 복구`, `BOOST-012 advanced manual count·safe/priority toggle 보존·custom dropdown option`, `BOOST-013 focus preset priority ON·balanced/safe OFF`
+- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 legacy helper 인계`, `BOOST-005 게임 시작·종료 원본 복원`, `BOOST-006 hybrid P-core 선택과 필요 시 한 P-core 공유`, `BOOST-007 L3 locality·SMT·SchedulingClass 우선순위`, `BOOST-008 저코어 분할·복수 group fail-safe`, `BOOST-009 main focus 6/8P·balanced/safe 4/8P dropdown`, `BOOST-010 background-only priority 적용과 role 제외`, `BOOST-011 PID 재사용·외부 변경 보존·재시작 복구`, `BOOST-012 advanced manual count·safe/priority toggle 보존·custom dropdown option`, `BOOST-013 focus preset priority ON·balanced/safe OFF`, `BOOST-014 설정 부재 시 balanced 기본값·명시 설정 보존`
 - observability_evidence: UI topology 사유와 고급 설정, `affinity/events.log`, diagnostics affinity snapshot, `topology::tests`, `affinity::tests`, `process::tests::child_priority_roundtrip_uses_one_verified_handle`, backend parity와 Node service contract tests.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `11`
-- updated_at: `2026-10-19T08:37:00Z`
+- revision: `12`
+- updated_at: `2026-10-19T09:02:06Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T08:37:00Z`
+- source_reviewed_at: `2026-10-19T09:02:06Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 9b7a82ddd0d9bacab0a016d0a531eefe8c2e588e + CP-CPU-FOCUS-PRIORITY-010 owned target`
-- source_review_evidence: `SELF_REVIEW of preset writer/normalization/projection, fixture/smoke assertions and 100px selector field`
-- behavior_verified_at: `2026-10-19T08:36:00Z`
+- source_review_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
+- source_review_evidence: `SELF_REVIEW of settings normalization, topology/runtime/UI fallbacks and fixture/smoke assertions`
+- behavior_verified_at: `2026-10-19T09:02:06Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 9b7a82ddd0d9bacab0a016d0a531eefe8c2e588e + CP-CPU-FOCUS-PRIORITY-010 owned target`
-- behavior_verification_environment: `Windows 10.0.26200 x64; Rust test processes and Node v22.20.0`
-- behavior_verification_evidence: `backend 127 PASS·3 ignored와 parity 2/2, desktop 8/8, locked check와 edited-file lints; UI smoke는 기존 관리자 앱 잠금으로 BLOCKED`
+- behavior_verification_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
+- behavior_verification_environment: `Windows 10.0.26200 x64; Rust backend/desktop test target`
+- behavior_verification_evidence: `backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, desktop locked cargo check PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `current focus priority preset, custom projection and 100px field source contract are reflected`
-- known_gaps: `변경 target UI smoke는 기존 관리자 앱 잠금으로 BLOCKED; 실제 마비노기 frame·입력 체감과 강제 종료 후 packaged UI 복구는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — focus priority preset and tighter arrow placement`
-- feature_map: `updated — revision 11`
-- architecture_impact: `none — visual text and spacing only`
-- architecture_contract: `no_change — revision 39 remains accurate`
+- freshness_reason: `current no-setting balanced default and explicit-setting preservation are reflected`
+- known_gaps: `변경 target 실제 UI smoke와 실제 마비노기 frame·입력 체감은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 신규 기본 CPU preset을 균형 모드로 변경`
+- feature_map: `updated — revision 12`
+- architecture_impact: `CPU 설정 부재 시 normalization과 방어 fallback의 canonical balanced 기본값`
+- architecture_contract: `updated — revision 41`
 
 ## FEAT-NOGIREM-TURBO-KEY
 

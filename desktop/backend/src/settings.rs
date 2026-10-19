@@ -205,7 +205,7 @@ pub fn cpu(v: &Value) -> Value {
             } else if v.get("gameCoreCount").is_some() {
                 "balanced"
             } else {
-                "focus"
+                "balanced"
             }
         });
     json!({
@@ -244,11 +244,11 @@ mod tests {
         assert_eq!(s["capacityGb"], 50);
     }
     #[test]
-    fn cpu_modes_default_to_focus_and_migrate_legacy_settings() {
+    fn cpu_modes_default_to_balanced_and_migrate_legacy_settings() {
         let defaults = cpu(&Value::Null);
-        assert_eq!(defaults["cpuMode"], "focus");
+        assert_eq!(defaults["cpuMode"], "balanced");
         assert_eq!(defaults["bindGameAffinity"], true);
-        assert_eq!(defaults["lowerBackgroundPriority"], true);
+        assert_eq!(defaults["lowerBackgroundPriority"], false);
         let enabled = cpu(
             &json!({"gameCoreCount":4,"bindGameAffinity":true,"lowerBackgroundPriority":true}),
         );

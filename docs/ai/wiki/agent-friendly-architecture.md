@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `40`
-- updated_at: `2026-10-19T08:37:00Z`
+- revision: `41`
+- updated_at: `2026-10-19T09:02:06Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T08:37:00Z`
+- source_reviewed_at: `2026-10-19T09:02:06Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 9b7a82ddd0d9bacab0a016d0a531eefe8c2e588e + CP-CPU-FOCUS-PRIORITY-010 owned target`
-- source_review_evidence: `preset settings writer, normalization, effective projection and runtime control SELF_REVIEW`
-- behavior_verified_at: `2026-10-19T08:36:00Z`
+- source_review_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
+- source_review_evidence: `CPU settings normalization, topology/runtime/UI fallbacks and fixture/smoke contract SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T09:02:06Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 9b7a82ddd0d9bacab0a016d0a531eefe8c2e588e + CP-CPU-FOCUS-PRIORITY-010 owned target`
-- behavior_verification_environment: `Windows 10.0.26200 x64 Rust/Node source execution`
-- behavior_verification_evidence: `backend 127 PASS·3 ignored와 parity 2/2, desktop 8/8, desktop locked check; UI smoke는 기존 관리자 앱 잠금으로 BLOCKED`
+- behavior_verification_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
+- behavior_verification_environment: `Windows 10.0.26200 x64 Rust backend/desktop source execution`
+- behavior_verification_evidence: `backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, desktop locked cargo check PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 focus priority preset, explicit override 보존과 custom projection을 반영`
-- known_gaps: `변경 target UI smoke는 기존 관리자 앱 잠금으로 BLOCKED; 실제 game 성능과 packaged helper 강제 종료 복구는 NOT_RUN; multi-group affinity 적용은 지원하지 않음`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — focus preset priority와 custom override`
-- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 11`
-- architecture_impact: `preset settings writer와 effective projection에 priority 값 포함; process ledger unchanged`
-- architecture_contract: `updated — revision 40`
+- freshness_reason: `설정 부재 시 balanced를 선택하는 canonical default와 방어 fallback을 반영`
+- known_gaps: `변경 target 실제 UI smoke와 실제 game 성능은 NOT_RUN; multi-group affinity 적용은 지원하지 않음`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 신규 기본 CPU preset을 균형 모드로 변경`
+- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 12`
+- architecture_impact: `CPU 설정 normalization과 runtime/UI fallback의 canonical balanced 기본값`
+- architecture_contract: `updated — revision 41`
 
 ## 계층과 확장 경로
 
@@ -70,7 +70,7 @@
 - update manifest: release signing script만 private key를 사용해 작성하며 앱은 embedded public key로 검증만 한다.
 - installer uninstall registry·shortcut writer: NSIS 설치기 하나다.
 - game path state: affinity helper만 `%APPDATA%\마비노기 렘 부스터\game\path.json`을 쓰며 `Environment`와 입력 기능이 읽는다. 터보키의 허용 판단에는 사용하지 않는다.
-- CPU setting: backend `Boost` service만 `affinity/game-core-setting.json`을 정규화해 쓴다. `cpuMode=focus|balanced|safe`와 optional custom `gameCoreCount`를 저장한다. advanced count와 safe toggle은 상대 값을 보존하고, main preset 선택만 custom count를 null로 바꿔 자동값을 복원한다. UI dropdown은 persisted `customized` flag가 아니라 effective mode/count와 preset defaults를 비교해 standard preset 또는 동적으로 추가한 `사용자화` option을 투영한다.
+- CPU setting: backend `Boost` service만 `affinity/game-core-setting.json`을 정규화해 쓴다. 저장 설정이 없으면 `cpuMode=balanced`, game affinity ON, background priority 하향 OFF를 사용하며 명시된 `cpuMode=focus|balanced|safe`, optional custom `gameCoreCount`와 priority 값은 보존한다. advanced count와 safe toggle은 상대 값을 보존하고, main preset 선택만 custom count를 null로 바꿔 자동값을 복원한다. UI dropdown은 persisted `customized` flag가 아니라 effective mode/count와 preset defaults를 비교해 standard preset 또는 동적으로 추가한 `사용자화` option을 투영한다.
 - affinity original-state ledger: affinity helper만 `runtime-state.json`을 쓴다. 변경 전 원본·앱 적용 affinity와 optional priority를 process identity와 함께 durable하게 기록하며, 시작 시 파일을 삭제하지 않는다. 복원은 현재 값이 앱 적용값과 같은 항목만 원본으로 바꾸고 외부 변경은 보존한다. 접근 오류로 복원하지 못한 entry는 ledger에 남긴다.
 - removed turbo setting: `inputs.rs`가 시작 시 기존 설정의 키·간격과 설치 파일은 보존하고 `enabled=false`만 기록한다. Electron 전환 호환 경로도 같은 비활성화만 수행하며 helper update·launch를 호출하지 않는다.
 - DXVK state와 DLL: `dxvk.rs` install/apply 경로만 `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 검증된 게임 폴더의 `d3d9_dxvk.dll`을 쓴다.

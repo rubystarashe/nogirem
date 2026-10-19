@@ -78,7 +78,7 @@ pub enum CpuMode {
 
 impl Default for CpuMode {
     fn default() -> Self {
-        Self::Focus
+        Self::Balanced
     }
 }
 
@@ -741,6 +741,11 @@ pub fn resolve(requested: Option<i64>) -> Result<Allocation> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cpu_mode_default는_균형이다() {
+        assert_eq!(CpuMode::default(), CpuMode::Balanced)
+    }
 
     fn cpu_sets(core_masks: &[u64], performance_cores: usize, l3_split: usize) -> Vec<CpuSet> {
         core_masks

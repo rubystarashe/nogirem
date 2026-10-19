@@ -155,8 +155,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
     let _lock = storage::HelperLock::acquire(&status_path, 0, &control)?;
     let config = storage::read_json(&root.join("config.json"))?.ok_or("config.json missing")?;
     let mut requested = arg("game-core-count").and_then(|s| s.parse::<i64>().ok());
-    let mut cpu_mode =
-        topology::CpuMode::parse(arg("cpu-mode").as_deref().unwrap_or("focus"));
+    let mut cpu_mode = topology::CpuMode::parse(arg("cpu-mode").as_deref().unwrap_or("balanced"));
     let mut lower_background_priority =
         arg("lower-background-priority").as_deref() == Some("true");
     let mut manager = Manager::new(

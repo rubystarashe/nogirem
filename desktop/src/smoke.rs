@@ -221,7 +221,7 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
     tokio::time::sleep(Duration::from_millis(200)).await;
     let presets = inspect(&main, "(()=>{const p=document.querySelector('.cpu-preset-selector');const d=document.querySelector('.dxvk-update-link');const field=p.querySelector('.cpu-preset-field');const s=p.querySelector('select');const ruby=p.querySelector('.cpu-preset-ruby');const arrow=p.querySelector('.cpu-preset-arrow');const style=getComputedStyle(s);const arrowStyle=getComputedStyle(arrow);return {labels:[...s.options].map(e=>e.textContent),value:s.value,ruby:ruby?.textContent,left:p.getBoundingClientRect().left,top:p.getBoundingClientRect().top,vulkanGap:p.getBoundingClientRect().top-d.getBoundingClientRect().bottom,rubyGap:s.getBoundingClientRect().top-ruby.getBoundingClientRect().bottom,fieldWidth:getComputedStyle(field).width,paddingRight:style.paddingRight,border:style.borderTopWidth,background:style.backgroundColor,fontSize:style.fontSize,appearance:style.appearance,arrowInset:arrowStyle.right,arrowRight:arrowStyle.borderRightWidth,arrowBottom:arrowStyle.borderBottomWidth}})()").await?;
     if presets["labels"] != json!(["게임 집중 모드", "균형 모드", "안전 모드"])
-        || presets["value"] != "focus"
+        || presets["value"] != "balanced"
         || presets["ruby"] != "부스트 모드 선택"
         || presets["left"] != 9
         || presets["vulkanGap"].as_f64().unwrap_or(0.0) < 14.0

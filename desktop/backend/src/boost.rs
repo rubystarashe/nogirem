@@ -152,7 +152,7 @@ impl Boost {
     pub fn core_setting(&self) -> Result<Value> {
         let saved = self.env.cpu_setting();
         let requested = saved["gameCoreCount"].as_i64();
-        let cpu_mode = saved["cpuMode"].as_str().unwrap_or("focus");
+        let cpu_mode = saved["cpuMode"].as_str().unwrap_or("balanced");
         let allocation =
             topology::resolve_mode(requested, topology::CpuMode::parse(cpu_mode))?;
         let detail = allocation
@@ -315,7 +315,7 @@ impl Boost {
         }
         args.push(format!(
             "--cpu-mode={}",
-            setting["cpuMode"].as_str().unwrap_or("focus")
+            setting["cpuMode"].as_str().unwrap_or("balanced")
         ));
         args.push(format!(
             "--lower-background-priority={}",
