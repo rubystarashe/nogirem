@@ -1,12 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-19 23:44 +09:00
+Last Updated: 2026-10-19 23:50 +09:00
 
 ## Current Objective
-패키지에만 포함됐던 새 `NOTICE.md`를 origin/main에 게시해 앱의 GitHub 원격 공지 경로에도 동일 내용을 반영한다.
+새 `NOTICE.md`를 commit `5e93686152bbf87cb63e1207da2f6b389c136244`로 origin/main에 게시했다. GitHub API와 commit 고정 raw URL은 새 공지를 반환하지만 앱이 사용하는 branch raw URL은 아직 CDN 캐시된 이전 공지를 반환한다.
 
 ## Active Runs
-- `20261019-notice-publish-048`: 사용자 작성 `NOTICE.md` SHA-256 `90b88036...cba3`를 commit·push하고 raw GitHub 원격 hash를 재검증한다. 앱 source·package·Release assets는 변경하지 않는다. (`docs/ai/runs/20261019-notice-publish-048/task.md`)
+- `20261019-notice-publish-048`: 사용자 작성 `NOTICE.md` SHA-256 `90b88036...cba3`를 commit `5e93686152bbf87cb63e1207da2f6b389c136244`로 origin/main에 게시했다. GitHub API main과 commit 고정 raw URL은 새 제목을 반환한다. 앱의 branch raw URL은 2026-10-19T14:49Z 현재 이전 공지를 반환하므로 CDN 캐시 만료 후 재확인이 남았다. 앱 source·package·Release assets는 변경하지 않았다. (`docs/ai/runs/20261019-notice-publish-048/task.md`)
 - `20261019-cpu-reorder-048-hotfix`: source `d3e5a9c5808d6dc897a0e0b7d2516373a2334c0d`에서 topology alternate mask 기반 `canCpuReorder`를 투영하고 UI가 false일 때 버튼을 비활성화해 이유를 표시한다. backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, main UI smoke와 package 검증이 통과했다. [GitHub v0.4.8](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.8)의 Rust 자산 6개를 feed-safe 순서로 대치하고 공개 9/9·Ed25519·aliases·Electron ID 보존을 재검증했다. (`docs/ai/runs/20261019-cpu-reorder-048-hotfix/final-report.md`)
 - `20261019-release-048`: exact package source `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa`를 origin/main에 push하고 annotated `v0.4.8`과 [GitHub v0.4.8](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.8)을 Latest로 공개했다. canonical 자산 9/9의 공개 재다운로드 hash, Ed25519 manifests, aliases와 Electron 0.3.19 routing이 통과했다. 실제 설치·업데이트·게임은 NOT_RUN이다. (`docs/ai/runs/20261019-release-048/final-report.md`)
 - `20261019-package-048`: source `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa`와 사용자 `NOTICE.md` SHA-256 `90b88036...cba3`에서 signed 0.4.8 설치형·포터블을 `release/dioxus-0.4.8-2026-10-19T09-10-32-162Z`에 생성했다. installer `3c697b54...e0fe`, portable `cf3d565b...415e`; Node 213/213, desktop compile, native integration 3/3, Ed25519·payload·NOTICE 검증이 통과했다. 실제 설치·실행·업데이트·게임과 push·배포는 수행하지 않았다. (`docs/ai/runs/20261019-package-048/final-report.md`)
