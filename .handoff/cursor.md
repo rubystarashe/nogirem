@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-19 18:02 +09:00
+Last Updated: 2026-10-19 18:08 +09:00
 
 ## Current Objective
-제한된 Windows PowerShell 실행 정책이 v0.4.7의 설치·제거 `stop-installed-app.ps1`를 차단하는 결함을 native Rust/Win32 helper로 교체하고 공개 Rust 자산 6개를 같은 버전으로 대치했다. 공개 9/9 hash·Ed25519·alias·feed order와 Electron asset identity 보존이 통과했다.
+균형 CPU 기본 모드와 0.4.8 변경 기록을 포함한 signed 설치형·포터블 패키지를 생성하고 검증한다. 외부 push·tag·GitHub Release·배포는 수행하지 않는다.
 
 ## Active Runs
+- `20261019-package-048`: package/Cargo 버전을 0.4.8로 동기화했고 Node 213/213과 desktop compile이 통과했다. 사용자 `NOTICE.md`는 package 입력으로만 포함하고 source commit에서는 제외한다. signed package 생성·검증이 진행 중이며 push·배포는 금지다. (`docs/ai/runs/20261019-package-048/task.md`)
 - `20261019-cpu-topology-priority`: CPU 설정이 없는 신규 기본값을 `균형 모드`로 변경하고 normalization, topology·boost·worker·UI fallback과 fixture를 통일했다. 기존 명시 CPU 설정과 channel ping 기본 비활성화는 보존한다. backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, locked cargo check가 통과했다. 실제 UI smoke·game QA·push·deploy는 수행하지 않았다. (`docs/ai/runs/20261019-cpu-topology-priority/handoff.md`)
 - `20261016-native-installer-cleanup-047`: source `faee6cf2492b8247a11b4a787f3c0f8cf710b060`에서 NSIS install/uninstall의 end-user PowerShell 실행을 제거하고 current-source `installer-cleanup.exe`를 embedded한다. helper는 UTF-16 canonical path, PID·생성 시각 identity, caller/updater parent trust, graceful/forced stop과 exact task ownership을 보존한다. native unit 6/6, installer 12/12, Node 213/213, backend 115 PASS·3 ignored와 parity 2/2, desktop check, strict clippy, 독립 review와 signed package 검증이 통과했다. 설치형 `9,761,105 bytes` SHA-256 `23039c63...04d6c`, 포터블 `7,787,597 bytes` SHA-256 `4b164625...49f0`와 manifests를 [GitHub v0.4.7](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7)에 feed-safe order로 대치하고 공개 9/9와 Electron ID 보존을 재검증했다. 실제 관리자 install/uninstall은 NOT_RUN이다. (`docs/ai/runs/20261016-native-installer-cleanup-047/handoff.md`)
 - `20261016-uninstall-hotfix-047`: source `4ee58f36ceff917b135d80c809f439db39536ccb`에서 정본 시작 task cleanup 실패를 실제 process 오류와 분리하고, process 종료 실패만 차단하며, 이전 앱 소유 파일 12개를 upgrade·uninstall에서 exact-delete한다. signed 설치형 `5d01a715...bff1c`, 포터블 `985c8a24...c6e5`로 [GitHub v0.4.7](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7)의 Rust 자산 6개만 대치하고 Electron 3개 asset ID를 보존했다. 공개 9/9, Ed25519, aliases와 독립 review가 통과했다. 실제 관리자 제거·빈 설치 폴더와 같은 버전 자동 재수신은 NOT_RUN이므로 affected 0.4.7 사용자는 새 설치형 수동 덮어쓰기가 필요하다. (`docs/ai/runs/20261016-uninstall-hotfix-047/final-report.md`)
