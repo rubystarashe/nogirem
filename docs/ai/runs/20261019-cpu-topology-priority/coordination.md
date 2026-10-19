@@ -21,7 +21,7 @@
 
 ## 현재 상태
 
-- active_checkpoint: `CHECKPOINT_COMMIT`
+- active_checkpoint: `COMPLETE`
 - DEV: `IN_PROGRESS`
 - QA: `COMPLETE_PASS`
 - review: `APPROVED`, `SELF_REVIEW`
@@ -73,3 +73,18 @@
 - architecture_contract: `updated — revision 38`
 - scope_decision: final authority는 `request-main-presets.md`와 `main-presets-plan.md`다. 이전 follow-up 문서는 당시 사용자 지시의 immutable history로 유지한다.
 - ownership: source/run/canonical active writer는 `cursor-agent-92251f36`; `NOTICE.md`, `data/`는 제외한다.
+
+## Follow-up CP-CPU-CUSTOMIZED-005
+
+- updated_at: `2026-10-19T07:05:00Z`
+- active_checkpoint: `CHECKPOINT_COMMIT`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
+- review: `REV-CPU-CUSTOMIZED-005-R2 APPROVED`, `SELF_REVIEW`
+- exact_target: `base 60588e80b2002df7e160a4fa469e2301090e2dd9 + owned customized-dropdown target`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — standard/custom CPU preset dropdown`
+- feature_map: `updated — revision 6`
+- architecture_impact: `preserving advanced safe toggle and effective preset projection`
+- architecture_contract: `updated — revision 39`
+- open mandatory findings: `none`
+- ownership: same single-agent writer; `NOTICE.md` and `data/` remain out of scope.

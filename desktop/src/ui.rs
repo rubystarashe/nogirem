@@ -317,6 +317,7 @@ fn command(client: Client, mut state: Signal<State>, channel: &'static str, args
                     }
                     "optimization:set-game-cpu-core-count"
                     | "optimization:set-cpu-mode"
+                    | "optimization:set-safe-cpu-mode"
                     | "optimization:set-bind-game-affinity"
                     | "optimization:set-lower-background-priority"
                     | "optimization:refresh-game-cpu-core-setting"
@@ -954,16 +955,38 @@ fn CpuPresetSelector(entered: bool) -> Element {
     let snapshot = state.read().clone();
     let setting = &snapshot.services["affinity"]["gameCoreSetting"];
     let mode = setting["cpuMode"].as_str().unwrap_or("focus");
+    let count = setting["gameCoreCount"].as_u64();
+    let focus_count = setting["focusGameCoreCount"].as_u64();
+    let balanced_count = setting["balancedGameCoreCount"].as_u64();
+    let active_preset = match mode {
+        "focus" if count == focus_count => Some("focus"),
+        "balanced" if count == balanced_count => Some("balanced"),
+        "safe" if count == balanced_count => Some("safe"),
+        _ => None,
+    };
+    let customized = setting["supported"] == true
+        && count.is_some()
+        && focus_count.is_some()
+        && balanced_count.is_some()
+        && active_preset.is_none();
+    let selected_value = active_preset.unwrap_or(if customized { "custom" } else { mode });
     let applying = snapshot.pending.contains("optimization:set-cpu-mode");
     rsx! {
         div { class: format!("cpu-preset-selector {}", if entered { "entered" } else { "" }), aria_label: "CPU 모드 프리셋",
-            for (value, label) in [("focus", "게임 집중"), ("balanced", "균형"), ("safe", "안전")] {
-                button {
-                    class: if mode == value { "selected" } else { "" },
-                    aria_pressed: mode == value,
-                    disabled: snapshot.busy || applying || setting["supported"] != true,
-                    onclick: {let client=client.clone(); move |_| command(client.clone(), state, "optimization:set-cpu-mode", json!([value]))},
-                    "{label}"
+            select {
+                value: selected_value,
+                disabled: snapshot.busy || applying || setting["supported"] != true,
+                onchange: {let client=client.clone(); move |event| {
+                    let value = event.value();
+                    if value != "custom" {
+                        command(client.clone(), state, "optimization:set-cpu-mode", json!([value]))
+                    }
+                }},
+                option { value: "focus", "게임 집중" }
+                option { value: "balanced", "균형" }
+                option { value: "safe", "안전 모드" }
+                if customized {
+                    option { value: "custom", "사용자화" }
                 }
             }
         }
@@ -1002,6 +1025,7 @@ fn CpuSettings() -> Element {
     let p = setting["performanceCoreCount"].as_u64();
     let e = setting["efficiencyCoreCount"].as_u64();
     let applying = s.pending.contains("optimization:set-game-cpu-core-count");
+    let safe_applying = s.pending.contains("optimization:set-safe-cpu-mode");
     let priority_applying = s
         .pending
         .contains("optimization:set-lower-background-priority");
@@ -1037,6 +1061,16 @@ fn CpuSettings() -> Element {
         }
         div { class: "cpu-advanced-options",
             h3 { "고급 CPU 설정" }
+            label {
+                input {
+                    r#type: "checkbox",
+                    checked: setting["cpuMode"] == "safe",
+                    disabled: s.busy || safe_applying || setting["supported"] != true,
+                    onchange: {let client=client.clone(); move |event| command(client.clone(), state, "optimization:set-safe-cpu-mode", json!([event.checked()]))}
+                }
+                "안전 모드 사용"
+            }
+            small { "게임 affinity를 고정하지 않고 Windows 스케줄러에 맡기며, 수동 코어 개수는 유지합니다" }
             label {
                 input {
                     r#type: "checkbox",

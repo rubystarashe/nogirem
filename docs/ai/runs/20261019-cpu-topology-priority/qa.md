@@ -107,3 +107,20 @@ Mandatory source and automated scenarios for this checkpoint passed. Actual game
 - `npm run app:dev -- --smoke-test --smoke-report=... --capture=...`: `PASS`, report `passed:true`; main screenshot과 settings roundtrip 기록.
 - `cargo test --locked --manifest-path desktop/Cargo.toml`: `PASS`, 8/8.
 - `nvm use 22.20.0; npm test`: `PASS`, Node v22.20.0, 213/213.
+
+## Follow-up CP-CPU-CUSTOMIZED-005
+
+- qa_state: `COMPLETE_PASS`
+- source_target: `base 60588e80b2002df7e160a4fa469e2301090e2dd9 + owned customized-dropdown target`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — standard/custom CPU preset dropdown`
+- feature_map: `updated — revision 6`
+- architecture_impact: `preserving advanced safe toggle and effective preset projection`
+- architecture_contract: `updated — revision 39`
+- `SCN-CPU-CUSTOM-001`: `PASS` — main dropdown의 `게임 집중 / 균형 / 안전 모드` DOM 변경이 각각 expected mode/count에 도달했다.
+- `SCN-CPU-CUSTOM-002`: `PASS` — advanced 5P 뒤 safe toggle이 count를 보존하고 main dropdown이 네 option과 selected `사용자화`를 표시했다.
+- `cargo test --manifest-path desktop/backend/Cargo.toml --locked`: `PASS`.
+- `cargo test --manifest-path desktop/Cargo.toml --locked`: `PASS`, 8/8.
+- `nvm use 22.20.0; npm test`: `PASS`, 213/213.
+- `cargo check --manifest-path desktop/Cargo.toml --locked`: `PASS` after dropdown correction.
+- edited-file IDE lints: `PASS`, no diagnostics.
+- actual game workload performance: `NOT_RUN`.

@@ -19,6 +19,7 @@
     "optimization:set-frame-boost-enabled",
     "optimization:set-game-cpu-core-count",
     "optimization:set-cpu-mode",
+    "optimization:set-safe-cpu-mode",
     "optimization:set-bind-game-affinity",
     "optimization:set-lower-background-priority",
     "optimization:run-cpu-reorder",

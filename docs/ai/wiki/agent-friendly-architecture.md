@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `38`
-- updated_at: `2026-10-19T06:45:00Z`
+- revision: `39`
+- updated_at: `2026-10-19T06:55:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T06:45:00Z`
+- source_reviewed_at: `2026-10-19T06:55:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 17dee9063db8c9926d70a1f9eab5a4955b7c47d8 + CP-CPU-MAIN-PRESETS-004 uncommitted owned-file target`
-- source_review_evidence: `preset defaults, main placement, advanced manual override and topology classification SELF_REVIEW`
-- behavior_verified_at: `2026-10-19T06:45:00Z`
+- source_review_target: `base 60588e80b2002df7e160a4fa469e2301090e2dd9 + CP-CPU-CUSTOMIZED-005 uncommitted owned-file target`
+- source_review_evidence: `effective preset projection and preserving advanced safe-mode control SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T06:55:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 17dee9063db8c9926d70a1f9eab5a4955b7c47d8 + CP-CPU-MAIN-PRESETS-004 uncommitted owned-file target`
+- behavior_verification_target: `base 60588e80b2002df7e160a4fa469e2301090e2dd9 + CP-CPU-CUSTOMIZED-005 uncommitted owned-file target`
 - behavior_verification_environment: `Windows 10.0.26200 x64 Rust/Node source execution`
 - behavior_verification_evidence: `backend mode fixtures/full locked tests, desktop locked check/tests, Node service contract tests`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 main preset orchestration, advanced override와 topology authority를 반영`
+- freshness_reason: `현재 source의 main preset/custom projection과 preserving advanced control을 반영`
 - known_gaps: `실제 game 성능과 packaged helper 강제 종료 복구는 NOT_RUN; multi-group affinity 적용은 지원하지 않음`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — main three presets and advanced manual count`
-- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 5`
-- architecture_impact: `preset orchestration, topology classification and live worker IPC; process ledger unchanged`
-- architecture_contract: `updated — revision 38`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — customized indicator and safe-mode customization`
+- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 6`
+- architecture_impact: `effective preset projection and preserving advanced IPC; process ledger unchanged`
+- architecture_contract: `updated — revision 39`
 
 ## 계층과 확장 경로
 
@@ -70,7 +70,7 @@
 - update manifest: release signing script만 private key를 사용해 작성하며 앱은 embedded public key로 검증만 한다.
 - installer uninstall registry·shortcut writer: NSIS 설치기 하나다.
 - game path state: affinity helper만 `%APPDATA%\마비노기 렘 부스터\game\path.json`을 쓰며 `Environment`와 입력 기능이 읽는다. 터보키의 허용 판단에는 사용하지 않는다.
-- CPU setting: backend `Boost` service만 `affinity/game-core-setting.json`을 정규화해 쓴다. `cpuMode=focus|balanced|safe`와 optional custom `gameCoreCount`를 저장한다. advanced count는 mode를 유지하며, main preset 선택은 custom count를 null로 바꿔 mode 자동값을 복원한다. 신규 기본값은 focus이고 이전 `bindGameAffinity=true|false`는 balanced|safe로 읽는다.
+- CPU setting: backend `Boost` service만 `affinity/game-core-setting.json`을 정규화해 쓴다. `cpuMode=focus|balanced|safe`와 optional custom `gameCoreCount`를 저장한다. advanced count와 safe toggle은 상대 값을 보존하고, main preset 선택만 custom count를 null로 바꿔 자동값을 복원한다. UI dropdown은 persisted `customized` flag가 아니라 effective mode/count와 preset defaults를 비교해 standard preset 또는 동적으로 추가한 `사용자화` option을 투영한다.
 - affinity original-state ledger: affinity helper만 `runtime-state.json`을 쓴다. 변경 전 원본·앱 적용 affinity와 optional priority를 process identity와 함께 durable하게 기록하며, 시작 시 파일을 삭제하지 않는다. 복원은 현재 값이 앱 적용값과 같은 항목만 원본으로 바꾸고 외부 변경은 보존한다. 접근 오류로 복원하지 못한 entry는 ledger에 남긴다.
 - removed turbo setting: `inputs.rs`가 시작 시 기존 설정의 키·간격과 설치 파일은 보존하고 `enabled=false`만 기록한다. Electron 전환 호환 경로도 같은 비활성화만 수행하며 helper update·launch를 호출하지 않는다.
 - DXVK state와 DLL: `dxvk.rs` install/apply 경로만 `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 검증된 게임 폴더의 `d3d9_dxvk.dll`을 쓴다.

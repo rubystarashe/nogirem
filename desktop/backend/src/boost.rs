@@ -492,6 +492,18 @@ impl Boost {
         )?;
         self.apply_cpu_options(&saved)
     }
+    pub fn set_safe_cpu_mode(&self, enabled: bool) -> Result<Value> {
+        let _operation = self.affinity_operation.lock().unwrap();
+        let mut saved = self.env.cpu_setting();
+        saved["cpuMode"] = json!(if enabled { "safe" } else { "balanced" });
+        saved["bindGameAffinity"] = json!(!enabled);
+        saved["updatedAt"] = json!(crate::app_services::iso());
+        storage::write_json(
+            &self.directory("affinity").join("game-core-setting.json"),
+            &saved,
+        )?;
+        self.apply_cpu_options(&saved)
+    }
     pub fn set_cpu_option(&self, name: &str, enabled: bool) -> Result<Value> {
         let _operation = self.affinity_operation.lock().unwrap();
         if name != "lowerBackgroundPriority" {

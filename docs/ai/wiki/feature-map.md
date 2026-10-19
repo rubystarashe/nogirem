@@ -126,34 +126,34 @@
 - preconditions_dependencies: Windows CPU topology, `config.json`, affinity/memory helper, Win32 process query, `%APPDATA%\마비노기 렘 부스터` 상태 폴더.
 - normal_error_cancel_retry_flow: helper 상태의 PID·시작 시각·생존을 함께 확인한다. 게임이 없으면 대기하지만 중단 버튼은 활성이다. CPU 구성이 안전하게 표현되지 않으면 사유를 표시하고 affinity만 건너뛰며 다른 boost 기능은 유지한다. runtime 조회 실패 시 화면 상태를 중단으로 보정하고 polling을 계속한다.
 - concurrency_partial_failure_recovery: affinity·memory operation lock이 작업을 직렬화한다. affinity/priority는 열거 후 같은 process handle에서 생성 시각을 확인한 뒤 적용한다. 원본과 앱 적용값을 변경 전에 durable ledger에 기록하고, 복원 시 현재 값이 앱 적용값과 같은 항목만 원본으로 되돌려 외부 변경을 보존한다. 실패한 복원 entry는 다음 시작 복구를 위해 남긴다.
-- state_side_effects_limits: `게임 집중`은 균형 자동값보다 P-core를 최대 2개 더 선택하고, `균형`은 기존 자동값을 사용하며 두 preset 모두 game hard affinity를 적용한다. `안전`은 균형 자동값을 사용하지만 game affinity를 고정하지 않는다. 고급 수동 count는 현재 mode를 유지한 채 자동 count를 override하고 preset을 누르면 해당 자동값으로 복귀한다. background는 남은 P-core와 E-core를 사용하되 hybrid all-P 선택에서는 한 물리 P-core를 공유한다.
+- state_side_effects_limits: `게임 집중`은 균형 자동값보다 P-core를 최대 2개 더 선택하고, `균형`은 기존 자동값을 사용하며 두 preset 모두 game hard affinity를 적용한다. `안전 모드`는 균형 자동값을 사용하지만 game affinity를 고정하지 않는다. 고급 수동 count와 안전 모드 toggle은 서로의 값을 보존한다. main dropdown은 standard 상태에 세 preset을 제공하고, effective mode/count가 모두와 다르면 네 번째 `사용자화` option을 추가해 선택한다. standard preset 선택 시 custom count를 제거해 해당 자동값으로 복귀한다.
 - modules_contracts: `desktop/src/ui.rs` → `service.rs` → `boost.rs` → `affinity_worker.rs`/`affinity.rs`. helper PID와 최신 timestamp가 실행 상태의 필수 조건이다.
 - durable_data_owner: affinity helper가 `runtime-state.json`, runtime status와 `game/path.json`의 유일한 writer다. backend service만 `game-core-setting.json`을 정규화해 쓰고 helper/UI가 읽는다.
 - security_privacy: 다른 `Client.exe` 오탐을 막기 위해 정본의 명시적 게임 폴더를 사용하며 진단 내 사용자 경로는 마스킹한다.
-- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 legacy helper 인계`, `BOOST-005 게임 시작·종료 원본 복원`, `BOOST-006 hybrid P-core 선택과 필요 시 한 P-core 공유`, `BOOST-007 L3 locality·SMT·SchedulingClass 우선순위`, `BOOST-008 저코어 분할·복수 group fail-safe`, `BOOST-009 main focus 6/8P·balanced/safe 4/8P`, `BOOST-010 background-only priority opt-in`, `BOOST-011 PID 재사용·외부 변경 보존·재시작 복구`, `BOOST-012 advanced manual count가 mode를 보존하고 preset이 자동값 복원`
+- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 legacy helper 인계`, `BOOST-005 게임 시작·종료 원본 복원`, `BOOST-006 hybrid P-core 선택과 필요 시 한 P-core 공유`, `BOOST-007 L3 locality·SMT·SchedulingClass 우선순위`, `BOOST-008 저코어 분할·복수 group fail-safe`, `BOOST-009 main focus 6/8P·balanced/safe 4/8P dropdown`, `BOOST-010 background-only priority opt-in`, `BOOST-011 PID 재사용·외부 변경 보존·재시작 복구`, `BOOST-012 advanced manual count와 safe toggle 보존·custom dropdown option·preset 자동값 복원`
 - observability_evidence: UI topology 사유와 고급 설정, `affinity/events.log`, diagnostics affinity snapshot, `topology::tests`, `affinity::tests`, `process::tests::child_priority_roundtrip_uses_one_verified_handle`, backend parity와 Node service contract tests.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `5`
-- updated_at: `2026-10-19T06:45:00Z`
+- revision: `6`
+- updated_at: `2026-10-19T06:55:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T06:45:00Z`
+- source_reviewed_at: `2026-10-19T06:55:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 17dee9063db8c9926d70a1f9eab5a4955b7c47d8 + CP-CPU-MAIN-PRESETS-004 uncommitted owned-file target`
-- source_review_evidence: `SELF_REVIEW of preset defaults, main placement, advanced override and topology classification`
-- behavior_verified_at: `2026-10-19T06:45:00Z`
+- source_review_target: `base 60588e80b2002df7e160a4fa469e2301090e2dd9 + CP-CPU-CUSTOMIZED-005 uncommitted owned-file target`
+- source_review_evidence: `SELF_REVIEW of effective preset projection, preserving safe-mode control and UI states`
+- behavior_verified_at: `2026-10-19T06:55:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 17dee9063db8c9926d70a1f9eab5a4955b7c47d8 + CP-CPU-MAIN-PRESETS-004 uncommitted owned-file target`
+- behavior_verification_target: `base 60588e80b2002df7e160a4fa469e2301090e2dd9 + CP-CPU-CUSTOMIZED-005 uncommitted owned-file target`
 - behavior_verification_environment: `Windows 10.0.26200 x64; Rust test processes and Node v22.20.0`
 - behavior_verification_evidence: `backend mode fixtures and full locked tests, desktop locked check/tests, Node service contract tests; exact counts are in follow-up QA`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 main three presets, advanced manual override, hybrid 공유와 topology 분류를 반영`
+- freshness_reason: `현재 source의 main presets, advanced count/safe customization projection과 topology 동작을 반영`
 - known_gaps: `실제 마비노기 frame·입력 체감, 강제 종료 후 packaged UI 복구는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — main 게임 집중·균형·안전 presets와 advanced manual count`
-- feature_map: `updated — revision 5`
-- architecture_impact: `preset defaults, setting writer, live worker IPC and main UI placement`
-- architecture_contract: `updated — revision 38`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — customized CPU setting indicator and preserving safe toggle`
+- feature_map: `updated — revision 6`
+- architecture_impact: `effective preset projection and preserving advanced safe control`
+- architecture_contract: `updated — revision 39`
 
 ## FEAT-NOGIREM-TURBO-KEY
 

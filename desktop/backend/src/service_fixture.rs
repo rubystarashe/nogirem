@@ -61,6 +61,12 @@ pub fn invoke(s: &Arc<Service>, id: u64, channel: &str, args: &Value) -> Option<
             state["status"]["affinity"]["data"]["gameCoreSetting"]["bindGameAffinity"] = v.clone();
             state["status"]["affinity"]["data"].clone()
         }
+        "optimization:set-safe-cpu-mode" => {
+            let setting = &mut state["status"]["affinity"]["data"]["gameCoreSetting"];
+            setting["cpuMode"] = json!(if v == true { "safe" } else { "balanced" });
+            setting["bindGameAffinity"] = json!(v != true);
+            state["status"]["affinity"]["data"].clone()
+        }
         "optimization:set-cpu-mode" => {
             let setting = &mut state["status"]["affinity"]["data"]["gameCoreSetting"];
             setting["cpuMode"] = v.clone();

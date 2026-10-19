@@ -510,32 +510,23 @@ footer {
   transform: translateX(0);
 }
 
-.cpu-preset-selector button {
+.cpu-preset-selector select {
+  width: 94px;
   height: 22px;
-  padding: 0 7px;
+  padding: 0 5px;
   border: 1px solid #c7c7c7;
   border-radius: 3px;
-  color: #777;
-  background: transparent;
+  color: #555;
+  background: rgba(255, 255, 255, 0.86);
+  font-family: inherit;
   font-size: 9px;
   cursor: pointer;
 }
 
-.cpu-preset-selector button.selected {
-  border-color: #438b52;
-  color: #2f7540;
-  background: rgba(83, 169, 102, 0.1);
-}
-
-.boost-home.paused .cpu-preset-selector button {
+.boost-home.paused .cpu-preset-selector select {
   border-color: #555;
-  color: #aaa;
-}
-
-.boost-home.paused .cpu-preset-selector button.selected {
-  border-color: #67bd78;
-  color: #83cf91;
-  background: rgba(103, 189, 120, 0.12);
+  color: #ddd;
+  background: rgba(20, 20, 20, 0.9);
 }
 
 .character-guide-link.entered,

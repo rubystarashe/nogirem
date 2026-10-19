@@ -38,3 +38,19 @@
 - Target/authorization gate: `PASS`; `NOTICE.md` and `data/` preserved and excluded.
 - Commit: one local checkpoint commit contains the owned target and this report; its SHA is reported outside the containing commit to avoid a self-reference cycle.
 - Push/deploy/release: not performed and not authorized.
+
+## Final current disposition — CP-CPU-CUSTOMIZED-005
+
+- disposition: `COMPLETED`
+- target: `base 60588e80b2002df7e160a4fa469e2301090e2dd9 + owned customized-dropdown target committed with this report; resulting SHA is reported externally`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — standard/custom CPU preset dropdown and advanced safe toggle`
+- feature_map: `updated — revision 6`
+- architecture_impact: `effective preset projection and preserving advanced IPC; topology/ledger boundaries unchanged`
+- architecture_contract: `updated — revision 39`
+- delivered: main dropdown의 `게임 집중 / 균형 / 안전 모드`, nonstandard mode/count일 때 동적 `사용자화` option, advanced count와 safe toggle 상호 보존.
+- automated-test-passing: backend tests, desktop 8/8, Node 213/213, desktop locked check, corrected main smoke and edited-file lints.
+- manually exercised: smoke DOM event로 standard 세 preset 전환과 advanced 5P+safe 후 `사용자화` 표시를 실행했다.
+- actual Mabinogi performance: `NOT_RUN`.
+- review: `REV-CPU-CUSTOMIZED-005-R2 APPROVED`, `SELF_REVIEW`; no independent reviewer and no unresolved mandatory finding.
+- gates: feature `PASS` for implemented UI/settings scope; architecture `PASS`; review/QA `PASS`; target/authorization `PASS`.
+- commit/push/deploy: follow-up local checkpoint contains this report and its resulting SHA is reported externally; push/deploy/release not performed or authorized.
