@@ -1,12 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-19 20:18 +09:00
+Last Updated: 2026-10-19 20:26 +09:00
 
 ## Current Objective
-대체 P-core 그룹이 없는 CPU mode·count에서 재정렬 버튼을 사전 비활성화하고 이유를 표시한 뒤 signed 0.4.8 자산을 같은 버전으로 대치 배포한다.
+대체 P-core 그룹이 없는 CPU mode·count에서 재정렬 버튼을 사전 비활성화하고 이유를 표시했으며 signed 0.4.8 자산의 같은 버전 대치 배포와 공개 재검증을 완료했다.
 
 ## Active Runs
-- `20261019-cpu-reorder-048-hotfix`: backend가 topology alternate mask에서 `canCpuReorder`를 투영하고 UI가 false일 때 버튼을 비활성화해 이유를 표시한다. backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, main UI smoke가 통과했다. source commit·push, signed 0.4.8 rebuild와 public Rust 6개 자산 대치가 진행 중이다. (`docs/ai/runs/20261019-cpu-reorder-048-hotfix/task.md`)
+- `20261019-cpu-reorder-048-hotfix`: source `d3e5a9c5808d6dc897a0e0b7d2516373a2334c0d`에서 topology alternate mask 기반 `canCpuReorder`를 투영하고 UI가 false일 때 버튼을 비활성화해 이유를 표시한다. backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, main UI smoke와 package 검증이 통과했다. [GitHub v0.4.8](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.8)의 Rust 자산 6개를 feed-safe 순서로 대치하고 공개 9/9·Ed25519·aliases·Electron ID 보존을 재검증했다. (`docs/ai/runs/20261019-cpu-reorder-048-hotfix/final-report.md`)
 - `20261019-release-048`: exact package source `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa`를 origin/main에 push하고 annotated `v0.4.8`과 [GitHub v0.4.8](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.8)을 Latest로 공개했다. canonical 자산 9/9의 공개 재다운로드 hash, Ed25519 manifests, aliases와 Electron 0.3.19 routing이 통과했다. 실제 설치·업데이트·게임은 NOT_RUN이다. (`docs/ai/runs/20261019-release-048/final-report.md`)
 - `20261019-package-048`: source `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa`와 사용자 `NOTICE.md` SHA-256 `90b88036...cba3`에서 signed 0.4.8 설치형·포터블을 `release/dioxus-0.4.8-2026-10-19T09-10-32-162Z`에 생성했다. installer `3c697b54...e0fe`, portable `cf3d565b...415e`; Node 213/213, desktop compile, native integration 3/3, Ed25519·payload·NOTICE 검증이 통과했다. 실제 설치·실행·업데이트·게임과 push·배포는 수행하지 않았다. (`docs/ai/runs/20261019-package-048/final-report.md`)
 - `20261019-cpu-topology-priority`: CPU 설정이 없는 신규 기본값을 `균형 모드`로 변경하고 normalization, topology·boost·worker·UI fallback과 fixture를 통일했다. 기존 명시 CPU 설정과 channel ping 기본 비활성화는 보존한다. backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, locked cargo check가 통과했다. 실제 UI smoke·game QA·push·deploy는 수행하지 않았다. (`docs/ai/runs/20261019-cpu-topology-priority/handoff.md`)
@@ -42,6 +42,14 @@ Last Updated: 2026-10-19 20:18 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 지원되지 않는 CPU 재정렬 사전 차단의 public 0.4.8 대치`
+- feature_map: `updated — canonical revision 37, feature revision 16`
+- architecture_impact: `기존 topology capability projection과 signed package/update 경계를 public target에 실행`
+- architecture_contract: `no_change — revision 42를 exact package/public target에 재평가`
+- 공개 대치 설치형은 `9,821,277 bytes`, SHA-256 `6c174a813e29d1f03a5c289297ade9a3a72e1df7fee6123b79620fcabcdf4c5b`; 포터블은 `7,836,103 bytes`, SHA-256 `87578abfc726f16a64d58f444a665637c6e8c5574deb3f7ad4d081fe201b61fb`.
+- `PASS` — source tests, main UI smoke, signed package, public 9/9, Ed25519, aliases, feed order와 Electron IDs.
+- `NOT_RUN` — 실제 game enabled 재정렬, 설치·제거·포터블 실행·same-version 자동 업데이트.
+- 같은 0.4.8을 이미 설치한 사용자는 version 비교상 대치본을 자동 재수신하지 않을 수 있으므로 필요하면 새 설치형을 수동 덮어 설치한다.
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 균형 기본 CPU 모드와 CPU 개선의 public 0.4.8 배포`
 - feature_map: `updated — canonical revision 35, feature revision 14`
 - architecture_impact: `기존 signed package, Ed25519 update, Electron migration bridge와 GitHub Release 경계 실행`

@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `36`
-- updated_at: `2026-10-19T11:18:02Z`
+- revision: `37`
+- updated_at: `2026-10-19T11:25:52Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T11:18:02Z`
+- source_reviewed_at: `2026-10-19T11:25:52Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 414c6b23d66c1a1925713a9206330f426a5a3ab5 + CP-CPU-REORDER-GUARD-048 owned target`
-- source_review_evidence: `alternate P-core capability projection, UI disabled reason, fixture and smoke assertion SELF_REVIEW`
+- source_review_target: `d3e5a9c5808d6dc897a0e0b7d2516373a2334c0d + public GitHub v0.4.8 replacement assets`
+- source_review_evidence: `source capability guard, signed package and public 9/9 hash·Ed25519·alias·Electron identity SELF_REVIEW`
 - behavior_verified_at: `2026-10-19T11:16:42Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 414c6b23d66c1a1925713a9206330f426a5a3ab5 + CP-CPU-REORDER-GUARD-048 owned target`
+- behavior_verification_target: `d3e5a9c5808d6dc897a0e0b7d2516373a2334c0d`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust backend/desktop test target`
 - behavior_verification_evidence: `backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, main UI smoke PASS; full smoke 후속 terms 단계 timeout은 별도 제한`
 - freshness_status: `CURRENT`
-- freshness_reason: `대체 P-core 그룹이 없는 mode·count에서 CPU 재정렬을 실행 전에 차단하는 현재 source와 검증을 반영`
+- freshness_reason: `대체 P-core 그룹이 없는 재정렬을 사전 차단하는 source와 same-version public 0.4.8 대치 검증을 반영`
 - known_gaps: `실제 마비노기에서 enabled 재정렬 수행과 same-version 설치·업데이트는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 대체 P-core 그룹이 없는 CPU 재정렬 버튼 비활성화와 이유 표시`
-- feature_map: `updated — revision 36, feature revision 15`
-- architecture_impact: `topology capability를 backend setting projection으로 전달해 UI 실행 가능 여부를 결정`
-- architecture_contract: `updated — revision 42`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 지원되지 않는 CPU 재정렬 사전 차단의 public 0.4.8 대치`
+- feature_map: `updated — revision 37, feature revision 16`
+- architecture_impact: `기존 topology capability projection과 signed package/update 경계를 public target에 실행`
+- architecture_contract: `no_change — revision 42를 exact package/public target에 재평가`
 
 ## ID 할당
 
@@ -135,25 +135,25 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `15`
-- updated_at: `2026-10-19T11:18:02Z`
+- revision: `16`
+- updated_at: `2026-10-19T11:25:52Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T11:18:02Z`
+- source_reviewed_at: `2026-10-19T11:25:52Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 414c6b23d66c1a1925713a9206330f426a5a3ab5 + CP-CPU-REORDER-GUARD-048 owned target`
-- source_review_evidence: `SELF_REVIEW of alternate P-core capability projection, UI disabled reason, fixture and smoke assertion`
+- source_review_target: `d3e5a9c5808d6dc897a0e0b7d2516373a2334c0d + public GitHub v0.4.8 replacement assets`
+- source_review_evidence: `SELF_REVIEW of source capability guard, signed package and public 9/9 hash·Ed25519·alias·Electron identity`
 - behavior_verified_at: `2026-10-19T11:16:42Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 414c6b23d66c1a1925713a9206330f426a5a3ab5 + CP-CPU-REORDER-GUARD-048 owned target`
+- behavior_verification_target: `d3e5a9c5808d6dc897a0e0b7d2516373a2334c0d`
 - behavior_verification_environment: `Windows 10.0.26200 x64; Rust backend/desktop test target`
 - behavior_verification_evidence: `backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, main UI smoke PASS; full smoke 후속 terms 단계 timeout은 별도 제한`
 - freshness_status: `CURRENT`
-- freshness_reason: `current source blocks unsupported CPU reorder before dispatch and explains the unavailable alternate P-core group`
+- freshness_reason: `public 0.4.8 replacement contains the unsupported CPU reorder guard and exact signed assets`
 - known_gaps: `실제 마비노기에서 enabled 재정렬 수행과 same-version 설치·업데이트는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 대체 P-core 그룹이 없는 CPU 재정렬 버튼 비활성화와 이유 표시`
-- feature_map: `updated — revision 15`
-- architecture_impact: `topology capability를 backend setting projection으로 전달해 UI 실행 가능 여부를 결정`
-- architecture_contract: `updated — revision 42`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 지원되지 않는 CPU 재정렬 사전 차단의 public 0.4.8 대치`
+- feature_map: `updated — revision 16`
+- architecture_impact: `기존 topology capability projection과 signed package/update 경계를 public target에 실행`
+- architecture_contract: `no_change — revision 42를 exact package/public target에 재평가`
 
 ## FEAT-NOGIREM-TURBO-KEY
 
