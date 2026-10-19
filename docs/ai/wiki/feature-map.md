@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `34`
-- updated_at: `2026-10-19T09:14:20Z`
+- revision: `35`
+- updated_at: `2026-10-19T09:23:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T09:14:20Z`
+- source_reviewed_at: `2026-10-19T09:23:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa + NOTICE input 90b88036...cba3`
-- source_review_evidence: `0.4.8 package app·portable version, history, NOTICE identity, signed manifests and payload contract SELF_REVIEW`
+- source_review_target: `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa + public GitHub v0.4.8 assets`
+- source_review_evidence: `public asset 9/9 candidate hash, signed manifests, aliases and Electron migration routing SELF_REVIEW`
 - behavior_verified_at: `2026-10-19T09:02:06Z`
 - behavior_verified_by: `cursor-agent-92251f36`
 - behavior_verification_target: `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa; version-only delta에 대해 500e174 behavior evidence applicability 재평가`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust backend/desktop test target`
 - behavior_verification_evidence: `500e174 backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8 evidence 재사용; af36bc1 Node 213/213, desktop compile, package contract와 native integration 3/3 PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `균형 기본 CPU 모드를 포함한 signed 0.4.8 package와 exact source·NOTICE 입력을 반영`
+- freshness_reason: `균형 기본 CPU 모드를 포함한 public v0.4.8 source, signed assets와 공개 검증을 반영`
 - known_gaps: `실제 설치·포터블 실행·업데이트·UI smoke와 마비노기 프레임·입력 체감은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 균형 기본 CPU 모드가 포함된 0.4.8 package evidence`
-- feature_map: `updated — revision 34, feature revision 13`
-- architecture_impact: `none — 기존 signed package 경로와 payload 경계를 변경하지 않음`
-- architecture_contract: `no_change — revision 41을 package target에 재평가`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 균형 기본 CPU 모드와 CPU 개선의 public 0.4.8 배포`
+- feature_map: `updated — revision 35, feature revision 14`
+- architecture_impact: `기존 signed package, Ed25519 update, Electron migration bridge와 GitHub Release 경계 실행`
+- architecture_contract: `no_change — revision 41을 public release target에 재평가`
 
 ## ID 할당
 
@@ -135,25 +135,25 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `13`
-- updated_at: `2026-10-19T09:14:20Z`
+- revision: `14`
+- updated_at: `2026-10-19T09:23:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T09:14:20Z`
+- source_reviewed_at: `2026-10-19T09:23:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa + NOTICE input 90b88036...cba3`
-- source_review_evidence: `SELF_REVIEW of signed 0.4.8 package version, history, NOTICE identity, manifests and payload`
+- source_review_target: `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa + public GitHub v0.4.8 assets`
+- source_review_evidence: `SELF_REVIEW of public asset 9/9 candidate hashes, signed manifests, aliases and Electron migration routing`
 - behavior_verified_at: `2026-10-19T09:02:06Z`
 - behavior_verified_by: `cursor-agent-92251f36`
 - behavior_verification_target: `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa; version-only delta에 대해 500e174 behavior evidence applicability 재평가`
 - behavior_verification_environment: `Windows 10.0.26200 x64; Rust backend/desktop test target`
 - behavior_verification_evidence: `500e174 backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8 evidence 재사용; af36bc1 Node 213/213, desktop compile, package contract와 native integration 3/3 PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `signed 0.4.8 package contains the balanced default source, version history and exact NOTICE input`
+- freshness_reason: `public v0.4.8 contains the balanced default source and exact signed package assets`
 - known_gaps: `실제 설치·포터블 실행·업데이트·UI smoke와 실제 마비노기 frame·입력 체감은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 균형 기본 CPU 모드가 포함된 0.4.8 package evidence`
-- feature_map: `updated — revision 13`
-- architecture_impact: `none — 기존 signed package 경로와 payload 경계를 변경하지 않음`
-- architecture_contract: `no_change — revision 41을 package target에 재평가`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 균형 기본 CPU 모드와 CPU 개선의 public 0.4.8 배포`
+- feature_map: `updated — revision 14`
+- architecture_impact: `기존 signed package, Ed25519 update, Electron migration bridge와 GitHub Release 경계 실행`
+- architecture_contract: `no_change — revision 41을 public release target에 재평가`
 
 ## FEAT-NOGIREM-TURBO-KEY
 
