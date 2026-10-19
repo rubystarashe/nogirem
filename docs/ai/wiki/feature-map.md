@@ -135,24 +135,24 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `8`
-- updated_at: `2026-10-19T07:53:00Z`
+- revision: `9`
+- updated_at: `2026-10-19T08:05:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T07:53:00Z`
+- source_reviewed_at: `2026-10-19T08:05:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base f8c4411 + CP-CPU-DROPDOWN-007 uncommitted owned-file target`
-- source_review_evidence: `SELF_REVIEW of ruby label, mode naming, native appearance removal and color transitions`
-- behavior_verified_at: `2026-10-19T07:59:00Z`
+- source_review_target: `base 593bd05a5829b07a951583429308fd35930a450c + CP-CPU-DROPDOWN-008 uncommitted owned-file target`
+- source_review_evidence: `SELF_REVIEW of CSS chevron, vertical spacing and safe-mode user terminology`
+- behavior_verified_at: `2026-10-19T08:10:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base f8c4411 + CP-CPU-DROPDOWN-007 uncommitted owned-file target`
+- behavior_verification_target: `base 593bd05a5829b07a951583429308fd35930a450c + CP-CPU-DROPDOWN-008 uncommitted owned-file target`
 - behavior_verification_environment: `Windows 10.0.26200 x64; Rust test processes and Node v22.20.0`
-- behavior_verification_evidence: `desktop smoke verified option labels, ruby label, native appearance removal, transparent style, top-level CPU action labels/order and preset roundtrip; screenshot visually reviewed`
+- behavior_verification_evidence: `desktop smoke verified Vulkan/ruby gap, CSS chevron borders, user-facing CPU preference copy and existing preset/action roundtrips; screenshot visually reviewed`
 - freshness_status: `CURRENT`
-- freshness_reason: `current presentation and top-level option source/behavior are reflected`
+- freshness_reason: `current spacing/copy source and smoke behavior are reflected`
 - known_gaps: `실제 마비노기 frame·입력 체감, 강제 종료 후 packaged UI 복구는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode presentation and top-level advanced CPU options`
-- feature_map: `updated — revision 8`
-- architecture_impact: `none — presentation-only refinement`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode chevron/spacing and safe-mode terminology`
+- feature_map: `updated — revision 9`
+- architecture_impact: `none — visual and user-facing copy only`
 - architecture_contract: `no_change — revision 39 remains accurate`
 
 ## FEAT-NOGIREM-TURBO-KEY

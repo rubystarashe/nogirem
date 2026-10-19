@@ -70,6 +70,21 @@
 - actual game workload: `NOT_RUN`.
 - commit/push/deploy: local checkpoint contains this report and its resulting SHA is reported externally; push/deploy/release not performed or authorized.
 
+## Final current disposition — CP-CPU-DROPDOWN-008
+
+- disposition: `COMPLETED`
+- target: `base 593bd05a5829b07a951583429308fd35930a450c + owned spacing/copy target committed with this report; resulting SHA is reported externally`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode chevron/spacing and safe-mode terminology`
+- feature_map: `updated — revision 9`
+- architecture_impact: `none — visual and user-facing copy only`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- delivered: font-independent CSS chevron, larger top margin, tighter ruby/select spacing and `게임 CPU 선호도` wording.
+- automated-test-passing: desktop locked check, main smoke and edited-file lints.
+- manually exercised: computed spacing/chevron/copy assertions and screenshot review.
+- review: `REV-CPU-DROPDOWN-008-R1 APPROVED`, `SELF_REVIEW`; no independent reviewer and no unresolved mandatory finding.
+- actual game workload: `NOT_RUN`.
+- commit/push/deploy: local checkpoint contains this report and its resulting SHA is reported externally; push/deploy/release not performed or authorized.
+
 ## Final current disposition — CP-CPU-DROPDOWN-007
 
 - disposition: `COMPLETED`

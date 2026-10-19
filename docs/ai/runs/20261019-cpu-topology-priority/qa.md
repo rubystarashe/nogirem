@@ -142,6 +142,21 @@ Mandatory source and automated scenarios for this checkpoint passed. Actual game
 - edited-file lints: `PASS`.
 - actual game workload: `NOT_RUN`.
 
+## Follow-up CP-CPU-DROPDOWN-008
+
+- qa_state: `COMPLETE_PASS`
+- source_target: `base 593bd05a5829b07a951583429308fd35930a450c + owned spacing/copy target`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode chevron/spacing and safe-mode terminology`
+- feature_map: `updated — revision 9`
+- architecture_impact: `none — visual and user-facing copy only`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- `SCN-CPU-DROPDOWN-003`: `PASS` — Vulkan gap 10px, ruby gap ≤0px, 1px border chevron을 확인했다.
+- `SCN-CPU-ADVANCED-002`: `PASS` — safe-mode description은 `게임 CPU 선호도`를 포함하고 `affinity`를 포함하지 않는다.
+- desktop locked check: `PASS`.
+- main desktop smoke: `PASS`.
+- edited-file lints: `PASS`.
+- actual game workload: `NOT_RUN`.
+
 ## Follow-up CP-CPU-DROPDOWN-007
 
 - qa_state: `COMPLETE_PASS`

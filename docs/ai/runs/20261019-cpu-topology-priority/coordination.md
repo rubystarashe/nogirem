@@ -104,6 +104,21 @@
 - open mandatory findings: `none`
 - ownership: single-agent writer; `NOTICE.md` and `data/` remain out of scope.
 
+## Follow-up CP-CPU-DROPDOWN-008
+
+- updated_at: `2026-10-19T08:10:00Z`
+- active_checkpoint: `COMPLETE`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
+- review: `REV-CPU-DROPDOWN-008-R1 APPROVED`, `SELF_REVIEW`
+- exact_target: `base 593bd05a5829b07a951583429308fd35930a450c + owned spacing/copy target`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost mode chevron/spacing and safe-mode terminology`
+- feature_map: `updated — revision 9`
+- architecture_impact: `none — visual and copy only`
+- architecture_contract: `no_change — revision 39 remains accurate`
+- open mandatory findings: `none`
+- ownership: single-agent writer; `NOTICE.md` and `data/` remain out of scope.
+
 ## Follow-up CP-CPU-DROPDOWN-007
 
 - updated_at: `2026-10-19T07:59:00Z`

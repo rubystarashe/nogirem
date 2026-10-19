@@ -996,7 +996,7 @@ fn CpuPresetSelector(entered: bool) -> Element {
                         }
                     }
                 }
-                span { class: "cpu-preset-arrow", aria_hidden: "true", "⌄" }
+                span { class: "cpu-preset-arrow", aria_hidden: "true" }
             }
         }
     }
@@ -1080,7 +1080,7 @@ fn CpuAdvancedSettings() -> Element {
         div { class: "developer-tool-row",
             div {
                 h2 { "안전 모드 사용" }
-                p { "게임 affinity를 고정하지 않고 Windows 스케줄러에 맡기며, 수동 코어 개수는 유지합니다" }
+                p { "게임 CPU 선호도를 고정하지 않고 Windows 스케줄러에 맡기며, 수동 코어 개수는 유지합니다" }
             }
             Action {
                 label: if setting["cpuMode"] == "safe" { "사용 중" } else { "사용하기" },
