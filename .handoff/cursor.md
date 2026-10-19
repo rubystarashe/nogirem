@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-19 18:14 +09:00
+Last Updated: 2026-10-19 18:20 +09:00
 
 ## Current Objective
-균형 CPU 기본 모드와 사용자 공지를 포함한 signed 0.4.8 설치형·포터블 패키지 생성·검증을 완료했다. 외부 push·tag·GitHub Release·배포는 수행하지 않았다.
+검증된 signed 0.4.8 패키지를 기존 Electron 0.3.19 전환 자산과 조립해 origin/main, annotated tag와 public GitHub Release로 공개하고 원격 자산을 재검증한다.
 
 ## Active Runs
+- `20261019-release-048`: exact package source `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa`와 `release/dioxus-0.4.8-2026-10-19T09-10-32-162Z`에서 canonical 9개 release asset 조립·후보 검증을 완료했다. origin/main push, annotated `v0.4.8`, public GitHub Release와 공개 다운로드 재검증을 진행한다. (`docs/ai/runs/20261019-release-048/task.md`)
 - `20261019-package-048`: source `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa`와 사용자 `NOTICE.md` SHA-256 `90b88036...cba3`에서 signed 0.4.8 설치형·포터블을 `release/dioxus-0.4.8-2026-10-19T09-10-32-162Z`에 생성했다. installer `3c697b54...e0fe`, portable `cf3d565b...415e`; Node 213/213, desktop compile, native integration 3/3, Ed25519·payload·NOTICE 검증이 통과했다. 실제 설치·실행·업데이트·게임과 push·배포는 수행하지 않았다. (`docs/ai/runs/20261019-package-048/final-report.md`)
 - `20261019-cpu-topology-priority`: CPU 설정이 없는 신규 기본값을 `균형 모드`로 변경하고 normalization, topology·boost·worker·UI fallback과 fixture를 통일했다. 기존 명시 CPU 설정과 channel ping 기본 비활성화는 보존한다. backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, locked cargo check가 통과했다. 실제 UI smoke·game QA·push·deploy는 수행하지 않았다. (`docs/ai/runs/20261019-cpu-topology-priority/handoff.md`)
 - `20261016-native-installer-cleanup-047`: source `faee6cf2492b8247a11b4a787f3c0f8cf710b060`에서 NSIS install/uninstall의 end-user PowerShell 실행을 제거하고 current-source `installer-cleanup.exe`를 embedded한다. helper는 UTF-16 canonical path, PID·생성 시각 identity, caller/updater parent trust, graceful/forced stop과 exact task ownership을 보존한다. native unit 6/6, installer 12/12, Node 213/213, backend 115 PASS·3 ignored와 parity 2/2, desktop check, strict clippy, 독립 review와 signed package 검증이 통과했다. 설치형 `9,761,105 bytes` SHA-256 `23039c63...04d6c`, 포터블 `7,787,597 bytes` SHA-256 `4b164625...49f0`와 manifests를 [GitHub v0.4.7](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7)에 feed-safe order로 대치하고 공개 9/9와 Electron ID 보존을 재검증했다. 실제 관리자 install/uninstall은 NOT_RUN이다. (`docs/ai/runs/20261016-native-installer-cleanup-047/handoff.md`)
