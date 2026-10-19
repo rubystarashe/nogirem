@@ -243,7 +243,7 @@ impl Blackbox {
         let output = command::run_progress(
             self.env
                 .root
-                .join("native/recorder-helper/tools-bin/recorder-helper.exe"),
+                .join("native/recorder-helper/bin/recorder-helper.exe"),
             &args,
             7200000,
             1024 * 1024,

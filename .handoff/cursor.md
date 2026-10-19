@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-19 23:50 +09:00
+Last Updated: 2026-10-20 03:10 +09:00
 
 ## Current Objective
-새 `NOTICE.md`를 commit `5e93686152bbf87cb63e1207da2f6b389c136244`로 origin/main에 게시했다. GitHub API와 commit 고정 raw URL은 새 공지를 반환하지만 앱이 사용하는 branch raw URL은 아직 CDN 캐시된 이전 공지를 반환한다.
+백신의 solid NSIS overlay 휴리스틱을 완화하기 위해 recorder helper를 하나로 통합하고 WebView2 bootstrapper를 package에서 제거했으며, 시작 음악을 128kbps로 재압축해 non-solid LZMA 설치형을 decimal 10MB 아래로 생성했다.
 
 ## Active Runs
+- `20261020-nonsolid-package-048`: base `af244d2ea823dd51b6bd0da9f9d8f81be6f11105`에서 installer·portable을 non-solid LZMA로 바꾸고 recorder helper를 `bin` 하나로 통합했으며 WebView2 미설치 시 Microsoft 공식 페이지를 안내하고 중단한다. 시작 음악은 192→128kbps로 줄였다. signed 후보 `release/dioxus-0.4.8-2026-10-19T18-14-22-935Z`의 설치형은 `8,014,317 bytes`, 포터블은 `7,789,628 bytes`다. 실제 설치·WebView2 미설치·포터블 실행·VirusTotal·배포는 NOT_RUN이다. (`docs/ai/runs/20261020-nonsolid-package-048/task.md`)
 - `20261019-notice-publish-048`: 사용자 작성 `NOTICE.md` SHA-256 `90b88036...cba3`를 commit `5e93686152bbf87cb63e1207da2f6b389c136244`로 origin/main에 게시했다. GitHub API main과 commit 고정 raw URL은 새 제목을 반환한다. 앱의 branch raw URL은 2026-10-19T14:49Z 현재 이전 공지를 반환하므로 CDN 캐시 만료 후 재확인이 남았다. 앱 source·package·Release assets는 변경하지 않았다. (`docs/ai/runs/20261019-notice-publish-048/task.md`)
 - `20261019-cpu-reorder-048-hotfix`: source `d3e5a9c5808d6dc897a0e0b7d2516373a2334c0d`에서 topology alternate mask 기반 `canCpuReorder`를 투영하고 UI가 false일 때 버튼을 비활성화해 이유를 표시한다. backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, main UI smoke와 package 검증이 통과했다. [GitHub v0.4.8](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.8)의 Rust 자산 6개를 feed-safe 순서로 대치하고 공개 9/9·Ed25519·aliases·Electron ID 보존을 재검증했다. (`docs/ai/runs/20261019-cpu-reorder-048-hotfix/final-report.md`)
 - `20261019-release-048`: exact package source `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa`를 origin/main에 push하고 annotated `v0.4.8`과 [GitHub v0.4.8](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.8)을 Latest로 공개했다. canonical 자산 9/9의 공개 재다운로드 hash, Ed25519 manifests, aliases와 Electron 0.3.19 routing이 통과했다. 실제 설치·업데이트·게임은 NOT_RUN이다. (`docs/ai/runs/20261019-release-048/final-report.md`)
@@ -43,6 +44,13 @@ Last Updated: 2026-10-19 23:50 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — external WebView2 prerequisite, non-solid package와 recorder helper 단일화`
+- feature_map: `updated — canonical revision 38, feature revision 11`
+- architecture_impact: `single recorder helper, non-solid LZMA, WebView2 external prerequisite와 10MB package gate`
+- architecture_contract: `updated — revision 43`
+- signed non-solid 후보는 설치형 `8,014,317 bytes` SHA-256 `acb7e89645aa2add439d9e14f59e711cd367e03753314020be17023705bd7745`, 포터블 `7,789,628 bytes` SHA-256 `b46afe5c9aac5e93c9c02e851707cd670ad398720942784cd470c908f98b3df2`다.
+- `PASS` — targeted 24/24, Node 213/213, backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, native integration 3/3, Ed25519 manifests, single recorder helper, WebView2 bootstrapper 부재, audio 44.1kHz stereo 128kbps.
+- `NOT_RUN` — 실제 WebView2 미설치 안내, 설치·제거·포터블 실행, VirusTotal 재분석, push·tag·GitHub Release 대치.
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 지원되지 않는 CPU 재정렬 사전 차단의 public 0.4.8 대치`
 - feature_map: `updated — canonical revision 37, feature revision 16`
 - architecture_impact: `기존 topology capability projection과 signed package/update 경계를 public target에 실행`
@@ -235,6 +243,8 @@ Last Updated: 2026-10-19 23:50 +09:00
 - 실행 파일 옆 `portable.marker`로 포터블 모드를 감지한다.
 - 기존 설치형 클라이언트 호환성을 위해 설치형 `update.json`과 포터블 `portable-update.json`을 분리한다.
 - 포터블도 시스템 WebView2와 관리자 권한을 사용하며 설정은 `%APPDATA%\마비노기 렘 부스터`에서 설치형과 공유한다.
+- 설치형도 WebView2 bootstrapper를 포함하지 않는다. 시스템 runtime이 없으면 Microsoft 공식 다운로드 페이지를 안내하고 변경 전에 중단한다.
+- 설치형·포터블은 non-solid LZMA와 단일 `native/recorder-helper/bin/recorder-helper.exe`를 사용한다.
 - 녹화 청크 경로는 포터블 폴더로 강제하지 않고 기존 드라이브 선택을 유지한다.
 - 부드러운 스크롤은 `web/smooth-wheel-scroll.mjs`의 `createSmoothWheelScroller`를 앱·약관·공지에서 공유한다.
 - 60Hz 정상 프레임에서는 기존 18% 감속감을 유지하고, 느린 프레임에서는 경과 시간만큼 더 이동한다.
@@ -272,7 +282,7 @@ Last Updated: 2026-10-19 23:50 +09:00
 - 일부 DXVK 버전은 Windows Smart App Control에서 `0xC0E90002`로 차단될 수 있다.
 - 0.3.16 설치본은 Authenticode 인증서 서명이 없어 Windows 검증 결과가 `NotSigned`다.
 - 채널 핑 source·로컬 signed package는 완료했지만 실제 게임 수동 QA와 설치·제거 종단간·release는 완료하지 않았다.
-- 미서명 NSIS와 포함 helper의 관리자 권한·입력 hook·화면 capture 특성 때문에 오진을 완전히 제거할 수 없다. non-solid LZMA는 10MB 공유 제한을 초과해 solid archive를 유지한다.
+- 미서명 NSIS와 포함 helper의 관리자 권한·입력 hook·화면 capture 특성 때문에 non-solid LZMA로 바꿔도 오진을 완전히 제거할 수 없다. 현재 후보의 VirusTotal 비교는 NOT_RUN이다.
 - 사용 중인 녹화 청크가 Windows 파일 잠금으로 삭제되지 않으면 정리 오류를 표시하며 해당 파일은 남는다.
 
 ## Key Files

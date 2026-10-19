@@ -17,7 +17,7 @@ if (cargoVersion !== version) throw new Error(`Version mismatch: package.json=${
 const stamp = new Date().toISOString().replace(/[:.]/g, '-')
 const output = join(root, 'release', `dioxus-${version}-${stamp}`)
 const appDirectory = join(output, 'app')
-const runtimePackages = [] // Rust backend; no Node runtime or native Node addons are shipped.
+const runtimePackages = [] // Rust backend만 배포하며 Node runtime과 native Node addon은 포함하지 않는다.
 function run(file, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(file, args, { cwd: root, stdio: 'inherit', windowsHide: true, ...options })
@@ -26,12 +26,12 @@ function run(file, args, options = {}) {
   })
 }
 await run(process.execPath, [join(root, 'scripts/build-installer-cleanup.mjs')])
-await run(process.execPath, [join(root, 'scripts/build-recorder-helper.mjs'), '--tools-only'])
+await run(process.execPath, [join(root, 'scripts/build-recorder-helper.mjs')])
 await run('cargo', ['build', '--release', '--locked', '--manifest-path', 'desktop/Cargo.toml'])
 await mkdir(appDirectory, { recursive: true })
 await writeFile(join(appDirectory,'version.json'),JSON.stringify({version}))
 await copyFile(join(root, 'desktop/target/release/nogirem-desktop.exe'), join(appDirectory, 'nogirem.exe'))
-// Keep source artwork in the repository; runtime uses the optimized JPEG/WebP.
+// 원본 이미지는 저장소에 보존하고 runtime에는 최적화한 JPEG/WebP만 포함한다.
 const sourceOnlyAssets = new Set(['public/main3.jpg', 'public/doc_minimize/introduce.png'])
 for (const directory of ['assets', 'public']) {
   await cp(join(root, directory), join(appDirectory, directory), {
@@ -39,7 +39,7 @@ for (const directory of ['assets', 'public']) {
     filter: source => !sourceOnlyAssets.has(relative(root, source).replaceAll('\\', '/')),
   })
 }
-// Generate only the packaged copy; preserve the full-resolution source artwork.
+// 고해상도 원본을 보존하고 package 전용 복사본만 생성한다.
 await run(join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'), [
   '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
   '-File', join(root, 'scripts/optimize-package-background.ps1'),
@@ -51,7 +51,7 @@ for (const asset of ['public/main3-optimized.jpg', 'public/doc_minimize/introduc
 }
 await mkdir(join(appDirectory, 'service'))
 for (const file of await readdir(join(root, 'service'))) {
-  if (!file.endsWith('-preload.js')) continue // WebView renderer bridges only.
+  if (!file.endsWith('-preload.js')) continue // WebView renderer bridge만 포함한다.
   await copyFile(join(root, 'service', file), join(appDirectory, 'service', file))
 }
 await cp(join(root, 'desktop/target/release/web'), join(appDirectory, 'web'), { recursive: true })
@@ -61,8 +61,7 @@ for (const file of ['character-guide.html', 'dxvk-guide.html', 'dxvk-manager.htm
 for (const helper of ['input-guard-helper', 'radeon-helper', 'recorder-helper']) {
   await cp(join(root, 'native', helper, 'bin'), join(appDirectory, 'native', helper, 'bin'), { recursive: true })
 }
-await cp(join(root, "native/recorder-helper/tools-bin"), join(appDirectory, "native/recorder-helper/tools-bin"), { recursive: true })
-// Verify the Rust service contract without starting optimizers or loading Node.
+// 최적화 기능이나 Node를 시작하지 않고 Rust service 계약을 검증한다.
 const probe = spawn(join(appDirectory, 'nogirem.exe'), ['--native-service', '--contract-test'], {
   cwd: appDirectory, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
   env: { ...process.env, NOGIREM_ROOT: appDirectory, NOGIREM_PACKAGED: '1', NOGIREM_DESKTOP_EXE: join(appDirectory, 'nogirem.exe') },
@@ -82,7 +81,7 @@ try {
   probe.kill()
 }
 
-// Reject accidental reintroduction of any Node/Electron backend payload.
+// Node/Electron backend payload가 실수로 다시 포함되면 거부한다.
 async function verifyRustPayload(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (/^(node(?:\.exe)?|node_modules|electron(?:\.exe)?|NODE-LICENSE)$/i.test(entry.name)) throw new Error(`Forbidden runtime payload: ${join(directory, entry.name)}`)
@@ -120,8 +119,8 @@ async function hashDirectory(directory, base = directory, hash = createHash('sha
   return hash
 }
 const portableCacheId = (await hashDirectory(portableDirectory)).digest('hex')
-// Enumerate only the files shipped by this build. Never recursively delete the
-// install directory, which may also contain files created by the user.
+// 이번 빌드가 배포한 파일만 열거한다. 사용자가 만든 파일이 있을 수 있는
+// 설치 디렉터리 전체를 재귀 삭제하지 않는다.
 const uninstallLines = []
 async function enumerateUninstall(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -138,24 +137,15 @@ const uninstallManifest = join(output, 'uninstall-files.nsh')
 await writeFile(uninstallManifest, '\uFEFF' + uninstallLines.join('\r\n'))
 const cleanupHelper = join(root, 'native/installer-cleanup/bin/installer-cleanup.exe')
 
-const bootstrapper = join(output, 'MicrosoftEdgeWebview2Setup.exe')
-const response = await fetch('https://go.microsoft.com/fwlink/p/?LinkId=2124703')
-if (!response.ok) throw new Error(`WebView2 bootstrapper download failed: ${response.status}`)
-await writeFile(bootstrapper, Buffer.from(await response.arrayBuffer()))
-const quoted = bootstrapper.replaceAll("'", "''")
-await run(join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'), ['-NoProfile', '-NonInteractive', '-Command', `$ErrorActionPreference='Stop'; $s=Get-AuthenticodeSignature -LiteralPath '${quoted}'; if ($s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') { throw 'WebView2 bootstrapper signature verification failed' }`], {
-  env: { ...process.env, PSModulePath: join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/Modules') },
-})
-
 const candidates = [process.env.NSIS_MAKENSIS, join(process.env.LOCALAPPDATA ?? '', 'electron-builder/Cache/nsis/nsis-3.0.4.1/Bin/makensis.exe'), 'C:/Program Files (x86)/NSIS/makensis.exe'].filter(Boolean)
 const nsis = candidates.find(existsSync)
 if (!nsis) throw new Error(`NSIS compiler not found. Set NSIS_MAKENSIS. Prepared app: ${appDirectory}`)
 const installer = join(output, `nogirem-dioxus-setup-${version}.exe`)
-await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${appDirectory}`, `/DWEBVIEW_BOOTSTRAPPER=${bootstrapper}`, `/DUNINSTALL_MANIFEST=${uninstallManifest}`, `/DCLEANUP_HELPER=${cleanupHelper}`, `/DOUTPUT_FILE=${installer}`, `/DAPP_VERSION=${version}`, join(root, 'desktop/installer.nsi')])
+await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${appDirectory}`, `/DUNINSTALL_MANIFEST=${uninstallManifest}`, `/DCLEANUP_HELPER=${cleanupHelper}`, `/DOUTPUT_FILE=${installer}`, `/DAPP_VERSION=${version}`, join(root, 'desktop/installer.nsi')])
 const portable = join(output, `nogirem-dioxus-portable-${version}.exe`)
 await run(nsis, ['/WX', '/INPUTCHARSET', 'UTF8', `/DAPP_DIRECTORY=${portableDirectory}`, `/DOUTPUT_FILE=${portable}`, `/DAPP_VERSION=${version}`, `/DPORTABLE_CACHE_ID=${portableCacheId}`, join(root, 'desktop/portable.nsi')])
 const installerBytes = (await stat(installer)).size
-const installerLimitBytes = 10_000_000 // Conservative decimal MB limit for file sharing.
+const installerLimitBytes = 10_000_000 // 파일 공유를 위한 보수적인 decimal MB 제한이다.
 if (installerBytes >= installerLimitBytes) throw new Error(`Installer exceeds 10 MB budget: ${installerBytes} bytes`)
 const portableBytes = (await stat(portable)).size
 await writeFile(join(output, 'build.json'), JSON.stringify({ version, backend: 'Rust', runtime: 'Dioxus Desktop / WebView2', installer, installerBytes, installerLimitBytes, portable, portableBytes, portableCacheId, appDirectory, portableDirectory, runtimePackages }, null, 2))

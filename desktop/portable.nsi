@@ -15,7 +15,7 @@ VIAddVersionKey /LANG=1042 "OriginalFilename" "nogirem-portable.exe"
 VIAddVersionKey /LANG=1042 "LegalCopyright" "Copyright (C) 2026 Nogirem contributors"
 RequestExecutionLevel admin
 SilentInstall silent
-SetCompressor /SOLID lzma
+SetCompressor lzma
 
 Section
   ${IfNot} ${RunningX64}

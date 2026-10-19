@@ -18,7 +18,7 @@ VIAddVersionKey /LANG=1042 "LegalCopyright" "Copyright (C) 2026 Nogirem contribu
 InstallDir "$PROGRAMFILES64\Nogirem"
 RequestExecutionLevel admin
 SilentInstall silent
-SetCompressor /SOLID lzma
+SetCompressor lzma
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "Korean"
@@ -31,24 +31,10 @@ Function EnsureWebView
   ${EndIf}
   ${If} $0 == ""
   ${OrIf} $0 == "0.0.0.0"
-    InitPluginsDir
-    SetOutPath "$PLUGINSDIR"
-    File /oname=MicrosoftEdgeWebview2Setup.exe "${WEBVIEW_BOOTSTRAPPER}"
-    DetailPrint "Microsoft WebView2 런타임 설치 중..."
-    ExecWait '"$PLUGINSDIR\MicrosoftEdgeWebview2Setup.exe" /silent /install' $0
-    ${If} $0 != 0
-      MessageBox MB_ICONSTOP "WebView2 런타임 설치에 실패했습니다. 인터넷 연결을 확인하고 다시 설치해 주세요. (코드 $0)"
-      Abort
-    ${EndIf}
-    ReadRegStr $0 HKLM "SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
-    ${If} $0 == ""
-      ReadRegStr $0 HKCU "SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
-    ${EndIf}
-    ${If} $0 == ""
-    ${OrIf} $0 == "0.0.0.0"
-      MessageBox MB_ICONSTOP "WebView2 런타임을 확인하지 못했습니다. 런타임 설치 후 다시 시도해 주세요."
-      Abort
-    ${EndIf}
+    MessageBox MB_ICONSTOP|MB_YESNO "Microsoft Edge WebView2 Runtime이 필요합니다.$\r$\n공식 다운로드 페이지를 여시겠습니까? 설치 후 이 설치 파일을 다시 실행해 주세요." IDNO webview_missing
+    ExecShell "open" "https://developer.microsoft.com/microsoft-edge/webview2/#download"
+    webview_missing:
+    Abort
   ${EndIf}
   SetRegView 64
 FunctionEnd

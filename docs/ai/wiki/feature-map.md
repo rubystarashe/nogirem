@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `37`
-- updated_at: `2026-10-19T11:25:52Z`
+- revision: `38`
+- updated_at: `2026-10-19T18:10:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T11:25:52Z`
+- source_reviewed_at: `2026-10-19T18:10:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `d3e5a9c5808d6dc897a0e0b7d2516373a2334c0d + public GitHub v0.4.8 replacement assets`
-- source_review_evidence: `source capability guard, signed package and public 9/9 hash·Ed25519·alias·Electron identity SELF_REVIEW`
-- behavior_verified_at: `2026-10-19T11:16:42Z`
+- source_review_target: `base af244d2ea823dd51b6bd0da9f9d8f81be6f11105 + CP-NONSOLID-PACKAGE-048 owned target`
+- source_review_evidence: `non-solid NSIS, single recorder helper, external WebView2 prerequisite, 128kbps music와 package contract SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T18:16:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `d3e5a9c5808d6dc897a0e0b7d2516373a2334c0d`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust backend/desktop test target`
-- behavior_verification_evidence: `backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, main UI smoke PASS; full smoke 후속 terms 단계 timeout은 별도 제한`
+- behavior_verification_target: `base af244d2ea823dd51b6bd0da9f9d8f81be6f11105 + CP-NONSOLID-PACKAGE-048; signed package release/dioxus-0.4.8-2026-10-19T18-14-22-935Z`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust locked tests, NSIS 3.0.4.1`
+- behavior_verification_evidence: `targeted 24/24, Node 213/213, backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, native integration 3/3, signed package·10MB·payload 검사 PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `대체 P-core 그룹이 없는 재정렬을 사전 차단하는 source와 same-version public 0.4.8 대치 검증을 반영`
-- known_gaps: `실제 마비노기에서 enabled 재정렬 수행과 same-version 설치·업데이트는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 지원되지 않는 CPU 재정렬 사전 차단의 public 0.4.8 대치`
-- feature_map: `updated — revision 37, feature revision 16`
-- architecture_impact: `기존 topology capability projection과 signed package/update 경계를 public target에 실행`
-- architecture_contract: `no_change — revision 42를 exact package/public target에 재평가`
+- freshness_reason: `현재 package source와 signed non-solid 후보의 update/install 전달 경계를 반영`
+- known_gaps: `WebView2 미설치 PC의 공식 페이지 안내, 실제 설치·제거·포터블 실행, VirusTotal 비교와 공개 배포는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — external WebView2 prerequisite와 non-solid package 전달`
+- feature_map: `updated — canonical revision 38, feature revision 11`
+- architecture_impact: `single recorder helper, non-solid LZMA, WebView2 external prerequisite와 10MB package gate`
+- architecture_contract: `updated — revision 43`
 
 ## ID 할당
 
@@ -300,39 +300,39 @@
 - purpose: 서명된 새 버전을 다운로드·검증·설치하고 실패 시 rollback하며 사용자가 앱을 잠금 없이 제거하도록 한다.
 - personas_and_entry_points: 일반 사용자는 앱 업데이트 UI, Windows 설치기·제거기, 포터블 EXE로 진입한다. 배포 maintainer는 서명 패키징과 GitHub Release를 사용한다.
 - accessibility: 진행률·오류·재시도·숨기기와 재열기 경로를 제공한다.
-- preconditions: 관리자 권한, 신뢰된 Ed25519 manifest, 예상 SHA-256, 보호된 updater 작업 경로, 설치형 또는 검증된 포터블 원본.
-- normal_flow: manifest 검증 → payload 검증 → 앱 종료 → 설치 또는 원자 교체 → backend가 main UI 열기 성공 후 `healthy.json` 기록 → 완료.
+- preconditions: 관리자 권한, 시스템 Microsoft Edge WebView2 Runtime, 신뢰된 Ed25519 manifest, 예상 SHA-256, 보호된 updater 작업 경로, 설치형 또는 검증된 포터블 원본.
+- normal_flow: 설치형은 WebView2 registry를 확인하고 없으면 Microsoft 공식 다운로드 페이지를 안내한 뒤 변경 없이 중단한다. prerequisite가 있으면 manifest 검증 → payload 검증 → 앱 종료 → 설치 또는 원자 교체 → backend가 main UI 열기 성공 후 `healthy.json` 기록 → 완료.
 - error_retry_flow: 다운로드·설치·건강 확인 실패는 오류를 기록하고 설치형 파일·설정 또는 포터블 EXE를 검증된 backup으로 복원한다.
 - cancellation_concurrency: migration mutex와 보호 작업 폴더가 동시 update를 막는다. 직접 설치·제거는 stale updater를 종료하지만 신뢰된 부모 updater 하나는 보존한다.
 - partial_failure_recovery: helper 중단 포터블 작업은 launcher PID·경로·backup digest를 검증해 복원한다. 설치형은 설치 전 파일과 설정을 복사해 rollback한다.
 - uninstall_flow: 루트의 정본 `Mabinogi Rem Booster Startup` 작업이 단일 action으로 정확한 설치 실행 파일과 `--startup-tray` 인자를 사용할 때만 해제를 시도하고, 실패해도 실제 process stop 결과로 오인하지 않는다. 보호 updater 경로의 stale helper를 종료한 뒤 설치 폴더 프로세스를 매 반복 재탐색하고, 30초 정상 종료 후에도 남은 소유 프로세스만 제한 종료한다. 현재와 이전 manifest가 소유한 파일 및 명시된 retired app assets만 삭제하며 알 수 없는 파일이나 AppData는 재귀 삭제하지 않는다.
 - state_and_side_effects: `%LOCALAPPDATA%\NogiremUpdater\updates\job-*` 작업 상태, 설치 파일, registry uninstall 항목, 바로가기, 시작 예약 작업을 관리한다.
-- dependencies_and_contracts: Rust updater가 유일한 update 작업 writer이며 NSIS는 설치 파일 writer, `native/installer-cleanup`은 경로·PID·생성 시각으로 제한된 process terminator다. 검증된 updater handoff에서는 Rust가 app·backend·worker 종료를 완료하고 NSIS와 native helper가 정확한 보호 cache updater parent identity를 확인한 뒤 중복 설치 폴더 탐색을 생략한다. Electron 0.3.19는 Rust 전환 manifest로 연결된다.
+- dependencies_and_contracts: Rust updater가 유일한 update 작업 writer이며 NSIS는 설치 파일 writer, `native/installer-cleanup`은 경로·PID·생성 시각으로 제한된 process terminator다. 설치형·포터블은 non-solid LZMA를 사용하고 recorder runtime·utility는 package의 단일 `native/recorder-helper/bin/recorder-helper.exe`를 공유한다. 검증된 updater handoff에서는 Rust가 app·backend·worker 종료를 완료하고 NSIS와 native helper가 정확한 보호 cache updater parent identity를 확인한 뒤 중복 설치 폴더 탐색을 생략한다. Electron 0.3.19는 Rust 전환 manifest로 연결된다.
 - durable_data: 작업 `job.json/result.json/healthy.json`과 설치 승인 `commit`은 updater가 쓰고 service는 검증된 작업의 건강 확인만 쓴다. 모든 helper 신뢰 입력은 생성 뒤 파일별 High Integrity seal과 재검증을 거친다. 사용자 설정과 녹화 파일은 제거·업데이트 대상이 아니다.
 - security_privacy: manifest 서명·digest, reparse 방지, 파일별 Win32 mandatory-label authority·NO_WRITE_UP·High/System RID, exact executable path와 parent PID 검증을 사용한다. 개인 데이터나 signing key를 자산에 포함하지 않는다.
 - compatibility: 0.4.1 updater는 별도 installer 인자 없이도 검증된 부모 `updater.exe`로 인식한다. 배포된 0.4.x URL 검증을 위해 `nogirem-dioxus-*` 자산은 자동 업데이트 전용으로 유지하며 짧은 `nogirem-setup-*`, `nogirem-portable-*`는 동일 payload의 수동 다운로드 alias다. Electron은 `latest.yml`이 긴 legacy migration 이름을 가리킨다.
 - limits_exclusions: OS 종료·전원 손실 전체를 transaction으로 만들지는 않는다. 관련 backup이 없는 오래된 설치는 수동 복구가 필요할 수 있다.
-- scenarios: `UPD-001 설치형 성공`, `UPD-002 건강 확인 실패 rollback`, `UPD-003 포터블 원자 교체`, `UPD-004 직접 제거 중 stale helper`, `UPD-005 늦게 생성된 프로세스`, `UPD-006 0.4.1 부모 updater 호환`, `UPD-007 native mandatory-label 검증`, `UPD-008 retired app asset exact cleanup`, `UPD-009 예약 작업 정리 실패와 process stop 실패 분리`, `UPD-010 제한된 PowerShell policy에서도 native install/uninstall cleanup`
-- evidence: `test/installer.test.mjs`, `native/installer-cleanup/src/main.rs`, `test/portable-release.test.mjs`, Rust updater/update_install tests, `docs/ai/runs/20260929-release-042`, `docs/ai/runs/20261015-updater-hotfix-046/task.md`, `docs/ai/runs/20261016-uninstall-hotfix-047/final-report.md`, `docs/ai/runs/20261016-native-installer-cleanup-047`
+- scenarios: `UPD-001 설치형 성공`, `UPD-002 건강 확인 실패 rollback`, `UPD-003 포터블 원자 교체`, `UPD-004 직접 제거 중 stale helper`, `UPD-005 늦게 생성된 프로세스`, `UPD-006 0.4.1 부모 updater 호환`, `UPD-007 native mandatory-label 검증`, `UPD-008 retired app asset exact cleanup`, `UPD-009 예약 작업 정리 실패와 process stop 실패 분리`, `UPD-010 제한된 PowerShell policy에서도 native install/uninstall cleanup`, `UPD-011 WebView2 미설치 공식 다운로드 안내·무변경 중단`, `UPD-012 non-solid 10MB·단일 recorder helper package`
+- evidence: `test/installer.test.mjs`, `native/installer-cleanup/src/main.rs`, `test/portable-release.test.mjs`, Rust updater/update_install tests, `docs/ai/runs/20260929-release-042`, `docs/ai/runs/20261015-updater-hotfix-046/task.md`, `docs/ai/runs/20261016-uninstall-hotfix-047/final-report.md`, `docs/ai/runs/20261016-native-installer-cleanup-047`, `docs/ai/runs/20261020-nonsolid-package-048/task.md`
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).
 - owner: `release/update owner`
-- revision: `10`
-- updated_at: `2026-10-16T06:21:00Z`
+- revision: `11`
+- updated_at: `2026-10-19T18:10:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-16T06:03:00Z`
+- source_reviewed_at: `2026-10-19T18:10:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `8d52c2f440f5256c9459d06e361188836bb968f2`
-- source_review_evidence: `native/installer-cleanup, desktop/installer.nsi, scripts/package-dioxus.mjs, test/installer.test.mjs, independent review REV-NATIVE-INSTALLER-047-001`
-- behavior_verified_at: `2026-10-16T06:21:00Z`
+- source_review_target: `base af244d2ea823dd51b6bd0da9f9d8f81be6f11105 + CP-NONSOLID-PACKAGE-048 owned target`
+- source_review_evidence: `installer/portable NSIS, package script, recorder runtime·utility paths, audio metadata와 package tests SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T18:16:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source faee6cf2492b8247a11b4a787f3c0f8cf710b060; public v0.4.7 asset manifest 0636b672540c3f3acad2701cb7a4fa64b99554e0ed05cceeb2e00d2430851b1c`
-- behavior_verification_environment: `Windows 10.0.26200 x64 source fixtures, signed package and GitHub public re-downloads; actual installed NSIS uninstall NOT_RUN`
-- behavior_verification_evidence: `source checks and review PASS; public 9/9 candidate hashes, Ed25519, aliases, feed order, Electron IDs and pushed provenance PASS`
+- behavior_verification_target: `base af244d2ea823dd51b6bd0da9f9d8f81be6f11105 + CP-NONSOLID-PACKAGE-048; signed package release/dioxus-0.4.8-2026-10-19T18-14-22-935Z`
+- behavior_verification_environment: `Windows 10.0.26200 x64 source fixtures, Node 22.20.0, Rust locked tests, NSIS 3.0.4.1`
+- behavior_verification_evidence: `targeted 24/24, Node 213/213, backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, native integration 3/3, signed package 8,014,317 bytes·single helper·external WebView2 payload contract PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source와 공개 native-helper 0.4.7 replacement 및 실제 설치 수동 gap을 분리해 반영했다.`
-- known_gaps: `실제 제한 policy 설치, 관리자 권한 예약 작업 정리·제거·install directory 소거는 NOT_RUN. 기존 같은 버전 client는 대치본을 자동 재수신하지 않을 수 있다.`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — PowerShell policy와 무관한 native install/uninstall cleanup`
-- feature_map: `updated — revision 10, public same-version replacement verified`
-- architecture_impact: `NSIS-to-native helper boundary, handle identity termination and exact task ownership`
-- architecture_contract: `updated — revision 34 public boundary`
+- freshness_reason: `현재 source와 signed non-solid package 후보의 prerequisite·payload 경계를 반영했다.`
+- known_gaps: `WebView2 미설치 PC의 안내 UI, 실제 설치·제거·포터블 실행, VirusTotal 재분석과 공개 배포는 NOT_RUN. 기존 같은 버전 client는 후속 대치본을 자동 재수신하지 않을 수 있다.`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — external WebView2 prerequisite, non-solid package와 recorder helper 단일화`
+- feature_map: `updated — revision 11`
+- architecture_impact: `package bootstrap·compression·native helper payload boundary`
+- architecture_contract: `updated — revision 43`

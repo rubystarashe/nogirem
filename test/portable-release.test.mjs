@@ -19,7 +19,8 @@ test('포터블 배포물은 내부 파일을 캐시에 준비하는 단일 EXE�
   assert.match(packager, /nogirem-dioxus-portable-\$\{version\}\.exe/)
   assert.match(launcher, /VIProductVersion "\$\{APP_VERSION\}\.0"/)
   assert.match(launcher, /VIAddVersionKey \/LANG=1042 "FileDescription"/)
-  assert.match(launcher, /SetCompressor \/SOLID lzma/)
+  assert.match(launcher, /SetCompressor lzma/)
+  assert.doesNotMatch(launcher, /SetCompressor \/SOLID/)
   assert.match(launcher, /File \/r "\$\{APP_DIRECTORY\}\\\*"/)
   assert.match(launcher, /--portable-source="\$EXEPATH"/)
   assert.match(launcher, /--portable-launcher-pid=\$2/)
@@ -36,6 +37,8 @@ test('포터블 배포물은 내부 파일을 캐시에 준비하는 단일 EXE�
   assert.doesNotMatch(electronBridgeBuilder, /exit 1/)
   assert.match(launcher, /IfErrors extraction_failed/)
   assert.match(launcher, /extraction_failed:[\s\S]*RMDir \/r/)
+  assert.match(packager, /native', helper, 'bin'/)
+  assert.doesNotMatch(packager, /tools-bin|--tools-only/)
 })
 
 test('설치형과 포터블은 별도 서명 업데이트 매니페스트를 사용한다', () => {

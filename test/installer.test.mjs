@@ -25,15 +25,17 @@ const [installer, cleanup, retiredCleanup, service, rustService, desktopMain, up
   readFile(new URL('../desktop/src/main.rs', import.meta.url), 'utf8'),
   readFile(new URL('../desktop/backend/src/update_install.rs', import.meta.url), 'utf8'),
 ])
-test('설치기는 WebView2를 확인하고 설치 EXE를 직접 실행한다', () => {
+test('설치기는 WebView2를 확인하고 미설치 시 공식 다운로드 페이지를 안내한다', () => {
   assert.match(installer, /SilentInstall silent/)
   assert.match(installer, /VIProductVersion "\$\{APP_VERSION\}\.0"/)
   assert.match(installer, /VIAddVersionKey \/LANG=1042 "FileDescription"/)
-  assert.match(installer, /SetCompressor \/SOLID lzma/)
+  assert.match(installer, /SetCompressor lzma/)
+  assert.doesNotMatch(installer, /SetCompressor \/SOLID/)
   assert.match(installer, /Exec '"\$INSTDIR\\nogirem\.exe"'/)
   assert.match(installer, /\$\{GetOptions\} "\$1" "\/S"/)
   assert.match(installer, /F3017226-FE2A-4295-8BDF-00C3A9A7E4C5/)
-  assert.match(installer, /\/silent \/install/)
+  assert.match(installer, /ExecShell "open" "https:\/\/developer\.microsoft\.com\/microsoft-edge\/webview2\/#download"/)
+  assert.doesNotMatch(installer, /MicrosoftEdgeWebview2Setup|WEBVIEW_BOOTSTRAPPER|\/silent \/install/)
 })
 test('UI 이전 로그는 보호된 캐시와 고정 panic 단계만 사용한다', () => {
   assert.match(desktopMain, /update_install::open_bootstrap_log/)

@@ -9,7 +9,7 @@ config=json.loads((repo/'config.json').read_text(encoding='utf-8-sig'))
 config.update(gameExecutable=str(directory/'NoSuchGame.exe'),gameExecutableName='NoSuchGame.exe',gameDirectoryNames=['NoSuchGame'],gameDirectoryName='NoSuchGame',pollIntervalMs=50)
 config['memoryCleaner']['pollIntervalMs']=50
 (directory/'config.json').write_text(json.dumps(config),encoding='utf-8')
-for relative in ['assets/주변캐릭터간소화프레임제한해제.muo','native/recorder-helper/tools-bin/recorder-helper.exe']:
+for relative in ['assets/주변캐릭터간소화프레임제한해제.muo','native/recorder-helper/bin/recorder-helper.exe']:
     target=directory/relative;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(repo/relative,target)
 user=directory/'user';videos=directory/'videos';documents=directory/'documents'
 env=dict(os.environ,NOGIREM_ROOT=str(directory),NOGIREM_USER_DATA=str(user),NOGIREM_PACKAGED='0',NOGIREM_KNOWN_FOLDERS=json.dumps(dict(videos=str(videos),documents=str(documents),downloads=str(directory))),NOGIREM_DISPLAYS=json.dumps([dict(bounds=dict(x=0,y=0,width=1920,height=1080),workArea=dict(x=0,y=0,width=1920,height=1040))]))

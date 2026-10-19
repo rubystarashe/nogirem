@@ -12,6 +12,8 @@
 - digest가 달라도 기존 캐시 앱이 실행 중이면 파일을 지우지 않고 종료 후 재실행하도록 안내한다.
 - 배포 EXE 자체는 변경하지 않으므로 다른 위치로 복사하거나 이동해도 단독으로 실행할 수 있다.
 - 내부 앱은 `portable.marker`와 launcher가 전달한 원본 경로·PID로 포터블 모드를 검증한다.
+- launcher는 개별 payload 분석 경계를 보존하는 non-solid LZMA를 사용한다.
+- 녹화 runtime과 utility는 내부 `native/recorder-helper/bin/recorder-helper.exe` 하나를 공유하며 중복 helper를 포함하지 않는다.
 
 ## 데이터와 런타임
 

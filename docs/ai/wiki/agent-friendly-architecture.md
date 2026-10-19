@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `42`
-- updated_at: `2026-10-19T11:18:02Z`
+- revision: `43`
+- updated_at: `2026-10-19T18:10:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T11:18:02Z`
+- source_reviewed_at: `2026-10-19T18:10:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 414c6b23d66c1a1925713a9206330f426a5a3ab5 + CP-CPU-REORDER-GUARD-048 owned target`
-- source_review_evidence: `topology alternate mask, backend capability projection and UI guard SELF_REVIEW`
-- behavior_verified_at: `2026-10-19T11:16:42Z`
+- source_review_target: `base af244d2ea823dd51b6bd0da9f9d8f81be6f11105 + CP-NONSOLID-PACKAGE-048 owned target`
+- source_review_evidence: `non-solid NSIS, single recorder helper, external WebView2 prerequisite와 package enforcement SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T18:16:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 414c6b23d66c1a1925713a9206330f426a5a3ab5 + CP-CPU-REORDER-GUARD-048 owned target`
-- behavior_verification_environment: `Windows 10.0.26200 x64 Rust backend/desktop source execution`
-- behavior_verification_evidence: `backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, main UI smoke PASS`
+- behavior_verification_target: `base af244d2ea823dd51b6bd0da9f9d8f81be6f11105 + CP-NONSOLID-PACKAGE-048; signed package release/dioxus-0.4.8-2026-10-19T18-14-22-935Z`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust locked tests, NSIS 3.0.4.1`
+- behavior_verification_evidence: `targeted 24/24, Node 213/213, backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, native integration 3/3, signed package·10MB·payload PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `topology가 계산한 alternate P-core capability를 backend가 투영하고 UI가 실행 전에 강제하는 현재 경계를 반영`
-- known_gaps: `실제 game에서 enabled 재정렬 수행은 NOT_RUN; multi-group affinity 적용은 지원하지 않음`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 대체 P-core 그룹이 없는 CPU 재정렬 사전 차단`
-- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 15`
-- architecture_impact: `topology capability projection과 UI action guard`
-- architecture_contract: `updated — revision 42`
+- freshness_reason: `현재 package source와 signed candidate의 compression·prerequisite·helper 경계를 반영`
+- known_gaps: `WebView2 미설치 안내 실제 실행, 설치·제거·포터블 실행, VirusTotal 재분석과 배포는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — external WebView2 prerequisite와 non-solid package 전달`
+- feature_map: `updated — revision 38, feature revision 11`
+- architecture_impact: `single recorder helper, non-solid LZMA, external WebView2 prerequisite와 10MB gate`
+- architecture_contract: `updated — revision 43`
 
 ## 계층과 확장 경로
 
@@ -133,7 +133,9 @@
 - 루트의 정본 `Mabinogi Rem Booster Startup` 작업 XML이 단일 `Exec` action으로 정확한 설치 실행 파일과 `--startup-tray`를 사용할 때만 `schtasks.exe`로 해제를 시도한다. 예약 작업 해제 실패는 실제 앱 process 종료 실패로 오인하거나 제거를 차단하지 않는다. 실제 process·updater 종료 실패만 fail-closed하며 NSIS는 encoding에 의존하지 않는 고정 한국어 오류를 표시한다.
 - 이전 installer가 소유한 제거 기능·source-only asset은 versioned exact cleanup 목록으로만 지운다. 설치 폴더 전체, wildcard, `/r`, AppData와 알 수 없는 파일은 이 경로에서 삭제하지 않는다.
 - 설치형·포터블 outer PE는 제품명, 설명, file/product version, internal/original filename과 copyright resource를 포함한다. 이는 Authenticode를 대체하지 않으며 update manifest의 Ed25519 서명도 Windows publisher 신뢰를 제공하지 않는다.
-- 배포 압축은 파일 공유 10MB 제한 때문에 solid LZMA를 유지한다. non-solid 변경은 실제 0.4.5 payload에서 설치형 `10,132,758 bytes`로 제한을 초과했으므로 적용하지 않으며, 이로 인한 NSIS overlay 휴리스틱 gap을 숨기지 않는다.
+- 배포 압축은 scanner가 개별 payload 경계를 분석하기 쉬운 non-solid LZMA를 사용한다. package는 runtime·utility recorder 작업에 동일한 `native/recorder-helper/bin/recorder-helper.exe` 하나만 포함하며 `tools-bin` 복사본을 만들지 않는다.
+- 설치형은 WebView2 bootstrapper를 payload에 포함하거나 실행하지 않는다. 시스템 registry에서 Microsoft Edge WebView2 Runtime을 확인하고 없으면 Microsoft 공식 HTTPS 다운로드 페이지를 열지 묻고, 설치 파일이나 registry를 변경하기 전에 중단한다.
+- 설치형은 decimal 10MB 제한을 계속 fail-closed한다. signed 0.4.8 후보는 non-solid LZMA와 128kbps 시작 음악으로 `8,014,317 bytes`이며, 포터블 후보는 `7,789,628 bytes`다.
 - retry는 새 attempt identity와 현재 target을 사용하며 이전 attempt의 늦은 callback이 현재 상태를 덮지 못한다.
 
 ## API·schema와 생성물
@@ -150,7 +152,7 @@
 - `npm test`: renderer/preload 계약, 현재 source로 빌드한 native 설치·제거 실프로세스, 포터블·서명 정적 계약과 outer PE resource 입력.
 - `cargo test --locked --manifest-path desktop/backend/Cargo.toml`: backend 기능·update 보안 경계.
 - `cargo check --locked --manifest-path desktop/Cargo.toml`: desktop/backend compile 경계.
-- package script: native service contract, Node/Electron payload 부재, Microsoft bootstrap signature, NSIS warning-as-error, 파일 크기, signing key/public key 일치.
+- package script: native service contract, Node/Electron payload 부재, single recorder helper, external WebView2 prerequisite, NSIS warning-as-error, 파일 크기, signing key/public key 일치.
 - CI gap: dependency direction과 process termination 경로를 전용 architecture linter로 검사하지 않는다. 관련 정적 테스트와 독립 리뷰가 현재 gate다.
 
 ## 예외

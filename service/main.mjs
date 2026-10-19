@@ -3234,7 +3234,7 @@ function blackboxEditorDateName(milliseconds = Date.now()) {
 async function runRecorderUtility(argumentsList, { onProgress = null } = {}) {
   const affinityArgument = await getRecorderAffinityArgument()
   return new Promise((resolveUtility, rejectUtility) => {
-    const utilityPath = join(root, "native", "recorder-helper", "tools-bin", "recorder-helper.exe")
+    const utilityPath = join(root, "native", "recorder-helper", "bin", "recorder-helper.exe")
     const child = spawn(utilityPath, [
       ...argumentsList,
       affinityArgument,
