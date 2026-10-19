@@ -28,19 +28,17 @@ fn original_backend_parity() {
             case["requested"].as_i64(),
         )
         .unwrap();
-        if actual.physical_core_count.is_some_and(|count| count <= 4) {
-            assert!(!actual.supported, "topology: {case}");
-        } else {
-            assert_eq!(
-                actual.game_mask & actual.background_mask,
-                0,
-                "topology: {case}"
-            );
+        if actual.supported {
+            assert_ne!(actual.game_mask, 0, "topology: {case}");
+            assert_ne!(actual.background_mask, 0, "topology: {case}");
             assert_eq!(
                 actual.game_mask | actual.background_mask,
                 actual.all_mask,
                 "topology: {case}"
             );
+        } else {
+            assert_eq!(actual.performance_core_count, Some(1), "topology: {case}");
+            assert_eq!(actual.efficiency_core_count, Some(0), "topology: {case}");
         }
     }
     for case in cases["keys"].as_array().unwrap() {

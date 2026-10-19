@@ -316,6 +316,7 @@ fn command(client: Client, mut state: Signal<State>, channel: &'static str, args
                         }
                     }
                     "optimization:set-game-cpu-core-count"
+                    | "optimization:set-cpu-mode"
                     | "optimization:set-bind-game-affinity"
                     | "optimization:set-lower-background-priority"
                     | "optimization:refresh-game-cpu-core-setting"
@@ -524,6 +525,7 @@ pub fn Main() -> Element {
                 }
                 Action { label_span: true, label: "주변 캐릭터 강제 간소화", channel: "application:open-character-guide", class: format!("character-guide-link {} {}", if snapshot.controls_entered { "entered" } else { "" }, if snapshot.services["affinity"]["characterSimplification"]["applied"] == true { "ready" } else { "warning" }), StatusIcon { ready: snapshot.services["affinity"]["characterSimplification"]["applied"] == true } }
                 Action { label_span: true, label: dxvk_label(&snapshot.services["affinity"]), channel: "application:open-dxvk-manager", class: format!("dxvk-update-link {} {}", if snapshot.controls_entered { "entered" } else { "" }, dxvk_class(&snapshot.services["affinity"])), StatusIcon { ready: dxvk_class(&snapshot.services["affinity"]) == "ready", checking: dxvk_class(&snapshot.services["affinity"]) == "checking" } }
+                CpuPresetSelector { entered: snapshot.controls_entered }
                 if snapshot.blackbox["featureEnabled"] == true { BlackboxControls {} }
                 button { class: if status.contains("중단") { "boost-text-area paused-target" } else { "boost-text-area" }, disabled: !snapshot.ready || snapshot.busy || snapshot.identity != "done" || snapshot.color_transition.is_some(),
                     onclick: move |event| {
@@ -664,7 +666,7 @@ fn Advanced() -> Element {
         if let Some(error) = s.input["error"].as_str() { span { class: "developer-tool-status", "{error}" } }
         div { class: "developer-tool-row",
             div { h2 { "CPU 재정렬" } p { "게임 코어 고정을 켠 상태에서 CPU 격리 구성을 재설정하여 캐시 초기화를 유도합니다" } }
-            Action { label: "CPU 재정렬", channel: "optimization:run-cpu-reorder", disabled: !(s.services["affinity"]["running"] == true && s.services["memory"]["running"] == true && s.services["affinity"]["gameActive"] == true && s.services["affinity"]["gameCoreSetting"]["bindGameAffinity"] == true) }
+            Action { label: "CPU 재정렬", channel: "optimization:run-cpu-reorder", disabled: !(s.services["affinity"]["running"] == true && s.services["memory"]["running"] == true && s.services["affinity"]["gameActive"] == true && s.services["affinity"]["gameCoreSetting"]["cpuMode"] != "safe") }
         }
     } }
 }
@@ -946,6 +948,29 @@ fn Keycap(spec: Value, draft: Signal<Value>) -> Element {
 }
 
 #[component]
+fn CpuPresetSelector(entered: bool) -> Element {
+    let state = use_context::<Signal<State>>();
+    let client = use_context::<Client>();
+    let snapshot = state.read().clone();
+    let setting = &snapshot.services["affinity"]["gameCoreSetting"];
+    let mode = setting["cpuMode"].as_str().unwrap_or("focus");
+    let applying = snapshot.pending.contains("optimization:set-cpu-mode");
+    rsx! {
+        div { class: format!("cpu-preset-selector {}", if entered { "entered" } else { "" }), aria_label: "CPU 모드 프리셋",
+            for (value, label) in [("focus", "게임 집중"), ("balanced", "균형"), ("safe", "안전")] {
+                button {
+                    class: if mode == value { "selected" } else { "" },
+                    aria_pressed: mode == value,
+                    disabled: snapshot.busy || applying || setting["supported"] != true,
+                    onclick: {let client=client.clone(); move |_| command(client.clone(), state, "optimization:set-cpu-mode", json!([value]))},
+                    "{label}"
+                }
+            }
+        }
+    }
+}
+
+#[component]
 fn InputSettings() -> Element {
     let state = use_context::<Signal<State>>();
     let mut draft = use_signal(|| state.peek().input.clone());
@@ -977,32 +1002,32 @@ fn CpuSettings() -> Element {
     let p = setting["performanceCoreCount"].as_u64();
     let e = setting["efficiencyCoreCount"].as_u64();
     let applying = s.pending.contains("optimization:set-game-cpu-core-count");
-    let bind_applying = s.pending.contains("optimization:set-bind-game-affinity");
     let priority_applying = s
         .pending
         .contains("optimization:set-lower-background-priority");
     rsx! {
         div {
-            h2 { "마비노기 CPU 우선 점유 비율 설정" }
-            p { if setting["hybrid"] == true { "마비노기에 우선 배정할 P코어 개수를 선택합니다" } else { "마비노기에 우선 배정할 물리 코어 개수를 선택합니다" } }
+            h2 { "게임 CPU 코어 할당 개수" }
+            p { if setting["hybrid"] == true { "마비노기에 할당할 물리 P코어 개수를 직접 선택합니다" } else { "마비노기에 할당할 물리 코어 개수를 직접 선택합니다" } }
         }
         if max > 0 {
-            div { class: if applying { "game-cpu-core-controls applying" } else { "game-cpu-core-controls" }, aria_label: "마비노기 CPU 코어 개수",
+            div { class: if applying { "game-cpu-core-controls applying" } else { "game-cpu-core-controls" }, aria_label: "게임 CPU 코어 할당 개수",
                 for core in 1..=max {
                     button { class: if core <= selected { "game-cpu-core-option allocated" } else { "game-cpu-core-option" },
                         style: format!("--allocation-color:hsl({} 58% 42%)", setting["defaultGameCoreCount"].as_u64().map(|default|core_hue(core,max,default)).unwrap_or(0)),
                         aria_pressed: core <= selected,
-                        disabled: s.busy || s.services["affinity"]["cpuReorder"]["state"] == "running",
-                        onclick: {let client=client.clone(); move |_| command(client.clone(), state, "optimization:set-game-cpu-core-count", json!([core]))}, "{core}"
+                        disabled: s.busy || applying || s.services["affinity"]["cpuReorder"]["state"] == "running",
+                        onclick: {let client=client.clone(); move |_| command(client.clone(), state, "optimization:set-game-cpu-core-count", json!([core]))},
+                        "{core}"
                     }
                 }
                 if let (Some(p),Some(e))=(p,e) {
-                    if p>1 || e>0 { span { class: "game-cpu-unavailable-label", "선택 불가 코어" } }
-                    if p>1 { button { class: "game-cpu-unavailable-core", disabled: true, title: "게임도 필요할 때 사용하며 백그라운드와 입력 프로그램이 공유하는 P-core", "P{p}" } }
+                    if p>max || e>0 { span { class: "game-cpu-unavailable-label", "선택 불가 코어" } }
+                    for core in (max+1)..=p { button { class: "game-cpu-unavailable-core", disabled: true, title: "백그라운드와 입력 프로그램을 위해 남겨 두는 P-core", "P{core}" } }
                     for core in 1..=e.min(256) { button { class: "game-cpu-unavailable-core", disabled: true, title: "마비노기에 배정하지 않는 E-core", "E" {(p+core).to_string()} } }
                 }
             }
-            small { class: "game-cpu-core-hint", "선택한 코어 개수가 많을수록 마비노기가 더 많은 CPU를 활용하지만, 터보 키의 입력 성능과 다른 프로그램들의 성능이 저하될 수 있습니다" }
+            small { class: "game-cpu-core-hint", "개수를 늘리면 게임이 사용할 코어가 늘어나지만 다른 프로그램에 남는 코어는 줄어듭니다" }
         } else {
             div { class: "cpu-topology-unavailable",
                 span { {setting["failureReason"].as_str().unwrap_or("물리 CPU 코어 구성을 확인할 수 없습니다")} }
@@ -1012,16 +1037,6 @@ fn CpuSettings() -> Element {
         }
         div { class: "cpu-advanced-options",
             h3 { "고급 CPU 설정" }
-            label {
-                input {
-                    r#type: "checkbox",
-                    checked: setting["bindGameAffinity"] == true,
-                    disabled: s.busy || bind_applying || setting["supported"] != true,
-                    onchange: {let client=client.clone(); move |event| command(client.clone(), state, "optimization:set-bind-game-affinity", json!([event.checked()]))}
-                }
-                "게임을 선택한 코어에 고정"
-            }
-            small { "끄면 백그라운드만 이동하고 게임 코어 선택은 Windows 스케줄러에 맡깁니다" }
             label {
                 input {
                     r#type: "checkbox",

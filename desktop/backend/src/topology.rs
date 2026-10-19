@@ -52,6 +52,8 @@ pub struct Allocation {
     pub efficiency_core_count: Option<usize>,
     pub game_core_count: Option<usize>,
     pub default_game_core_count: Option<usize>,
+    pub balanced_game_core_count: Option<usize>,
+    pub focus_game_core_count: Option<usize>,
     pub max_game_core_count: Option<usize>,
     pub hybrid: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -67,12 +69,40 @@ struct Core {
     l3_domain: usize,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CpuMode {
+    Focus,
+    Balanced,
+    Safe,
+}
+
+impl Default for CpuMode {
+    fn default() -> Self {
+        Self::Focus
+    }
+}
+
+impl CpuMode {
+    pub fn parse(value: &str) -> Self {
+        match value {
+            "focus" => Self::Focus,
+            "safe" => Self::Safe,
+            _ => Self::Balanced,
+        }
+    }
+}
+
 pub fn default_game_core_count(performance: usize) -> Result<usize> {
     match performance {
         0 => Err("Invalid performance core count: 0".into()),
         1 => Ok(1),
         n => Ok((n - 1).min(4.max(n.div_ceil(2)))),
     }
+}
+
+pub fn focus_game_core_count(performance: usize) -> Result<usize> {
+    let balanced = default_game_core_count(performance)?;
+    Ok(performance.min(balanced.saturating_add(2)))
 }
 
 pub fn mask(indexes: &[u8]) -> u64 {
@@ -152,6 +182,8 @@ fn unsupported(
         efficiency_core_count: efficiency,
         game_core_count: None,
         default_game_core_count: None,
+        balanced_game_core_count: None,
+        focus_game_core_count: None,
         max_game_core_count: None,
         hybrid,
         topology_error: Some(serde_json::json!({
@@ -172,12 +204,12 @@ fn selected_by_l3(cores: &[Core], count: usize) -> Vec<Core> {
     }
     let mut domains: Vec<_> = domains.into_values().collect();
     for domain in &mut domains {
-        domain.sort_by_key(|core| core.first);
+        domain.sort_by_key(|core| (std::cmp::Reverse(core.scheduling_class), core.first));
     }
     domains.sort_by_key(|domain| {
         (
             std::cmp::Reverse(domain.len()),
-            domain.first().map_or(u8::MAX, |core| core.first),
+            domain.iter().map(|core| core.first).min().unwrap_or(u8::MAX),
         )
     });
     domains
@@ -187,7 +219,12 @@ fn selected_by_l3(cores: &[Core], count: usize) -> Vec<Core> {
         .collect()
 }
 
-fn build(cpu_sets: &[CpuSet], topology: &LogicalTopology, requested: Option<i64>) -> Result<Allocation> {
+fn build(
+    cpu_sets: &[CpuSet],
+    topology: &LogicalTopology,
+    requested: Option<i64>,
+    mode: CpuMode,
+) -> Result<Allocation> {
     let group_count = topology.groups.len();
     if group_count != 1 || topology.groups[0].group != 0 {
         let logical_count = topology
@@ -289,44 +326,51 @@ fn build(cpu_sets: &[CpuSet], topology: &LogicalTopology, requested: Option<i64>
     cores.sort_by_key(|core| core.first);
     let performance_class = cores
         .iter()
-        .map(|core| (core.efficiency_class, core.scheduling_class))
+        .map(|core| core.efficiency_class)
         .max()
         .ok_or("No physical CPU cores")?;
     let performance: Vec<_> = cores
         .iter()
-        .filter(|core| {
-            (core.efficiency_class, core.scheduling_class) == performance_class
-        })
+        .filter(|core| core.efficiency_class == performance_class)
         .cloned()
         .collect();
     let efficiency_count = cores.len() - performance.len();
     let hybrid = efficiency_count > 0;
     let counts = Some((cores.len(), performance.len(), efficiency_count, hybrid));
-    if cores.len() <= 4 {
+    if performance.len() == 1 && !hybrid {
         return Ok(unsupported(
             logical_count,
             group_count,
             counts,
-            format!(
-                "물리 코어가 {}개인 시스템에서는 CPU 분할을 사용하지 않습니다",
-                cores.len()
-            ),
+            "단일 물리 코어 시스템에서는 CPU 분할을 사용하지 않습니다".into(),
         ));
     }
-    let default_count = default_game_core_count(performance.len())?;
-    let maximum = if performance.len() == 1 {
-        1
+    let balanced_count = default_game_core_count(performance.len())?;
+    let focus_count = focus_game_core_count(performance.len())?;
+    let default_count = if mode == CpuMode::Focus {
+        focus_count
+    } else {
+        balanced_count
+    };
+    let maximum = if hybrid {
+        performance.len()
     } else {
         performance.len() - 1
     };
     let chosen = requested
         .map(|value| value.clamp(1, maximum as i64) as usize)
-        .unwrap_or(default_count);
+        .unwrap_or(default_count.min(maximum));
     let game_cores = selected_by_l3(&performance, chosen);
     let game_mask = game_cores.iter().fold(0, |mask, core| mask | core.mask);
-    let background_mask = active_mask & !game_mask;
-    if game_mask == 0 || background_mask == 0 || game_mask & background_mask != 0 {
-        return Err("CPU allocation did not produce two non-overlapping masks.".into());
+    let mut background_mask = active_mask & !game_mask;
+    if hybrid && performance.iter().all(|core| core.mask & background_mask == 0) {
+        background_mask |= game_cores
+            .last()
+            .ok_or("No selected performance core")?
+            .mask;
+    }
+    if game_mask == 0 || background_mask == 0 {
+        return Err("CPU allocation did not produce usable game and background masks.".into());
     }
     let remaining_performance: Vec<_> = performance
         .iter()
@@ -361,6 +405,8 @@ fn build(cpu_sets: &[CpuSet], topology: &LogicalTopology, requested: Option<i64>
         efficiency_core_count: Some(efficiency_count),
         game_core_count: Some(chosen),
         default_game_core_count: Some(default_count),
+        balanced_game_core_count: Some(balanced_count),
+        focus_game_core_count: Some(focus_count.min(maximum)),
         max_game_core_count: Some(maximum),
         hybrid: Some(hybrid),
         topology_error: None,
@@ -407,6 +453,7 @@ pub fn build_fixture(
                 .collect(),
         },
         requested,
+        CpuMode::Balanced,
     )
 }
 
@@ -672,7 +719,7 @@ fn query_topology() -> Result<LogicalTopology> {
     })
 }
 
-pub fn resolve(requested: Option<i64>) -> Result<Allocation> {
+pub fn resolve_mode(requested: Option<i64>, mode: CpuMode) -> Result<Allocation> {
     use windows_sys::Win32::System::Threading::{
         GetActiveProcessorCount, GetActiveProcessorGroupCount,
     };
@@ -680,11 +727,15 @@ pub fn resolve(requested: Option<i64>) -> Result<Allocation> {
     let logical_count = unsafe { GetActiveProcessorCount(0xffff) } as usize;
     match query_cpu_sets().and_then(|sets| {
         let topology = query_topology()?;
-        build(&sets, &topology, requested)
+        build(&sets, &topology, requested, mode)
     }) {
         Ok(allocation) => Ok(allocation),
         Err(error) => Ok(unsupported(logical_count, group_count, None, error)),
     }
+}
+
+pub fn resolve(requested: Option<i64>) -> Result<Allocation> {
+    resolve_mode(requested, CpuMode::Balanced)
 }
 
 #[cfg(test)]
@@ -733,7 +784,7 @@ mod tests {
             .collect();
         let sets = cpu_sets(&core_masks, 8, 8);
         let topology = topology(&core_masks, &[0x00ff_ffff]);
-        let allocation = build(&sets, &topology, Some(4)).unwrap();
+        let allocation = build(&sets, &topology, Some(4), CpuMode::Balanced).unwrap();
         assert!(allocation.supported);
         assert_eq!(allocation.game_core_count, Some(4));
         assert_eq!(allocation.game_mask, 0xff);
@@ -749,26 +800,61 @@ mod tests {
         let core_masks = [0b11, 0b1100, 0b11_0000, 0b1100_0000, 1 << 8, 1 << 9];
         let sets = cpu_sets(&core_masks, 6, 2);
         let topology = topology(&core_masks, &[0b1111, 0b11_1111_0000]);
-        let allocation = build(&sets, &topology, Some(3)).unwrap();
+        let allocation = build(&sets, &topology, Some(3), CpuMode::Balanced).unwrap();
         assert_eq!(allocation.game_mask, 0b01_1111_0000);
         assert_eq!(allocation.game_mask & allocation.background_mask, 0);
     }
 
     #[test]
-    fn four_or_fewer_physical_cores_disable_splitting() {
-        for core_masks in [&[0b11, 0b1100][..], &[1, 2, 4, 8][..]] {
-            let sets = cpu_sets(core_masks, core_masks.len(), core_masks.len());
-            let topology = topology(core_masks, &[core_masks.iter().fold(0, |a, b| a | b)]);
-            let allocation = build(&sets, &topology, None).unwrap();
-            assert!(!allocation.supported);
-            assert!(allocation.game_core_count.is_none());
-            assert!(
-                allocation.topology_error.unwrap()["message"]
-                    .as_str()
-                    .unwrap()
-                    .contains("물리 코어")
-            );
+    fn low_core_systems_keep_a_background_core() {
+        let core_masks = [0b11, 0b1100, 0b11_0000, 0b1100_0000];
+        let sets = cpu_sets(&core_masks, core_masks.len(), core_masks.len());
+        let topology = topology(&core_masks, &[0xff]);
+        let allocation = build(&sets, &topology, None, CpuMode::Balanced).unwrap();
+        assert!(allocation.supported);
+        assert_eq!(allocation.game_core_count, Some(3));
+        assert_eq!(allocation.game_mask & allocation.background_mask, 0);
+        assert_eq!(allocation.background_mask.count_ones(), 2);
+    }
+
+    #[test]
+    fn manual_selection_uses_six_of_eight_performance_cores() {
+        let core_masks: Vec<_> = (0..8).map(|core| 3u64 << (core * 2)).collect();
+        let sets = cpu_sets(&core_masks, 8, 8);
+        let topology = topology(&core_masks, &[0xffff]);
+        let allocation = build(&sets, &topology, Some(6), CpuMode::Balanced).unwrap();
+        assert_eq!(allocation.game_core_count, Some(6));
+        assert_eq!(allocation.default_game_core_count, Some(4));
+        assert_eq!(allocation.game_mask.count_ones(), 12);
+        assert_eq!(allocation.background_mask.count_ones(), 4);
+        let focused = build(&sets, &topology, None, CpuMode::Focus).unwrap();
+        assert_eq!(focused.game_core_count, Some(6));
+    }
+
+    #[test]
+    fn scheduling_class_prioritizes_without_removing_p_cores() {
+        let core_masks: Vec<_> = (0..8).map(|core| 3u64 << (core * 2)).collect();
+        let mut sets = cpu_sets(&core_masks, 8, 8);
+        for set in &mut sets {
+            set.scheduling_class = if set.core_index == 7 { 2 } else { 1 };
         }
+        let topology = topology(&core_masks, &[0xffff]);
+        let allocation = build(&sets, &topology, Some(6), CpuMode::Balanced).unwrap();
+        assert_eq!(allocation.performance_core_count, Some(8));
+        assert_eq!(allocation.game_core_count, Some(6));
+        assert_ne!(allocation.game_mask & core_masks[7], 0);
+    }
+
+    #[test]
+    fn hybrid_with_all_p_cores_shares_one_p_core_with_background() {
+        let core_masks = [0b11, 0b1100, 1 << 4, 1 << 5, 1 << 6, 1 << 7];
+        let sets = cpu_sets(&core_masks, 2, 2);
+        let topology = topology(&core_masks, &[0xff]);
+        let allocation = build(&sets, &topology, Some(2), CpuMode::Focus).unwrap();
+        assert_eq!(allocation.game_core_count, Some(2));
+        assert_eq!(allocation.game_mask, 0b1111);
+        assert_eq!((allocation.game_mask & allocation.background_mask).count_ones(), 2);
+        assert_eq!(allocation.background_mask.count_ones(), 6);
     }
 
     #[test]
@@ -780,7 +866,7 @@ mod tests {
             ],
             ..Default::default()
         };
-        let allocation = build(&[], &topology, None).unwrap();
+        let allocation = build(&[], &topology, None, CpuMode::Balanced).unwrap();
         assert!(!allocation.supported);
         assert_eq!(allocation.processor_group_count, 2);
         assert!(
@@ -799,12 +885,11 @@ mod tests {
     }
 
     #[test]
-    fn live_windows_topology_never_returns_overlapping_masks() {
+    fn live_windows_topology_returns_complete_usable_masks() {
         let allocation = resolve(None).unwrap();
         if allocation.supported {
             assert_ne!(allocation.game_mask, 0);
             assert_ne!(allocation.background_mask, 0);
-            assert_eq!(allocation.game_mask & allocation.background_mask, 0);
             assert_eq!(
                 allocation.game_mask | allocation.background_mask,
                 allocation.all_mask

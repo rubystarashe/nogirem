@@ -117,7 +117,7 @@ fn run() -> Result<()> {
         Options {
             last_core: has("--last-core"),
             passive: has("--passive"),
-            bind_game: true,
+            cpu_mode: nogirem_backend::topology::CpuMode::Balanced,
             ..Default::default()
         },
     )?;

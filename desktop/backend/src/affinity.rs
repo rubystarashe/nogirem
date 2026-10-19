@@ -126,11 +126,11 @@ pub struct Options {
     pub requested_game_core_count: Option<i64>,
     pub last_core: bool,
     pub passive: bool,
-    pub bind_game: bool,
+    pub cpu_mode: topology::CpuMode,
     pub lower_background_priority: bool,
 }
 fn reorder_enabled(options: Options) -> bool {
-    options.bind_game && !options.last_core && !options.passive
+    options.cpu_mode != topology::CpuMode::Safe && !options.last_core && !options.passive
 }
 impl Manager {
     pub fn new(
@@ -140,9 +140,13 @@ impl Manager {
         restore_on_exit: bool,
         options: Options,
     ) -> Result<Self> {
-        let allocation = topology::resolve(options.requested_game_core_count)?;
+        let allocation =
+            topology::resolve_mode(options.requested_game_core_count, options.cpu_mode)?;
         let affinity_enabled = allocation.supported;
-        let game_mask = if options.passive || !options.bind_game || !affinity_enabled {
+        let game_mask = if options.passive
+            || options.cpu_mode == topology::CpuMode::Safe
+            || !affinity_enabled
+        {
             None
         } else {
             Some(if options.last_core {
@@ -201,7 +205,7 @@ impl Manager {
                 "backgroundMask": format!("0x{:x}", manager.background_mask),
                 "latencyMask": format!("0x{:x}", manager.latency_mask),
                 "allocationSource": manager.allocation.source
-                ,"bindGameAffinity": options.bind_game
+                ,"cpuMode": format!("{:?}", options.cpu_mode).to_lowercase()
                 ,"lowerBackgroundPriority": options.lower_background_priority
                 ,"affinitySupported": manager.affinity_enabled
             }),
@@ -778,13 +782,16 @@ mod tests {
 
     #[test]
     fn cpu_reorder_requires_explicit_game_binding() {
-        assert!(!reorder_enabled(Options::default()));
         assert!(reorder_enabled(Options {
-            bind_game: true,
+            cpu_mode: topology::CpuMode::Focus,
             ..Default::default()
         }));
         assert!(!reorder_enabled(Options {
-            bind_game: true,
+            cpu_mode: topology::CpuMode::Safe,
+            ..Default::default()
+        }));
+        assert!(!reorder_enabled(Options {
+            cpu_mode: topology::CpuMode::Balanced,
             passive: true,
             ..Default::default()
         }));

@@ -152,13 +152,15 @@ impl Boost {
     pub fn core_setting(&self) -> Result<Value> {
         let saved = self.env.cpu_setting();
         let requested = saved["gameCoreCount"].as_i64();
-        let allocation = topology::resolve(requested)?;
+        let cpu_mode = saved["cpuMode"].as_str().unwrap_or("focus");
+        let allocation =
+            topology::resolve_mode(requested, topology::CpuMode::parse(cpu_mode))?;
         let detail = allocation
             .topology_error
             .as_ref()
             .and_then(|e| e["message"].as_str());
         Ok(
-            json!({"supported":allocation.supported,"gameCoreCount":allocation.game_core_count,"defaultGameCoreCount":allocation.default_game_core_count,"maxGameCoreCount":allocation.max_game_core_count,"physicalCoreCount":allocation.physical_core_count,"performanceCoreCount":allocation.performance_core_count,"efficiencyCoreCount":allocation.efficiency_core_count,"hybrid":allocation.hybrid,"processorGroupCount":allocation.processor_group_count,"customized":requested.is_some(),"bindGameAffinity":saved["bindGameAffinity"],"lowerBackgroundPriority":saved["lowerBackgroundPriority"],"failureReason":detail.map(topology_failure),"failureDetail":detail}),
+            json!({"supported":allocation.supported,"gameCoreCount":allocation.game_core_count,"defaultGameCoreCount":allocation.default_game_core_count,"balancedGameCoreCount":allocation.balanced_game_core_count,"focusGameCoreCount":allocation.focus_game_core_count,"maxGameCoreCount":allocation.max_game_core_count,"physicalCoreCount":allocation.physical_core_count,"performanceCoreCount":allocation.performance_core_count,"efficiencyCoreCount":allocation.efficiency_core_count,"hybrid":allocation.hybrid,"processorGroupCount":allocation.processor_group_count,"customized":requested.is_some(),"cpuMode":cpu_mode,"bindGameAffinity":saved["bindGameAffinity"],"lowerBackgroundPriority":saved["lowerBackgroundPriority"],"failureReason":detail.map(topology_failure),"failureDetail":detail}),
         )
     }
     pub fn simplification(&self) -> Value {
@@ -312,8 +314,8 @@ impl Boost {
             args.push(format!("--game-core-count={}", setting["gameCoreCount"]));
         }
         args.push(format!(
-            "--bind-game-affinity={}",
-            setting["bindGameAffinity"] == true
+            "--cpu-mode={}",
+            setting["cpuMode"].as_str().unwrap_or("focus")
         ));
         args.push(format!(
             "--lower-background-priority={}",
@@ -468,14 +470,31 @@ impl Boost {
         let id = uuid::Uuid::new_v4().to_string();
         self.control(
             "affinity",
-            json!({"command":"set-game-core-count","requestId":id,"gameCoreCount":parsed as u64}),
+            json!({"command":"set-game-core-count","requestId":id,"gameCoreCount":parsed as u64,"cpuMode":saved["cpuMode"]}),
         )?;
         self.wait_request("gameCoreReconfigure", &id, 10000)?;
         self.affinity_status(false)
     }
+    pub fn set_cpu_mode(&self, value: &Value) -> Result<Value> {
+        let _operation = self.affinity_operation.lock().unwrap();
+        let mode = value
+            .as_str()
+            .filter(|mode| matches!(*mode, "focus" | "balanced" | "safe"))
+            .ok_or("지원하지 않는 CPU 모드입니다")?;
+        let mut saved = self.env.cpu_setting();
+        saved["cpuMode"] = json!(mode);
+        saved["bindGameAffinity"] = json!(mode != "safe");
+        saved["gameCoreCount"] = Value::Null;
+        saved["updatedAt"] = json!(crate::app_services::iso());
+        storage::write_json(
+            &self.directory("affinity").join("game-core-setting.json"),
+            &saved,
+        )?;
+        self.apply_cpu_options(&saved)
+    }
     pub fn set_cpu_option(&self, name: &str, enabled: bool) -> Result<Value> {
         let _operation = self.affinity_operation.lock().unwrap();
-        if !matches!(name, "bindGameAffinity" | "lowerBackgroundPriority") {
+        if name != "lowerBackgroundPriority" {
             return Err("지원하지 않는 CPU 고급 설정입니다".into());
         }
         let mut saved = self.env.cpu_setting();
@@ -485,6 +504,9 @@ impl Boost {
             &self.directory("affinity").join("game-core-setting.json"),
             &saved,
         )?;
+        self.apply_cpu_options(&saved)
+    }
+    fn apply_cpu_options(&self, saved: &Value) -> Result<Value> {
         let current = self.affinity_runtime()?;
         if current["running"] != true {
             return self.affinity_status(false);
@@ -498,7 +520,8 @@ impl Boost {
             json!({
                 "command":"set-cpu-options",
                 "requestId":id,
-                "bindGameAffinity":saved["bindGameAffinity"],
+                "cpuMode":saved["cpuMode"],
+                "gameCoreCount":saved["gameCoreCount"],
                 "lowerBackgroundPriority":saved["lowerBackgroundPriority"]
             }),
         )?;

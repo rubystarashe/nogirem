@@ -49,3 +49,61 @@
 ## Coverage assessment
 
 Mandatory source and automated scenarios for this checkpoint passed. Actual game frame/latency behavior remains explicitly `NOT_RUN` and no frame-improvement claim is made. Strict Clippy is a disclosed repository-baseline gap rather than a new violation in the changed implementation.
+
+## Follow-up CP-CPU-MODES-002
+
+- qa_state: `COMPLETE_PASS`
+- source_target: `base 17dee9063db8c9926d70a1f9eab5a4955b7c47d8 + follow-up owned-file target`
+- execution_target: `Windows 10.0.26200 x64, AMD Ryzen 7 9800X3D 8C/16T, Rust test/debug, Node v22.20.0`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 게임 집중·균형·안전 mode`
+- feature_map: `updated — revision 3`
+- architecture_impact: `mode allocation and settings/worker/service/UI contract`
+- architecture_contract: `updated — revision 36`
+
+### 시나리오
+
+- `SCN-CPU-MODE-001`: `PASS` — 8P fixture에서 게임 집중 6P, 균형 4P와 background mask를 확인했다.
+- `SCN-CPU-MODE-002`: `PASS` — 2P+4E fixture에서 게임 집중 2P와 background 4E+공유 1P를 확인했다.
+- `SCN-CPU-MODE-003`: `PASS` — 4P 비하이브리드가 3P game+1P background로 동작하고 물리 코어 수만으로 비활성화되지 않는다.
+- `SCN-CPU-MODE-004`: `PASS` — 신규 설정은 focus, legacy bind true는 balanced, false는 safe로 정규화한다.
+- `SCN-CPU-MODE-005`: `PASS` — 실행 중 mode control이 game affinity 여부, 자동 core count와 priority 독립 설정을 함께 재구성한다.
+- `SCN-CPU-MODE-006`: `PASS` — desktop smoke가 고급 기능 화면의 mode control을 찾아 `균형`을 선택하고 service state가 `balanced`, 4P로 바뀐 것을 확인했다.
+- `SCN-CPU-MODE-GAME-001`: `NOT_RUN` — 실제 마비노기 frame time·입력·background 체감 비교는 별도 실게임 QA가 필요하다.
+
+### 현재 실행 결과
+
+- `cargo test --locked --manifest-path desktop/backend/Cargo.toml`: `PASS`, library 126 passed·3 ignored, parity 2/2.
+- `cargo check --locked --manifest-path desktop/Cargo.toml`: `PASS`.
+- `cargo test --locked --manifest-path desktop/Cargo.toml`: `PASS`, 8/8.
+- `nvm use 22.20.0; npm test`: `PASS`, 213/213.
+- `npm run app:dev -- --smoke-test --smoke-report=... --capture=...`: `PASS`, report `passed:true`, CPU mode settings roundtrip과 고급 기능 구조 확인.
+- `cargo fmt --manifest-path desktop/backend/Cargo.toml -- --check`: `FAIL`, 변경 밖의 기존 compact-format source까지 포함한 repository formatting baseline. 자동 format으로 대규모 무관 diff를 만들지 않았으며 변경 diff는 `git diff --check`를 통과했다.
+
+## Final follow-up CP-CPU-MAIN-PRESETS-004
+
+- qa_state: `COMPLETE_PASS`
+- supersedes: `CP-CPU-MODES-002` scenario conclusions where preset composition differs
+- source_target: `base 17dee9063db8c9926d70a1f9eab5a4955b7c47d8 + final preset owned-file target`
+- execution_target: `Windows 10.0.26200 x64, AMD Ryzen 7 9800X3D 8C/16T, Rust test/debug, Node v22.20.0`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — main focus/balanced/safe presets and advanced custom count`
+- feature_map: `updated — revision 5`
+- architecture_impact: `preset defaults, settings writer, worker live control and main UI placement`
+- architecture_contract: `updated — revision 38`
+
+### 시나리오
+
+- `SCN-CPU-PRESET-001`: `PASS` — 8P fixture에서 focus auto 6P, balanced auto 4P와 manual 6P를 확인했다.
+- `SCN-CPU-PRESET-002`: `PASS` — safe는 balanced count를 사용하면서 game mask를 적용하지 않는 manager 경계를 확인했다.
+- `SCN-CPU-PRESET-003`: `PASS` — 2P+4E focus에서 game 2P와 background 4E+공유 1P를 확인했다.
+- `SCN-CPU-PRESET-004`: `PASS` — SchedulingClass 차이가 같은 EfficiencyClass의 P-core를 제거하지 않고 선택 순서에만 반영된다.
+- `SCN-CPU-PRESET-005`: `PASS` — service mode 선택은 custom count를 초기화하고 advanced count 선택은 mode를 보존한다.
+- `SCN-CPU-PRESET-006`: `PASS` — desktop smoke가 Vulkan control 아래 세 preset의 DOM 위치·label, focus 6P, balanced/safe 4P와 advanced manual 5P mode 보존을 확인했다.
+- `SCN-CPU-PRESET-GAME-001`: `NOT_RUN` — 실제 마비노기 frame time·입력·background 체감 비교.
+
+### 현재 실행 결과
+
+- `cargo test --locked --manifest-path desktop/backend/Cargo.toml`: `PASS`, library 127 passed·3 ignored, parity 2/2.
+- `cargo check --locked --manifest-path desktop/Cargo.toml`: `PASS`.
+- `npm run app:dev -- --smoke-test --smoke-report=... --capture=...`: `PASS`, report `passed:true`; main screenshot과 settings roundtrip 기록.
+- `cargo test --locked --manifest-path desktop/Cargo.toml`: `PASS`, 8/8.
+- `nvm use 22.20.0; npm test`: `PASS`, Node v22.20.0, 213/213.

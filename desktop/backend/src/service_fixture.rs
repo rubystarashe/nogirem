@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 pub fn initial() -> Value {
     let graphics = json!({"supported":true,"detected":true,"allMet":true,"title":"NVIDIA 프로필","gpus":[{"name":"NVIDIA GeForce RTX 4090"}],"goalsList":(["수직 동기화 끄기","최대 프레임 400 FPS","스레드 최적화","최고 성능 선호","저지연 모드 울트라"].iter().map(|label|json!({"label":label,"met":true,"supported":true})).collect::<Vec<_>>())});
-    let mut fixture = json!({"status":{"affinity":{"ok":true,"data":{"running":true,"gameActive":false,"dxvk":{"state":"latest"},"characterSimplification":{"applied":true},"gameCoreSetting":{"maxGameCoreCount":4,"gameCoreCount":2,"hybrid":true}}},"memory":{"ok":true,"data":{"running":true}},"graphics":{"ok":true,"data":graphics},"network":{"ok":true,"data":{"optimized":true,"originalStateRecorded":true,"fastPing":{"supported":true,"current":{"interfaceAlias":"이더넷","TcpAckFrequency":1,"TCPNoDelay":1}},"tcpAutoTuning":{"optimized":true}}}},"blackbox":{"enabled":true,"featureEnabled":true,"durationSeconds":125},"turbo":{"enabled":false,"keys":[65],"intervalMs":10,"installed":true,"ignoreInitialDelay":false},"input":{"enabled":false,"cursorScalePercent":100,"cursorWheelModifier":"disabled"},"channelPing":{"enabled":false}});
+    let mut fixture = json!({"status":{"affinity":{"ok":true,"data":{"running":true,"gameActive":false,"dxvk":{"state":"latest"},"characterSimplification":{"applied":true},"gameCoreSetting":{"maxGameCoreCount":7,"gameCoreCount":6,"defaultGameCoreCount":6,"balancedGameCoreCount":4,"focusGameCoreCount":6,"performanceCoreCount":8,"efficiencyCoreCount":0,"cpuMode":"focus","bindGameAffinity":true,"supported":true}}},"memory":{"ok":true,"data":{"running":true}},"graphics":{"ok":true,"data":graphics},"network":{"ok":true,"data":{"optimized":true,"originalStateRecorded":true,"fastPing":{"supported":true,"current":{"interfaceAlias":"이더넷","TcpAckFrequency":1,"TCPNoDelay":1}},"tcpAutoTuning":{"optimized":true}}}},"blackbox":{"enabled":true,"featureEnabled":true,"durationSeconds":125},"turbo":{"enabled":false,"keys":[65],"intervalMs":10,"installed":true,"ignoreInitialDelay":false},"input":{"enabled":false,"cursorScalePercent":100,"cursorWheelModifier":"disabled"},"channelPing":{"enabled":false}});
     if std::env::args().any(|a|a=="--smoke-boost") {
         fixture["status"]["affinity"]["data"]["gameActive"]=json!(true);
         fixture["status"]["memory"]["data"]["gameActive"]=json!(true);
@@ -59,6 +59,17 @@ pub fn invoke(s: &Arc<Service>, id: u64, channel: &str, args: &Value) -> Option<
         }
         "optimization:set-bind-game-affinity" => {
             state["status"]["affinity"]["data"]["gameCoreSetting"]["bindGameAffinity"] = v.clone();
+            state["status"]["affinity"]["data"].clone()
+        }
+        "optimization:set-cpu-mode" => {
+            let setting = &mut state["status"]["affinity"]["data"]["gameCoreSetting"];
+            setting["cpuMode"] = v.clone();
+            setting["bindGameAffinity"] = json!(v != "safe");
+            setting["gameCoreCount"] = if v == "focus" {
+                setting["focusGameCoreCount"].clone()
+            } else {
+                setting["balancedGameCoreCount"].clone()
+            };
             state["status"]["affinity"]["data"].clone()
         }
         "optimization:set-lower-background-priority" => {

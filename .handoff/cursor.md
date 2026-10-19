@@ -1,12 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-19 14:35 +09:00
+Last Updated: 2026-10-19 15:50 +09:00
 
 ## Current Objective
 제한된 Windows PowerShell 실행 정책이 v0.4.7의 설치·제거 `stop-installed-app.ps1`를 차단하는 결함을 native Rust/Win32 helper로 교체하고 공개 Rust 자산 6개를 같은 버전으로 대치했다. 공개 9/9 hash·Ed25519·alias·feed order와 Electron asset identity 보존이 통과했다.
 
 ## Active Runs
-- `20261019-cpu-topology-priority`: source base `1502358cc77df6a35e3515cf5ec98ddd2f0737ab`에서 CPU Set efficiency·scheduling class와 GLPIEx physical core·SMT·L3·processor group을 결합한다. 요청 P-core와 남은 P/E background mask는 겹치지 않고, 물리 4-core 이하·복수 group은 사유를 표시하며 affinity만 비활성화한다. 게임 binding과 background-only `BELOW_NORMAL_PRIORITY_CLASS`는 기본 false 고급 설정이며, same-handle identity와 durable original-state ledger가 외부 변경을 보존한다. backend 124 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, desktop check가 통과했다. 실제 게임과 packaged helper 강제 종료 복구는 NOT_RUN이며 SELF_REVIEW·manifest·commit이 진행 중이다. (`docs/ai/runs/20261019-cpu-topology-priority/handoff.md`)
+- `20261019-cpu-topology-priority`: base `17dee9063db8c9926d70a1f9eab5a4955b7c47d8` 후속 checkpoint에서 main Vulkan 관리 control 아래 `게임 집중/균형/안전` preset을 제공한다. 9800X3D 기준 focus는 6P hard affinity, balanced는 4P hard affinity, safe는 4P background 분할과 game 미고정이다. 고급 기능의 수동 P-core count는 mode를 유지하며 preset 재선택은 자동값을 복원한다. `EfficiencyClass`는 P/E membership, `SchedulingClass`는 같은 P-core 선택 순서로만 사용하고 hybrid all-P에는 background 공유 P-core 하나를 둔다. backend 127 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, desktop check와 main UI smoke가 통과했다. 실제 마비노기 성능 비교는 NOT_RUN이며 local checkpoint commit이 남았다. (`docs/ai/runs/20261019-cpu-topology-priority/handoff.md`)
 - `20261016-native-installer-cleanup-047`: source `faee6cf2492b8247a11b4a787f3c0f8cf710b060`에서 NSIS install/uninstall의 end-user PowerShell 실행을 제거하고 current-source `installer-cleanup.exe`를 embedded한다. helper는 UTF-16 canonical path, PID·생성 시각 identity, caller/updater parent trust, graceful/forced stop과 exact task ownership을 보존한다. native unit 6/6, installer 12/12, Node 213/213, backend 115 PASS·3 ignored와 parity 2/2, desktop check, strict clippy, 독립 review와 signed package 검증이 통과했다. 설치형 `9,761,105 bytes` SHA-256 `23039c63...04d6c`, 포터블 `7,787,597 bytes` SHA-256 `4b164625...49f0`와 manifests를 [GitHub v0.4.7](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7)에 feed-safe order로 대치하고 공개 9/9와 Electron ID 보존을 재검증했다. 실제 관리자 install/uninstall은 NOT_RUN이다. (`docs/ai/runs/20261016-native-installer-cleanup-047/handoff.md`)
 - `20261016-uninstall-hotfix-047`: source `4ee58f36ceff917b135d80c809f439db39536ccb`에서 정본 시작 task cleanup 실패를 실제 process 오류와 분리하고, process 종료 실패만 차단하며, 이전 앱 소유 파일 12개를 upgrade·uninstall에서 exact-delete한다. signed 설치형 `5d01a715...bff1c`, 포터블 `985c8a24...c6e5`로 [GitHub v0.4.7](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7)의 Rust 자산 6개만 대치하고 Electron 3개 asset ID를 보존했다. 공개 9/9, Ed25519, aliases와 독립 review가 통과했다. 실제 관리자 제거·빈 설치 폴더와 같은 버전 자동 재수신은 NOT_RUN이므로 affected 0.4.7 사용자는 새 설치형 수동 덮어쓰기가 필요하다. (`docs/ai/runs/20261016-uninstall-hotfix-047/final-report.md`)
 - `20261015-release-047`: exact package source `62cf3ae48bb8a091bdb4d77a20c58f5cd7417f87`을 annotated `v0.4.7`로 고정하고 [GitHub v0.4.7](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.7)에 signed 설치형·포터블, manifests, 수동 다운로드 aliases와 Electron migration bridge 자산 9개를 공개했다. 제거된 turbo helper asset은 배포하지 않았다. 공개 재다운로드 9/9 hash, Ed25519, alias identity와 Electron routing이 통과했고 실제 설치·업데이트·AMD 단독 GPU·게임은 NOT_RUN이다. (`docs/ai/runs/20261015-release-047/final-report.md`)
@@ -236,7 +236,7 @@ Last Updated: 2026-10-19 14:35 +09:00
 ## Known Issues
 - 이미 `신뢰할 수 없는 업데이트 작업 파일입니다`에서 막힌 0.4.1 helper는 새 payload 실행 전 실패하므로 대치 0.4.2 설치형을 한 번 수동 설치해야 한다.
 - 실제 관리자 토큰의 High label 종단간 QA는 Cursor sandbox의 `icacls` 오류 1299 때문에 실행하지 못했다.
-- 실제 game 성능과 packaged affinity helper 강제 종료 뒤 durable ledger 복구 UI는 아직 수동 검증하지 않았다. 복수 processor group은 잘린 단일 mask를 적용하지 않고 CPU 분할을 비활성화한다.
+- 실제 game 성능과 packaged affinity helper 강제 종료 뒤 durable ledger 복구 UI는 아직 수동 검증하지 않았다. 복수 processor group은 잘린 단일 mask를 적용하지 않고 CPU 분할을 비활성화한다. 9800X3D의 게임 집중 6P·균형 4P는 topology fixture와 UI/service로 검증했지만 실제 마비노기 frame time 비교는 NOT_RUN이다.
 - 네트워크 되돌리기는 패스트핑과 RSS 원본을 다루지만 TCP receive autotuning의 이전 값은 저장·복원하지 않는다.
 - NVIDIA/VSync와 Radeon 3D 최적화는 이전 설정 snapshot과 restore 경로가 없다. Radeon 시작 상태는 ADLX를 열지 않고 적용 helper는 tuning API를 사용하지 않지만, 제보 RX 6700 XT에서 적용 전후 언더볼팅 유지 수동 확인은 남아 있다.
 - 설치형 업데이트 rollback은 기존 파일을 다시 복사하지만 새 설치기가 추가한 파일 제거를 보장하지 않는다.

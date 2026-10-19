@@ -219,6 +219,39 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     )
     .await?;
     tokio::time::sleep(Duration::from_millis(200)).await;
+    let presets = inspect(&main, "(()=>{const p=document.querySelector('.cpu-preset-selector');const d=document.querySelector('.dxvk-update-link');return {labels:[...p.querySelectorAll('button')].map(e=>e.textContent),top:p.getBoundingClientRect().top,dxvkBottom:d.getBoundingClientRect().bottom}})()").await?;
+    if presets["labels"] != json!(["게임 집중", "균형", "안전"])
+        || presets["top"].as_f64().unwrap_or(0.0)
+            < presets["dxvkBottom"].as_f64().unwrap_or(f64::MAX)
+    {
+        return Err(format!("메인 CPU 프리셋 위치가 올바르지 않습니다: {presets}"));
+    }
+    inspect(&main, "[...document.querySelectorAll('.cpu-preset-selector button')].find(e=>e.textContent==='균형').click();true").await?;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    if state.peek().services["affinity"]["gameCoreSetting"]["cpuMode"] != "balanced"
+        || state.peek().services["affinity"]["gameCoreSetting"]["gameCoreCount"] != 4
+    {
+        return Err("균형 CPU 프리셋이 서비스에 전달되지 않았습니다".into());
+    }
+    inspect(&main, "[...document.querySelectorAll('.cpu-preset-selector button')].find(e=>e.textContent==='안전').click();true").await?;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    if state.peek().services["affinity"]["gameCoreSetting"]["cpuMode"] != "safe"
+        || state.peek().services["affinity"]["gameCoreSetting"]["gameCoreCount"] != 4
+    {
+        return Err("안전 CPU 프리셋이 서비스에 전달되지 않았습니다".into());
+    }
+    inspect(&main, "[...document.querySelectorAll('.cpu-preset-selector button')].find(e=>e.textContent==='게임 집중').click();true").await?;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    if state.peek().services["affinity"]["gameCoreSetting"]["cpuMode"] != "focus"
+        || state.peek().services["affinity"]["gameCoreSetting"]["gameCoreCount"] != 6
+    {
+        return Err("게임 집중 CPU 프리셋이 서비스에 전달되지 않았습니다".into());
+    }
+    if let Some(path) =
+        std::env::args().find_map(|a| a.strip_prefix("--capture=").map(str::to_owned))
+    {
+        capture(&main, &path)?;
+    }
     let mut creator_ready = false;
     for _ in 0..20 {
         creator_ready = inspect(
@@ -259,11 +292,19 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     if state.peek().input["cursorScalePercent"] != 25 {
         return Err("Inline cursor setting did not reach service".into());
     }
-    inspect(&main, "[...document.querySelectorAll('.game-cpu-core-option')].find(e=>e.textContent==='3').click();true").await?;
+    inspect(&main, "[...document.querySelectorAll('.game-cpu-core-option')].find(e=>e.textContent==='5').click();true").await?;
     tokio::time::sleep(Duration::from_millis(300)).await;
-    if state.peek().services["affinity"]["gameCoreSetting"]["gameCoreCount"] != 3 {
-        return Err("Inline CPU setting did not reach service".into());
+    if state.peek().services["affinity"]["gameCoreSetting"]["gameCoreCount"] != 5
+        || state.peek().services["affinity"]["gameCoreSetting"]["cpuMode"] != "focus"
+    {
+        return Err("CPU 코어 개수 설정이 서비스에 전달되지 않았습니다".into());
     }
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    inspect(
+        &main,
+        "document.querySelector('.game-cpu-core-controls').scrollIntoView({block:'center'});true",
+    )
+    .await?;
     tokio::time::sleep(Duration::from_millis(300)).await;
     inspect(
         &main,
@@ -271,11 +312,6 @@ pub async fn run(client: Client, host: Host, state: Signal<State>) -> Result<Val
     )
     .await?;
     tokio::time::sleep(Duration::from_millis(600)).await;
-    if let Some(path) =
-        std::env::args().find_map(|a| a.strip_prefix("--capture=").map(str::to_owned))
-    {
-        capture(&main, &path)?;
-    }
     let error = state.peek().error.clone();
     if !error.is_empty() {
         return Err(error);

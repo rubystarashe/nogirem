@@ -41,3 +41,35 @@
 - exact source target, QA evidence and self-review: 확정.
 - local checkpoint commit: pending.
 - cross-repository dependency: 없음.
+
+## Follow-up CP-CPU-MODES-002
+
+- updated_at: `2026-10-19T06:27:00Z`
+- active_checkpoint: `VERIFY_REVIEW`
+- DEV: `READY_FOR_REVIEW`
+- QA: `COMPLETE_PASS`
+- review: `APPROVED`, `SELF_REVIEW`
+- exact_target: `base 17dee9063db8c9926d70a1f9eab5a4955b7c47d8 + follow-up owned-file target; final manifest pending`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 게임 집중·균형·안전 mode`
+- feature_map: `updated — revision 3`
+- architecture_impact: `mode allocation, normalized setting and live control`
+- architecture_contract: `updated — revision 36`
+- scope_decision: 원 계획의 non-overlap·저코어 disable·game binding default false는 사용자 후속 성능 정책으로 대체됐다. 원 `plan.md`는 불변 기록으로 유지하고 `request-mode-followup.md`와 `mode-plan.md`가 후속 권한을 기록한다.
+- ownership: `cursor-agent-92251f36`가 follow-up code와 run/canonical docs의 유일 active writer다. `NOTICE.md`, `data/`는 계속 사용자 소유로 제외한다.
+- next_action: exact manifest와 handoff를 갱신하고 명시 파일만 local checkpoint commit한다.
+
+## Final correction CP-CPU-MAIN-PRESETS-004
+
+- updated_at: `2026-10-19T06:45:00Z`
+- supersedes: `CP-CPU-MODES-002`, `CP-CPU-MODE-SPLIT-003` for final product behavior
+- active_checkpoint: `CHECKPOINT_COMMIT`
+- DEV: `READY_FOR_REVIEW`
+- QA: `COMPLETE_PASS`
+- review: `APPROVED`, `SELF_REVIEW`
+- exact_target: `EVID-CPU-MAIN-PRESETS-SOURCE-004; patch SHA-256 27fff031e3e02736c5feebbef90d495aa640e1c72ba70aad306ce6b4842fcb6c`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — main three presets and advanced custom count`
+- feature_map: `updated — revision 5`
+- architecture_impact: `preset orchestration and main UI placement`
+- architecture_contract: `updated — revision 38`
+- scope_decision: final authority는 `request-main-presets.md`와 `main-presets-plan.md`다. 이전 follow-up 문서는 당시 사용자 지시의 immutable history로 유지한다.
+- ownership: source/run/canonical active writer는 `cursor-agent-92251f36`; `NOTICE.md`, `data/`는 제외한다.

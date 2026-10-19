@@ -61,7 +61,7 @@ fn renderer(manager: &Manager, executable: &str) -> Value {
 }
 fn cpu_info(manager: &Manager) -> Value {
     let a = &manager.allocation;
-    json!({"source":a.source,"supported":a.supported,"processorGroupCount":a.processor_group_count,"hybrid":a.hybrid,"physicalCoreCount":a.physical_core_count,"performanceCoreCount":a.performance_core_count,"efficiencyCoreCount":a.efficiency_core_count,"gameCoreCount":a.game_core_count,"defaultGameCoreCount":a.default_game_core_count,"maxGameCoreCount":a.max_game_core_count,"backgroundCpuRange":topology::cpu_range(&a.background_cpu_indexes),"gameCpuRange":topology::cpu_range(&a.game_cpu_indexes),"error":a.topology_error})
+    json!({"source":a.source,"supported":a.supported,"processorGroupCount":a.processor_group_count,"hybrid":a.hybrid,"physicalCoreCount":a.physical_core_count,"performanceCoreCount":a.performance_core_count,"efficiencyCoreCount":a.efficiency_core_count,"gameCoreCount":a.game_core_count,"defaultGameCoreCount":a.default_game_core_count,"balancedGameCoreCount":a.balanced_game_core_count,"focusGameCoreCount":a.focus_game_core_count,"maxGameCoreCount":a.max_game_core_count,"backgroundCpuRange":topology::cpu_range(&a.background_cpu_indexes),"gameCpuRange":topology::cpu_range(&a.game_cpu_indexes),"error":a.topology_error})
 }
 struct Status {
     path: PathBuf,
@@ -155,7 +155,8 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
     let _lock = storage::HelperLock::acquire(&status_path, 0, &control)?;
     let config = storage::read_json(&root.join("config.json"))?.ok_or("config.json missing")?;
     let mut requested = arg("game-core-count").and_then(|s| s.parse::<i64>().ok());
-    let mut bind_game = arg("bind-game-affinity").as_deref() == Some("true");
+    let mut cpu_mode =
+        topology::CpuMode::parse(arg("cpu-mode").as_deref().unwrap_or("focus"));
     let mut lower_background_priority =
         arg("lower-background-priority").as_deref() == Some("true");
     let mut manager = Manager::new(
@@ -165,7 +166,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
         true,
         Options {
             requested_game_core_count: requested,
-            bind_game,
+            cpu_mode,
             lower_background_priority,
             ..Default::default()
         },
@@ -215,8 +216,12 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
                             let next_requested = command["gameCoreCount"]
                                 .as_i64()
                                 .ok_or("마비노기 CPU 코어 수가 올바르지 않습니다")?;
+                            let next_mode = topology::CpuMode::parse(
+                                command["cpuMode"].as_str().unwrap_or("balanced"),
+                            );
                             manager.reset_all()?;
                             requested = Some(next_requested);
+                            cpu_mode = next_mode;
                             manager = Manager::new(
                                 config.clone(),
                                 state.clone(),
@@ -224,7 +229,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
                                 true,
                                 Options {
                                     requested_game_core_count: requested,
-                                    bind_game,
+                                    cpu_mode,
                                     lower_background_priority,
                                     ..Default::default()
                                 },
@@ -251,14 +256,16 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
                         status.reconfigure = json!({"requestId":command["requestId"],"state":"running","requestedAt":command["requestedAt"]});
                         status.write(&manager, true, None)?;
                         let result = (|| -> Result<()> {
-                            let next_bind = command["bindGameAffinity"]
-                                .as_bool()
-                                .ok_or("게임 affinity 설정이 올바르지 않습니다")?;
+                            let next_mode = command["cpuMode"]
+                                .as_str()
+                                .filter(|mode| matches!(*mode, "focus" | "balanced" | "safe"))
+                                .ok_or("CPU 모드 설정이 올바르지 않습니다")?;
                             let next_priority = command["lowerBackgroundPriority"]
                                 .as_bool()
                                 .ok_or("백그라운드 priority 설정이 올바르지 않습니다")?;
                             manager.reset_all()?;
-                            bind_game = next_bind;
+                            cpu_mode = topology::CpuMode::parse(next_mode);
+                            requested = command["gameCoreCount"].as_i64();
                             lower_background_priority = next_priority;
                             manager = Manager::new(
                                 config.clone(),
@@ -267,7 +274,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
                                 true,
                                 Options {
                                     requested_game_core_count: requested,
-                                    bind_game,
+                                    cpu_mode,
                                     lower_background_priority,
                                     ..Default::default()
                                 },

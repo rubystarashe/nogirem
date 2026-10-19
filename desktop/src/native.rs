@@ -357,8 +357,11 @@ impl Host {
     ) -> Result<Value, String> {
         match method {
             "backend.cpu-allocation" => {
-                return serde_json::to_value(nogirem_backend::topology::resolve(
+                return serde_json::to_value(nogirem_backend::topology::resolve_mode(
                     params["gameCoreCount"].as_i64(),
+                    nogirem_backend::topology::CpuMode::parse(
+                        params["cpuMode"].as_str().unwrap_or("balanced"),
+                    ),
                 )?)
                 .map_err(|e| e.to_string());
             }

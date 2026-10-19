@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `35`
-- updated_at: `2026-10-19T05:35:00Z`
+- revision: `38`
+- updated_at: `2026-10-19T06:45:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T05:35:00Z`
+- source_reviewed_at: `2026-10-19T06:45:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 1502358cc77df6a35e3515cf5ec98ddd2f0737ab + RUN 20261019-cpu-topology-priority owned-file manifest`
-- source_review_evidence: `topology/process/affinity/worker/settings/service/UI exact diff SELF_REVIEW`
-- behavior_verified_at: `2026-10-19T05:35:00Z`
+- source_review_target: `base 17dee9063db8c9926d70a1f9eab5a4955b7c47d8 + CP-CPU-MAIN-PRESETS-004 uncommitted owned-file target`
+- source_review_evidence: `preset defaults, main placement, advanced manual override and topology classification SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T06:45:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 1502358cc77df6a35e3515cf5ec98ddd2f0737ab + RUN 20261019-cpu-topology-priority owned-file manifest`
+- behavior_verification_target: `base 17dee9063db8c9926d70a1f9eab5a4955b7c47d8 + CP-CPU-MAIN-PRESETS-004 uncommitted owned-file target`
 - behavior_verification_environment: `Windows 10.0.26200 x64 Rust/Node source execution`
-- behavior_verification_evidence: `backend 124 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, desktop locked check, live topology query and process priority roundtrip`
+- behavior_verification_evidence: `backend mode fixtures/full locked tests, desktop locked check/tests, Node service contract tests`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 CPU topology authority, process-handle mutation and durable ledger boundary를 반영`
+- freshness_reason: `현재 source의 main preset orchestration, advanced override와 topology authority를 반영`
 - known_gaps: `실제 game 성능과 packaged helper 강제 종료 복구는 NOT_RUN; multi-group affinity 적용은 지원하지 않음`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — topology-aware CPU allocation and optional background priority`
-- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 2`
-- architecture_impact: `topology authority, same-handle process adapter, durable original-state ledger and settings IPC`
-- architecture_contract: `updated — revision 35`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — main three presets and advanced manual count`
+- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 5`
+- architecture_impact: `preset orchestration, topology classification and live worker IPC; process ledger unchanged`
+- architecture_contract: `updated — revision 38`
 
 ## 계층과 확장 경로
 
@@ -51,8 +51,9 @@
 - Radeon 명시 적용은 모든 대상 GPU의 네 3D 설정을 먼저 snapshot한다. 항목 실패 시 snapshot 복원을 시도하고 최종 목표 상태와 복원 오류를 반환하며, helper reason이 있으면 caller는 게임 VSync를 변경하지 않는다.
 - UI runtime polling은 한 helper 요청 실패로 영구 종료하지 않는다. 실패한 기능의 `running`·`gameActive`를 false로 보정하고 다음 주기에 재조회한다.
 - affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다.
-- CPU topology와 mask 계산은 `topology.rs`만 소유한다. CPU Set의 efficiency·scheduling class를 GLPIEx의 physical core·SMT mask·L3 cache·processor group과 `(group, logical processor)`로 결합하고, 같은 L3 domain을 우선하되 cache 크기를 성능 등급으로 사용하지 않는다.
-- 단일 `u64` process affinity로 표현할 수 없는 복수 processor group과 물리 코어 4개 이하에서는 CPU 분할을 fail-safe로 비활성화한다. UI와 status에 사유를 전달하며 logical-half fallback이나 잘린 mask를 적용해서는 안 된다.
+- CPU topology와 mask 계산은 `topology.rs`만 소유한다. CPU Set의 `EfficiencyClass`로 P/E 소속을 판별하고 `SchedulingClass`는 같은 P-core 후보의 우선 선택에만 사용한다. 이를 GLPIEx physical core·SMT mask·L3 cache·processor group과 `(group, logical processor)`로 결합하고, 같은 L3 domain을 우선하되 cache 크기를 성능 등급으로 사용하지 않는다.
+- 단일 `u64` process affinity로 표현할 수 없는 복수 processor group은 CPU 분할을 fail-safe로 비활성화한다. 물리 코어 수만으로 비활성화하지 않으며 단일 P-core 비하이브리드처럼 game/background 역할 mask를 만들 수 없는 경우에만 사유를 전달한다. logical-half fallback이나 잘린 mask를 적용해서는 안 된다.
+- P-core 개수 mask와 mode별 자동값은 `topology.rs`가 소유하고 affinity 적용 여부는 `affinity.rs`가 결정한다. focus는 balanced보다 최대 두 P-core를 더 선택하며 balanced/safe는 기존 자동값을 사용한다. focus/balanced는 game mask를 적용하고 safe는 게임을 고정하지 않는다. hybrid all-P에서는 background가 E-core-only가 되지 않도록 한 물리 P-core mask의 중첩을 허용한다.
 - 외부 process mutation은 `process.rs`의 같은 handle에서 생성 시각, affinity, priority를 확인한 뒤 수행한다. 열거 뒤 PID만 다시 열어 검증·변경을 분리하는 경로를 추가해서는 안 된다.
 - 터보키는 0.4.7부터 제품 runtime에서 시작하지 않는다. UI 진입점과 설정·다운로드 IPC는 실행 경로에 도달할 수 없어야 하며, 보존된 helper 구현을 다른 기능에서 호출해서는 안 된다. package와 release assembly는 helper binary나 standalone 약관 파일을 배포하지 않는다.
 - DXVK는 확인되지 않은 게임 경로나 임의 URL에 파일을 쓰지 않는다. manager가 실제 `Client.exe`와 게임 미실행 상태를 확인하고 capability module이 digest·x64 PE·최종 파일 hash를 검증해야 한다.
@@ -69,7 +70,7 @@
 - update manifest: release signing script만 private key를 사용해 작성하며 앱은 embedded public key로 검증만 한다.
 - installer uninstall registry·shortcut writer: NSIS 설치기 하나다.
 - game path state: affinity helper만 `%APPDATA%\마비노기 렘 부스터\game\path.json`을 쓰며 `Environment`와 입력 기능이 읽는다. 터보키의 허용 판단에는 사용하지 않는다.
-- CPU setting: backend `Boost` service만 `affinity/game-core-setting.json`을 정규화해 쓴다. `bindGameAffinity`와 `lowerBackgroundPriority` 기본값은 false이며 helper와 UI는 이 설정을 읽거나 좁은 control IPC로 갱신한다.
+- CPU setting: backend `Boost` service만 `affinity/game-core-setting.json`을 정규화해 쓴다. `cpuMode=focus|balanced|safe`와 optional custom `gameCoreCount`를 저장한다. advanced count는 mode를 유지하며, main preset 선택은 custom count를 null로 바꿔 mode 자동값을 복원한다. 신규 기본값은 focus이고 이전 `bindGameAffinity=true|false`는 balanced|safe로 읽는다.
 - affinity original-state ledger: affinity helper만 `runtime-state.json`을 쓴다. 변경 전 원본·앱 적용 affinity와 optional priority를 process identity와 함께 durable하게 기록하며, 시작 시 파일을 삭제하지 않는다. 복원은 현재 값이 앱 적용값과 같은 항목만 원본으로 바꾸고 외부 변경은 보존한다. 접근 오류로 복원하지 못한 entry는 ledger에 남긴다.
 - removed turbo setting: `inputs.rs`가 시작 시 기존 설정의 키·간격과 설치 파일은 보존하고 `enabled=false`만 기록한다. Electron 전환 호환 경로도 같은 비활성화만 수행하며 helper update·launch를 호출하지 않는다.
 - DXVK state와 DLL: `dxvk.rs` install/apply 경로만 `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 검증된 게임 폴더의 `d3d9_dxvk.dll`을 쓴다.
@@ -79,7 +80,7 @@
 ## 실시간 helper 상태와 게임 경로
 
 - affinity worker는 `status.json`에 `helperPid`, `updatedAt`, `running`, `gameActive`를 함께 기록한다. backend는 최신 timestamp와 실제 PID 생존을 모두 만족할 때만 실행 중으로 노출한다.
-- 기본 affinity 정책은 일반 background process만 남은 P-core와 E-core mask로 이동하고 게임은 Windows scheduler에 맡긴다. 게임 binding은 명시적 opt-in이며 background priority 하향도 별도 opt-in이다. priority는 일반 background role에만 적용하고 game, latency-sensitive, Windows/system, 명시 제외 process에는 적용하지 않는다.
+- 메인 화면의 Vulkan 관리 control 아래에서 focus/balanced/safe preset을 선택한다. focus/balanced는 게임을 계산된 P-core mask에 고정하고 safe는 Windows scheduler에 맡긴다. 고급 기능에서 custom count를 선택할 수 있다. background priority 하향은 별도 opt-in이며 일반 background role에만 적용한다.
 - `helperStartedAt`이 없는 신선한 0.4.2 status와 살아 있는 PID는 migration 대상으로만 인정한다. 새 helper가 lock을 경쟁하기 전에 기존 control 경로로 중단하고 동일 PID·시작 시각 instance의 종료를 확인한다.
 - UI는 2초 runtime polling을 유지한다. 개별 affinity/memory 오류는 사용자에게 한 번 표시할 수 있지만 polling task 자체를 종료하거나 이전 `gameActive=true`를 유지하지 않는다.
 - 게임이 실행 중이 아니어도 helper는 대기 상태일 수 있으며 사용자의 부스트 중단·복원 조작을 차단하지 않는다.

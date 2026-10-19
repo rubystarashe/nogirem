@@ -120,40 +120,40 @@
 - lifecycle: `ACTIVE`
 - lifecycle_reason: `Rust/Dioxus 앱이 게임 실행 상태에 따라 affinity·메모리 helper를 유지하고 사용자가 적용·중단할 수 있음`
 - owners: `product=nogirem maintainer`, `technical=boost/affinity backend owner`
-- purpose_and_scope: 관리자 권한 Windows 사용자의 마비노기 실행을 감지한다. CPU Set의 efficiency·scheduling class와 GLPIEx 물리 코어·SMT·L3·processor group 정보를 결합해 요청한 P-core를 같은 L3 domain부터 선택하고, 일반 백그라운드를 남은 P-core와 E-core의 겹치지 않는 mask로 이동한다. 기본은 게임을 고정하지 않으며 사용자가 고급 설정을 켠 경우에만 게임 affinity를 선택 mask에 고정한다.
-- exclusions: 물리 코어 4개 이하와 복수 processor group은 CPU 분할 대상이 아니다. L3 크기를 성능 등급으로 해석하지 않으며 하드웨어·드라이버 교착 복구, 외부 affinity/priority writer 통제, 실제 frame 향상을 보장하지 않는다.
+- purpose_and_scope: 관리자 권한 Windows 사용자의 마비노기 실행을 감지한다. CPU Set의 `EfficiencyClass`로 P/E 소속을 판별하고 `SchedulingClass`는 같은 P-core 후보의 우선순위에만 사용하며, GLPIEx 물리 코어·SMT·L3·processor group을 결합해 물리 P-core를 같은 L3 domain부터 배정한다. 메인 화면은 `게임 집중`, `균형`, `안전` preset을 제공하고 고급 기능은 P-core 수동 override를 제공한다. Ryzen 7 9800X3D에서 게임 집중은 6P hard affinity, 균형은 4P hard affinity, 안전은 4P background 분할과 game affinity 미고정이다.
+- exclusions: 복수 processor group과 단일 P-core 비하이브리드처럼 유효한 두 역할 mask를 표현할 수 없는 topology는 CPU 분할 대상이 아니다. L3 크기를 성능 등급으로 해석하지 않으며 하드웨어·드라이버 교착 복구, 외부 affinity/priority writer 통제, 실제 frame 향상을 보장하지 않는다.
 - personas_permissions_accessibility_entry: 일반 사용자가 메인 화면을 클릭해 적용·중단하며 관리자 권한이 필요하다. 상태는 문구로 표시하고 오류는 확인 가능한 alert로 제공한다.
 - preconditions_dependencies: Windows CPU topology, `config.json`, affinity/memory helper, Win32 process query, `%APPDATA%\마비노기 렘 부스터` 상태 폴더.
 - normal_error_cancel_retry_flow: helper 상태의 PID·시작 시각·생존을 함께 확인한다. 게임이 없으면 대기하지만 중단 버튼은 활성이다. CPU 구성이 안전하게 표현되지 않으면 사유를 표시하고 affinity만 건너뛰며 다른 boost 기능은 유지한다. runtime 조회 실패 시 화면 상태를 중단으로 보정하고 polling을 계속한다.
 - concurrency_partial_failure_recovery: affinity·memory operation lock이 작업을 직렬화한다. affinity/priority는 열거 후 같은 process handle에서 생성 시각을 확인한 뒤 적용한다. 원본과 앱 적용값을 변경 전에 durable ledger에 기록하고, 복원 시 현재 값이 앱 적용값과 같은 항목만 원본으로 되돌려 외부 변경을 보존한다. 실패한 복원 entry는 다음 시작 복구를 위해 남긴다.
-- state_side_effects_limits: 기본 모드는 일반 background affinity만 변경한다. `bindGameAffinity=true`일 때만 게임 affinity를, `lowerBackgroundPriority=true`일 때만 일반 background priority를 `BELOW_NORMAL_PRIORITY_CLASS`로 변경한다. 게임·latency-sensitive·Windows/system·명시 제외 process의 priority는 변경하지 않는다. memory cleanup과 선택적 NIC RSS는 독립적으로 유지한다.
+- state_side_effects_limits: `게임 집중`은 균형 자동값보다 P-core를 최대 2개 더 선택하고, `균형`은 기존 자동값을 사용하며 두 preset 모두 game hard affinity를 적용한다. `안전`은 균형 자동값을 사용하지만 game affinity를 고정하지 않는다. 고급 수동 count는 현재 mode를 유지한 채 자동 count를 override하고 preset을 누르면 해당 자동값으로 복귀한다. background는 남은 P-core와 E-core를 사용하되 hybrid all-P 선택에서는 한 물리 P-core를 공유한다.
 - modules_contracts: `desktop/src/ui.rs` → `service.rs` → `boost.rs` → `affinity_worker.rs`/`affinity.rs`. helper PID와 최신 timestamp가 실행 상태의 필수 조건이다.
 - durable_data_owner: affinity helper가 `runtime-state.json`, runtime status와 `game/path.json`의 유일한 writer다. backend service만 `game-core-setting.json`을 정규화해 쓰고 helper/UI가 읽는다.
 - security_privacy: 다른 `Client.exe` 오탐을 막기 위해 정본의 명시적 게임 폴더를 사용하며 진단 내 사용자 경로는 마스킹한다.
-- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 legacy helper 인계`, `BOOST-005 게임 시작·종료 원본 복원`, `BOOST-006 hybrid 요청 P-core와 background 비중첩`, `BOOST-007 L3 locality·SMT on/off`, `BOOST-008 4-core·복수 group fail-safe`, `BOOST-009 게임 binding 기본 false와 opt-in`, `BOOST-010 background-only priority opt-in`, `BOOST-011 PID 재사용·외부 변경 보존·재시작 복구`
+- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 legacy helper 인계`, `BOOST-005 게임 시작·종료 원본 복원`, `BOOST-006 hybrid P-core 선택과 필요 시 한 P-core 공유`, `BOOST-007 L3 locality·SMT·SchedulingClass 우선순위`, `BOOST-008 저코어 분할·복수 group fail-safe`, `BOOST-009 main focus 6/8P·balanced/safe 4/8P`, `BOOST-010 background-only priority opt-in`, `BOOST-011 PID 재사용·외부 변경 보존·재시작 복구`, `BOOST-012 advanced manual count가 mode를 보존하고 preset이 자동값 복원`
 - observability_evidence: UI topology 사유와 고급 설정, `affinity/events.log`, diagnostics affinity snapshot, `topology::tests`, `affinity::tests`, `process::tests::child_priority_roundtrip_uses_one_verified_handle`, backend parity와 Node service contract tests.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `2`
-- updated_at: `2026-10-19T05:35:00Z`
+- revision: `5`
+- updated_at: `2026-10-19T06:45:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T05:35:00Z`
+- source_reviewed_at: `2026-10-19T06:45:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 1502358cc77df6a35e3515cf5ec98ddd2f0737ab + RUN 20261019-cpu-topology-priority owned-file manifest`
-- source_review_evidence: `SELF_REVIEW of topology/process/affinity/worker/settings/service/UI source and exact diff`
-- behavior_verified_at: `2026-10-19T05:35:00Z`
+- source_review_target: `base 17dee9063db8c9926d70a1f9eab5a4955b7c47d8 + CP-CPU-MAIN-PRESETS-004 uncommitted owned-file target`
+- source_review_evidence: `SELF_REVIEW of preset defaults, main placement, advanced override and topology classification`
+- behavior_verified_at: `2026-10-19T06:45:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 1502358cc77df6a35e3515cf5ec98ddd2f0737ab + RUN 20261019-cpu-topology-priority owned-file manifest`
+- behavior_verification_target: `base 17dee9063db8c9926d70a1f9eab5a4955b7c47d8 + CP-CPU-MAIN-PRESETS-004 uncommitted owned-file target`
 - behavior_verification_environment: `Windows 10.0.26200 x64; Rust test processes and Node v22.20.0`
-- behavior_verification_evidence: `backend 124 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, live topology query, child priority roundtrip`
+- behavior_verification_evidence: `backend mode fixtures and full locked tests, desktop locked check/tests, Node service contract tests; exact counts are in follow-up QA`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source의 topology·설정·복구 동작과 자동 실행 evidence를 반영`
+- freshness_reason: `현재 source의 main three presets, advanced manual override, hybrid 공유와 topology 분류를 반영`
 - known_gaps: `실제 마비노기 frame·입력 체감, 강제 종료 후 packaged UI 복구는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — topology, affinity, priority and recovery behavior updated`
-- feature_map: `updated — revision 2`
-- architecture_impact: `topology authority, process handle adapter, durable ledger, settings IPC`
-- architecture_contract: `updated — revision 35`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — main 게임 집중·균형·안전 presets와 advanced manual count`
+- feature_map: `updated — revision 5`
+- architecture_impact: `preset defaults, setting writer, live worker IPC and main UI placement`
+- architecture_contract: `updated — revision 38`
 
 ## FEAT-NOGIREM-TURBO-KEY
 
