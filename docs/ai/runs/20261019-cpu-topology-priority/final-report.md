@@ -132,3 +132,22 @@
 - review: `SELF_REVIEW APPROVED`; no independent reviewer, mandatory finding 없음.
 - gates: feature/source `PASS`, architecture `PASS`, automated QA `PASS`, UI smoke `BLOCKED`, target `PASS after local checkpoint`.
 - push/deploy/release: `NOT_RUN — 승인되지 않음`.
+
+## Final current disposition — CP-CPU-VERIFY-048-011
+
+- disposition: `COMPLETED`
+- requested_scope: L3 기반 선택 등 CPU 변경 구성을 재검증하고 0.4.8 변경사항으로 기록.
+- target: `source e988317bf87e49b192c80dad76b32dcb0657ae84 + VERSION_HISTORY/run/handoff documentation target committed with this report; resulting SHA is reported externally`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — verified topology/preset/priority behavior and 0.4.8 history`
+- feature_map: `no_change — revision 11 remains accurate`
+- architecture_impact: `none — source boundaries rechecked without code changes`
+- architecture_contract: `no_change — revision 40 remains accurate`
+- verified: L3 locality, SMT grouping, P/E classification, SchedulingClass ordering, focus/balanced count, hybrid all-P sharing, low-core background preservation, multi-group fail-safe, priority role/restore and focus preset defaults.
+- automated-test-passing: topology 9/9, affinity 5/5, live child priority 1/1, settings preset 1/1. Exact source의 prior backend 127 PASS·3 ignored, parity 2/2, desktop 8/8와 locked check도 통과 상태다.
+- documentation: `VERSION_HISTORY.md`에 0.4.8 CPU 변경사항 추가. crate/package 버전은 0.4.7로 유지.
+- failed_or_blocked: 첫 복수 Cargo filter 호출은 CLI usage 오류로 FAIL 후 독립 명령으로 교정·통과. prior 변경 target UI smoke는 관리자 debug app lock으로 BLOCKED.
+- manually_exercised: current Windows live topology query와 child process priority roundtrip.
+- actual game workload and multi-group hardware: `NOT_RUN`.
+- review: `SELF_REVIEW APPROVED`; no independent reviewer, mandatory finding 없음.
+- gates: feature/source `PASS`, architecture `PASS`, requested verification `PASS`, documentation `PASS`, target `PASS after local checkpoint`.
+- push/deploy/release: `NOT_RUN — 승인되지 않음`.

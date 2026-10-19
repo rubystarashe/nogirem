@@ -202,3 +202,18 @@ Mandatory source and automated scenarios for this checkpoint passed. Actual game
 - main desktop smoke: `PASS`.
 - edited-file lints: `PASS`.
 - actual game workload: `NOT_RUN`.
+
+## Follow-up CP-CPU-VERIFY-048-011
+
+- qa_state: `COMPLETE_PASS for requested source/topology/process verification`
+- source_target: `e988317bf87e49b192c80dad76b32dcb0657ae84`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — CPU topology/preset/priority verification`
+- feature_map: `no_change — revision 11 remains accurate`
+- architecture_impact: `none — verification only`
+- architecture_contract: `no_change — revision 40 remains accurate`
+- topology tests: `PASS — 9/9`, including live Windows topology, L3, SMT/non-SMT, P/E, SchedulingClass, hybrid sharing, low-core and multi-group fail-safe.
+- affinity tests: `PASS — 5/5`.
+- live child priority roundtrip: `PASS — 1/1`.
+- settings preset normalization: `PASS — 1/1`.
+- command correction: initial multi-filter Cargo invocation `FAIL` due unsupported CLI usage; corrected independent commands all passed.
+- actual Mabinogi workload and multi-group hardware: `NOT_RUN`.
