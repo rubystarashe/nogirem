@@ -309,7 +309,7 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
     tokio::time::sleep(Duration::from_millis(900)).await;
 
     tokio::time::sleep(Duration::from_millis(900)).await;
-    let advanced = inspect(&main, r#"(()=>{const panel=document.querySelector('.creator-content');const items=[...document.querySelector('.developer-tools').children].map((e,index)=>({index,heading:e.querySelector('h2')?.textContent??'',description:e.querySelector('p')?.textContent??'',action:e.matches('.developer-tool-row')?(e.querySelector(':scope>button')?.textContent??''):''}));const wanted=new Set(['게임 CPU 코어 할당 개수','안전 모드 사용','일반 백그라운드 프로세스 우선순위 낮춤','CPU 재정렬']);return {panel:!!panel,headings:panel?[...panel.querySelectorAll('h2')].map(e=>e.textContent):[],cpuOptions:items.filter(e=>wanted.has(e.heading)),scrollable:panel?panel.scrollHeight>panel.clientHeight:false,icons:document.querySelectorAll('.window-controls svg').length,tabs:[...document.querySelectorAll('.creator-tabs button')].map(e=>e.textContent),body:document.body.innerText.slice(0,500)}})()"#).await?;
+    let advanced = inspect(&main, r#"(()=>{const panel=document.querySelector('.creator-content');const items=[...document.querySelector('.developer-tools').children].map((e,index)=>{const button=e.matches('.developer-tool-row')?e.querySelector(':scope>button'):null;return{index,heading:e.querySelector('h2')?.textContent??'',description:e.querySelector('p')?.textContent??'',action:button?.textContent??'',disabled:button?.disabled??false}});const wanted=new Set(['게임 CPU 코어 할당 개수','안전 모드 사용','일반 백그라운드 프로세스 우선순위 낮춤','CPU 재정렬']);return {panel:!!panel,headings:panel?[...panel.querySelectorAll('h2')].map(e=>e.textContent):[],cpuOptions:items.filter(e=>wanted.has(e.heading)),scrollable:panel?panel.scrollHeight>panel.clientHeight:false,icons:document.querySelectorAll('.window-controls svg').length,tabs:[...document.querySelectorAll('.creator-tabs button')].map(e=>e.textContent),body:document.body.innerText.slice(0,500)}})()"#).await?;
     if advanced["scrollable"] != true
         || advanced["icons"] != 4
         || advanced["cpuOptions"].as_array().is_none_or(|options| {
@@ -323,6 +323,10 @@ pub async fn run(client: Client, host: Host, mut state: Signal<State>) -> Result
                 || options[2]["heading"] != "일반 백그라운드 프로세스 우선순위 낮춤"
                 || options[2]["action"] != "사용 중"
                 || options[3]["heading"] != "CPU 재정렬"
+                || !options[3]["description"]
+                    .as_str()
+                    .is_some_and(|text| text.contains("대체 P-core 그룹"))
+                || options[3]["disabled"] != true
                 || !(options[0]["index"].as_u64().unwrap_or(u64::MAX)
                     < options[1]["index"].as_u64().unwrap_or(0)
                     && options[1]["index"].as_u64().unwrap_or(u64::MAX)

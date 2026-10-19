@@ -832,8 +832,12 @@ mod tests {
         assert_eq!(allocation.default_game_core_count, Some(4));
         assert_eq!(allocation.game_mask.count_ones(), 12);
         assert_eq!(allocation.background_mask.count_ones(), 4);
+        assert_eq!(allocation.alternate_game_mask, 0);
+        let balanced = build(&sets, &topology, None, CpuMode::Balanced).unwrap();
+        assert_eq!(balanced.alternate_game_mask.count_ones(), 8);
         let focused = build(&sets, &topology, None, CpuMode::Focus).unwrap();
         assert_eq!(focused.game_core_count, Some(6));
+        assert_eq!(focused.alternate_game_mask, 0);
     }
 
     #[test]

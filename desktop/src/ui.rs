@@ -614,6 +614,17 @@ fn Advanced() -> Element {
     let client = use_context::<Client>();
     let s = state.read().clone();
     let input_loaded = s.input.is_object();
+    let cpu_setting = &s.services["affinity"]["gameCoreSetting"];
+    let can_cpu_reorder = cpu_setting["canCpuReorder"] == true;
+    let cpu_reorder_description = if cpu_setting["cpuMode"] == "safe" {
+        "안전 모드에서는 게임 CPU 선호도를 고정하지 않아 사용할 수 없습니다"
+    } else if cpu_setting["supported"] != true {
+        "현재 CPU 구성에서는 CPU 재정렬을 사용할 수 없습니다"
+    } else if !can_cpu_reorder {
+        "현재 CPU 모드에서는 동일한 크기의 대체 P-core 그룹을 만들 수 없습니다"
+    } else {
+        "게임 코어 고정을 켠 상태에서 CPU 격리 구성을 재설정하여 캐시 초기화를 유도합니다"
+    };
     rsx! { div { class: "developer-tools",
         div { class: "developer-tool-row",
             div { h2 { "버그 리포트" } p { "문제가 발생한 경우 로그 추출 파일을 전송해 주세요" } }
@@ -667,8 +678,8 @@ fn Advanced() -> Element {
         div { class: "developer-tool-stack", CpuSettings {} }
         CpuAdvancedSettings {}
         div { class: "developer-tool-row",
-            div { h2 { "CPU 재정렬" } p { "게임 코어 고정을 켠 상태에서 CPU 격리 구성을 재설정하여 캐시 초기화를 유도합니다" } }
-            Action { label: "CPU 재정렬", channel: "optimization:run-cpu-reorder", disabled: !(s.services["affinity"]["running"] == true && s.services["memory"]["running"] == true && s.services["affinity"]["gameActive"] == true && s.services["affinity"]["gameCoreSetting"]["cpuMode"] != "safe") }
+            div { h2 { "CPU 재정렬" } p { "{cpu_reorder_description}" } }
+            Action { label: "CPU 재정렬", channel: "optimization:run-cpu-reorder", disabled: !(s.services["affinity"]["running"] == true && s.services["memory"]["running"] == true && s.services["affinity"]["gameActive"] == true && can_cpu_reorder) }
         }
     } }
 }

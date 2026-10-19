@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-19 18:23 +09:00
+Last Updated: 2026-10-19 20:18 +09:00
 
 ## Current Objective
-signed 0.4.8 패키지의 origin/main push, annotated tag와 public Latest GitHub Release 공개 및 원격 자산 재검증을 완료했다.
+대체 P-core 그룹이 없는 CPU mode·count에서 재정렬 버튼을 사전 비활성화하고 이유를 표시한 뒤 signed 0.4.8 자산을 같은 버전으로 대치 배포한다.
 
 ## Active Runs
+- `20261019-cpu-reorder-048-hotfix`: backend가 topology alternate mask에서 `canCpuReorder`를 투영하고 UI가 false일 때 버튼을 비활성화해 이유를 표시한다. backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, main UI smoke가 통과했다. source commit·push, signed 0.4.8 rebuild와 public Rust 6개 자산 대치가 진행 중이다. (`docs/ai/runs/20261019-cpu-reorder-048-hotfix/task.md`)
 - `20261019-release-048`: exact package source `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa`를 origin/main에 push하고 annotated `v0.4.8`과 [GitHub v0.4.8](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.8)을 Latest로 공개했다. canonical 자산 9/9의 공개 재다운로드 hash, Ed25519 manifests, aliases와 Electron 0.3.19 routing이 통과했다. 실제 설치·업데이트·게임은 NOT_RUN이다. (`docs/ai/runs/20261019-release-048/final-report.md`)
 - `20261019-package-048`: source `af36bc1e1e905864914c8fea4bfd2e7a17cd25fa`와 사용자 `NOTICE.md` SHA-256 `90b88036...cba3`에서 signed 0.4.8 설치형·포터블을 `release/dioxus-0.4.8-2026-10-19T09-10-32-162Z`에 생성했다. installer `3c697b54...e0fe`, portable `cf3d565b...415e`; Node 213/213, desktop compile, native integration 3/3, Ed25519·payload·NOTICE 검증이 통과했다. 실제 설치·실행·업데이트·게임과 push·배포는 수행하지 않았다. (`docs/ai/runs/20261019-package-048/final-report.md`)
 - `20261019-cpu-topology-priority`: CPU 설정이 없는 신규 기본값을 `균형 모드`로 변경하고 normalization, topology·boost·worker·UI fallback과 fixture를 통일했다. 기존 명시 CPU 설정과 channel ping 기본 비활성화는 보존한다. backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, locked cargo check가 통과했다. 실제 UI smoke·game QA·push·deploy는 수행하지 않았다. (`docs/ai/runs/20261019-cpu-topology-priority/handoff.md`)

@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `41`
-- updated_at: `2026-10-19T09:02:06Z`
+- revision: `42`
+- updated_at: `2026-10-19T11:18:02Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T09:02:06Z`
+- source_reviewed_at: `2026-10-19T11:18:02Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
-- source_review_evidence: `CPU settings normalization, topology/runtime/UI fallbacks and fixture/smoke contract SELF_REVIEW`
-- behavior_verified_at: `2026-10-19T09:02:06Z`
+- source_review_target: `base 414c6b23d66c1a1925713a9206330f426a5a3ab5 + CP-CPU-REORDER-GUARD-048 owned target`
+- source_review_evidence: `topology alternate mask, backend capability projection and UI guard SELF_REVIEW`
+- behavior_verified_at: `2026-10-19T11:16:42Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `base 24658824ac86640867209bba40da5faa55223f76 + CP-CPU-DEFAULT-BALANCED-012 owned target`
+- behavior_verification_target: `base 414c6b23d66c1a1925713a9206330f426a5a3ab5 + CP-CPU-REORDER-GUARD-048 owned target`
 - behavior_verification_environment: `Windows 10.0.26200 x64 Rust backend/desktop source execution`
-- behavior_verification_evidence: `backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, desktop locked cargo check PASS`
+- behavior_verification_evidence: `backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, main UI smoke PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `설정 부재 시 balanced를 선택하는 canonical default와 방어 fallback을 반영`
-- known_gaps: `변경 target 실제 UI smoke와 실제 game 성능은 NOT_RUN; multi-group affinity 적용은 지원하지 않음`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 신규 기본 CPU preset을 균형 모드로 변경`
-- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 12`
-- architecture_impact: `CPU 설정 normalization과 runtime/UI fallback의 canonical balanced 기본값`
-- architecture_contract: `updated — revision 41`
+- freshness_reason: `topology가 계산한 alternate P-core capability를 backend가 투영하고 UI가 실행 전에 강제하는 현재 경계를 반영`
+- known_gaps: `실제 game에서 enabled 재정렬 수행은 NOT_RUN; multi-group affinity 적용은 지원하지 않음`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — 대체 P-core 그룹이 없는 CPU 재정렬 사전 차단`
+- feature_map: `updated — FEAT-NOGIREM-FRAME-BOOST revision 15`
+- architecture_impact: `topology capability projection과 UI action guard`
+- architecture_contract: `updated — revision 42`
 
 ## 계층과 확장 경로
 
@@ -53,7 +53,7 @@
 - affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다.
 - CPU topology와 mask 계산은 `topology.rs`만 소유한다. CPU Set의 `EfficiencyClass`로 P/E 소속을 판별하고 `SchedulingClass`는 같은 P-core 후보의 우선 선택에만 사용한다. 이를 GLPIEx physical core·SMT mask·L3 cache·processor group과 `(group, logical processor)`로 결합하고, 같은 L3 domain을 우선하되 cache 크기를 성능 등급으로 사용하지 않는다.
 - 단일 `u64` process affinity로 표현할 수 없는 복수 processor group은 CPU 분할을 fail-safe로 비활성화한다. 물리 코어 수만으로 비활성화하지 않으며 단일 P-core 비하이브리드처럼 game/background 역할 mask를 만들 수 없는 경우에만 사유를 전달한다. logical-half fallback이나 잘린 mask를 적용해서는 안 된다.
-- P-core 개수 mask와 mode별 자동값은 `topology.rs`가 소유하고 affinity 적용 여부는 `affinity.rs`가 결정한다. focus는 balanced보다 최대 두 P-core를 더 선택하며 balanced/safe는 기존 자동값을 사용한다. focus/balanced는 game mask를 적용하고 safe는 게임을 고정하지 않는다. hybrid all-P에서는 background가 E-core-only가 되지 않도록 한 물리 P-core mask의 중첩을 허용한다.
+- P-core 개수 mask와 mode별 자동값은 `topology.rs`가 소유하고 affinity 적용 여부는 `affinity.rs`가 결정한다. focus는 balanced보다 최대 두 P-core를 더 선택하며 balanced/safe는 기존 자동값을 사용한다. focus/balanced는 game mask를 적용하고 safe는 게임을 고정하지 않는다. hybrid all-P에서는 background가 E-core-only가 되지 않도록 한 물리 P-core mask의 중첩을 허용한다. CPU 재정렬 capability는 현재 game mask와 겹치지 않는 동일 물리 P-core 수의 alternate mask가 존재할 때만 true이며 UI는 이 값을 우회해 실행 요청을 보내서는 안 된다.
 - 외부 process mutation은 `process.rs`의 같은 handle에서 생성 시각, affinity, priority를 확인한 뒤 수행한다. 열거 뒤 PID만 다시 열어 검증·변경을 분리하는 경로를 추가해서는 안 된다.
 - 터보키는 0.4.7부터 제품 runtime에서 시작하지 않는다. UI 진입점과 설정·다운로드 IPC는 실행 경로에 도달할 수 없어야 하며, 보존된 helper 구현을 다른 기능에서 호출해서는 안 된다. package와 release assembly는 helper binary나 standalone 약관 파일을 배포하지 않는다.
 - DXVK는 확인되지 않은 게임 경로나 임의 URL에 파일을 쓰지 않는다. manager가 실제 `Client.exe`와 게임 미실행 상태를 확인하고 capability module이 digest·x64 PE·최종 파일 hash를 검증해야 한다.
@@ -70,7 +70,7 @@
 - update manifest: release signing script만 private key를 사용해 작성하며 앱은 embedded public key로 검증만 한다.
 - installer uninstall registry·shortcut writer: NSIS 설치기 하나다.
 - game path state: affinity helper만 `%APPDATA%\마비노기 렘 부스터\game\path.json`을 쓰며 `Environment`와 입력 기능이 읽는다. 터보키의 허용 판단에는 사용하지 않는다.
-- CPU setting: backend `Boost` service만 `affinity/game-core-setting.json`을 정규화해 쓴다. 저장 설정이 없으면 `cpuMode=balanced`, game affinity ON, background priority 하향 OFF를 사용하며 명시된 `cpuMode=focus|balanced|safe`, optional custom `gameCoreCount`와 priority 값은 보존한다. advanced count와 safe toggle은 상대 값을 보존하고, main preset 선택만 custom count를 null로 바꿔 자동값을 복원한다. UI dropdown은 persisted `customized` flag가 아니라 effective mode/count와 preset defaults를 비교해 standard preset 또는 동적으로 추가한 `사용자화` option을 투영한다.
+- CPU setting: backend `Boost` service만 `affinity/game-core-setting.json`을 정규화해 쓴다. 저장 설정이 없으면 `cpuMode=balanced`, game affinity ON, background priority 하향 OFF를 사용하며 명시된 `cpuMode=focus|balanced|safe`, optional custom `gameCoreCount`와 priority 값은 보존한다. advanced count와 safe toggle은 상대 값을 보존하고, main preset 선택만 custom count를 null로 바꿔 자동값을 복원한다. UI dropdown은 persisted `customized` flag가 아니라 effective mode/count와 preset defaults를 비교해 standard preset 또는 동적으로 추가한 `사용자화` option을 투영한다. backend는 현재 topology 결과에서 파생한 `canCpuReorder`를 같은 setting projection에 포함하고 UI는 false일 때 action을 비활성화하고 topology·safe-mode 이유를 표시한다.
 - affinity original-state ledger: affinity helper만 `runtime-state.json`을 쓴다. 변경 전 원본·앱 적용 affinity와 optional priority를 process identity와 함께 durable하게 기록하며, 시작 시 파일을 삭제하지 않는다. 복원은 현재 값이 앱 적용값과 같은 항목만 원본으로 바꾸고 외부 변경은 보존한다. 접근 오류로 복원하지 못한 entry는 ledger에 남긴다.
 - removed turbo setting: `inputs.rs`가 시작 시 기존 설정의 키·간격과 설치 파일은 보존하고 `enabled=false`만 기록한다. Electron 전환 호환 경로도 같은 비활성화만 수행하며 helper update·launch를 호출하지 않는다.
 - DXVK state와 DLL: `dxvk.rs` install/apply 경로만 `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 검증된 게임 폴더의 `d3d9_dxvk.dll`을 쓴다.

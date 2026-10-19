@@ -159,8 +159,10 @@ impl Boost {
             .topology_error
             .as_ref()
             .and_then(|e| e["message"].as_str());
+        let can_cpu_reorder =
+            allocation.supported && cpu_mode != "safe" && allocation.alternate_game_mask != 0;
         Ok(
-            json!({"supported":allocation.supported,"gameCoreCount":allocation.game_core_count,"defaultGameCoreCount":allocation.default_game_core_count,"balancedGameCoreCount":allocation.balanced_game_core_count,"focusGameCoreCount":allocation.focus_game_core_count,"maxGameCoreCount":allocation.max_game_core_count,"physicalCoreCount":allocation.physical_core_count,"performanceCoreCount":allocation.performance_core_count,"efficiencyCoreCount":allocation.efficiency_core_count,"hybrid":allocation.hybrid,"processorGroupCount":allocation.processor_group_count,"customized":requested.is_some(),"cpuMode":cpu_mode,"bindGameAffinity":saved["bindGameAffinity"],"lowerBackgroundPriority":saved["lowerBackgroundPriority"],"failureReason":detail.map(topology_failure),"failureDetail":detail}),
+            json!({"supported":allocation.supported,"gameCoreCount":allocation.game_core_count,"defaultGameCoreCount":allocation.default_game_core_count,"balancedGameCoreCount":allocation.balanced_game_core_count,"focusGameCoreCount":allocation.focus_game_core_count,"maxGameCoreCount":allocation.max_game_core_count,"physicalCoreCount":allocation.physical_core_count,"performanceCoreCount":allocation.performance_core_count,"efficiencyCoreCount":allocation.efficiency_core_count,"hybrid":allocation.hybrid,"processorGroupCount":allocation.processor_group_count,"customized":requested.is_some(),"cpuMode":cpu_mode,"bindGameAffinity":saved["bindGameAffinity"],"lowerBackgroundPriority":saved["lowerBackgroundPriority"],"canCpuReorder":can_cpu_reorder,"failureReason":detail.map(topology_failure),"failureDetail":detail}),
         )
     }
     pub fn simplification(&self) -> Value {
