@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `45`
-- updated_at: `2026-10-20T07:36:00Z`
+- revision: `46`
+- updated_at: `2026-10-20T08:31:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T07:36:00Z`
+- source_reviewed_at: `2026-10-20T08:31:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `package source base 303e7a3a3c2b16c83690b765368cafebae549d92 with VERSION_HISTORY.md SHA-256 9adc6f17a93425a0dbc671fc6f25723532e2693390ba1e7d75177688f54f4280`
-- source_review_evidence: `Boost::launch startup stderr reader ownership transfer와 bounded helper log capture SELF_REVIEW`
-- behavior_verified_at: `2026-10-20T07:36:00Z`
+- source_review_target: `base 4babd317bfef7e325bcf83aca6dd5319888acc8a with dirty source diff SHA-256 3dbed9acd3dbeb29e45c8d9be36fe360ac88e8f46adc8a5ba681cb0f0dc62c4b`
+- source_review_evidence: `affinity reset marker/ledger union, identity guard, exact-mask legacy recovery와 failure retention SELF_REVIEW`
+- behavior_verified_at: `2026-10-20T08:31:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `package source base 303e7a3a3c2b16c83690b765368cafebae549d92 plus recorded VERSION_HISTORY.md; signed package release/dioxus-0.4.9-2026-10-20T07-28-28-451Z`
+- behavior_verification_target: `signed package release/dioxus-0.4.9-2026-10-20T08-28-30-164Z`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust/Node locked checks와 packaged native process integration`
-- behavior_verification_evidence: `backend 130 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, packaged status write 오류 7초 동안 same PID·stderr capture·reset PASS, Ed25519·payload PASS`
+- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, signed package·Ed25519 PASS, packaged reset이 271+12 stale exact app-mask process를 복구하고 잔존 0`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 0.4.9 교체 package의 helper stderr reader 지속성과 single-writer 경계를 반영`
+- freshness_reason: `현재 0.4.9 package의 durable marker와 same-session exact-mask reset writer 경계를 반영`
 - known_gaps: `실제 설치본 교체, 실제 game affinity와 설치·제거 UI는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — helper stderr broken pipe 반복 종료 회귀 수정`
-- feature_map: `updated — canonical revision 41, feature revision 18`
-- architecture_impact: `coordinator에서 bounded helper logger로 stderr reader ownership 이전`
-- architecture_contract: `updated — revision 45`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — crash helper가 남긴 affinity의 reset 복구`
+- feature_map: `updated — canonical revision 42, feature revision 19`
+- architecture_impact: `runtime ledger·applied marker union과 exact-mask migration recovery`
+- architecture_contract: `updated — revision 46`
 
 ## 계층과 확장 경로
 
@@ -50,7 +50,7 @@
 - Radeon helper는 호환 드라이버의 ADLX `I3DSettings`만 사용하고 수직 동기화·Enhanced Sync·Anti-Lag·Chill만 처리한다. GPU tuning·성능 monitoring API와 `InitializeWithIncompatibleDriver`는 금지하며 결과의 `tuningAccessed:false` 계약이 없으면 Rust·Electron 호출자가 실패로 처리한다.
 - Radeon 명시 적용은 모든 대상 GPU의 네 3D 설정을 먼저 snapshot한다. 항목 실패 시 snapshot 복원을 시도하고 최종 목표 상태와 복원 오류를 반환하며, helper reason이 있으면 caller는 게임 VSync를 변경하지 않는다.
 - UI runtime polling은 한 helper 요청 실패로 영구 종료하지 않는다. 실패한 기능의 `running`·`gameActive`를 false로 보정하고 다음 주기에 재조회한다.
-- affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다. helper lock도 PID와 process 시작 시각을 함께 기록하며 살아 있는 exact owner의 lock을 status 부재·staleness만으로 삭제하지 않는다. lock drop은 현재 record가 자신의 exact identity일 때만 파일을 삭제한다. coordinator는 시작 전 종료의 stderr를 직접 읽고, 시작 성공 시 같은 pipe reader를 bounded `helper-stderr.log` capture thread로 이전한다. 실행 중 stderr reader를 닫아 worker가 broken pipe로 종료되게 해서는 안 된다.
+- affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다. helper lock도 PID와 process 시작 시각을 함께 기록하며 살아 있는 exact owner의 lock을 status 부재·staleness만으로 삭제하지 않는다. lock drop은 현재 record가 자신의 exact identity일 때만 파일을 삭제한다. coordinator는 시작 전 종료의 stderr를 직접 읽고, 시작 성공 시 같은 pipe reader를 bounded `helper-stderr.log` capture thread로 이전한다. 실행 중 stderr reader를 닫아 worker가 broken pipe로 종료되게 해서는 안 된다. reset은 current runtime ledger와 durable applied marker를 process identity별로 합쳐 복구한 뒤, 과거 결함으로 기록되지 않은 same-session process 중 현재 affinity가 이 topology의 exact app-generated mask와 같은 항목만 full system mask로 되돌린다.
 - CPU topology와 mask 계산은 `topology.rs`만 소유한다. CPU Set의 `EfficiencyClass`로 P/E 소속을 판별하고 `SchedulingClass`는 같은 P-core 후보의 우선 선택에만 사용한다. 이를 GLPIEx physical core·SMT mask·L3 cache·processor group과 `(group, logical processor)`로 결합하고, 같은 L3 domain을 우선하되 cache 크기를 성능 등급으로 사용하지 않는다.
 - 단일 `u64` process affinity로 표현할 수 없는 복수 processor group은 CPU 분할을 fail-safe로 비활성화한다. 물리 코어 수만으로 비활성화하지 않으며 단일 P-core 비하이브리드처럼 game/background 역할 mask를 만들 수 없는 경우에만 사유를 전달한다. logical-half fallback이나 잘린 mask를 적용해서는 안 된다.
 - P-core 개수 mask와 mode별 자동값은 `topology.rs`가 소유하고 affinity 적용 여부는 `affinity.rs`가 결정한다. focus는 balanced보다 최대 두 P-core를 더 선택하며 balanced/safe는 기존 자동값을 사용한다. focus/balanced는 game mask를 적용하고 safe는 게임을 고정하지 않는다. hybrid all-P에서는 background가 E-core-only가 되지 않도록 한 물리 P-core mask의 중첩을 허용한다. CPU 재정렬 capability는 현재 game mask와 겹치지 않는 동일 물리 P-core 수의 alternate mask가 존재할 때만 true이며 UI는 이 값을 우회해 실행 요청을 보내서는 안 된다.
@@ -71,7 +71,7 @@
 - installer uninstall registry·shortcut writer: NSIS 설치기 하나다.
 - game path state: affinity helper만 `%APPDATA%\마비노기 렘 부스터\game\path.json`을 쓰며 `Environment`와 입력 기능이 읽는다. 터보키의 허용 판단에는 사용하지 않는다.
 - CPU setting: backend `Boost` service만 `affinity/game-core-setting.json`을 정규화해 쓴다. 저장 설정이 없으면 `cpuMode=balanced`, game affinity ON, background priority 하향 OFF를 사용하며 명시된 `cpuMode=focus|balanced|safe`, optional custom `gameCoreCount`와 priority 값은 보존한다. advanced count와 safe toggle은 상대 값을 보존하고, main preset 선택만 custom count를 null로 바꿔 자동값을 복원한다. UI dropdown은 persisted `customized` flag가 아니라 effective mode/count와 preset defaults를 비교해 standard preset 또는 동적으로 추가한 `사용자화` option을 투영한다. backend는 현재 topology 결과에서 파생한 `canCpuReorder`를 같은 setting projection에 포함하고 UI는 false일 때 action을 비활성화하고 topology·safe-mode 이유를 표시한다.
-- affinity original-state ledger: exact helper lock owner 하나만 `runtime-state.json`, `status.json`, `applied-marker.json`을 쓴다. 변경 전 원본·앱 적용 affinity와 optional priority를 process identity와 함께 durable하게 기록하며, 시작 coordinator는 status를 선삭제하지 않는다. 복원은 현재 값이 앱 적용값과 같은 항목만 원본으로 바꾸고 외부 변경은 보존한다. 접근 오류로 복원하지 못한 entry는 ledger에 남긴다.
+- affinity original-state ledger: exact helper lock owner 하나만 `runtime-state.json`, `status.json`, `applied-marker.json`을 쓴다. 변경 전 원본·앱 적용 affinity와 optional priority를 process identity와 함께 durable하게 기록하며, 시작 coordinator는 status를 선삭제하지 않는다. reset은 runtime ledger와 marker의 union을 사용하고 현재 값이 앱 적용값과 같은 known entry만 원본으로 바꿔 외부 변경을 보존한다. untracked legacy exact-mask 항목은 synthetic entry를 marker에 먼저 기록한 뒤 full system mask로 복구한다. 접근 오류로 복원하지 못한 entry는 marker에 남긴다.
 - removed turbo setting: `inputs.rs`가 시작 시 기존 설정의 키·간격과 설치 파일은 보존하고 `enabled=false`만 기록한다. Electron 전환 호환 경로도 같은 비활성화만 수행하며 helper update·launch를 호출하지 않는다.
 - DXVK state와 DLL: `dxvk.rs` install/apply 경로만 `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 검증된 게임 폴더의 `d3d9_dxvk.dll`을 쓴다.
 - channel ping setting·cache: `channel_ping.rs`만 `%APPDATA%\마비노기 렘 부스터\channel-ping\setting.json`과 검증된 `channel.csv`를 쓴다. 동일 module이 연결 시험 표본과 실제 5-tuple별 `SmoothedRtt + RttVar` TCP 추정값을 계산하고, 최근 유효 counter보다 재전송·TCP 시간초과·수신 중복 ACK·혼잡 신호 중 하나라도 증가한 표본에는 `SmoothedRtt + 4×RttVar`를 적용한다. 최근 1분 추정 표본 평균·최대, 네 counter delta 표본과 최근 유효 counter 기준은 메모리에만 두며 overlay·UI는 status IPC로 읽는다. 추정 최대는 원시 패킷 RTT 최대나 게임 처리·입력·렌더링 지연을 뜻하지 않는다. rolling outcomes·실제 연결·window mode는 지속하지 않는다.

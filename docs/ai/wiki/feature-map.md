@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `41`
-- updated_at: `2026-10-20T07:36:00Z`
+- revision: `42`
+- updated_at: `2026-10-20T08:31:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T07:36:00Z`
+- source_reviewed_at: `2026-10-20T08:31:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `package source base 303e7a3a3c2b16c83690b765368cafebae549d92 with VERSION_HISTORY.md SHA-256 9adc6f17a93425a0dbc671fc6f25723532e2693390ba1e7d75177688f54f4280`
-- source_review_evidence: `Boost::launch startup stderr ownership transfer와 bounded helper log capture SELF_REVIEW`
-- behavior_verified_at: `2026-10-20T07:36:00Z`
+- source_review_target: `base 4babd317bfef7e325bcf83aca6dd5319888acc8a with dirty source diff SHA-256 3dbed9acd3dbeb29e45c8d9be36fe360ac88e8f46adc8a5ba681cb0f0dc62c4b`
+- source_review_evidence: `reset marker/ledger union, exact app-mask legacy recovery와 identity·external-change guard SELF_REVIEW`
+- behavior_verified_at: `2026-10-20T08:31:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `package source base 303e7a3a3c2b16c83690b765368cafebae549d92 plus recorded VERSION_HISTORY.md; signed package release/dioxus-0.4.9-2026-10-20T07-28-28-451Z`
+- behavior_verification_target: `signed package release/dioxus-0.4.9-2026-10-20T08-28-30-164Z from recorded dirty source target`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust locked tests, packaged affinity process integration`
-- behavior_verification_evidence: `backend 130 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, release assets 3/3, packaged status write 오류 7초 동안 같은 helper PID 유지·stderr capture·reset PASS, Ed25519·payload PASS`
+- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, signed package·Ed25519 PASS, packaged reset이 stale exact app mask 271+12개를 복구하고 0개 잔존`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 0.4.9 교체 package의 helper stderr reader 지속성과 single-writer 경계를 반영`
+- freshness_reason: `현재 0.4.9 package의 durable marker 복구와 ledger 밖 exact app-mask reset을 반영`
 - known_gaps: `실제 설치본 교체, 실제 마비노기 affinity 적용, 설치·제거·포터블 UI는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — startup 뒤 stderr pipe 단절로 helper가 반복 종료되던 회귀 수정`
-- feature_map: `updated — canonical revision 41, feature revision 18`
-- architecture_impact: `coordinator에서 helper lifetime logger로 stderr reader ownership 이전`
-- architecture_contract: `updated — revision 45`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost 중단 시 crash helper가 남긴 affinity 복구`
+- feature_map: `updated — canonical revision 42, feature revision 19`
+- architecture_impact: `affinity marker·runtime ledger union과 same-session exact-mask migration recovery`
+- architecture_contract: `updated — revision 46`
 
 ## ID 할당
 
@@ -125,35 +125,35 @@
 - personas_permissions_accessibility_entry: 일반 사용자가 메인 화면을 클릭해 적용·중단하며 관리자 권한이 필요하다. 상태는 문구로 표시하고 오류는 확인 가능한 alert로 제공한다.
 - preconditions_dependencies: Windows CPU topology, `config.json`, affinity/memory helper, Win32 process query, `%APPDATA%\마비노기 렘 부스터` 상태 폴더.
 - normal_error_cancel_retry_flow: helper 상태의 PID·시작 시각·생존을 함께 확인한다. 시작 coordinator는 기존 status를 선삭제하지 않고 시작 이후의 fresh live status만 성공으로 인정하며 child가 조기 종료하면 stderr의 실제 원인을 표시한다. 시작 성공 뒤에는 stderr reader를 bounded helper log capture thread로 이전해 helper가 로그 출력 때 broken pipe로 종료되지 않게 한다. 게임이 없으면 대기하지만 중단 버튼은 활성이다. CPU 구성이 안전하게 표현되지 않으면 사유를 표시하고 affinity만 건너뛰며 다른 boost 기능은 유지한다. runtime 조회 실패 시 화면 상태를 중단으로 보정하고 polling을 계속한다.
-- concurrency_partial_failure_recovery: affinity·memory operation lock이 작업을 직렬화한다. helper lock은 PID와 process 시작 시각의 exact identity를 기록하고 살아 있는 owner를 status 부재·staleness만으로 탈취하지 않는다. drop은 현재 lock record가 자신의 identity일 때만 삭제한다. affinity/priority는 열거 후 같은 process handle에서 생성 시각을 확인한 뒤 적용한다. 원본과 앱 적용값을 변경 전에 durable ledger에 기록하고, 복원 시 현재 값이 앱 적용값과 같은 항목만 원본으로 되돌려 외부 변경을 보존한다. 실패한 복원 entry는 다음 시작 복구를 위해 남긴다.
+- concurrency_partial_failure_recovery: affinity·memory operation lock이 작업을 직렬화한다. helper lock은 PID와 process 시작 시각의 exact identity를 기록하고 살아 있는 owner를 status 부재·staleness만으로 탈취하지 않는다. drop은 현재 lock record가 자신의 identity일 때만 삭제한다. affinity/priority는 열거 후 같은 process handle에서 생성 시각을 확인한 뒤 적용한다. 원본과 앱 적용값을 변경 전에 runtime ledger와 durable applied marker에 기록한다. reset은 두 기록을 identity별로 합쳐 현재 값이 앱 적용값과 같은 항목만 원본으로 되돌리고 외부 변경을 보존한다. 과거 결함으로 기록이 유실된 경우 현재 topology가 생성할 수 있는 exact app mask를 가진 같은 사용자 session process만 full system mask 복구 entry로 먼저 기록한 뒤 복구한다. 실패 entry는 marker에 남겨 다음 reset에서 재시도한다.
 - state_side_effects_limits: 저장된 CPU 설정이 없으면 `균형`을 기본으로 사용하며 기존 명시 설정은 보존한다. `게임 집중`은 균형 자동값보다 P-core를 최대 2개 더 선택하고 game hard affinity와 일반 background priority 하향을 함께 적용한다. `균형`은 기존 자동값과 game hard affinity를 사용하고 priority 하향은 끈다. `안전 모드`는 균형 자동값을 사용하지만 game affinity를 고정하지 않고 priority 하향도 끈다. 고급 수동 count, 안전 모드와 priority toggle은 명시 값을 보존한다. main dropdown은 mode/count/priority가 모두 표준 조합과 같을 때 세 preset을 표시하고, 하나라도 다르면 네 번째 `사용자화` option을 추가해 선택한다. preset 변경 pending 동안 `설정 변경중`을 표시하며, standard preset 선택 시 custom count를 제거해 해당 자동값으로 복귀한다. CPU 재정렬은 현재 game mask와 겹치지 않는 동일 크기의 대체 P-core mask가 있을 때만 실행할 수 있고, 없으면 버튼을 비활성화해 이유를 표시한다.
 - modules_contracts: `desktop/src/ui.rs` → `service.rs` → `boost.rs` → `affinity_worker.rs`/`affinity.rs`. helper PID와 최신 timestamp가 실행 상태의 필수 조건이다.
 - durable_data_owner: affinity helper가 `runtime-state.json`, runtime status와 `game/path.json`의 유일한 writer다. backend service만 `game-core-setting.json`을 정규화해 쓰고 helper/UI가 읽는다.
 - security_privacy: 다른 `Client.exe` 오탐을 막기 위해 정본의 명시적 게임 폴더를 사용하며 진단 내 사용자 경로는 마스킹한다.
-- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 legacy helper 인계`, `BOOST-005 게임 시작·종료 원본 복원`, `BOOST-006 hybrid P-core 선택과 필요 시 한 P-core 공유`, `BOOST-007 L3 locality·SMT·SchedulingClass 우선순위`, `BOOST-008 저코어 분할·복수 group fail-safe`, `BOOST-009 main focus 6/8P·balanced/safe 4/8P dropdown`, `BOOST-010 background-only priority 적용과 role 제외`, `BOOST-011 PID 재사용·외부 변경 보존·재시작 복구`, `BOOST-012 advanced manual count·safe/priority toggle 보존·custom dropdown option`, `BOOST-013 focus preset priority ON·balanced/safe OFF`, `BOOST-014 설정 부재 시 balanced 기본값·명시 설정 보존`, `BOOST-015 대체 P-core mask 부재 시 재정렬 사전 차단`, `BOOST-016 status 부재·stale 중 live lock 탈취 차단과 child stderr 전달`, `BOOST-017 startup 뒤 stderr 기록 오류 중 helper PID 지속과 bounded capture`
+- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 legacy helper 인계`, `BOOST-005 게임 시작·종료 원본 복원`, `BOOST-006 hybrid P-core 선택과 필요 시 한 P-core 공유`, `BOOST-007 L3 locality·SMT·SchedulingClass 우선순위`, `BOOST-008 저코어 분할·복수 group fail-safe`, `BOOST-009 main focus 6/8P·balanced/safe 4/8P dropdown`, `BOOST-010 background-only priority 적용과 role 제외`, `BOOST-011 PID 재사용·외부 변경 보존·재시작 복구`, `BOOST-012 advanced manual count·safe/priority toggle 보존·custom dropdown option`, `BOOST-013 focus preset priority ON·balanced/safe OFF`, `BOOST-014 설정 부재 시 balanced 기본값·명시 설정 보존`, `BOOST-015 대체 P-core mask 부재 시 재정렬 사전 차단`, `BOOST-016 status 부재·stale 중 live lock 탈취 차단과 child stderr 전달`, `BOOST-017 startup 뒤 stderr 기록 오류 중 helper PID 지속과 bounded capture`, `BOOST-018 reset durable marker union과 untracked exact-mask 복구`
 - observability_evidence: UI topology 사유와 고급 설정, `affinity/events.log`, diagnostics affinity snapshot, `topology::tests`, `affinity::tests`, `process::tests::child_priority_roundtrip_uses_one_verified_handle`, backend parity와 Node service contract tests.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `18`
-- updated_at: `2026-10-20T07:36:00Z`
+- revision: `19`
+- updated_at: `2026-10-20T08:31:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T07:36:00Z`
+- source_reviewed_at: `2026-10-20T08:31:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `package source base 303e7a3a3c2b16c83690b765368cafebae549d92 with VERSION_HISTORY.md SHA-256 9adc6f17a93425a0dbc671fc6f25723532e2693390ba1e7d75177688f54f4280`
-- source_review_evidence: `SELF_REVIEW of startup stderr ownership transfer and bounded capture`
-- behavior_verified_at: `2026-10-20T07:36:00Z`
+- source_review_target: `base 4babd317bfef7e325bcf83aca6dd5319888acc8a with dirty source diff SHA-256 3dbed9acd3dbeb29e45c8d9be36fe360ac88e8f46adc8a5ba681cb0f0dc62c4b`
+- source_review_evidence: `SELF_REVIEW of marker-ledger union, exact-mask selection, same-session scope and failure retention`
+- behavior_verified_at: `2026-10-20T08:31:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `package source base 303e7a3a3c2b16c83690b765368cafebae549d92 plus recorded VERSION_HISTORY.md; signed package release/dioxus-0.4.9-2026-10-20T07-28-28-451Z`
+- behavior_verification_target: `release/dioxus-0.4.9-2026-10-20T08-28-30-164Z`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust/Node tests와 packaged native process integration`
-- behavior_verification_evidence: `backend 130 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, packaged status lock 7초 동안 same PID·stderr capture·reset PASS`
+- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, final packaged helper exact app mask 12/12 restore와 machine 잔존 0`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 0.4.9 교체 package에서 startup 후 stderr reader가 helper 수명 동안 유지됨을 반영`
+- freshness_reason: `현재 0.4.9 package에서 stale affinity reset이 실제 same-session process를 복구함`
 - known_gaps: `실제 설치본 교체, 실제 마비노기 affinity 적용, 설치·제거·포터블 UI는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — stderr broken pipe 반복 종료 회귀 수정`
-- feature_map: `updated — revision 18`
-- architecture_impact: `helper stderr reader ownership과 bounded logging`
-- architecture_contract: `updated — revision 45`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost 중단 후 stale affinity 복구`
+- feature_map: `updated — revision 19`
+- architecture_impact: `durable applied marker와 legacy exact-mask recovery writer`
+- architecture_contract: `updated — revision 46`
 
 ## FEAT-NOGIREM-TURBO-KEY
 

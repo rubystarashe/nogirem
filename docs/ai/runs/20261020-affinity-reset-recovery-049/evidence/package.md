@@ -1,0 +1,22 @@
+# Package Evidence
+
+- evidence_id: `EVID-AFFINITY-RESET-PACKAGE-049`
+- producer: `cursor-agent-92251f36`
+- created_at: `2026-10-20T08:31:00Z`
+- run_id: `20261020-affinity-reset-recovery-049`
+- checkpoint_id: `CP-AFFINITY-RESET-RECOVERY-049`
+- source_target: `base 4babd317bfef7e325bcf83aca6dd5319888acc8a; dirty source diff SHA-256 3dbed9acd3dbeb29e45c8d9be36fe360ac88e8f46adc8a5ba681cb0f0dc62c4b`
+- execution_environment: `Windows 10.0.26200 x64`
+- command: `npm run package:win`
+- result: `PASS, exit 0; signed manifests generated and verified`
+- package_directory: `release/dioxus-0.4.9-2026-10-20T08-28-30-164Z`
+- installer: `nogirem-dioxus-setup-0.4.9.exe; 8,019,675 bytes; SHA-256 1fe20740b58e58b824ab2b41b8f47cb7c3a2b14aadd345894bc6b841356a63fc`
+- portable: `nogirem-dioxus-portable-0.4.9.exe; 7,795,005 bytes; SHA-256 28eb68329fbe74142301d5a9c46a01881d4ea6c89b0671238966cc2e740d75c7`
+- update_manifest: `update.json; SHA-256 041cd2fae91b3712ee57913014256f3279ad64384bbb0584773c3ffbd7b5e18b`
+- portable_manifest: `portable-update.json; SHA-256 105e2419c6ae641757f61744f5dfd068373402664608611495db6ac17be4ca94`
+- packaged_reset: `final nogirem.exe helper detected 12 remaining exact app-mask entries, restored 12, failed 0; machine 0xfc0c·0x3f3 count 0`
+- sanitization: `process samples and user paths are not stored in repository evidence`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — packaged reset recovery`
+- feature_map: `updated — revision 19`
+- architecture_impact: `packaged helper exercised durable reset path`
+- architecture_contract: `updated — revision 46`

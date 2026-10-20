@@ -1,0 +1,23 @@
+# Handoff
+
+- record_id: `HANDOFF-AFFINITY-RESET-RECOVERY-049`
+- run_id: `20261020-affinity-reset-recovery-049`
+- checkpoint_id: `CP-AFFINITY-RESET-RECOVERY-049`
+- owner: `cursor-agent-92251f36`
+- updated_at: `2026-10-20T08:31:00Z`
+- status: `COMPLETED`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
+- review: `APPROVED, SELF_REVIEW, no independent reviewer`
+- source_target: `base 4babd317bfef7e325bcf83aca6dd5319888acc8a; dirty source diff SHA-256 3dbed9acd3dbeb29e45c8d9be36fe360ac88e8f46adc8a5ba681cb0f0dc62c4b`
+- execution_target: `release/dioxus-0.4.9-2026-10-20T08-28-30-164Z`
+- completed: `runtime ledger+marker reset, same-session exact-mask legacy recovery, unit·contract tests, canonical docs, signed package, current machine recovery`
+- checks: `cargo test 131 PASS·3 ignored + parity 2/2; npm test 214/214; package exit 0; packaged restore 12/12 and final stale count 0`
+- package: `installer SHA-256 1fe20740...a63fc; portable SHA-256 28eb6832...d75c`
+- pending: `실제 설치형 덮어쓰기, 포터블 UI, 실제 게임 lifecycle QA는 NOT_RUN`
+- concurrent_work: `VERSION_HISTORY.md와 기존 backend dirty files·data/는 사용자/이전 작업으로 보존; push·deploy 미수행`
+- next_authorized_action: `없음; 배포는 별도 사용자 승인 필요`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — stale affinity reset 복구`
+- feature_map: `updated — canonical 42, feature 19`
+- architecture_impact: `marker-ledger union과 migration recovery`
+- architecture_contract: `updated — revision 46`

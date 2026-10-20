@@ -1,0 +1,31 @@
+# Final Report
+
+- record_id: `FINAL-AFFINITY-RESET-RECOVERY-049`
+- run_id: `20261020-affinity-reset-recovery-049`
+- checkpoint_id: `CP-AFFINITY-RESET-RECOVERY-049`
+- owner: `cursor-agent-92251f36`
+- completed_at: `2026-10-20T08:32:00Z`
+- status: `COMPLETED`
+- requested_scope: `부스트 중단 후 남은 CPU affinity 수정과 signed 0.4.9 재패키징`
+- delivered_scope: `runtime ledger+durable marker reset, untracked same-session exact app-mask migration recovery, tests, canonical docs, signed installer·portable, current machine recovery`
+- implementation_commit: `92d2759`
+- package_source: `base 4babd317bfef7e325bcf83aca6dd5319888acc8a; recorded dirty source diff SHA-256 3dbed9acd3dbeb29e45c8d9be36fe360ac88e8f46adc8a5ba681cb0f0dc62c4b`
+- package_target: `release/dioxus-0.4.9-2026-10-20T08-28-30-164Z`
+- installer: `8,019,675 bytes; SHA-256 1fe20740b58e58b824ab2b41b8f47cb7c3a2b14aadd345894bc6b841356a63fc`
+- portable: `7,795,005 bytes; SHA-256 28eb68329fbe74142301d5a9c46a01881d4ea6c89b0671238966cc2e740d75c7`
+- implemented: `reset이 known entries를 marker/ledger union으로 복구하고, 과거 기록 손실·상속으로 남은 exact app mask를 mutation 전 marker에 기록한 뒤 full mask로 복구`
+- automated_test_passing: `cargo test 131 PASS·3 ignored, parity 2/2; npm test 214/214; package:win PASS`
+- manually_exercised: `final packaged nogirem.exe helper reset`
+- verified: `final package가 stale entries 12/12를 failed 0으로 복구했고 현재 0xfc0c·0x3f3 process count 0`
+- NOT_RUN: `실제 installer 덮어쓰기, portable interactive UI, 실제 마비노기 lifecycle·frame QA`
+- review: `SELF_REVIEW APPROVED; mandatory findings none; independent reviewer 없음`
+- feature_gate: `PASS — FEAT-NOGIREM-FRAME-BOOST revision 19, BOOST-018와 evidence 갱신`
+- architecture_gate: `PASS — contract revision 46, single writer·durable marker·external-change guard 명시`
+- review_QA_gate: `PASS for requested reset/package scope`
+- target_authorization_gate: `PASS — unrelated dirty work preserved, local commit only, push·deploy 없음`
+- remaining_risk: `기록이 이미 소실된 untracked process의 실제 과거 custom mask는 증명할 수 없어 exact app mask 항목을 full system mask로 복구함`
+- commit_push_deploy: `local commit 92d2759; push NOT_RUN; deploy NOT_RUN; installation NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — stale affinity reset 복구`
+- feature_map: `updated — canonical 42, feature 19`
+- architecture_impact: `marker-ledger union과 exact-mask migration writer`
+- architecture_contract: `updated — revision 46`

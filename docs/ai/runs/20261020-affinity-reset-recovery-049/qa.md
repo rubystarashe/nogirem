@@ -1,0 +1,22 @@
+# QA
+
+- record_id: `QA-AFFINITY-RESET-RECOVERY-049`
+- run_id: `20261020-affinity-reset-recovery-049`
+- checkpoint_id: `CP-AFFINITY-RESET-RECOVERY-049`
+- owner: `cursor-agent-92251f36 (DEV-as-QA)`
+- executed_at: `2026-10-20T08:31:00Z`
+- QA_state: `COMPLETE_PASS`
+- source_target: `base 4babd317bfef7e325bcf83aca6dd5319888acc8a; dirty source diff SHA-256 3dbed9acd3dbeb29e45c8d9be36fe360ac88e8f46adc8a5ba681cb0f0dc62c4b`
+- execution_target: `Windows 10.0.26200 x64; release/dioxus-0.4.9-2026-10-20T08-28-30-164Z`
+- BOOST-018-A: `PASS — legacy selection은 untracked·same-session·exact app mask만 synthetic entry로 만든다`
+- BOOST-018-B: `PASS — cargo test: backend 131 passed, 3 environment-dependent ignored, parity 2/2`
+- BOOST-018-C: `PASS — npm test: 214/214`
+- BOOST-018-D: `PASS — package:win exit 0, installer·portable manifest Ed25519와 payload 자동 검증`
+- BOOST-018-E: `PASS — final packaged helper가 남은 stale entries 12/12를 0xffff로 복구, 0xfc0c·0x3f3 잔존 0`
+- historical_migration: `첫 package 후보가 non-Windows process 271개를 복구한 뒤 final package가 inherited Windows same-session process 12개를 추가 복구함`
+- NOT_RUN: `실제 설치형 덮어쓰기, 포터블 UI 실행, 실제 마비노기 시작·종료 frame behavior`
+- evidence: `affinity/events.log 결과 요약, final package hashes, 자동 검사 출력`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — BOOST-018 stale reset 검증`
+- feature_map: `updated — revision 19`
+- architecture_impact: `marker-ledger union과 exact-mask recovery writer`
+- architecture_contract: `updated — revision 46`
