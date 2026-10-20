@@ -3,6 +3,7 @@ import test from "node:test"
 import { readFile } from "node:fs/promises"
 
 const nativeAffinity = await readFile(new URL("../desktop/backend/src/affinity_worker.rs", import.meta.url), "utf8")
+const nativeAffinityManager = await readFile(new URL("../desktop/backend/src/affinity.rs", import.meta.url), "utf8")
 const nativeBoost = await readFile(new URL("../desktop/backend/src/boost.rs", import.meta.url), "utf8")
 const nativeMemory = await readFile(new URL("../desktop/backend/src/memory.rs", import.meta.url), "utf8")
 const nativeStorage = await readFile(new URL("../desktop/backend/src/storage.rs", import.meta.url), "utf8")
@@ -300,6 +301,13 @@ test("부스트 중단은 일부 실행 상태도 원상복구하고 중단 상�
     serviceMain,
     /enabled[\s\S]*\? setAffinityEnabled\(\{ enabled: true, includeNic \}\)[\s\S]*: resetAllAffinities\(\)/,
   )
+})
+
+test("affinity reset은 durable marker와 ledger 밖의 exact app mask를 함께 복구한다", () => {
+  assert.match(nativeAffinity, /status[\s\S]*\.entries\(\)\?[\s\S]*manager\.restore_entries\(&known\)\?/)
+  assert.match(nativeAffinity, /manager\.legacy_stale_entries\(&known\)\?[\s\S]*status\.record_entries\(stale\.clone\(\)\)\?[\s\S]*manager\.restore_entries\(&stale\)\?/)
+  assert.match(nativeAffinityManager, /current != original && applied\.contains\(&current\)/)
+  assert.match(nativeAffinityManager, /applied\.remove\(&self\.allocation\.all_mask\)/)
 })
 
 test("helper 오류 후 상태 조회를 계속하고 게임 대기 중에도 부스트를 중단할 수 있다", () => {

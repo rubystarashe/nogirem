@@ -1,6 +1,6 @@
 use crate::{
     Result,
-    affinity::{Manager, Options},
+    affinity::{Entry, Manager, Options},
     nic, process, storage, topology,
 };
 use serde_json::{Value, json};
@@ -78,14 +78,22 @@ struct Status {
     helper_started_at: i64,
 }
 impl Status {
-    fn record(&mut self, manager: &Manager) -> Result<()> {
+    fn entries(&self) -> Result<Vec<Entry>> {
+        match self.marker["entries"].as_array() {
+            Some(entries) => {
+                serde_json::from_value(Value::Array(entries.clone())).map_err(|e| e.to_string())
+            }
+            None => Ok(Vec::new()),
+        }
+    }
+    fn record_entries(&mut self, incoming: Vec<Entry>) -> Result<()> {
         let mut entries: BTreeMap<String, Value> = self.marker["entries"]
             .as_array()
             .into_iter()
             .flatten()
             .map(|e| (format!("{}:{}", e["pid"], e["startTime"]), e.clone()))
             .collect();
-        for entry in manager.entries() {
+        for entry in incoming {
             let e = serde_json::to_value(entry).map_err(|e| e.to_string())?;
             entries.insert(format!("{}:{}", e["pid"], e["startTime"]), e);
         }
@@ -94,6 +102,9 @@ impl Status {
         }
         self.marker = json!({"appliedAt":self.marker["appliedAt"].as_u64().unwrap_or(crate::now_ms()),"helperPid":std::process::id(),"nicManaged":self.nic_managed||self.marker["nicManaged"]==true,"entries":entries.into_values().collect::<Vec<_>>()});
         storage::write_json(&self.marker_path, &self.marker)
+    }
+    fn record(&mut self, manager: &Manager) -> Result<()> {
+        self.record_entries(manager.entries())
     }
     fn write(&mut self, manager: &Manager, running: bool, exit: Option<&str>) -> Result<()> {
         if let Some(executable) = manager.latest_game_executable_path.as_ref() {
@@ -156,8 +167,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
     let config = storage::read_json(&root.join("config.json"))?.ok_or("config.json missing")?;
     let mut requested = arg("game-core-count").and_then(|s| s.parse::<i64>().ok());
     let mut cpu_mode = topology::CpuMode::parse(arg("cpu-mode").as_deref().unwrap_or("balanced"));
-    let mut lower_background_priority =
-        arg("lower-background-priority").as_deref() == Some("true");
+    let mut lower_background_priority = arg("lower-background-priority").as_deref() == Some("true");
     let mut manager = Manager::new(
         config.clone(),
         state.clone(),
@@ -336,7 +346,41 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
         status.failure = Some(e.clone());
     }
     let cleanup = if exit == "reset" {
-        manager.reset_all().map(|_| ())
+        (|| -> Result<()> {
+            let mut known: BTreeMap<String, Entry> = status
+                .entries()?
+                .into_iter()
+                .map(|entry| {
+                    (
+                        format!(
+                            "{}:{}",
+                            entry.pid,
+                            entry.start_time.as_deref().unwrap_or("null")
+                        ),
+                        entry,
+                    )
+                })
+                .collect();
+            for entry in manager.entries() {
+                known.insert(
+                    format!(
+                        "{}:{}",
+                        entry.pid,
+                        entry.start_time.as_deref().unwrap_or("null")
+                    ),
+                    entry,
+                );
+            }
+            let known = known.into_values().collect::<Vec<_>>();
+            manager.restore_entries(&known)?;
+            manager.reset_all()?;
+            let stale = manager.legacy_stale_entries(&known)?;
+            if !stale.is_empty() {
+                status.record_entries(stale.clone())?;
+                manager.restore_entries(&stale)?;
+            }
+            Ok(())
+        })()
     } else {
         manager.stop_without_restore()
     };

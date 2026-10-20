@@ -74,6 +74,40 @@ fn mask(s: &str) -> Result<u64> {
 fn key(p: &Process) -> String {
     format!("{}:{}", p.pid, p.start_time.as_deref().unwrap_or("null"))
 }
+fn entry_key(entry: &Entry) -> String {
+    format!(
+        "{}:{}",
+        entry.pid,
+        entry.start_time.as_deref().unwrap_or("null")
+    )
+}
+fn legacy_stale_entry(
+    process: &Process,
+    current: u64,
+    known: &HashSet<String>,
+    applied: &HashSet<u64>,
+    original: u64,
+) -> Option<Entry> {
+    (!known.contains(&key(process)) && current != original && applied.contains(&current)).then(
+        || Entry {
+            pid: process.pid,
+            start_time: process.start_time.clone(),
+            name: process.name.clone(),
+            original_mask: format!("0x{original:x}"),
+            applied_mask: format!("0x{current:x}"),
+            role: "legacy-reset".into(),
+            original_priority_class: None,
+            applied_priority_class: None,
+        },
+    )
+}
+fn legacy_process_eligible(process: &Process, current_session: Option<u32>) -> bool {
+    let path=process.path.as_deref().unwrap_or("").replace('/',"\\").to_lowercase();
+    process.pid>4
+        && process.pid!=std::process::id()
+        && process.session_id==current_session
+        && !path.is_empty()
+}
 fn priority_target(role: &str, enabled: bool) -> Option<u32> {
     (enabled && role == "background").then_some(process::BACKGROUND_PRIORITY_CLASS)
 }
@@ -235,17 +269,7 @@ impl Manager {
     }
     fn eligible(&self, p: &Process) -> bool {
         let name = p.name.to_lowercase();
-        let path = p
-            .path
-            .as_deref()
-            .unwrap_or("")
-            .replace('/', "\\")
-            .to_lowercase();
-        p.pid > 4
-            && p.pid != std::process::id()
-            && p.session_id == self.current_session
-            && !path.is_empty()
-            && !path.starts_with("c:\\windows\\")
+        legacy_process_eligible(p,self.current_session)
             && !self.exclude_names.contains(&name)
             && !self.exclude_patterns.iter().any(|r| r.is_match(&name))
             && !process::matches_game(p, &self.config)
@@ -485,9 +509,7 @@ impl Manager {
                         (e.original_priority_class, e.applied_priority_class)
                     {
                         let current = handle.priority()?;
-                        if let Some(original) =
-                            original_if_unchanged(current, applied, original)
-                        {
+                        if let Some(original) = original_if_unchanged(current, applied, original) {
                             handle.set_priority(original)?;
                             changed = true;
                         } else if current != applied {
@@ -597,6 +619,46 @@ impl Manager {
         let entry_count = self.changed.len();
         self.restore_all_with_reason("reset-all")?;
         Ok(json!({"restoredEntryCount":entry_count}))
+    }
+    pub fn legacy_stale_entries(&self, known: &[Entry]) -> Result<Vec<Entry>> {
+        let known: HashSet<_> = known.iter().map(entry_key).collect();
+        let mut applied = HashSet::from([self.background_mask, self.latency_mask]);
+        if let Some(mask) = self.game_mask {
+            applied.insert(mask);
+        }
+        if self.allocation.alternate_game_mask != 0 {
+            applied.insert(self.allocation.alternate_game_mask);
+        }
+        if self.allocation.alternate_background_mask != 0 {
+            applied.insert(self.allocation.alternate_background_mask);
+        }
+        applied.remove(&self.allocation.all_mask);
+        let mut entries = Vec::new();
+        for process in process::list(true)? {
+            if !legacy_process_eligible(&process,self.current_session) {
+                continue;
+            }
+            let Ok(handle) = process::ProcessHandle::open(process.pid, false) else {
+                continue;
+            };
+            if handle.start_time() != process.start_time {
+                continue;
+            }
+            let Ok(current) = handle.affinity() else {
+                continue;
+            };
+            if let Some(entry) = legacy_stale_entry(
+                &process,
+                current,
+                &known,
+                &applied,
+                self.allocation.all_mask,
+            ) {
+                entries.push(entry);
+            }
+        }
+        self.event("legacy-stale-affinity-detected",json!({"entryCount":entries.len(),"appliedMasks":applied.iter().map(|mask|format!("0x{mask:x}")).collect::<Vec<_>>(),"fullMask":format!("0x{:x}",self.allocation.all_mask)}));
+        Ok(entries)
     }
     fn force(&self, processes: &[&Process], target: u64) -> Value {
         let (mut changed, mut already, mut skipped) = (0, 0, 0);
@@ -778,6 +840,38 @@ mod tests {
         assert_eq!(original_if_unchanged(5, 5, 9), Some(9));
         assert_eq!(original_if_unchanged(7, 5, 9), None);
         assert_eq!(original_if_unchanged(5, 5, 5), None);
+    }
+
+    #[test]
+    fn legacy_recovery_only_claims_untracked_exact_app_masks() {
+        let process = Process {
+            pid: 42,
+            name: "example.exe".into(),
+            path: Some(r"C:\Apps\example.exe".into()),
+            start_time: Some("start".into()),
+            session_id: Some(1),
+        };
+        let applied = HashSet::from([0xfc0c, 0x3f3]);
+        let entry =
+            legacy_stale_entry(&process, 0xfc0c, &HashSet::new(), &applied, 0xffff).unwrap();
+        assert_eq!(entry.original_mask, "0xffff");
+        assert_eq!(entry.applied_mask, "0xfc0c");
+        assert_eq!(entry.role, "legacy-reset");
+        assert!(legacy_stale_entry(&process, 0xaaaa, &HashSet::new(), &applied, 0xffff).is_none());
+        assert!(legacy_stale_entry(&process, 0xffff, &HashSet::new(), &applied, 0xffff).is_none());
+        assert!(
+            legacy_stale_entry(
+                &process,
+                0xfc0c,
+                &HashSet::from([key(&process)]),
+                &applied,
+                0xffff
+            )
+            .is_none()
+        );
+        assert!(legacy_process_eligible(&process,Some(1)));
+        assert!(legacy_process_eligible(&Process{path:Some(r"C:\Windows\System32\conhost.exe".into()),..process.clone()},Some(1)));
+        assert!(!legacy_process_eligible(&process,Some(2)));
     }
 
     #[test]
