@@ -7,6 +7,7 @@ const nativeAffinityManager = await readFile(new URL("../desktop/backend/src/aff
 const nativeBoost = await readFile(new URL("../desktop/backend/src/boost.rs", import.meta.url), "utf8")
 const nativeMemory = await readFile(new URL("../desktop/backend/src/memory.rs", import.meta.url), "utf8")
 const nativeStorage = await readFile(new URL("../desktop/backend/src/storage.rs", import.meta.url), "utf8")
+const nativeAppServices = await readFile(new URL("../desktop/backend/src/app_services.rs", import.meta.url), "utf8")
 const serviceMain = await readFile(
   new URL("../service/main.mjs", import.meta.url),
   "utf8",
@@ -209,6 +210,12 @@ test("초기 상태 조회와 무관하게 창을 먼저 만들고 8초 안에 �
     /primaryWindowRevealWatchdogTimer = setTimeout\([\s\S]*beginPrimaryWindowReveal\(\)[\s\S]*primaryWindowRevealTimeoutMs/,
   )
 
+})
+
+test("자동 시작 상태 조회 실패는 재시도 후 해당 설정만 확인 불가로 격리한다", () => {
+  assert.match(nativeAppServices, /retry\(3,Duration::from_millis\(150\),\|\|powershell::json\(&script,15000\)\)/)
+  assert.match(nativeAppServices, /Err\(diagnostic\) if set\.is_none\(\)=>Ok\(json!\(\{"supported":false,"enabled":false,"status":"unknown"/)
+  assert.match(applicationView, /!s\.startup_tray_supported \{ "확인 불가" \}/)
 })
 
 test("시작 이미지와 음악이 실패하거나 지연되어도 시작 애니메이션을 진행한다", () => {

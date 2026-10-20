@@ -4,6 +4,7 @@ use serde_json::{Value, json};
 use std::{
     fs,
     path::{Path, PathBuf},
+    time::Duration,
 };
 pub const CHANNEL: &str = "https://www.youtube.com/channel/UCb7m0UV734CHm78Mb0zEBHg";
 pub fn iso() -> String {
@@ -361,18 +362,24 @@ fn quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "''"))
 }
 fn startup_state(exe: &Path) -> Result<Value> {
-    powershell::json(
-        &format!(
-            r#"$preference=Get-ItemProperty -Path 'HKCU:\Software\Nogirem' -Name 'StartupTrayEnabled' -ErrorAction SilentlyContinue
+    let script=format!(
+        r#"$preference=Get-ItemProperty -Path 'HKCU:\Software\Nogirem' -Name 'StartupTrayEnabled' -ErrorAction SilentlyContinue
 $preferred=$null -ne $preference -and $preference.StartupTrayEnabled -eq 1
 $task=Get-ScheduledTask -TaskName 'Mabinogi Rem Booster Startup' -ErrorAction SilentlyContinue
 if($null -eq $task){{[pscustomobject]@{{exists=$false;enabled=$false;matches=$false;preferred=$preferred}}|ConvertTo-Json -Compress;exit 0}}
 $action=@($task.Actions)[0]
 [pscustomobject]@{{exists=$true;enabled=$task.State -ne 'Disabled';matches=($action.Execute -ieq {} -and $action.Arguments -eq '--startup-tray');preferred=$preferred}}|ConvertTo-Json -Compress"#,
-            quote(&exe.to_string_lossy())
-        ),
-        15000,
-    )
+        quote(&exe.to_string_lossy())
+    );
+    retry(3,Duration::from_millis(150),||powershell::json(&script,15000))
+}
+fn retry<T>(attempts:usize,delay:Duration,mut operation:impl FnMut()->Result<T>)->Result<T>{
+    let mut last_error="작업을 실행하지 못했습니다".to_string();
+    for attempt in 0..attempts.max(1){
+        match operation(){Ok(value)=>return Ok(value),Err(error)=>last_error=error}
+        if attempt+1<attempts{std::thread::sleep(delay)}
+    }
+    Err(last_error)
 }
 fn startup_apply(exe: &Path, enabled: bool) -> Result<()> {
     let script = if enabled {
@@ -397,15 +404,7 @@ Remove-ItemProperty -Path 'HKCU:\Software\Nogirem' -Name 'StartupTrayEnabled' -E
     powershell::run(&script, 30000, 1024 * 1024)?;
     Ok(())
 }
-pub fn startup(exe: &Path, packaged: bool, set: Option<bool>) -> Result<Value> {
-    if !packaged {
-        if set.is_some() {
-            return Err("설치된 앱에서만 사용할 수 있습니다".into());
-        }
-        return Ok(
-            json!({"supported":false,"enabled":false,"reason":"설치된 앱에서만 사용할 수 있습니다"}),
-        );
-    }
+fn startup_checked(exe:&Path,set:Option<bool>)->Result<Value>{
     if let Some(enabled) = set {
         startup_apply(exe, enabled)?
     }
@@ -427,6 +426,23 @@ pub fn startup(exe: &Path, packaged: bool, set: Option<bool>) -> Result<Value> {
     Ok(
         json!({"supported":true,"enabled":enabled,"reason":if state["exists"]==true&&state["matches"]!=true{json!("등록된 실행 경로가 현재 설치 위치와 다릅니다")}else{Value::Null}}),
     )
+}
+fn startup_result(result:Result<Value>,set:Option<bool>)->Result<Value>{
+    match result{
+        Err(diagnostic) if set.is_none()=>Ok(json!({"supported":false,"enabled":false,"status":"unknown","reason":"Windows 자동 시작 설정을 확인하지 못했습니다. 잠시 후 다시 확인해 주세요.","diagnostic":diagnostic})),
+        result=>result
+    }
+}
+pub fn startup(exe: &Path, packaged: bool, set: Option<bool>) -> Result<Value> {
+    if !packaged {
+        if set.is_some() {
+            return Err("설치된 앱에서만 사용할 수 있습니다".into());
+        }
+        return Ok(
+            json!({"supported":false,"enabled":false,"reason":"설치된 앱에서만 사용할 수 있습니다"}),
+        );
+    }
+    startup_result(startup_checked(exe,set),set)
 }
 pub fn dispatch(root: &Path, action: &str, p: &Value) -> Result<Value> {
     let user = PathBuf::from(
@@ -538,5 +554,15 @@ mod announcement_tests {
         let mut invalid=base.clone(); invalid["answeredAt"]=json!("invalid");
         let doc=normalize_reports(&json!({"schemaVersion":1,"responses":[expired,invalid,base]})).unwrap();
         assert_eq!(select_reports(&doc,&[id],&[],crate::now_ms() as i64).as_array().unwrap().len(),1);
+    }
+    #[test]
+    fn startup_query_retries_and_degrades_without_blocking_launch(){
+        let mut attempts=0;
+        let value=retry(3,Duration::ZERO,||{attempts+=1;(attempts==3).then(||json!({"enabled":true})).ok_or_else(||"일시적 오류".to_string())}).unwrap();
+        assert_eq!(attempts,3);assert_eq!(value["enabled"],true);
+        let unknown=startup_result(Err("지정되지 않은 오류".into()),None).unwrap();
+        assert_eq!(unknown["status"],"unknown");assert_eq!(unknown["supported"],false);
+        assert!(unknown["reason"].as_str().unwrap().contains("확인하지 못했습니다"));
+        assert!(startup_result(Err("지정되지 않은 오류".into()),Some(true)).is_err());
     }
 }

@@ -28,6 +28,7 @@ pub struct State {
     pub channel_ping: Value,
     pub startup_tray: bool,
     pub startup_tray_supported: bool,
+    pub startup_tray_reason: String,
     pub muted: bool,
     pub busy: bool,
     pub boost_action: Option<bool>,
@@ -176,6 +177,7 @@ pub async fn initialize(client: Client, mut state: Signal<State>) {
                         let mut s = state.write();
                         s.startup_tray = value["enabled"].as_bool().unwrap_or(false);
                         s.startup_tray_supported = value["supported"] == true;
+                        s.startup_tray_reason=value["reason"].as_str().unwrap_or("").to_string();
                     }
                 },
                 Err(error) => {
@@ -290,7 +292,9 @@ fn command(client: Client, mut state: Signal<State>, channel: &'static str, args
                     "application:set-blackbox-feature-enabled"
                     | "application:set-blackbox-enabled" => state.blackbox = value,
                     "application:set-startup-tray-setting" => {
-                        state.startup_tray = value["enabled"].as_bool().unwrap_or(false)
+                        state.startup_tray=value["enabled"].as_bool().unwrap_or(false);
+                        state.startup_tray_supported=value["supported"]==true;
+                        state.startup_tray_reason=value["reason"].as_str().unwrap_or("").to_string()
                     }
                     "application:set-startup-music-setting" => {
                         state.muted = value["muted"].as_bool().unwrap_or(false)
@@ -625,6 +629,7 @@ fn Advanced() -> Element {
     } else {
         "게임 코어 고정을 켠 상태에서 CPU 격리 구성을 재설정하여 캐시 초기화를 유도합니다"
     };
+    let startup_tray_description=if s.startup_tray_reason.is_empty(){"로그인하면 창과 시작 음악 없이 백그라운드에서 실행합니다"}else{s.startup_tray_reason.as_str()};
     rsx! { div { class: "developer-tools",
         div { class: "developer-tool-row",
             div { h2 { "버그 리포트" } p { "문제가 발생한 경우 로그 추출 파일을 전송해 주세요" } }
@@ -635,8 +640,8 @@ fn Advanced() -> Element {
         }
         if let Some(notice) = s.notices.get("application:export-diagnostic-logs") { span { class: "developer-tool-status", "{notice}" } }
         div { class: "developer-tool-row",
-            div { h2 { "Windows 시작 시 트레이 실행" } p { "로그인하면 창과 시작 음악 없이 백그라운드에서 실행합니다" } }
-            Action { label: if s.startup_tray { "사용 중" } else { "사용하기" }, channel: "application:set-startup-tray-setting", disabled: !s.startup_tray_supported, args: json!([!s.startup_tray]), class: if s.startup_tray { "active" } else { "" } }
+            div { h2 { "Windows 시작 시 트레이 실행" } p { "{startup_tray_description}" } }
+            Action { label: if !s.startup_tray_supported { "확인 불가" } else if s.startup_tray { "사용 중" } else { "사용하기" }, channel: "application:set-startup-tray-setting", disabled: !s.startup_tray_supported, args: json!([!s.startup_tray]), class: if s.startup_tray { "active" } else { "" } }
         }
         div { class: "developer-tool-row",
             div { h2 { "시작 음악 음소거" } p { "프로그램을 실행할 때 나오는 시작 음악을 재생하지 않습니다" } }
