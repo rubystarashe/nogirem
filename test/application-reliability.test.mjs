@@ -341,7 +341,7 @@ test("helper 상태 파일 잠금 실패를 복구하고 중복 helper 실행을
   )
   assert.match(
     nativeBoost,
-    /stderr\(Stdio::piped\(\)\)[\s\S]*stderr\.read_to_string\(&mut detail\)/,
+    /stderr\(Stdio::piped\(\)\)[\s\S]*child\.stderr\.take\(\)[\s\S]*helper_log::capture\(BufReader::new\(stderr\),&log\)[\s\S]*stderr\.read_to_string\(&mut detail\)/,
   )
   assert.match(
     nativeAffinity,

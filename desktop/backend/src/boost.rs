@@ -4,7 +4,7 @@ use crate::{
 };
 use serde_json::{Value, json};
 use std::{
-    io::Read,
+    io::{BufReader, Read},
     path::PathBuf,
     process::{Command, Stdio},
     sync::{
@@ -261,6 +261,10 @@ impl Boost {
                 return Err(error(&status, "최적화 시작 실패"));
             }
             if belongs_to_launch && running_worker_alive(&status) {
+                if let Some(stderr)=child.stderr.take() {
+                    let log=directory.join("helper-stderr.log");
+                    std::thread::spawn(move || crate::helper_log::capture(BufReader::new(stderr),&log));
+                }
                 return Ok(());
             }
             if let Some(exit)=child.try_wait().map_err(|e|e.to_string())? {
