@@ -7,7 +7,7 @@
 - reviewer: `cursor-agent-92251f36`
 - review_mode: `SELF_REVIEW`
 - created_at: `2026-10-20T04:27:00Z`
-- target: `uncommitted target based on 37a982642d0e44e56a3567acbbe06f849248751e`
+- target: `640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e`
 - scope: `HelperLock acquisition/drop, Boost launch status·stderr, memory helper identity, 0.4.9 version/history, package/evidence`
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST — affinity helper 단일 writer와 시작 오류 진단 개선`
 - feature_map: `updated — canonical revision 40, feature revision 17`

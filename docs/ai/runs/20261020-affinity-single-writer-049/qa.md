@@ -6,7 +6,7 @@
 - owner: `cursor-agent-92251f36`
 - QA_role: `DEV-as-QA`
 - created_at: `2026-10-20T04:27:00Z`
-- source_target: `uncommitted target based on 37a982642d0e44e56a3567acbbe06f849248751e`
+- source_target: `640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e`
 - execution_target: `release/dioxus-0.4.9-2026-10-20T04-22-57-674Z`
 - state: `COMPLETE_PASS`
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST — affinity helper 단일 writer와 시작 오류 진단 개선`

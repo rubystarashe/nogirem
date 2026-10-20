@@ -5,7 +5,7 @@
 - created_at: `2026-10-20T04:27:00Z`
 - run_id: `20261020-affinity-single-writer-049`
 - checkpoint_id: `CP-AFFINITY-SINGLE-WRITER-049`
-- source_target: `uncommitted target based on 37a982642d0e44e56a3567acbbe06f849248751e`
+- source_target: `640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e`
 - execution_target: `release/dioxus-0.4.9-2026-10-20T04-22-57-674Z`
 - environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust 1.98.1, NSIS 3.0.4.1`
 - dependencies: `실제 Win32 process와 격리된 TEMP status/control/state; game·NIC mutation 없음`
@@ -45,6 +45,7 @@
 - `PASS` — signed package exit 0, non-solid NSIS, installer decimal 10MB gate.
 - `PASS` — Ed25519 signatures, version `0.4.9`, payload size와 SHA-256.
 - `PASS` — package `version.json=0.4.9`, recorder helper 1개, WebView2 bootstrapper 0개.
+- `PASS` — installer·portable payload recorder helper와 committed helper의 SHA-256이 모두 `a3a16550cc915a1e9b0482c605b9777d51cfbc684f2feb61b182744a150020ba`로 일치.
 - `PASS` — packaged first affinity helper running, second helper exit 1과 `Helper already running`, first helper graceful stop·final `running=false`.
 - `FAIL, non-blocking pre-existing` — Rust 1.98 strict clippy는 변경 파일 밖 기존 lint 35건으로 실패했다. 변경 파일 finding은 없고 기존 debt를 수정·suppress하지 않았다.
 - `NOT_RUN` — 실제 0.4.8 설치본 upgrade, 실제 game affinity 적용·복원, 설치·제거·포터블 UI.

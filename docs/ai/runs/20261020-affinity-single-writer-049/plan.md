@@ -5,8 +5,8 @@
 - checkpoint_id: `CP-AFFINITY-SINGLE-WRITER-049`
 - owner: `cursor-agent-92251f36`
 - created_at: `2026-10-20T04:10:00Z`
-- target_reference: `uncommitted target based on 37a982642d0e44e56a3567acbbe06f849248751e`
-- status: `IN_PROGRESS`
+- target_reference: `640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e`
+- status: `COMPLETED`
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST — affinity helper 단일 writer와 시작 오류 진단 개선`
 - feature_map: `updated — canonical revision 40, feature revision 17`
 - architecture_impact: `helper lock ownership, startup status, affinity original-state ledger single-writer 경계`
@@ -19,7 +19,7 @@
 3. `COMPLETED` — launch가 status를 선삭제하지 않고 fresh live worker만 성공으로 인정하며 child stderr를 전달한다.
 4. `COMPLETED` — regression tests와 0.4.9 version/history를 반영한다.
 5. `COMPLETED` — locked source checks, signed package, payload·signature·10MB gate를 검증한다.
-6. `IN_PROGRESS` — canonical records·QA·handoff를 완료하고 owned files만 commit한다.
+6. `COMPLETED` — canonical records·QA·handoff를 완료하고 owned files만 commit한다.
 
 ## 구현·검증 경계
 

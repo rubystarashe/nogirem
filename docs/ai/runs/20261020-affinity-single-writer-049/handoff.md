@@ -5,11 +5,11 @@
 - checkpoint_id: `CP-AFFINITY-SINGLE-WRITER-049`
 - owner: `cursor-agent-92251f36`
 - updated_at: `2026-10-20T04:27:00Z`
-- status: `IN_PROGRESS — checkpoint commit pending`
-- DEV: `IN_PROGRESS`
+- status: `COMPLETED`
+- DEV: `DONE`
 - QA: `COMPLETE_PASS`
 - review: `APPROVED, SELF_REVIEW`
-- source_target: `uncommitted target based on 37a982642d0e44e56a3567acbbe06f849248751e`
+- source_target: `640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e`
 - execution_target: `release/dioxus-0.4.9-2026-10-20T04-22-57-674Z`
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST — affinity helper 단일 writer와 시작 오류 진단 개선`
 - feature_map: `updated — canonical revision 40, feature revision 17`
@@ -38,8 +38,8 @@
 
 ## Remaining and resume
 
-- pending: owned files checkpoint commit과 final report.
+- pending: optional manual lifecycle QA only.
 - not_run: 실제 0.4.8 설치본 upgrade, 실제 마비노기 affinity, 설치·제거·포터블 UI.
 - unrelated: 비추적 `data/` 보존.
 - deployment: `NOT_RUN`, 사용자 요청 범위 밖.
-- safe_resume: `cd C:\Users\User\Documents\GitHub\nogirem`, `git status --short`, staged scope 검토 후 commit.
+- safe_resume: 별도 QA checkpoint를 승인받은 뒤 `cd C:\Users\User\Documents\GitHub\nogirem`에서 실제 0.4.8 설치본 upgrade·게임 검증.

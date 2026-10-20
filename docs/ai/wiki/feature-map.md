@@ -7,11 +7,11 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-20T04:27:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted target based on 37a982642d0e44e56a3567acbbe06f849248751e`
+- source_review_target: `640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e`
 - source_review_evidence: `affinity helper lock exact identity, launch status·stderr, 0.4.9 version과 signed package SELF_REVIEW`
 - behavior_verified_at: `2026-10-20T04:27:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted source target; signed package release/dioxus-0.4.9-2026-10-20T04-22-57-674Z`
+- behavior_verification_target: `package source 640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e; signed package release/dioxus-0.4.9-2026-10-20T04-22-57-674Z`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust locked tests, packaged affinity process integration`
 - behavior_verification_evidence: `backend 130 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, native integration 3/3, packaged duplicate helper 차단·graceful stop, Ed25519·payload PASS`
 - freshness_status: `CURRENT`
@@ -140,11 +140,11 @@
 - updated_by: `cursor-agent-92251f36`
 - source_reviewed_at: `2026-10-20T04:27:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `uncommitted target based on 37a982642d0e44e56a3567acbbe06f849248751e`
+- source_review_target: `640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e`
 - source_review_evidence: `SELF_REVIEW of HelperLock exact process identity, owner-only drop, launch status·stderr와 0.4.9 package`
 - behavior_verified_at: `2026-10-20T04:27:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted source target; signed package release/dioxus-0.4.9-2026-10-20T04-22-57-674Z`
+- behavior_verification_target: `package source 640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e; signed package release/dioxus-0.4.9-2026-10-20T04-22-57-674Z`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust/Node tests와 packaged native process integration`
 - behavior_verification_evidence: `backend 130 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, native integration 3/3, packaged first helper running·second exit 1 lock 차단·graceful stop PASS`
 - freshness_status: `CURRENT`
