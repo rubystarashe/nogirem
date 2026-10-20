@@ -1,4 +1,4 @@
-use crate::{Result, storage};
+use crate::{Result, process, storage};
 use serde_json::{Value, json};
 use std::{path::Path, time::Duration};
 use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
@@ -168,6 +168,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
     let control = Path::new(&control);
     let _lock = storage::HelperLock::acquire(status, parent, control)?;
     let config = storage::read_json(&root.join("config.json"))?.ok_or("config.json missing")?;
+    let helper_started_at=process::start_ms(std::process::id())?;
     let initial = snapshot()?;
     let mut cleaner = Cleaner::new(&config["memoryCleaner"], initial.total);
     let interval = config["memoryCleaner"]["pollIntervalMs"]
@@ -180,6 +181,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
             data["running"] = json!(running);
             data["gameActive"] = json!(game);
             data["helperPid"] = json!(std::process::id());
+            data["helperStartedAt"] = json!(helper_started_at);
             data["parentPid"] = json!(parent);
             data["updatedAt"] = json!(crate::now_ms());
             if !running {

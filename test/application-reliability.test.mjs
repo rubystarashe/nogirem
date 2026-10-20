@@ -3,6 +3,7 @@ import test from "node:test"
 import { readFile } from "node:fs/promises"
 
 const nativeAffinity = await readFile(new URL("../desktop/backend/src/affinity_worker.rs", import.meta.url), "utf8")
+const nativeBoost = await readFile(new URL("../desktop/backend/src/boost.rs", import.meta.url), "utf8")
 const nativeMemory = await readFile(new URL("../desktop/backend/src/memory.rs", import.meta.url), "utf8")
 const nativeStorage = await readFile(new URL("../desktop/backend/src/storage.rs", import.meta.url), "utf8")
 const serviceMain = await readFile(
@@ -328,7 +329,19 @@ test("helper 상태 파일 잠금 실패를 복구하고 중복 helper 실행을
   assert.match(serviceMain, /import \{ writeJsonAtomic \} from "\.\.\/src\/atomic-json\.mjs"/)
   assert.match(
     nativeStorage,
-    /create_new\(true\)[\s\S]*previous_status\["helperPid"\][\s\S]*recent \|\| confirmed/,
+    /create_new\(true\)[\s\S]*pidStartedAt[\s\S]*process_identity_alive\(&previous\)[\s\S]*Helper already running/,
+  )
+  assert.match(
+    nativeStorage,
+    /lock_owned_by\(&record,self\.pid,self\.pid_started_at\)[\s\S]*remove_file\(&self\.path\)/,
+  )
+  assert.doesNotMatch(
+    nativeBoost,
+    /remove\(&directory\.join\("status\.json"\)\)/,
+  )
+  assert.match(
+    nativeBoost,
+    /stderr\(Stdio::piped\(\)\)[\s\S]*stderr\.read_to_string\(&mut detail\)/,
   )
   assert.match(
     nativeAffinity,

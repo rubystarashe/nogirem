@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-20 03:55 +09:00
+Last Updated: 2026-10-20 13:27 +09:00
 
 ## Current Objective
-non-solid LZMA·single recorder helper·external WebView2 prerequisite가 포함된 signed 0.4.8 설치형·포터블을 기존 GitHub Release에 feed-safe 순서로 대치하고 공개 자산을 재검증했다.
+affinity helper lock·status 경합으로 복수 writer가 실행되던 문제를 수정하고 실제 child 오류를 보존하는 signed 0.4.9 설치형·포터블을 생성했다.
 
 ## Active Runs
+- `20261020-affinity-single-writer-049`: exact PID·process start identity lock과 owner-only drop으로 live affinity helper lock 탈취를 막고 startup status 선삭제를 제거했다. child stderr를 사용자 오류로 전달하고 memory helper도 시작 identity를 기록한다. backend 130 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, native integration 3/3, packaged duplicate helper 차단이 통과했다. signed 0.4.9 설치형은 `8,014,458 bytes`, 포터블은 `7,789,775 bytes`; 배포와 실제 설치·게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261020-affinity-single-writer-049/handoff.md`)
 - `20261020-nonsolid-package-048`: source `a2db18fb08eecf201de4d77759c814bb74c3eaa8`에서 non-solid LZMA, recorder helper 단일화, external WebView2 prerequisite와 128kbps 시작 음악을 적용했다. source를 origin/main에 push하고 [GitHub v0.4.8](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.8)의 Rust 자산 6개를 feed-safe 순서로 대치했다. 공개 9/9 hash, Ed25519 manifests, aliases, Electron asset ID 보존과 release note를 재검증했다. 실제 설치·제거·포터블 실행·same-version 자동 재수신은 NOT_RUN이다. (`docs/ai/runs/20261020-nonsolid-package-048/final-report.md`)
 - `20261019-notice-publish-048`: 사용자 작성 `NOTICE.md` SHA-256 `90b88036...cba3`를 commit `5e93686152bbf87cb63e1207da2f6b389c136244`로 origin/main에 게시했다. GitHub API main과 commit 고정 raw URL은 새 제목을 반환한다. 앱의 branch raw URL은 2026-10-19T14:49Z 현재 이전 공지를 반환하므로 CDN 캐시 만료 후 재확인이 남았다. 앱 source·package·Release assets는 변경하지 않았다. (`docs/ai/runs/20261019-notice-publish-048/task.md`)
 - `20261019-cpu-reorder-048-hotfix`: source `d3e5a9c5808d6dc897a0e0b7d2516373a2334c0d`에서 topology alternate mask 기반 `canCpuReorder`를 투영하고 UI가 false일 때 버튼을 비활성화해 이유를 표시한다. backend 128 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, main UI smoke와 package 검증이 통과했다. [GitHub v0.4.8](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.8)의 Rust 자산 6개를 feed-safe 순서로 대치하고 공개 9/9·Ed25519·aliases·Electron ID 보존을 재검증했다. (`docs/ai/runs/20261019-cpu-reorder-048-hotfix/final-report.md`)
@@ -44,6 +45,13 @@ non-solid LZMA·single recorder helper·external WebView2 prerequisite가 포함
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — affinity helper 단일 writer와 시작 오류 진단 개선`
+- feature_map: `updated — canonical revision 40, feature revision 17`
+- architecture_impact: `helper lock exact process ownership과 startup status·stderr 경계`
+- architecture_contract: `updated — revision 44`
+- signed 0.4.9 package는 `release/dioxus-0.4.9-2026-10-20T04-22-57-674Z`; 설치형 SHA-256 `7c1c1dbcb78a544aa23c30ff637f2d824781da3362423d474fdee6d656804c28`, 포터블 SHA-256 `dd3eb7f0ca119edc74ef31ca9b5236bac6a44153d16420db7a3eb99771fd0d67`.
+- `PASS` — source 회귀, packaged duplicate helper 차단, owner-only lock cleanup, Ed25519·version·size·payload hash.
+- `NOT_RUN` — 실제 0.4.8 설치본 upgrade, 실제 마비노기 affinity, 설치·제거·포터블 UI, push·release·deploy.
 - feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — external WebView2 prerequisite, non-solid package와 recorder helper 단일화의 public 0.4.8 대치`
 - feature_map: `updated — canonical revision 39, feature revision 12`
 - architecture_impact: `single recorder helper, non-solid LZMA, WebView2 external prerequisite와 10MB package gate`

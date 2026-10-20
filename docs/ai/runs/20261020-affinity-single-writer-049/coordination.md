@@ -1,0 +1,23 @@
+# Coordination — affinity helper single writer 0.4.9
+
+- record_id: `COORD-AFFINITY-SINGLE-WRITER-049`
+- run_id: `20261020-affinity-single-writer-049`
+- checkpoint_id: `CP-AFFINITY-SINGLE-WRITER-049`
+- owner: `cursor-agent-92251f36`
+- created_at: `2026-10-20T04:10:00Z`
+- target_reference: `uncommitted target based on 37a982642d0e44e56a3567acbbe06f849248751e`
+- DEV: `IN_PROGRESS — checkpoint commit pending`
+- QA: `COMPLETE_PASS`
+- review: `APPROVED, SELF_REVIEW`
+- active_writer: `cursor-agent-92251f36`
+- owned_files: `desktop/backend/src/{storage,boost,memory}.rs, package/Cargo version files, VERSION_HISTORY.md, affected canonical/run records`
+- concurrent_work: `none detected; untracked data/ is out of scope`
+- blockers: `none`
+- package_target: `release/dioxus-0.4.9-2026-10-20T04-22-57-674Z`
+- open_findings: `none`
+- findings_resolved: `ISSUE-AFF-049-001..003`
+- external_writes: `GitHub push·release·deploy 금지`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — affinity helper 단일 writer와 시작 오류 진단 개선`
+- feature_map: `updated — canonical revision 40, feature revision 17`
+- architecture_impact: `helper lock ownership, startup status, affinity original-state ledger single-writer 경계`
+- architecture_contract: `updated — revision 44`

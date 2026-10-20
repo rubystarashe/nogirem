@@ -1,0 +1,23 @@
+# Request — affinity helper single writer 0.4.9
+
+- record_id: `REQ-AFFINITY-SINGLE-WRITER-049`
+- run_id: `20261020-affinity-single-writer-049`
+- checkpoint_id: `CP-AFFINITY-SINGLE-WRITER-049`
+- owner: `cursor-agent-92251f36`
+- created_at: `2026-10-20T04:10:00Z`
+- source_base: `37a982642d0e44e56a3567acbbe06f849248751e`
+- request: `affinity helper 시작 중 종료 오류를 개선하고 0.4.9로 버전 패치한 뒤 VERSION_HISTORY 기록과 Windows 패키징`
+- objective: affinity helper의 lock·status 경합으로 복수 writer가 실행되는 문제를 막고 실제 child 오류를 보존한 signed 0.4.9 설치형·포터블을 생성한다.
+- deliverables: source fix, concurrency regression tests, 0.4.9 version metadata와 history, signed package와 검증 evidence.
+- scope: `desktop/backend` helper lock·launch 수명주기, package/Cargo versions, VERSION_HISTORY, canonical feature·architecture records, run records.
+- exclusions: GitHub push·tag·Release 생성·배포, 실행 중 사용자 affinity process 강제 종료, 실제 설치·제거·게임 QA.
+- acceptance_criteria: 살아 있는 helper의 lock은 status 삭제·staleness와 무관하게 탈취되지 않는다; lock owner만 drop 시 자신의 lock을 삭제한다; helper child stderr가 사용자 오류에 보존된다; 0.4.9 locked checks와 signed package가 통과한다.
+- risk: `MEDIUM — 실시간 process affinity의 single-writer·복구 경계와 package version을 변경하지만 durable ledger 형식과 update signing 계약은 유지`
+- authorization: source 수정, 로컬 test/build/package, 로컬 commit 허용. 외부 push·release·deploy는 허용되지 않음.
+- roles: `Coordinator+DEV+QA+Reviewer+Feature owner+Architecture owner+Documentation maintainer=cursor-agent-92251f36`
+- review_mode: `SELF_REVIEW — 독립 reviewer 미참여`
+- unrelated_preserved: 비추적 `data/`.
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — affinity helper 단일 writer와 시작 오류 진단 개선`
+- feature_map: `unknown: 구현·검증 뒤 canonical entry 갱신, owner cursor-agent-92251f36`
+- architecture_impact: `helper lock ownership, startup status, affinity original-state ledger single-writer 경계`
+- architecture_contract: `unknown: 구현·검증 뒤 revision과 enforcement 갱신, owner cursor-agent-92251f36`

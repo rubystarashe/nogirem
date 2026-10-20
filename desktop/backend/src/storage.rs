@@ -64,20 +64,33 @@ pub fn write_json(path: &Path, value: &Value) -> Result<()> {
 // owner's lock. Existing JS lock records remain readable during migration.
 pub struct HelperLock {
     path: PathBuf,
+    pid: u32,
+    pid_started_at: i64,
     _file: fs::File,
+}
+fn process_identity_alive(record: &Value) -> bool {
+    let Some(pid) = record["pid"].as_u64().and_then(|pid| u32::try_from(pid).ok()).filter(|pid| *pid > 0) else { return false };
+    if !crate::process::alive(pid) { return false; }
+    record["pidStartedAt"].as_i64().map(|started_at|crate::process::start_ms(pid).ok()==Some(started_at)).unwrap_or(true)
+}
+fn lock_owned_by(record: &Value, pid: u32, pid_started_at: i64) -> bool {
+    record["pid"].as_u64()==Some(pid as u64) && record["pidStartedAt"].as_i64()==Some(pid_started_at)
 }
 impl HelperLock {
     pub fn acquire(status: &Path, owner: u32, control: &Path) -> Result<Self> {
         let path = PathBuf::from(format!("{}.lock", status.display()));
         fs::create_dir_all(path.parent().ok_or("Lock has no parent")?)
             .map_err(|e| e.to_string())?;
+        let current_pid=std::process::id();
+        let current_started_at=crate::process::start_ms(current_pid)?;
         for _ in 0..3 {
             match OpenOptions::new().write(true).create_new(true).open(&path) {
                 Ok(mut file) => {
-                    let record = serde_json::json!({"pid":std::process::id(),"ownerPid":owner,"startedAt":crate::now_ms()});
+                    let record = serde_json::json!({"pid":current_pid,"pidStartedAt":current_started_at,"ownerPid":owner,"startedAt":crate::now_ms()});
                     file.write_all(record.to_string().as_bytes())
                         .map_err(|e| e.to_string())?;
-                    return Ok(Self { path, _file: file });
+                    file.sync_all().map_err(|e| e.to_string())?;
+                    return Ok(Self { path, pid:current_pid, pid_started_at:current_started_at, _file:file });
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
                     let previous = read_json(&path).ok().flatten().unwrap_or(Value::Null);
@@ -93,17 +106,9 @@ impl HelperLock {
                             return Err("Helper lock is being initialized".into());
                         }
                     }
-                    let previous_status = read_json(status).ok().flatten().unwrap_or(Value::Null);
-                    let recent = previous["startedAt"]
-                        .as_u64()
-                        .is_some_and(|t| crate::now_ms().saturating_sub(t) < 15000);
-                    let confirmed = previous_status["helperPid"].as_u64() == Some(pid as u64)
-                        && previous_status["updatedAt"]
-                            .as_u64()
-                            .is_some_and(|t| crate::now_ms().saturating_sub(t) < 10000);
-                    if crate::process::alive(pid) && (recent || confirmed) {
+                    if process_identity_alive(&previous) {
                         let old_owner = previous["ownerPid"].as_u64().unwrap_or(0) as u32;
-                        if owner != old_owner && !crate::process::alive(old_owner) {
+                        if old_owner>0 && owner!=old_owner && !crate::process::alive(old_owner) {
                             write_json(
                                 control,
                                 &serde_json::json!({"command":"stop","requestedAt":crate::now_ms(),"reason":"orphan-recovery"}),
@@ -118,7 +123,11 @@ impl HelperLock {
                             return Err(format!("Helper already running: PID {pid}"));
                         }
                     }
-                    fs::remove_file(&path).map_err(|e| e.to_string())?;
+                    match fs::remove_file(&path) {
+                        Ok(())=>{},
+                        Err(e) if e.kind()==std::io::ErrorKind::NotFound=>{},
+                        Err(e)=>return Err(e.to_string()),
+                    }
                 }
                 Err(e) => return Err(e.to_string()),
             }
@@ -128,7 +137,9 @@ impl HelperLock {
 }
 impl Drop for HelperLock {
     fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
+        if read_json(&self.path).ok().flatten().is_some_and(|record|lock_owned_by(&record,self.pid,self.pid_started_at)) {
+            let _ = fs::remove_file(&self.path);
+        }
     }
 }
 #[cfg(test)]
@@ -150,5 +161,29 @@ mod tests {
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
         fs::remove_file(&path).unwrap();
         fs::remove_dir(&dir).unwrap();
+    }
+    #[test]
+    fn live_lock_is_not_stolen_when_status_is_missing_and_record_is_old() {
+        let dir=std::env::temp_dir().join(format!("nogirem-native-live-lock-{}-{}",std::process::id(),crate::now_ms()));
+        fs::create_dir_all(&dir).unwrap();
+        let status=dir.join("status.json");
+        let lock=PathBuf::from(format!("{}.lock",status.display()));
+        let pid=std::process::id();
+        let started_at=crate::process::start_ms(pid).unwrap();
+        fs::write(&lock,serde_json::json!({"pid":pid,"pidStartedAt":started_at,"ownerPid":0,"startedAt":1}).to_string()).unwrap();
+        let error=HelperLock::acquire(&status,0,&dir.join("control.json")).err().unwrap();
+        assert!(error.contains("Helper already running"));
+        assert!(lock.is_file());
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn lock_ownership_requires_exact_process_start_identity() {
+        let pid=std::process::id();
+        let started_at=crate::process::start_ms(pid).unwrap();
+        let record=serde_json::json!({"pid":pid,"pidStartedAt":started_at});
+        assert!(lock_owned_by(&record,pid,started_at));
+        assert!(!lock_owned_by(&record,pid,started_at-1));
+        assert!(process_identity_alive(&record));
+        assert!(!process_identity_alive(&serde_json::json!({"pid":pid,"pidStartedAt":started_at-1})));
     }
 }

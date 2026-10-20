@@ -4,6 +4,7 @@ use crate::{
 };
 use serde_json::{Value, json};
 use std::{
+    io::Read,
     path::PathBuf,
     process::{Command, Stdio},
     sync::{
@@ -30,14 +31,12 @@ pub fn fresh(status: &Value, interval: u64, minimum: u64, now: u64) -> bool {
     })
 }
 fn helper_alive(status: &Value) -> bool {
-    status["running"] != true
-        || status["helperPid"]
-            .as_u64()
-            .and_then(|pid| u32::try_from(pid).ok())
-            .is_some_and(|pid| {
-                process::alive(pid)
-                    && status["helperStartedAt"].as_i64() == process::start_ms(pid).ok()
-            })
+    status["running"] != true || running_worker_alive(status)
+}
+fn running_worker_alive(status: &Value) -> bool {
+    status["running"]==true && status["helperPid"].as_u64().and_then(|pid|u32::try_from(pid).ok()).is_some_and(|pid|{
+        process::alive(pid) && status["helperStartedAt"].as_i64().map(|started_at|process::start_ms(pid).ok()==Some(started_at)).unwrap_or(true)
+    })
 }
 fn legacy_helper(status: &Value, interval: u64, now: u64) -> Option<(u32, i64)> {
     if status["running"] != true
@@ -234,8 +233,8 @@ impl Boost {
     fn launch(&self, kind: &str, mut args: Vec<String>, timeout: u64) -> Result<()> {
         let directory = self.directory(kind);
         std::fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
-        remove(&directory.join("status.json"))?;
         remove(&directory.join("control.json"))?;
+        let launched_at=crate::now_ms();
         args.extend([
             format!("--status-path={}", directory.join("status.json").display()),
             format!(
@@ -250,21 +249,26 @@ impl Boost {
             .creation_flags(0x08000000)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| e.to_string())?;
         let deadline = Instant::now() + Duration::from_millis(timeout);
         while Instant::now() < deadline {
             let status = self.raw(kind);
-            if !status["error"].is_null() {
+            let belongs_to_launch=status["updatedAt"].as_u64().is_some_and(|updated_at|updated_at>=launched_at.saturating_sub(1000));
+            if belongs_to_launch && !status["error"].is_null() {
                 let _ = self.control(kind, json!({"command":"stop","reason":"start-error"}));
                 return Err(error(&status, "최적화 시작 실패"));
             }
-            if status["running"] == true {
+            if belongs_to_launch && running_worker_alive(&status) {
                 return Ok(());
             }
-            if child.try_wait().map_err(|e| e.to_string())?.is_some() {
-                return Err(format!("{kind} helper가 시작 중 종료되었습니다"));
+            if let Some(exit)=child.try_wait().map_err(|e|e.to_string())? {
+                let mut detail=String::new();
+                if let Some(mut stderr)=child.stderr.take(){let _=stderr.read_to_string(&mut detail);}
+                let detail=detail.trim();
+                if !detail.is_empty(){return Err(detail.into());}
+                return Err(format!("{kind} helper가 시작 중 종료되었습니다 (종료 코드 {})",exit.code().map(|code|code.to_string()).unwrap_or_else(||"알 수 없음".into())));
             }
             std::thread::sleep(Duration::from_millis(100));
         }
