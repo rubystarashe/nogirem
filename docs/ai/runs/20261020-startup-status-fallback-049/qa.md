@@ -1,0 +1,24 @@
+# QA
+
+- record_id: `QA-STARTUP-STATUS-049`
+- run_id: `20261020-startup-status-fallback-049`
+- checkpoint_id: `CP-STARTUP-STATUS-049`
+- owner: `cursor-agent-92251f36`
+- state: `COMPLETE_PASS`
+- source_target: `a4f2dc4303d6c728d89cf5ad742a86618e158891`
+- execution_target: `Windows 10.0.26200 x64; release/dioxus-0.4.9-2026-10-20T10-17-22-714Z; GitHub public v0.4.9`
+- `UPD-013-A`: `PASS — retry helper는 두 번 실패 후 세 번째 결과를 반환`
+- `UPD-013-B`: `PASS — read-only 최종 실패는 supported=false·status=unknown이며 명시 변경 실패는 Err 유지`
+- `UPD-013-C`: `PASS — Dioxus compile과 source contract에서 확인 불가·disabled projection 검증`
+- `BACKEND`: `PASS — 132 passed, 3 ignored, parity 2/2`
+- `DESKTOP`: `PASS — 8/8와 locked cargo check`
+- `NODE`: `PASS — 215/215`
+- `PACKAGE`: `PASS — signed installer·portable manifest self-verification, NSIS /WX, 10MB gate`
+- `PUBLIC`: `PASS — public 9/9 candidate hash·size 일치, Ed25519 재검증, aliases identical, Electron 0.3.19 feed 보존`
+- `MANUAL-EFAIL`: `NOT_RUN — 제보 PC와 동일한 Task Scheduler COM E_FAIL을 현재 환경에서 강제 재현하지 않음`
+- expected: `조회 실패가 자동 시작 설정에만 격리되고 앱·CPU boost는 계속 시작`
+- actual: `unit·contract·compile evidence가 기대 결과를 충족`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — UPD-013`
+- feature_map: `updated — revision 14`
+- architecture_impact: `startup read adapter failure containment`
+- architecture_contract: `updated — revision 48`

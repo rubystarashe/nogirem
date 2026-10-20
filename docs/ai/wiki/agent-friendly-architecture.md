@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `47`
-- updated_at: `2026-10-20T08:56:00Z`
+- revision: `48`
+- updated_at: `2026-10-20T10:24:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T08:56:00Z`
+- source_reviewed_at: `2026-10-20T10:24:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `9d88081ce598f45d8d049118fd017b39b1f788ff; annotated v0.4.9`
-- source_review_evidence: `committed affinity writer 경계, package inputs, signed manifests와 release routing SELF_REVIEW`
-- behavior_verified_at: `2026-10-20T08:54:49Z`
+- source_review_target: `a4f2dc4303d6c728d89cf5ad742a86618e158891; annotated v0.4.9`
+- source_review_evidence: `startup task read retry·unknown projection, package inputs, signed manifests와 release routing SELF_REVIEW`
+- behavior_verified_at: `2026-10-20T10:24:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `clean signed package release/dioxus-0.4.9-2026-10-20T08-45-46-639Z; GitHub public v0.4.9`
+- behavior_verification_target: `clean signed package release/dioxus-0.4.9-2026-10-20T10-17-22-714Z; GitHub public v0.4.9`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust/Node locked checks와 GitHub public Release 재다운로드`
-- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, clean package·public 9/9 hash·Ed25519·aliases·Electron routing PASS`
+- behavior_verification_evidence: `backend 132 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 215/215, clean package·public 9/9 hash·Ed25519·aliases·Electron routing PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `clean committed source와 public Latest v0.4.9에서 affinity writer와 signed release 경계를 재검증`
-- known_gaps: `실제 0.4.9 설치·제거·포터블 UI와 버전 간 자동 업데이트는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.9`
-- feature_map: `updated — canonical revision 43, frame revision 20, update revision 13`
-- architecture_impact: `runtime ledger·applied marker union과 signed release/update routing`
-- architecture_contract: `updated — freshness revision 47`
+- freshness_reason: `clean committed source와 public Latest v0.4.9에서 startup read failure containment와 signed release 경계를 재검증`
+- known_gaps: `제보 PC 실제 E_FAIL 강제 재현, 실제 0.4.9 설치·제거·포터블 UI와 버전 간 자동 업데이트는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — startup task read failure containment와 public 0.4.9`
+- feature_map: `updated — update revision 14`
+- architecture_impact: `PowerShell startup read adapter failure containment와 signed release/update routing`
+- architecture_contract: `updated — revision 48`
 
 ## 계층과 확장 경로
 
@@ -66,6 +66,7 @@
 - network original snapshot: `network_manager.rs`만 생성·갱신하고 network restore 경로만 소비한다.
 - update job state: `update_install.rs` helper가 `job.json/result.json`을 관리한다. service는 검증된 job의 `healthy.json`만 기록한다.
 - `healthy.json` 준비 기준: backend RPC가 실행되고 main UI open 요청이 성공한 시점이다. worker, PowerShell 상태 조회, DXVK 조회, 시작 애니메이션 완료는 필수 조건이 아니다.
+- 자동 시작 예약 작업 상태 조회는 최대 3회 재시도한다. read-only 조회가 모두 실패하면 `unknown` projection만 반환해 해당 UI 조작을 비활성화하며 앱 시작·CPU boost를 실패시키지 않는다. 사용자의 명시적 설정 변경과 사후 검증 실패는 계속 오류로 처리한다.
 - portable cache marker: packager가 내부 payload digest를 만들고 launcher만 marker를 쓴다.
 - update manifest: release signing script만 private key를 사용해 작성하며 앱은 embedded public key로 검증만 한다.
 - installer uninstall registry·shortcut writer: NSIS 설치기 하나다.

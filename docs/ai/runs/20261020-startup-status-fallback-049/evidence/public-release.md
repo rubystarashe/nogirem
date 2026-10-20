@@ -1,0 +1,25 @@
+# Public release evidence
+
+- evidence_id: `EVID-STARTUP-STATUS-049-PUBLIC`
+- producer: `cursor-agent-92251f36`
+- created_at: `2026-10-20T10:24:00Z`
+- run_id: `20261020-startup-status-fallback-049`
+- checkpoint_id: `CP-STARTUP-STATUS-049`
+- source_target: `a4f2dc4303d6c728d89cf5ad742a86618e158891; annotated tag object 0a72e85116cd4cf685d1ad353e093b1bd45d7ab0`
+- execution_target: `GitHub public https://github.com/rubystarashe/nogirem/releases/tag/v0.4.9`
+- environment: `Windows 10.0.26200 x64, locked Rust/Node, NSIS 3.0.4.1, GitHub public download`
+- command: `npm run package:win; prepare-release.mjs; gh release upload --clobber executables then manifests; gh release download; prepare-release.mjs`
+- installer: `8,021,617 bytes; SHA-256 938d275ed05d4bb3cb20d06da35ffdb637f636495cf1bde415efb98592e1689a`
+- portable: `7,797,004 bytes; SHA-256 b88ef94a1777b80091216f85714883c6b0eff20ab16e544186a42be153ee48d7`
+- update_manifest: `422 bytes; SHA-256 2bfd45f85d33741911a630104039f0a1ad5c4ba3bb739a823f21ea9d7ca338da`
+- portable_manifest: `425 bytes; SHA-256 6ee803557e0ad6396e781fc5f5f2380f99786b855b1a6eea95c1507faedd00a8`
+- electron_assets: `기존 latest.yml·0.3.19 EXE·blockmap asset ID와 hashes 보존`
+- result: `PASS — public Latest, draft=false, prerelease=false, 9/9 candidate hash·size, signed manifests, aliases와 Electron feed 재검증`
+- artifact_path: `release/ready-v0.4.9-2026-10-20T10-21-59-290Z; release/public-v049-startup`
+- retention: `release 산출물은 git에 포함하지 않음`
+- sanitization: `private signing key·credential·사용자 데이터 기록 없음`
+- limitations: `실제 설치·제거·포터블 실행·same-version 자동 재수신은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — public v0.4.9 replacement`
+- feature_map: `updated — revision 14`
+- architecture_impact: `signed package와 feed-safe replacement`
+- architecture_contract: `updated — revision 48`

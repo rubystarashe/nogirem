@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `43`
-- updated_at: `2026-10-20T08:56:00Z`
+- revision: `44`
+- updated_at: `2026-10-20T10:24:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T08:56:00Z`
+- source_reviewed_at: `2026-10-20T10:24:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `9d88081ce598f45d8d049118fd017b39b1f788ff; annotated v0.4.9`
-- source_review_evidence: `clean committed target의 affinity reset source, package inputs와 public release assembly SELF_REVIEW`
-- behavior_verified_at: `2026-10-20T08:54:49Z`
+- source_review_target: `a4f2dc4303d6c728d89cf5ad742a86618e158891; annotated v0.4.9`
+- source_review_evidence: `clean committed target의 startup task retry·unknown fallback, package inputs와 public release assembly SELF_REVIEW`
+- behavior_verified_at: `2026-10-20T10:24:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `clean signed package release/dioxus-0.4.9-2026-10-20T08-45-46-639Z; GitHub public v0.4.9`
+- behavior_verification_target: `clean signed package release/dioxus-0.4.9-2026-10-20T10-17-22-714Z; GitHub public v0.4.9`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust locked tests, GitHub public Release 재다운로드`
-- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, clean package PASS, public 9/9 hash·Ed25519·aliases·Electron routing PASS; installed helper status error=null과 최근 game-exit restore failedCount=0`
+- behavior_verification_evidence: `backend 132 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 215/215, clean package PASS, public 9/9 hash·Ed25519·aliases·Electron routing PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `annotated v0.4.9와 public signed assets가 clean committed source와 일치함`
-- known_gaps: `실제 0.4.9 설치·제거·포터블 UI와 버전 간 자동 업데이트는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — reset 복구의 public 0.4.9`
-- feature_map: `updated — canonical revision 43, frame revision 20, update revision 13`
-- architecture_impact: `signed package와 GitHub release/update feed 경계 실행`
-- architecture_contract: `updated — freshness revision 47`
+- freshness_reason: `annotated v0.4.9와 public signed assets가 startup 조회 failure containment clean source와 일치함`
+- known_gaps: `제보 PC 실제 E_FAIL 강제 재현, 실제 0.4.9 설치·제거·포터블 UI와 버전 간 자동 업데이트는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — UPD-013과 public 0.4.9`
+- feature_map: `updated — canonical revision 44, update revision 14`
+- architecture_impact: `startup read adapter failure containment와 signed release/update feed 경계`
+- architecture_contract: `updated — revision 48`
 
 ## ID 할당
 
@@ -312,27 +312,27 @@
 - security_privacy: manifest 서명·digest, reparse 방지, 파일별 Win32 mandatory-label authority·NO_WRITE_UP·High/System RID, exact executable path와 parent PID 검증을 사용한다. 개인 데이터나 signing key를 자산에 포함하지 않는다.
 - compatibility: 0.4.1 updater는 별도 installer 인자 없이도 검증된 부모 `updater.exe`로 인식한다. 배포된 0.4.x URL 검증을 위해 `nogirem-dioxus-*` 자산은 자동 업데이트 전용으로 유지하며 짧은 `nogirem-setup-*`, `nogirem-portable-*`는 동일 payload의 수동 다운로드 alias다. Electron은 `latest.yml`이 긴 legacy migration 이름을 가리킨다.
 - limits_exclusions: OS 종료·전원 손실 전체를 transaction으로 만들지는 않는다. 관련 backup이 없는 오래된 설치는 수동 복구가 필요할 수 있다.
-- scenarios: `UPD-001 설치형 성공`, `UPD-002 건강 확인 실패 rollback`, `UPD-003 포터블 원자 교체`, `UPD-004 직접 제거 중 stale helper`, `UPD-005 늦게 생성된 프로세스`, `UPD-006 0.4.1 부모 updater 호환`, `UPD-007 native mandatory-label 검증`, `UPD-008 retired app asset exact cleanup`, `UPD-009 예약 작업 정리 실패와 process stop 실패 분리`, `UPD-010 제한된 PowerShell policy에서도 native install/uninstall cleanup`, `UPD-011 WebView2 미설치 공식 다운로드 안내·무변경 중단`, `UPD-012 non-solid 10MB·단일 recorder helper package`
-- evidence: `test/installer.test.mjs`, `native/installer-cleanup/src/main.rs`, `test/portable-release.test.mjs`, Rust updater/update_install tests, `docs/ai/runs/20260929-release-042`, `docs/ai/runs/20261015-updater-hotfix-046/task.md`, `docs/ai/runs/20261016-uninstall-hotfix-047/final-report.md`, `docs/ai/runs/20261016-native-installer-cleanup-047`, `docs/ai/runs/20261020-nonsolid-package-048/task.md`
+- scenarios: `UPD-001 설치형 성공`, `UPD-002 건강 확인 실패 rollback`, `UPD-003 포터블 원자 교체`, `UPD-004 직접 제거 중 stale helper`, `UPD-005 늦게 생성된 프로세스`, `UPD-006 0.4.1 부모 updater 호환`, `UPD-007 native mandatory-label 검증`, `UPD-008 retired app asset exact cleanup`, `UPD-009 예약 작업 정리 실패와 process stop 실패 분리`, `UPD-010 제한된 PowerShell policy에서도 native install/uninstall cleanup`, `UPD-011 WebView2 미설치 공식 다운로드 안내·무변경 중단`, `UPD-012 non-solid 10MB·단일 recorder helper package`, `UPD-013 자동 시작 예약 작업 조회 실패 격리`
+- evidence: `test/installer.test.mjs`, `native/installer-cleanup/src/main.rs`, `test/portable-release.test.mjs`, Rust updater/update_install tests, `docs/ai/runs/20260929-release-042`, `docs/ai/runs/20261015-updater-hotfix-046/task.md`, `docs/ai/runs/20261016-uninstall-hotfix-047/final-report.md`, `docs/ai/runs/20261016-native-installer-cleanup-047`, `docs/ai/runs/20261020-nonsolid-package-048/task.md`, `docs/ai/runs/20261020-startup-status-fallback-049/final-report.md`
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).
 - owner: `release/update owner`
-- revision: `13`
-- updated_at: `2026-10-20T08:56:00Z`
+- revision: `14`
+- updated_at: `2026-10-20T10:24:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T08:56:00Z`
+- source_reviewed_at: `2026-10-20T10:24:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `9d88081ce598f45d8d049118fd017b39b1f788ff; annotated v0.4.9`
-- source_review_evidence: `package script, NSIS, signed manifests, release assembly와 public asset routing SELF_REVIEW`
-- behavior_verified_at: `2026-10-20T08:54:49Z`
+- source_review_target: `a4f2dc4303d6c728d89cf5ad742a86618e158891; annotated v0.4.9`
+- source_review_evidence: `startup task retry·unknown fallback·Dioxus 확인 불가 projection, package script와 release assembly SELF_REVIEW`
+- behavior_verified_at: `2026-10-20T10:24:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source 9d88081ce598f45d8d049118fd017b39b1f788ff; GitHub public v0.4.9`
+- behavior_verification_target: `source a4f2dc4303d6c728d89cf5ad742a86618e158891; GitHub public v0.4.9`
 - behavior_verification_environment: `Windows 10.0.26200 x64 package QA와 GitHub public Release 재다운로드`
-- behavior_verification_evidence: `clean source/package checks와 공개 9/9 hash, Ed25519 manifests, byte-identical aliases와 Electron 0.3.19 routing PASS`
+- behavior_verification_evidence: `backend 132 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 215/215, clean package와 공개 9/9 hash·Ed25519 manifests·byte-identical aliases·Electron 0.3.19 routing PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 clean committed source와 public Latest v0.4.9 signed asset set을 반영했다.`
-- known_gaps: `WebView2 미설치 PC 안내, 실제 0.4.9 설치·제거·포터블 실행과 버전 간 자동 업데이트는 NOT_RUN.`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — public signed 0.4.9`
-- feature_map: `updated — revision 13`
-- architecture_impact: `package signing·GitHub Release·Electron migration routing`
-- architecture_contract: `no_change — revision 47이 public target에도 정확`
+- freshness_reason: `현재 startup 조회 failure containment source와 public Latest v0.4.9 signed asset set을 반영했다.`
+- known_gaps: `제보 PC에서 실제 E_FAIL 강제 재현, WebView2 미설치 PC 안내, 실제 0.4.9 설치·제거·포터블 실행과 버전 간 자동 업데이트는 NOT_RUN.`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — startup task read failure containment와 public signed 0.4.9 replacement`
+- feature_map: `updated — revision 14`
+- architecture_impact: `PowerShell startup read adapter failure containment와 package signing·GitHub Release routing`
+- architecture_contract: `updated — revision 48`

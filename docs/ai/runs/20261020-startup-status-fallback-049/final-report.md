@@ -1,0 +1,28 @@
+# Final report
+
+- disposition: `COMPLETED`
+- run_id: `20261020-startup-status-fallback-049`
+- requested_scope: `자동 시작 설정 조회 재시도, 최종 실패 격리, package와 v0.4.9 대치배포`
+- delivered_scope: `요청 범위 전체`
+- base_commit: `a238ec08f6812adbdecea5ef4c6ca964586a11b3`
+- implementation_commit: `a4f2dc4303d6c728d89cf5ad742a86618e158891`
+- package_target: `release/dioxus-0.4.9-2026-10-20T10-17-22-714Z`
+- public_target: `annotated v0.4.9 → a4f2dc4303d6c728d89cf5ad742a86618e158891; GitHub public Latest`
+- implemented: `예약 작업 조회를 150ms 간격 최대 3회 재시도한다. read-only 최종 실패는 supported=false·status=unknown으로 반환해 확인 불가 카드만 비활성화하고 전역 시작 오류를 만들지 않는다. 명시적 설정 변경 검증 실패는 오류로 유지한다.`
+- automated_test_passing: `backend 132/132와 parity 2/2; desktop 8/8·locked check; Node 215/215; signed package와 public 9/9`
+- manually_exercised: `public 자산 재다운로드·hash·Ed25519·alias·Electron feed verification`
+- verified_acceptance: `재시도, non-blocking fallback, 확인 불가 projection, clean signed package, main·tag·Release replacement`
+- not_run: `제보 PC 동일 E_FAIL 강제 재현, 실제 설치·제거·포터블 UI, 자동 업데이트`
+- review: `SELF_REVIEW APPROVED; mandatory finding 0; independent reviewer 없음`
+- feature_gate: `PASS — UPD-013와 canonical revision 14`
+- architecture_gate: `PASS — read failure containment와 revision 48`
+- review_qa_gate: `PASS — mandatory automated scenarios와 public verification 완료`
+- target_authorization_gate: `PASS — clean source package, unrelated main dirty files 보존, 승인된 main·tag·Release만 변경`
+- risks: `same-version client가 자동으로 새 binary를 재수신하지 않을 수 있어 affected 사용자는 수동 덮어쓰기가 필요`
+- commit_status: `implementation commit a4f2dc4303d6c728d89cf5ad742a86618e158891 pushed; final records are committed with this report`
+- push_status: `origin/main implementation과 v0.4.9 tag push 완료`
+- deployment_status: `GitHub v0.4.9 Rust assets 6개 replacement 완료; Electron assets 3개 보존`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — UPD-013와 public v0.4.9 replacement`
+- feature_map: `updated — revision 14`
+- architecture_impact: `PowerShell startup read adapter와 signed release routing`
+- architecture_contract: `updated — revision 48`
