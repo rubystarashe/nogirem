@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `42`
-- updated_at: `2026-10-20T08:31:00Z`
+- revision: `43`
+- updated_at: `2026-10-20T08:56:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T08:31:00Z`
+- source_reviewed_at: `2026-10-20T08:56:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 4babd317bfef7e325bcf83aca6dd5319888acc8a with dirty source diff SHA-256 3dbed9acd3dbeb29e45c8d9be36fe360ac88e8f46adc8a5ba681cb0f0dc62c4b`
-- source_review_evidence: `reset marker/ledger union, exact app-mask legacy recovery와 identity·external-change guard SELF_REVIEW`
-- behavior_verified_at: `2026-10-20T08:31:00Z`
+- source_review_target: `9d88081ce598f45d8d049118fd017b39b1f788ff; annotated v0.4.9`
+- source_review_evidence: `clean committed target의 affinity reset source, package inputs와 public release assembly SELF_REVIEW`
+- behavior_verified_at: `2026-10-20T08:54:49Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `signed package release/dioxus-0.4.9-2026-10-20T08-28-30-164Z from recorded dirty source target`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust locked tests, packaged affinity process integration`
-- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, signed package·Ed25519 PASS, packaged reset이 stale exact app mask 271+12개를 복구하고 0개 잔존`
+- behavior_verification_target: `clean signed package release/dioxus-0.4.9-2026-10-20T08-45-46-639Z; GitHub public v0.4.9`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust locked tests, GitHub public Release 재다운로드`
+- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, clean package PASS, public 9/9 hash·Ed25519·aliases·Electron routing PASS; installed helper status error=null과 최근 game-exit restore failedCount=0`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 0.4.9 package의 durable marker 복구와 ledger 밖 exact app-mask reset을 반영`
-- known_gaps: `실제 설치본 교체, 실제 마비노기 affinity 적용, 설치·제거·포터블 UI는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost 중단 시 crash helper가 남긴 affinity 복구`
-- feature_map: `updated — canonical revision 42, feature revision 19`
-- architecture_impact: `affinity marker·runtime ledger union과 same-session exact-mask migration recovery`
-- architecture_contract: `updated — revision 46`
+- freshness_reason: `annotated v0.4.9와 public signed assets가 clean committed source와 일치함`
+- known_gaps: `실제 0.4.9 설치·제거·포터블 UI와 버전 간 자동 업데이트는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — reset 복구의 public 0.4.9`
+- feature_map: `updated — canonical revision 43, frame revision 20, update revision 13`
+- architecture_impact: `signed package와 GitHub release/update feed 경계 실행`
+- architecture_contract: `updated — freshness revision 47`
 
 ## ID 할당
 
@@ -135,25 +135,25 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `19`
-- updated_at: `2026-10-20T08:31:00Z`
+- revision: `20`
+- updated_at: `2026-10-20T08:56:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T08:31:00Z`
+- source_reviewed_at: `2026-10-20T08:56:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 4babd317bfef7e325bcf83aca6dd5319888acc8a with dirty source diff SHA-256 3dbed9acd3dbeb29e45c8d9be36fe360ac88e8f46adc8a5ba681cb0f0dc62c4b`
-- source_review_evidence: `SELF_REVIEW of marker-ledger union, exact-mask selection, same-session scope and failure retention`
-- behavior_verified_at: `2026-10-20T08:31:00Z`
+- source_review_target: `9d88081ce598f45d8d049118fd017b39b1f788ff; annotated v0.4.9`
+- source_review_evidence: `SELF_REVIEW of committed marker-ledger union, exact-mask selection, same-session scope and failure retention`
+- behavior_verified_at: `2026-10-20T08:54:49Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `release/dioxus-0.4.9-2026-10-20T08-28-30-164Z`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust/Node tests와 packaged native process integration`
-- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, final packaged helper exact app mask 12/12 restore와 machine 잔존 0`
+- behavior_verification_target: `clean signed package release/dioxus-0.4.9-2026-10-20T08-45-46-639Z; GitHub public v0.4.9`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Rust/Node tests, package gate와 installed helper logs`
+- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, clean package PASS; installed helper running=true·error=null, recent game-exit restore 401 and failed 0`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 0.4.9 package에서 stale affinity reset이 실제 same-session process를 복구함`
-- known_gaps: `실제 설치본 교체, 실제 마비노기 affinity 적용, 설치·제거·포터블 UI는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost 중단 후 stale affinity 복구`
-- feature_map: `updated — revision 19`
+- freshness_reason: `public 0.4.9가 clean committed reset 복구 source와 일치함`
+- known_gaps: `실제 0.4.9 설치본 교체와 버전 간 자동 업데이트는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost 중단 후 stale affinity 복구의 public 배포`
+- feature_map: `updated — revision 20`
 - architecture_impact: `durable applied marker와 legacy exact-mask recovery writer`
-- architecture_contract: `updated — revision 46`
+- architecture_contract: `no_change — revision 47이 public target에도 정확`
 
 ## FEAT-NOGIREM-TURBO-KEY
 
@@ -317,22 +317,22 @@
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).
 - owner: `release/update owner`
-- revision: `12`
-- updated_at: `2026-10-19T18:54:00Z`
+- revision: `13`
+- updated_at: `2026-10-20T08:56:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-19T18:54:00Z`
+- source_reviewed_at: `2026-10-20T08:56:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `a2db18fb08eecf201de4d77759c814bb74c3eaa8`
-- source_review_evidence: `installer/portable NSIS, package script, recorder runtime·utility paths, audio metadata, package tests와 replacement Release SELF_REVIEW`
-- behavior_verified_at: `2026-10-19T18:54:00Z`
+- source_review_target: `9d88081ce598f45d8d049118fd017b39b1f788ff; annotated v0.4.9`
+- source_review_evidence: `package script, NSIS, signed manifests, release assembly와 public asset routing SELF_REVIEW`
+- behavior_verified_at: `2026-10-20T08:54:49Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source a2db18fb08eecf201de4d77759c814bb74c3eaa8; GitHub public v0.4.8 non-solid replacement`
+- behavior_verification_target: `source 9d88081ce598f45d8d049118fd017b39b1f788ff; GitHub public v0.4.9`
 - behavior_verification_environment: `Windows 10.0.26200 x64 package QA와 GitHub public Release 재다운로드`
-- behavior_verification_evidence: `자동 source/package checks와 공개 9/9 candidate hash, Ed25519, aliases, Electron asset ID·routing PASS`
+- behavior_verification_evidence: `clean source/package checks와 공개 9/9 hash, Ed25519 manifests, byte-identical aliases와 Electron 0.3.19 routing PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 source와 public 0.4.8 non-solid replacement의 prerequisite·payload 경계를 반영했다.`
-- known_gaps: `WebView2 미설치 PC의 안내 UI, 실제 설치·제거·포터블 실행과 same-version 자동 재수신은 NOT_RUN. 기존 같은 버전 client는 대치본을 자동 재수신하지 않을 수 있다.`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — external WebView2 prerequisite, non-solid package와 recorder helper 단일화`
-- feature_map: `updated — revision 12`
-- architecture_impact: `package bootstrap·compression·native helper payload boundary`
-- architecture_contract: `no_change — revision 43이 public target에도 정확`
+- freshness_reason: `현재 clean committed source와 public Latest v0.4.9 signed asset set을 반영했다.`
+- known_gaps: `WebView2 미설치 PC 안내, 실제 0.4.9 설치·제거·포터블 실행과 버전 간 자동 업데이트는 NOT_RUN.`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — public signed 0.4.9`
+- feature_map: `updated — revision 13`
+- architecture_impact: `package signing·GitHub Release·Electron migration routing`
+- architecture_contract: `no_change — revision 47이 public target에도 정확`

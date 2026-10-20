@@ -1,0 +1,26 @@
+# QA
+
+- record_id: `QA-RELEASE-049`
+- run_id: `20261020-release-049`
+- checkpoint_id: `CP-RELEASE-049`
+- owner: `cursor-agent-92251f36 acting as DEV-as-QA`
+- updated_at: `2026-10-20T08:56:00Z`
+- state: `COMPLETE_PASS`
+- source_target: `9d88081ce598f45d8d049118fd017b39b1f788ff; annotated tag object 23cfd90118869bfc0ce3476345ad8d0f4816bb81`
+- execution_target: `clean package release/dioxus-0.4.9-2026-10-20T08-45-46-639Z; GitHub public v0.4.9`
+- environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust locked, GitHub Release`
+- BOOST-018: `PASS — 기존 final packaged reset evidence 12/12, failed 0; installed helper의 최근 game-exit restore 401, failed 0; current status running=true, gameActive=true, error=null`
+- SOURCE-001: `PASS — backend 131/131, ignored 3; parity 2/2; Node 214/214`
+- PACKAGE-001: `PASS — clean committed worktree package exit 0, signed manifests generated and verified`
+- RELEASE-001: `PASS — public Latest, canonical assets 9/9, 재다운로드 SHA-256 일치`
+- RELEASE-002: `PASS — public update.json·portable-update.json Ed25519·payload size·SHA-256 재검증`
+- RELEASE-003: `PASS — aliases byte-identical, latest.yml 0.3.19 legacy migration과 blockmap routing`
+- non_blocking_logs: `적용 단계에서 보호된 driver·security·runner process 4개 access denied가 skip됨; restore failedCount는 0`
+- excluded_fixture: `NOT_APPLICABLE — 별도 installed boost가 게임 중 active인 상태에서 direct unelevated packaged worker를 격리되지 않은 machine-wide fixture로 실행해 access denied 25를 관찰했다. 관리자 앱 경로·독립 target이 아니므로 제품 판정에 사용하지 않음`
+- not_run: `실제 0.4.9 설치·제거·포터블 UI, 이전 버전에서 자동 업데이트`
+- review_mode: `SELF_REVIEW`
+- review_verdict: `APPROVED`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.9 검증`
+- feature_map: `updated — canonical 43, frame 20, update 13`
+- architecture_impact: `signed package와 release routing`
+- architecture_contract: `updated — freshness revision 47`

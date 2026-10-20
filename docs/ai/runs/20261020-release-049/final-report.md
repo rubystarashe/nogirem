@@ -1,0 +1,33 @@
+# Final Report
+
+- record_id: `FINAL-RELEASE-049`
+- run_id: `20261020-release-049`
+- checkpoint_id: `CP-RELEASE-049`
+- owner: `cursor-agent-92251f36`
+- completed_at: `2026-10-20T08:56:00Z`
+- status: `COMPLETED`
+- requested_scope: `로그에 문제가 없으면 사용자 VERSION_HISTORY 변경을 포함해 0.4.9 배포`
+- delivered_scope: `로그 판정, VERSION_HISTORY commit, clean-source package, origin/main·annotated tag push, GitHub public Latest release와 public verification`
+- source_target: `9d88081ce598f45d8d049118fd017b39b1f788ff`
+- tag_target: `23cfd90118869bfc0ce3476345ad8d0f4816bb81 -> 9d88081ce598f45d8d049118fd017b39b1f788ff`
+- release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.9`
+- implemented: `공개 0.4.9가 helper single-writer·stderr lifetime·stale affinity reset 복구와 사용자 변경 기록을 포함`
+- automated_test_passing: `backend 131 PASS·3 ignored, parity 2/2, Node 214/214, clean package and signatures PASS`
+- manually_exercised: `installed helper 로그·status 검사; public 9 assets 재다운로드`
+- verified: `public Latest v0.4.9, assets 9/9, local/public SHA-256 일치, Ed25519 manifests, byte-identical aliases, Electron 0.3.19 routing`
+- failed: `none for applicable release gates`
+- not_applicable: `direct unelevated helper fixture는 별도 installed boost가 active인 machine-wide 상태여서 제품 판정에서 제외`
+- not_run: `실제 0.4.9 설치·제거·포터블 UI와 버전 간 자동 업데이트`
+- review_mode: `SELF_REVIEW`
+- review_verdict: `APPROVED`
+- mandatory_findings: `none`
+- feature_gate: `PASS`
+- architecture_gate: `PASS`
+- review_qa_gate: `PASS`
+- target_authorization_gate: `PASS`
+- remaining_risk: `보호된 process는 affinity 적용에서 access denied로 skip될 수 있음; 설치·업데이트 종단간은 미실행`
+- commit_push_deployment: `local commits와 origin/main push 완료; annotated v0.4.9 push 완료; GitHub Release public Latest; production 설치·활성화는 수행하지 않음`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.9`
+- feature_map: `updated — canonical 43, frame 20, update 13`
+- architecture_impact: `signed package와 public release/update routing`
+- architecture_contract: `updated — freshness revision 47`

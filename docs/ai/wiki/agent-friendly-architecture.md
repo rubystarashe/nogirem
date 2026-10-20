@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `46`
-- updated_at: `2026-10-20T08:31:00Z`
+- revision: `47`
+- updated_at: `2026-10-20T08:56:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T08:31:00Z`
+- source_reviewed_at: `2026-10-20T08:56:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 4babd317bfef7e325bcf83aca6dd5319888acc8a with dirty source diff SHA-256 3dbed9acd3dbeb29e45c8d9be36fe360ac88e8f46adc8a5ba681cb0f0dc62c4b`
-- source_review_evidence: `affinity reset marker/ledger union, identity guard, exact-mask legacy recovery와 failure retention SELF_REVIEW`
-- behavior_verified_at: `2026-10-20T08:31:00Z`
+- source_review_target: `9d88081ce598f45d8d049118fd017b39b1f788ff; annotated v0.4.9`
+- source_review_evidence: `committed affinity writer 경계, package inputs, signed manifests와 release routing SELF_REVIEW`
+- behavior_verified_at: `2026-10-20T08:54:49Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `signed package release/dioxus-0.4.9-2026-10-20T08-28-30-164Z`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust/Node locked checks와 packaged native process integration`
-- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, signed package·Ed25519 PASS, packaged reset이 271+12 stale exact app-mask process를 복구하고 잔존 0`
+- behavior_verification_target: `clean signed package release/dioxus-0.4.9-2026-10-20T08-45-46-639Z; GitHub public v0.4.9`
+- behavior_verification_environment: `Windows 10.0.26200 x64, Rust/Node locked checks와 GitHub public Release 재다운로드`
+- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, clean package·public 9/9 hash·Ed25519·aliases·Electron routing PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 0.4.9 package의 durable marker와 same-session exact-mask reset writer 경계를 반영`
-- known_gaps: `실제 설치본 교체, 실제 game affinity와 설치·제거 UI는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — crash helper가 남긴 affinity의 reset 복구`
-- feature_map: `updated — canonical revision 42, feature revision 19`
-- architecture_impact: `runtime ledger·applied marker union과 exact-mask migration recovery`
-- architecture_contract: `updated — revision 46`
+- freshness_reason: `clean committed source와 public Latest v0.4.9에서 affinity writer와 signed release 경계를 재검증`
+- known_gaps: `실제 0.4.9 설치·제거·포터블 UI와 버전 간 자동 업데이트는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.9`
+- feature_map: `updated — canonical revision 43, frame revision 20, update revision 13`
+- architecture_impact: `runtime ledger·applied marker union과 signed release/update routing`
+- architecture_contract: `updated — freshness revision 47`
 
 ## 계층과 확장 경로
 

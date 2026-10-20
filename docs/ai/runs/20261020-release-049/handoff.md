@@ -1,0 +1,25 @@
+# Handoff
+
+- record_id: `HANDOFF-RELEASE-049`
+- run_id: `20261020-release-049`
+- checkpoint_id: `CP-RELEASE-049`
+- owner: `cursor-agent-92251f36`
+- updated_at: `2026-10-20T08:56:00Z`
+- status: `COMPLETED`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
+- review: `SELF_REVIEW APPROVED; independent reviewer 없음`
+- source_target: `9d88081ce598f45d8d049118fd017b39b1f788ff`
+- tag_target: `annotated v0.4.9 tag object 23cfd90118869bfc0ce3476345ad8d0f4816bb81 -> source target`
+- execution_target: `GitHub public Latest v0.4.9`
+- completed: `VERSION_HISTORY commit, origin/main push, clean signed package, tag, 9 canonical assets, public verification`
+- checks: `backend 131 PASS·3 ignored, parity 2/2, Node 214/214, package PASS, public 9/9 hash·Ed25519·aliases·Electron routing PASS`
+- logs: `installed helper running=true, gameActive=true, error=null; recent game-exit restore 401 and failed 0; protected process apply skips 4 are non-blocking`
+- pending: `실제 0.4.9 install/uninstall/portable UI와 이전 버전 자동 update`
+- unrelated_work: `기존 modified backend files, recorder-helper.exe와 untracked data/를 보존했고 commit·package source에 포함하지 않음`
+- commit_push_deploy: `source push 완료; tag push 완료; public release 완료; production 앱 설치·실행 변경 없음`
+- next_authorized_action: `none`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.9`
+- feature_map: `updated — canonical 43, frame 20, update 13`
+- architecture_impact: `signed public release/update boundary`
+- architecture_contract: `updated — freshness revision 47`

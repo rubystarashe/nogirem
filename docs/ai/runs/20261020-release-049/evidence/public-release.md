@@ -1,0 +1,26 @@
+# Public Release Evidence
+
+- evidence_id: `EVID-RELEASE-049-PUBLIC`
+- run_id: `20261020-release-049`
+- checkpoint_id: `CP-RELEASE-049`
+- producer: `cursor-agent-92251f36`
+- created_at: `2026-10-20T08:54:49Z`
+- source_target: `main and annotated v0.4.9 -> 9d88081ce598f45d8d049118fd017b39b1f788ff`
+- execution_target: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.9`
+- procedure: `clean worktree tests and package; draft upload; public Latest publish; 9 assets 재다운로드; SHA-256와 signed manifest assembly 재검증`
+- installer: `nogirem-dioxus-setup-0.4.9.exe; 8,021,665 bytes; SHA-256 88f6cb23289d8ed05cbb854233f5d6027491723f4981ef134766575c9c5f61de`
+- portable: `nogirem-dioxus-portable-0.4.9.exe; 7,797,027 bytes; SHA-256 dcf4365946e62922ce13092b16c5353865913ecc4ecd3a04e523f43b9628d465`
+- installer_alias: `nogirem-setup-0.4.9.exe; byte-identical`
+- portable_alias: `nogirem-portable-0.4.9.exe; byte-identical`
+- update_manifest: `SHA-256 88595851614fc7c1fdaba5a8b3863f46976856a601800c2cf8dd8b7957f126cc`
+- portable_manifest: `SHA-256 6e39bf837ad446b25fe930c52e2d8629e82e8c2f8f15700bd9abb034f71cf419`
+- electron_manifest: `latest.yml; SHA-256 419a0e6c1bb6a9785df5d089ea2ba4188090dff807f940028a840e093a9bcc14`
+- electron_bridge: `96,138,469 bytes; SHA-256 63da5da24ed1aa89fb825ed8a0634d97a56114bd2eab9a4c0620fd48834ea366`
+- electron_blockmap: `102,273 bytes; SHA-256 4cefd458f9ed2878568e897bc5765f0d6991696436af82b96dccb05b85212d96`
+- expected: `public Latest v0.4.9, assets 9/9, clean tag target, signed Rust feeds와 Electron migration feed`
+- actual: `PASS`
+- evidence_limitations: `실제 설치·제거·포터블 UI와 버전 간 자동 업데이트는 실행하지 않음`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — canonical 43, frame 20, update 13`
+- architecture_impact: `GitHub signed release boundary`
+- architecture_contract: `updated — freshness revision 47`
