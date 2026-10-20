@@ -1,0 +1,23 @@
+# Self review
+
+- record_id: `REV-AFFINITY-STDERR-LIFETIME-049-R1`
+- run_id: `20261020-affinity-stderr-lifetime-049`
+- checkpoint_id: `CP-AFFINITY-STDERR-LIFETIME-049`
+- reviewer: `cursor-agent-92251f36`
+- created_at: `2026-10-20T07:36:00Z`
+- review_mode: `SELF_REVIEW`
+- target: `implementation ee34cad9f1a253f4129c1fbf865a59d767efca60; package source base 303e7a3a3c2b16c83690b765368cafebae549d92 plus recorded VERSION_HISTORY.md`
+- scope: `Boost::launch stderr startup/error branches, logger lifetime, regression contract, package inputs and evidence`
+- acknowledgment: `target와 사용자 VERSION_HISTORY.md 변경을 분리해 검토함`
+- findings: `none`
+- inspection: `running_worker_alive 성공 전에 ChildStderr 소유권을 capture thread로 이전하고, 조기 종료 branch는 이전과 같이 child stderr를 직접 읽는지 확인`
+- concurrency: `reader 소유권은 child.stderr.take 한 번으로 단일화되고 detached capture thread가 EOF까지 drain함`
+- logging: `기존 helper_log 4MiB bounded rotation과 16KiB line cap을 재사용함`
+- product_review: `실시간 부스트 UI가 running을 표시한 뒤 helper가 broken pipe로 종료되던 실제 재현 경로를 packaged lock-injection scenario로 확인`
+- limitations: `같은 agent가 구현·QA·리뷰를 수행했으며 독립 reviewer는 참여하지 않음`
+- verdict: `APPROVED`
+- stale: `false`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — helper 지속 실행 복구`
+- feature_map: `updated — canonical revision 41, feature revision 18`
+- architecture_impact: `stderr reader lifecycle and bounded logging`
+- architecture_contract: `updated — revision 45`

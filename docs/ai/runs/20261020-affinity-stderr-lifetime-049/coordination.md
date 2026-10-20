@@ -1,0 +1,28 @@
+# Coordination
+
+- record_id: `COORD-AFFINITY-STDERR-LIFETIME-049`
+- run_id: `20261020-affinity-stderr-lifetime-049`
+- checkpoint_id: `CP-AFFINITY-STDERR-LIFETIME-049`
+- owner: `cursor-agent-92251f36`
+- created_at: `2026-10-20T07:24:00Z`
+- target_reference: `package source base 303e7a3a3c2b16c83690b765368cafebae549d92 plus VERSION_HISTORY.md SHA-256 9adc6f17a93425a0dbc671fc6f25723532e2693390ba1e7d75177688f54f4280`
+- active_checkpoint: `CP-AFFINITY-STDERR-LIFETIME-049`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
+- review: `APPROVED, SELF_REVIEW`
+- Coordinator: `cursor-agent-92251f36`
+- DEV: `cursor-agent-92251f36`
+- QA: `cursor-agent-92251f36, DEV-as-QA`
+- Reviewer: `cursor-agent-92251f36, SELF_REVIEW`
+- Feature_owner: `cursor-agent-92251f36`
+- Architecture_owner: `cursor-agent-92251f36`
+- Documentation_maintainer: `cursor-agent-92251f36`
+- ownership: `agent owns boost.rs, targeted test와 this run records; user-owned VERSION_HISTORY.md deletion and pre-existing dirty files are excluded`
+- baseline: `main 81f0da72451c9feb4016add5da45e41ce749136f; origin/main behind local by 3 commits`
+- runtime_evidence: `affinity status helper PID가 약 2초마다 변경되고 gameActive=false인 반면 Client.exe PID 59640은 실행 중; memory helper PID 33168은 지속 실행`
+- out_of_scope_dirty: `VERSION_HISTORY.md 사용자 삭제 1줄, line-ending-only backend status entries, untracked data/`
+- independent_review: `not required by repository policy; SELF_REVIEW limitation disclosed`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — affinity helper 반복 종료와 실제 CPU 설정 단절`
+- feature_map: `updated — canonical revision 41, feature revision 18`
+- architecture_impact: `child stderr handle lifetime and helper logging boundary`
+- architecture_contract: `updated — revision 45`

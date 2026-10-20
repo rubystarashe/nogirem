@@ -1,0 +1,29 @@
+# QA
+
+- record_id: `QA-AFFINITY-STDERR-LIFETIME-049`
+- run_id: `20261020-affinity-stderr-lifetime-049`
+- checkpoint_id: `CP-AFFINITY-STDERR-LIFETIME-049`
+- owner: `cursor-agent-92251f36, DEV-as-QA`
+- created_at: `2026-10-20T07:36:00Z`
+- state: `COMPLETE_PASS`
+- source_target: `base 303e7a3a3c2b16c83690b765368cafebae549d92; modified VERSION_HISTORY.md SHA-256 9adc6f17a93425a0dbc671fc6f25723532e2693390ba1e7d75177688f54f4280; patch SHA-256 92591c2b0c8a604da13e6ec59c457f4418f3c90150070086fc98a024868e2f1f`
+- execution_target: `release/dioxus-0.4.9-2026-10-20T07-28-28-451Z`
+- environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust locked debug·release`
+- dependencies: `real packaged native service and helper; isolated user data; safe CPU mode; status file lock injection`
+- scenario_BOOST_017: `PASS — packaged helper PID 54548가 status.json exclusive lock 7초와 후속 6초 동안 동일하게 유지되고 helper-stderr.log에 Affinity 상태 기록 실패가 capture된 뒤 reset 완료`
+- backend_locked: `PASS — 130 passed, 3 ignored; parity 2/2 passed`
+- desktop_locked: `PASS — 8/8`
+- node_full: `PASS — 213/213`
+- release_assets: `PASS — 3/3`
+- targeted_contract: `PASS — 1/1`
+- package_generation: `PASS — signed installer·portable manifests generated and verified`
+- installer: `PASS — 8,015,406 bytes; SHA-256 0778b7c1b383931bb28da4f89a18be31cc2fd7bc1f7d91d2d26abffe3c78c663`
+- portable: `PASS — 7,790,730 bytes; SHA-256 b2dd3e7ddf7d957972763e10e4889a1a737b14bd1e1ad58958d5b5f26f6d359a`
+- actual_game_affinity: `NOT_RUN — active user game session과 실제 affinity를 변경하지 않음`
+- installation_and_portable_ui: `NOT_RUN — package 생성 범위이며 설치 실행은 허가되지 않음`
+- deployment: `NOT_RUN — push·release 대치 권한 없음`
+- evidence: `evidence/package.md`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — helper stderr lifetime 회귀 복구`
+- feature_map: `updated — canonical revision 41, feature revision 18`
+- architecture_impact: `startup coordinator에서 bounded logger로 stderr reader ownership 이전`
+- architecture_contract: `updated — revision 45`

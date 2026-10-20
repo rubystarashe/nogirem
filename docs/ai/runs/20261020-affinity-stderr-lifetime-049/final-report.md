@@ -1,0 +1,30 @@
+# Final report
+
+- disposition: `COMPLETED`
+- run_id: `20261020-affinity-stderr-lifetime-049`
+- checkpoint_id: `CP-AFFINITY-STDERR-LIFETIME-049`
+- owner: `cursor-agent-92251f36`
+- requested_scope: `CPU 설정 연결 회귀 수정 후 0.4.9 패키징`
+- delivered_scope: `stderr lifetime fix, regression checks, signed installer·portable replacement package and evidence`
+- source_target: `base commit 303e7a3a3c2b16c83690b765368cafebae549d92 plus uncommitted user VERSION_HISTORY.md SHA-256 9adc6f17a93425a0dbc671fc6f25723532e2693390ba1e7d75177688f54f4280`
+- implementation_commit: `ee34cad9f1a253f4129c1fbf865a59d767efca60`
+- generated_payload_commit: `303e7a3a3c2b16c83690b765368cafebae549d92`
+- execution_target: `release/dioxus-0.4.9-2026-10-20T07-28-28-451Z`
+- implemented: `affinity helper startup 성공 후 stderr reader를 bounded capture thread가 소유해 logging 중 broken pipe 종료를 방지`
+- automated_tests: `backend 130 PASS·3 ignored, parity 2/2, desktop 8/8, Node 213/213, release assets 3/3`
+- manually_exercised: `packaged native service에서 status write를 7초 차단해 stderr를 발생시킨 뒤 동일 helper PID와 log capture를 확인하고 reset`
+- verified_acceptance: `helper 지속 실행, bounded stderr capture, signed 0.4.9 installer·portable 생성`
+- installer: `8,015,406 bytes, SHA-256 0778b7c1b383931bb28da4f89a18be31cc2fd7bc1f7d91d2d26abffe3c78c663`
+- portable: `7,790,730 bytes, SHA-256 b2dd3e7ddf7d957972763e10e4889a1a737b14bd1e1ad58958d5b5f26f6d359a`
+- not_run: `actual install, portable launcher UI, actual Mabinogi affinity, push, tag, release deployment`
+- review: `SELF_REVIEW APPROVED; no independent reviewer`
+- feature_gate: `PASS for authorized replacement package scope`
+- architecture_gate: `PASS — bounded stderr ownership contract revision 45`
+- review_qa_gate: `PASS with disclosed manual scope limitation`
+- target_authorization_gate: `PASS — exact dirty package input recorded; no push or deployment`
+- remaining_risk: `실제 게임의 protected process affinity 적용과 기존 설치본 덮어쓰기는 아직 실행하지 않음`
+- push_deployment: `NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — helper 반복 종료 회귀 수정`
+- feature_map: `updated — canonical revision 41, feature revision 18`
+- architecture_impact: `helper stderr reader ownership and lifecycle`
+- architecture_contract: `updated — revision 45`

@@ -1,0 +1,21 @@
+# Plan
+
+- record_id: `PLAN-AFFINITY-STDERR-LIFETIME-049`
+- run_id: `20261020-affinity-stderr-lifetime-049`
+- checkpoint_id: `CP-AFFINITY-STDERR-LIFETIME-049`
+- owner: `cursor-agent-92251f36`
+- created_at: `2026-10-20T07:24:00Z`
+- target_reference: `package source base 303e7a3a3c2b16c83690b765368cafebae549d92 plus VERSION_HISTORY.md SHA-256 9adc6f17a93425a0dbc671fc6f25723532e2693390ba1e7d75177688f54f4280`
+- status: `COMPLETED`
+- canonical_extension_path: `Boost::launch가 child stderr를 startup 오류 판정과 실행 중 bounded helper log 양쪽에 연결한다`
+- implementation: `running_worker_alive 확인 직전에 보유한 ChildStderr를 background capture thread로 이전해 child 수명 동안 reader를 유지한다`
+- affected_files: `desktop/backend/src/boost.rs`, `test/application-reliability.test.mjs`, canonical/run 기록
+- writer_reader_boundary: `affinity helper가 stderr writer이며 coordinator가 startup 중 reader를 소유하고 성공 후 helper_log capture thread로 소유권을 이전한다`
+- tests: `Rust backend locked tests, targeted Node contract, 전체 Node suite, packaged affinity helper 지속 실행·중복 차단`
+- package: `npm run package:win으로 signed 0.4.9 installer·portable 생성 후 signature·size·payload 검증`
+- stop_condition: `필수 검사 PASS, SELF_REVIEW APPROVED, signed 패키지 증거와 exact target 기록, local checkpoint commits`
+- rollback: `helper stderr capture 변경을 되돌리고 이전 package를 사용하지 않는다`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — affinity helper 지속 실행 복구`
+- feature_map: `updated — canonical revision 41, feature revision 18`
+- architecture_impact: `coordinator-worker stderr handle ownership과 bounded logging`
+- architecture_contract: `updated — revision 45`

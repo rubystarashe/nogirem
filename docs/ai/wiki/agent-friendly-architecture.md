@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `44`
-- updated_at: `2026-10-20T04:27:00Z`
+- revision: `45`
+- updated_at: `2026-10-20T07:36:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T04:27:00Z`
+- source_reviewed_at: `2026-10-20T07:36:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e`
-- source_review_evidence: `HelperLock exact process identity, owner-only drop, launch status·stderr와 0.4.9 package SELF_REVIEW`
-- behavior_verified_at: `2026-10-20T04:27:00Z`
+- source_review_target: `package source base 303e7a3a3c2b16c83690b765368cafebae549d92 with VERSION_HISTORY.md SHA-256 9adc6f17a93425a0dbc671fc6f25723532e2693390ba1e7d75177688f54f4280`
+- source_review_evidence: `Boost::launch startup stderr reader ownership transfer와 bounded helper log capture SELF_REVIEW`
+- behavior_verified_at: `2026-10-20T07:36:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `package source 640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e; signed package release/dioxus-0.4.9-2026-10-20T04-22-57-674Z`
+- behavior_verification_target: `package source base 303e7a3a3c2b16c83690b765368cafebae549d92 plus recorded VERSION_HISTORY.md; signed package release/dioxus-0.4.9-2026-10-20T07-28-28-451Z`
 - behavior_verification_environment: `Windows 10.0.26200 x64, Rust/Node locked checks와 packaged native process integration`
-- behavior_verification_evidence: `backend 130 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, native integration 3/3, packaged duplicate helper 차단·graceful stop, Ed25519·payload PASS`
+- behavior_verification_evidence: `backend 130 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, packaged status write 오류 7초 동안 same PID·stderr capture·reset PASS, Ed25519·payload PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 0.4.9 source와 signed package의 affinity helper single-writer 경계를 반영`
-- known_gaps: `실제 0.4.8 설치본 upgrade의 기존 중복 helper 정리, 실제 game affinity와 설치·제거 UI는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — affinity helper 단일 writer와 시작 오류 진단 개선`
-- feature_map: `updated — canonical revision 40, feature revision 17`
-- architecture_impact: `helper lock exact process ownership과 startup status·stderr 경계`
-- architecture_contract: `updated — revision 44`
+- freshness_reason: `현재 0.4.9 교체 package의 helper stderr reader 지속성과 single-writer 경계를 반영`
+- known_gaps: `실제 설치본 교체, 실제 game affinity와 설치·제거 UI는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — helper stderr broken pipe 반복 종료 회귀 수정`
+- feature_map: `updated — canonical revision 41, feature revision 18`
+- architecture_impact: `coordinator에서 bounded helper logger로 stderr reader ownership 이전`
+- architecture_contract: `updated — revision 45`
 
 ## 계층과 확장 경로
 
@@ -50,7 +50,7 @@
 - Radeon helper는 호환 드라이버의 ADLX `I3DSettings`만 사용하고 수직 동기화·Enhanced Sync·Anti-Lag·Chill만 처리한다. GPU tuning·성능 monitoring API와 `InitializeWithIncompatibleDriver`는 금지하며 결과의 `tuningAccessed:false` 계약이 없으면 Rust·Electron 호출자가 실패로 처리한다.
 - Radeon 명시 적용은 모든 대상 GPU의 네 3D 설정을 먼저 snapshot한다. 항목 실패 시 snapshot 복원을 시도하고 최종 목표 상태와 복원 오류를 반환하며, helper reason이 있으면 caller는 게임 VSync를 변경하지 않는다.
 - UI runtime polling은 한 helper 요청 실패로 영구 종료하지 않는다. 실패한 기능의 `running`·`gameActive`를 false로 보정하고 다음 주기에 재조회한다.
-- affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다. helper lock도 PID와 process 시작 시각을 함께 기록하며 살아 있는 exact owner의 lock을 status 부재·staleness만으로 삭제하지 않는다. lock drop은 현재 record가 자신의 exact identity일 때만 파일을 삭제한다.
+- affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다. helper lock도 PID와 process 시작 시각을 함께 기록하며 살아 있는 exact owner의 lock을 status 부재·staleness만으로 삭제하지 않는다. lock drop은 현재 record가 자신의 exact identity일 때만 파일을 삭제한다. coordinator는 시작 전 종료의 stderr를 직접 읽고, 시작 성공 시 같은 pipe reader를 bounded `helper-stderr.log` capture thread로 이전한다. 실행 중 stderr reader를 닫아 worker가 broken pipe로 종료되게 해서는 안 된다.
 - CPU topology와 mask 계산은 `topology.rs`만 소유한다. CPU Set의 `EfficiencyClass`로 P/E 소속을 판별하고 `SchedulingClass`는 같은 P-core 후보의 우선 선택에만 사용한다. 이를 GLPIEx physical core·SMT mask·L3 cache·processor group과 `(group, logical processor)`로 결합하고, 같은 L3 domain을 우선하되 cache 크기를 성능 등급으로 사용하지 않는다.
 - 단일 `u64` process affinity로 표현할 수 없는 복수 processor group은 CPU 분할을 fail-safe로 비활성화한다. 물리 코어 수만으로 비활성화하지 않으며 단일 P-core 비하이브리드처럼 game/background 역할 mask를 만들 수 없는 경우에만 사유를 전달한다. logical-half fallback이나 잘린 mask를 적용해서는 안 된다.
 - P-core 개수 mask와 mode별 자동값은 `topology.rs`가 소유하고 affinity 적용 여부는 `affinity.rs`가 결정한다. focus는 balanced보다 최대 두 P-core를 더 선택하며 balanced/safe는 기존 자동값을 사용한다. focus/balanced는 game mask를 적용하고 safe는 게임을 고정하지 않는다. hybrid all-P에서는 background가 E-core-only가 되지 않도록 한 물리 P-core mask의 중첩을 허용한다. CPU 재정렬 capability는 현재 game mask와 겹치지 않는 동일 물리 P-core 수의 alternate mask가 존재할 때만 true이며 UI는 이 값을 우회해 실행 요청을 보내서는 안 된다.
@@ -79,7 +79,7 @@
 
 ## 실시간 helper 상태와 게임 경로
 
-- affinity·memory worker는 `status.json`에 `helperPid`, `helperStartedAt`, `updatedAt`, `running`, `gameActive`를 함께 기록한다. backend는 시작 요청 이후의 최신 timestamp와 exact PID 시작 identity를 모두 만족할 때만 새 실행을 성공으로 인정하고, child가 먼저 종료되면 pipe로 보존한 stderr 원인을 사용자에게 전달한다.
+- affinity·memory worker는 `status.json`에 `helperPid`, `helperStartedAt`, `updatedAt`, `running`, `gameActive`를 함께 기록한다. backend는 시작 요청 이후의 최신 timestamp와 exact PID 시작 identity를 모두 만족할 때만 새 실행을 성공으로 인정하고, child가 먼저 종료되면 pipe로 보존한 stderr 원인을 사용자에게 전달한다. 시작 성공 후 pipe reader는 worker 수명 동안 bounded logger가 소유한다.
 - 메인 화면의 Vulkan 관리 control 아래에서 focus/balanced/safe preset을 선택한다. focus/balanced는 게임을 계산된 P-core mask에 고정하고 safe는 Windows scheduler에 맡긴다. focus preset은 일반 background role의 priority 하향도 함께 켜며 balanced/safe는 끈다. 고급 기능에서 count·safe·priority를 독립 변경할 수 있고 표준 조합과 다르면 사용자화로 투영한다.
 - `helperStartedAt`이 없는 신선한 0.4.2 status와 살아 있는 PID는 migration 대상으로만 인정한다. 새 helper가 lock을 경쟁하기 전에 기존 control 경로로 중단하고 동일 PID·시작 시각 instance의 종료를 확인한다.
 - UI는 2초 runtime polling을 유지한다. 개별 affinity/memory 오류는 사용자에게 한 번 표시할 수 있지만 polling task 자체를 종료하거나 이전 `gameActive=true`를 유지하지 않는다.

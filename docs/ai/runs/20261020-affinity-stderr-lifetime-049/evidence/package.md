@@ -1,0 +1,27 @@
+# Evidence — replacement package
+
+- evidence_id: `EVID-AFFINITY-STDERR-LIFETIME-049-PACKAGE`
+- producer: `cursor-agent-92251f36`
+- created_at: `2026-10-20T07:36:00Z`
+- run_id: `20261020-affinity-stderr-lifetime-049`
+- checkpoint_id: `CP-AFFINITY-STDERR-LIFETIME-049`
+- source_target: `base 303e7a3a3c2b16c83690b765368cafebae549d92; VERSION_HISTORY.md modified SHA-256 9adc6f17a93425a0dbc671fc6f25723532e2693390ba1e7d75177688f54f4280`
+- source_patch: `git diff --binary -- VERSION_HISTORY.md, UTF-8 PowerShell capture, 425 bytes, SHA-256 92591c2b0c8a604da13e6ec59c457f4418f3c90150070086fc98a024868e2f1f`
+- execution_target: `release/dioxus-0.4.9-2026-10-20T07-28-28-451Z`
+- procedure: `npm run package:win; package-generated signature verification; isolated packaged native service stderr lifetime scenario`
+- installer: `nogirem-dioxus-setup-0.4.9.exe, 8,015,406 bytes, SHA-256 0778b7c1b383931bb28da4f89a18be31cc2fd7bc1f7d91d2d26abffe3c78c663`
+- portable: `nogirem-dioxus-portable-0.4.9.exe, 7,790,730 bytes, SHA-256 b2dd3e7ddf7d957972763e10e4889a1a737b14bd1e1ad58958d5b5f26f6d359a`
+- update_manifest: `update.json SHA-256 850f4dbf2914b11d60b7f37544cf507e9a4a741535b73acb2930e72ea0820c74`
+- portable_manifest: `portable-update.json SHA-256 0861912df773f687b268286810cedf0f5e7dd8853c3fafcde4705a1b05e2a26d`
+- packaged_app: `installer·portable nogirem.exe SHA-256 5f8ca7681231a3165ff536e5133e4c53deeb08e12259f46e22c8906bd6d18aab`
+- recorder_helper: `repository·installer·portable SHA-256 ade45241b95b86231785fcbc797877fde6a99625b7f3ffa7c6651efd174f796f`
+- version_history: `working tree·installer payload SHA-256 9adc6f17a93425a0dbc671fc6f25723532e2693390ba1e7d75177688f54f4280`
+- runtime_actual: `PASS — safe mode packaged helper PID 54548; 7초 status file write failure 후 같은 PID; bounded stderr capture 확인; reset 성공`
+- expected: `helper가 startup 뒤 stderr를 기록해도 coordinator pipe가 유지되어 종료되지 않음`
+- outcome: `PASS`
+- sanitization: `temporary isolated user data removed; 사용자 경로 외 credential·private data 없음`
+- limitations: `실제 설치·포터블 launcher·실제 마비노기 affinity·배포는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — replacement package에 stderr lifetime fix 포함`
+- feature_map: `updated — canonical revision 41, feature revision 18`
+- architecture_impact: `bounded helper stderr drain lifetime`
+- architecture_contract: `updated — revision 45`

@@ -1,0 +1,24 @@
+# Handoff
+
+- record_id: `HANDOFF-AFFINITY-STDERR-LIFETIME-049`
+- run_id: `20261020-affinity-stderr-lifetime-049`
+- checkpoint_id: `CP-AFFINITY-STDERR-LIFETIME-049`
+- owner: `cursor-agent-92251f36`
+- created_at: `2026-10-20T07:36:00Z`
+- status: `COMPLETED`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
+- review: `APPROVED, SELF_REVIEW`
+- source_target: `base 303e7a3a3c2b16c83690b765368cafebae549d92 plus VERSION_HISTORY.md SHA-256 9adc6f17a93425a0dbc671fc6f25723532e2693390ba1e7d75177688f54f4280`
+- package_target: `release/dioxus-0.4.9-2026-10-20T07-28-28-451Z`
+- completed: `startup 성공 뒤 child stderr를 bounded capture thread가 계속 drain해 affinity helper 반복 종료를 차단`
+- checks: `backend 130 PASS·3 ignored, parity 2/2, desktop 8/8, Node 213/213, release assets 3/3, packaged stderr lifetime integration PASS`
+- installer: `8,015,406 bytes, SHA-256 0778b7c1b383931bb28da4f89a18be31cc2fd7bc1f7d91d2d26abffe3c78c663`
+- portable: `7,790,730 bytes, SHA-256 b2dd3e7ddf7d957972763e10e4889a1a737b14bd1e1ad58958d5b5f26f6d359a`
+- pending: `actual install, portable launcher UI, actual game affinity, push and deployment`
+- unrelated_work: `사용자 VERSION_HISTORY.md 삭제 1줄은 package 입력으로만 기록하고 commit하지 않음; line-ending-only backend status와 untracked data/ 보존`
+- resume: `배포가 별도 승인되면 package target의 두 signed artifact와 manifests를 release assembly 입력으로 사용`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — helper stderr lifetime 회귀 수정`
+- feature_map: `updated — canonical revision 41, feature revision 18`
+- architecture_impact: `coordinator-to-logger stderr ownership transfer`
+- architecture_contract: `updated — revision 45`

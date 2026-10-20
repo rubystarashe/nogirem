@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-20 13:27 +09:00
+Last Updated: 2026-10-20 16:36 +09:00
 
 ## Current Objective
-affinity helper lock·status 경합으로 복수 writer가 실행되던 문제를 수정하고 실제 child 오류를 보존하는 signed 0.4.9 설치형·포터블을 생성했다.
+0.4.9 startup 성공 뒤 stderr reader가 닫혀 affinity helper가 반복 종료되던 회귀를 수정하고 signed 교체 설치형·포터블을 생성했다.
 
 ## Active Runs
+- `20261020-affinity-stderr-lifetime-049`: implementation `ee34cad9f1a253f4129c1fbf865a59d767efca60`, package source base `303e7a3a3c2b16c83690b765368cafebae549d92`와 사용자 `VERSION_HISTORY.md` SHA-256 `9adc6f17...4280`에서 startup 뒤 stderr reader를 bounded capture thread로 이전했다. packaged status write 오류 7초 동안 같은 helper PID 유지·stderr capture·reset, backend 130 PASS·3 ignored, parity 2/2, desktop 8/8, Node 213/213이 통과했다. signed 0.4.9 교체 설치형은 `8,015,406 bytes` SHA-256 `0778b7c1...c663`, 포터블은 `7,790,730 bytes` SHA-256 `b2dd3e7d...359a`; 배포·실제 설치·게임 affinity QA는 NOT_RUN이다. (`docs/ai/runs/20261020-affinity-stderr-lifetime-049/final-report.md`)
 - `20261020-affinity-single-writer-049`: package source `640de3b4a3fd7ca646f4f8310a2ce7f71e0a653e`에서 exact PID·process start identity lock과 owner-only drop으로 live affinity helper lock 탈취를 막고 startup status 선삭제를 제거했다. child stderr를 사용자 오류로 전달하고 memory helper도 시작 identity를 기록한다. backend 130 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 213/213, native integration 3/3, packaged duplicate helper 차단이 통과했다. signed 0.4.9 설치형은 `8,014,458 bytes`, 포터블은 `7,789,775 bytes`; 배포와 실제 설치·게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261020-affinity-single-writer-049/final-report.md`)
 - `20261020-nonsolid-package-048`: source `a2db18fb08eecf201de4d77759c814bb74c3eaa8`에서 non-solid LZMA, recorder helper 단일화, external WebView2 prerequisite와 128kbps 시작 음악을 적용했다. source를 origin/main에 push하고 [GitHub v0.4.8](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.8)의 Rust 자산 6개를 feed-safe 순서로 대치했다. 공개 9/9 hash, Ed25519 manifests, aliases, Electron asset ID 보존과 release note를 재검증했다. 실제 설치·제거·포터블 실행·same-version 자동 재수신은 NOT_RUN이다. (`docs/ai/runs/20261020-nonsolid-package-048/final-report.md`)
 - `20261019-notice-publish-048`: 사용자 작성 `NOTICE.md` SHA-256 `90b88036...cba3`를 commit `5e93686152bbf87cb63e1207da2f6b389c136244`로 origin/main에 게시했다. GitHub API main과 commit 고정 raw URL은 새 제목을 반환한다. 앱의 branch raw URL은 2026-10-19T14:49Z 현재 이전 공지를 반환하므로 CDN 캐시 만료 후 재확인이 남았다. 앱 source·package·Release assets는 변경하지 않았다. (`docs/ai/runs/20261019-notice-publish-048/task.md`)
