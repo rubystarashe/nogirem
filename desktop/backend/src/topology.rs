@@ -534,7 +534,7 @@ fn parse_relationships(data: &[u8], expected: i32) -> Result<Vec<Vec<GroupMask>>
                 continue;
             }
             (
-                usize::from(relation.GroupCount),
+                usize::from(relation.GroupCount).max(1),
                 base + std::mem::offset_of!(CACHE_RELATIONSHIP, Anonymous),
             )
         } else {
@@ -891,6 +891,34 @@ mod tests {
         assert!(parse_cpu_sets(&[0; 8]).is_err());
         assert!(parse_relationships(&[0; 8], RelationProcessorCore).is_err());
         assert!(parse_groups(&[0; 8]).is_err());
+    }
+
+    fn cache_record(group_count: u16, mask: u64) -> Vec<u8> {
+        let base = 8;
+        let size = base + std::mem::size_of::<CACHE_RELATIONSHIP>();
+        let mut data = vec![0u8; size];
+        data[..4].copy_from_slice(&RelationCache.to_le_bytes());
+        data[4..8].copy_from_slice(&(size as u32).to_le_bytes());
+        data[base] = 3;
+        let count = base + std::mem::offset_of!(CACHE_RELATIONSHIP, GroupCount);
+        data[count..count + 2].copy_from_slice(&group_count.to_ne_bytes());
+        let affinity = base + std::mem::offset_of!(CACHE_RELATIONSHIP, Anonymous);
+        data[affinity..affinity + std::mem::size_of::<usize>()]
+            .copy_from_slice(&(mask as usize).to_ne_bytes());
+        data
+    }
+
+    #[test]
+    fn windows_10_cache_group_count_0은_단일_mask로_해석한다() {
+        let parsed = parse_relationships(&cache_record(0, 0b11_1111), RelationCache).unwrap();
+        assert_eq!(
+            parsed,
+            vec![vec![GroupMask {
+                group: 0,
+                mask: 0b11_1111
+            }]]
+        );
+        assert!(parse_relationships(&cache_record(2, 0b11_1111), RelationCache).is_err());
     }
 
     #[test]
