@@ -1,0 +1,23 @@
+# Plan
+
+- record_id: `PLAN-RELEASE-0410`
+- run_id: `20261021-release-0410`
+- checkpoint_id: `CP-RELEASE-0410`
+- owner: `cursor-agent-92251f36`
+- created_at: `2026-10-21T14:32:00Z`
+- status: `IN_PROGRESS`
+- checkpoint_1: `0.4.10 version·history·lock과 release records 정합화`
+- checkpoint_2: `backend·parity·desktop·Node 검사와 SELF_REVIEW`
+- checkpoint_3: `clean committed target에서 signed 설치형·포터블과 update assets 생성·검증`
+- checkpoint_4: `origin/main push, annotated v0.4.10, GitHub Latest 공개 후 public asset 재다운로드 검증`
+- checkpoint_5: `canonical freshness·handoff·final report 갱신과 최종 commit·push`
+- canonical_extension_path: `topology.rs Win32 adapter → existing package-dioxus signed release path`
+- writers_readers: `topology parser는 read-only OS adapter; package script만 release 산출물 writer; GitHub Release가 public update asset source`
+- rollback: `공개 전 실패는 배포 중단; 공개 중 실패는 incomplete release를 Latest로 남기지 않고 자산 완성 또는 release 삭제`
+- tests: `backend, parity, desktop tests/check, Node, package contract, Ed25519, payload, public hash·aliases·routing`
+- review: `SELF_REVIEW; independent reviewer 미참여 공개`
+- stop_condition: `public 0.4.10 검증과 final records commit·push`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.10`
+- feature_map: `updated — source/package/public target 반영`
+- architecture_impact: `GLPIEx parser와 signed release/update routing`
+- architecture_contract: `updated — source/package/public enforcement evidence 반영`

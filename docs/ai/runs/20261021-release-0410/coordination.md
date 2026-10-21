@@ -1,0 +1,24 @@
+# Coordination
+
+- record_id: `COORD-RELEASE-0410`
+- run_id: `20261021-release-0410`
+- checkpoint_id: `CP-RELEASE-0410`
+- owner: `cursor-agent-92251f36`
+- updated_at: `2026-10-21T14:32:00Z`
+- roles: `Coordinator=DEV=QA=Reviewer=Feature owner=Architecture owner=Documentation maintainer=cursor-agent-92251f36`
+- review_mode: `SELF_REVIEW — 독립 reviewer 없음`
+- active_checkpoint: `CP-RELEASE-0410`
+- dev_state: `IN_PROGRESS`
+- qa_state: `PLANNED`
+- review_state: `NOT_REVIEWED`
+- source_base: `bbe0ebc4714578b04895fbce774cacf4d87c6c28`
+- implementation_target: `391773f6f19397d20b95c15d96b89ee29c8e85de plus 0.4.10 release changes`
+- worktree: `C:\Users\User\Documents\GitHub\nogirem-win10-cache`
+- ownership: `isolated fix/win10-cache-topology worktree; main worktree dirty changes untouched`
+- concurrent_work: `main worktree의 기존 수정과 data/는 out-of-scope이며 보존`
+- external_writes_authorized: `origin/main push, annotated v0.4.10 push, GitHub Release publish`
+- blockers: `none`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.10`
+- feature_map: `updated — release 완료 시 freshness 갱신`
+- architecture_impact: `GLPIEx compatibility와 signed package/update boundary`
+- architecture_contract: `updated — release 완료 시 freshness 갱신`

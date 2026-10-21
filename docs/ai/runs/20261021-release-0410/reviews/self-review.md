@@ -1,0 +1,21 @@
+# Self review
+
+- review_id: `REV-RELEASE-0410-R1`
+- run_id: `20261021-release-0410`
+- checkpoint_id: `CP-RELEASE-0410`
+- reviewer: `cursor-agent-92251f36`
+- review_mode: `SELF_REVIEW`
+- reviewed_at: `2026-10-21T14:36:00Z`
+- target: `e90af1a implementation plus 0.4.10 version/history/lock and release records diff`
+- request: `Windows 10 parser 수정과 public 0.4.10 준비 범위 검토`
+- acknowledgment: `동일 agent의 SELF_REVIEW이며 독립 reviewer가 없음을 확인`
+- inspected: `RelationCache fallback 한정성, bounds 유지, regression, version manifests와 lock 정합성, release authorization·rollback·asset boundary`
+- findings: `mandatory finding 0`
+- assessment: `제보된 6C/6T·6C/12T·8C/16T 오류는 동일 Windows 10 legacy cache layout으로 수렴하며 CPU별 우회 없이 parser adapter에서 해결한다. 버전 변경은 package/Cargo manifests와 두 lock에만 일관되게 반영됐다.`
+- verdict: `APPROVED`
+- stale: `false — package/public target 생성 뒤 asset review를 추가 기록`
+- limitations: `실제 제보 PC와 signed package/public 재다운로드는 아직 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — public evidence pending`
+- architecture_impact: `GLPIEx parser와 release boundary`
+- architecture_contract: `updated — public evidence pending`

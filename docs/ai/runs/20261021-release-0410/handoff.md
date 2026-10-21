@@ -1,0 +1,25 @@
+# Handoff
+
+- record_id: `HANDOFF-RELEASE-0410`
+- run_id: `20261021-release-0410`
+- checkpoint_id: `CP-RELEASE-0410`
+- owner: `cursor-agent-92251f36`
+- updated_at: `2026-10-21T14:36:00Z`
+- status: `IN_PROGRESS`
+- DEV: `READY_FOR_REVIEW`
+- QA: `IN_PROGRESS`
+- review: `SELF_REVIEW APPROVED for source preparation; package/public asset review pending`
+- authorized_scope: `0.4.10 기록, package, origin/main·tag push, GitHub Release publish와 검증`
+- source_target: `implementation 391773f plus reviewed version/release diff; commit pending`
+- execution_target: `source checks only; package/public pending`
+- completed: `Windows 10 parser fix, version/history/locks, source checks와 release intake`
+- checks: `backend 133 PASS·3 ignored, parity 2/2, desktop 8/8·locked check, Node 215/215, lint 0`
+- pending: `release source commit, signed package, public release, canonical freshness와 final records`
+- unrelated_work: `main worktree dirty backend/helper/data changes preserved and excluded`
+- blocker: `none`
+- working_directory: `C:\Users\User\Documents\GitHub\nogirem-win10-cache`
+- next_authorized_action: `명시 파일만 stage·commit한 뒤 clean HEAD package`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — 0.4.10`
+- feature_map: `updated — public evidence pending`
+- architecture_impact: `GLPIEx parser와 signed release/update boundary`
+- architecture_contract: `updated — public evidence pending`

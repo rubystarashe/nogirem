@@ -1,0 +1,24 @@
+# QA
+
+- record_id: `QA-RELEASE-0410`
+- run_id: `20261021-release-0410`
+- checkpoint_id: `CP-RELEASE-0410`
+- owner: `cursor-agent-92251f36 acting as DEV-as-QA`
+- updated_at: `2026-10-21T14:36:00Z`
+- state: `IN_PROGRESS`
+- source_target: `base 391773f6f19397d20b95c15d96b89ee29c8e85de plus reviewed 0.4.10 version release diff`
+- execution_target: `Windows 10.0.26200 x64 source checks; package/public target pending`
+- `BOOST-019`: `PASS — legacy GroupCount=0 단일 GroupMask와 malformed multi-mask 회귀`
+- `BACKEND`: `PASS — 133 passed, 3 ignored, parity 2/2`
+- `DESKTOP`: `PASS — 8/8와 locked cargo check`
+- `NODE`: `PASS — 215/215`
+- `LINT`: `PASS — 변경 Rust/TOML IDE diagnostics 0`
+- `PACKAGE`: `NOT_RUN — source commit 뒤 clean target에서 실행 예정`
+- `PUBLIC`: `NOT_RUN — package 검증 뒤 실행 예정`
+- manually_exercised: `none`
+- affected_user_pc: `NOT_RUN — 제보 Windows 10 장치에 접근하지 않음`
+- review_mode: `SELF_REVIEW`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — 0.4.10`
+- feature_map: `updated — package/public evidence 완료 후 freshness 확정`
+- architecture_impact: `GLPIEx compatibility와 signed release routing`
+- architecture_contract: `updated — package/public evidence 완료 후 freshness 확정`
