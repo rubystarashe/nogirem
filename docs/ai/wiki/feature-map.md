@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `45`
-- updated_at: `2026-10-21T14:10:00Z`
+- revision: `46`
+- updated_at: `2026-10-21T14:46:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-21T14:10:00Z`
+- source_reviewed_at: `2026-10-21T14:46:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
-- source_review_evidence: `Windows 10 legacy cache GroupCount=0 raw record parser와 current multi-mask bounds SELF_REVIEW`
-- behavior_verified_at: `2026-10-21T14:10:00Z`
+- source_review_target: `c491d17dde9223e7aca3f1c33ae9341b58339fb9; annotated v0.4.10`
+- source_review_evidence: `Windows 10 legacy cache parser, 0.4.10 version·lock, package/update assembly SELF_REVIEW`
+- behavior_verified_at: `2026-10-21T14:46:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
-- behavior_verification_environment: `Windows 10.0.26200 x64, raw legacy GLPIEx fixture와 locked Rust/Node tests`
-- behavior_verification_evidence: `legacy GroupCount=0 parse와 GroupCount=2 truncated rejection PASS; backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215`
+- behavior_verification_target: `source c491d17dde9223e7aca3f1c33ae9341b58339fb9; GitHub public v0.4.10`
+- behavior_verification_environment: `Windows 10.0.26200 x64, locked checks, signed package와 GitHub public Release 재다운로드`
+- behavior_verification_evidence: `legacy parser 회귀, backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215, native integration 3/3, package와 공개 9/9 hash·Ed25519·aliases·Electron routing PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `committed source의 Windows 10 legacy cache mask compatibility와 자동 검증 범위를 반영`
-- known_gaps: `제보 i5-9400F Windows 10 실제 실행, package·push·public 배포는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — Windows 10 CPU 분할 지원 복구`
-- feature_map: `updated — canonical revision 45, frame revision 21`
-- architecture_impact: `GLPIEx cache topology legacy/current 구조 호환`
-- architecture_contract: `updated — revision 49`
+- freshness_reason: `annotated v0.4.10과 public signed assets가 reviewed Windows 10 parser source와 일치`
+- known_gaps: `제보 Windows 10 실기기 설치·게임 QA와 버전 간 자동 업데이트는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — Windows 10 CPU 분할 복구의 public 0.4.10`
+- feature_map: `updated — canonical revision 46, frame revision 22, update revision 15`
+- architecture_impact: `GLPIEx cache topology 호환과 signed package/public update routing`
+- architecture_contract: `updated — revision 50`
 
 ## ID 할당
 
@@ -135,25 +135,25 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `21`
-- updated_at: `2026-10-21T14:10:00Z`
+- revision: `22`
+- updated_at: `2026-10-21T14:46:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-21T14:10:00Z`
+- source_reviewed_at: `2026-10-21T14:46:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
-- source_review_evidence: `SELF_REVIEW of RelationCache GroupCount=0 fallback, union mask offset와 GroupCount>0 bounds rejection`
-- behavior_verified_at: `2026-10-21T14:10:00Z`
+- source_review_target: `c491d17dde9223e7aca3f1c33ae9341b58339fb9; annotated v0.4.10`
+- source_review_evidence: `SELF_REVIEW of RelationCache GroupCount=0 fallback, bounds rejection와 packaged 0.4.10 source identity`
+- behavior_verified_at: `2026-10-21T14:46:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
-- behavior_verification_environment: `Windows 10.0.26200 x64 automated raw Win32 fixture`
-- behavior_verification_evidence: `BOOST-019 fixture PASS; backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215`
+- behavior_verification_target: `source c491d17dde9223e7aca3f1c33ae9341b58339fb9; GitHub public v0.4.10`
+- behavior_verification_environment: `Windows 10.0.26200 x64 automated fixture, signed package와 public Release`
+- behavior_verification_evidence: `BOOST-019 fixture, backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215, native integration 3/3, signed package·public hash PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `committed source의 Windows 10 legacy cache record 지원과 자동 검증을 반영`
-- known_gaps: `제보 i5-9400F Windows 10 실기기 실행, package·push·배포는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — Windows 10 CPU cache topology parse 복구`
-- feature_map: `updated — revision 21`
-- architecture_impact: `GLPIEx cache relationship 호환 parser`
-- architecture_contract: `updated — revision 49`
+- freshness_reason: `public 0.4.10이 reviewed Windows 10 legacy cache parser source를 포함`
+- known_gaps: `제보 Windows 10 실기기 설치·부스트 모드·게임 affinity 수동 QA는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — public 0.4.10 Windows 10 CPU cache topology 복구`
+- feature_map: `updated — revision 22`
+- architecture_impact: `GLPIEx cache relationship 호환 parser와 packaged runtime`
+- architecture_contract: `updated — revision 50`
 
 ## FEAT-NOGIREM-TURBO-KEY
 
@@ -317,22 +317,22 @@
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).
 - owner: `release/update owner`
-- revision: `14`
-- updated_at: `2026-10-20T10:24:00Z`
+- revision: `15`
+- updated_at: `2026-10-21T14:46:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T10:24:00Z`
+- source_reviewed_at: `2026-10-21T14:46:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `a4f2dc4303d6c728d89cf5ad742a86618e158891; annotated v0.4.9`
-- source_review_evidence: `startup task retry·unknown fallback·Dioxus 확인 불가 projection, package script와 release assembly SELF_REVIEW`
-- behavior_verified_at: `2026-10-20T10:24:00Z`
+- source_review_target: `c491d17dde9223e7aca3f1c33ae9341b58339fb9; annotated v0.4.10`
+- source_review_evidence: `0.4.10 manifests·locks, package script, Ed25519 manifests와 9-asset release assembly SELF_REVIEW`
+- behavior_verified_at: `2026-10-21T14:46:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source a4f2dc4303d6c728d89cf5ad742a86618e158891; GitHub public v0.4.9`
+- behavior_verification_target: `source c491d17dde9223e7aca3f1c33ae9341b58339fb9; GitHub public v0.4.10`
 - behavior_verification_environment: `Windows 10.0.26200 x64 package QA와 GitHub public Release 재다운로드`
-- behavior_verification_evidence: `backend 132 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 215/215, clean package와 공개 9/9 hash·Ed25519 manifests·byte-identical aliases·Electron 0.3.19 routing PASS`
+- behavior_verification_evidence: `backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 215/215, native integration 3/3, signed package와 공개 9/9 hash·Ed25519 manifests·byte-identical aliases·Electron 0.3.19 routing PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `현재 startup 조회 failure containment source와 public Latest v0.4.9 signed asset set을 반영했다.`
-- known_gaps: `제보 PC에서 실제 E_FAIL 강제 재현, WebView2 미설치 PC 안내, 실제 0.4.9 설치·제거·포터블 실행과 버전 간 자동 업데이트는 NOT_RUN.`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — startup task read failure containment와 public signed 0.4.9 replacement`
-- feature_map: `updated — revision 14`
-- architecture_impact: `PowerShell startup read adapter failure containment와 package signing·GitHub Release routing`
-- architecture_contract: `updated — revision 48`
+- freshness_reason: `public Latest v0.4.10 signed asset set과 update routing을 재다운로드 검증했다.`
+- known_gaps: `WebView2 미설치 PC 안내, 실제 0.4.10 설치·제거·포터블 실행과 버전 간 자동 업데이트는 NOT_RUN.`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — public signed 0.4.10 release와 update routing`
+- feature_map: `updated — revision 15`
+- architecture_impact: `package signing·GitHub Release·Rust/Electron update routing`
+- architecture_contract: `updated — revision 50`

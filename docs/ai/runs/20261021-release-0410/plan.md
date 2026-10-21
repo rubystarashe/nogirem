@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-RELEASE-0410`
 - owner: `cursor-agent-92251f36`
 - created_at: `2026-10-21T14:32:00Z`
-- status: `IN_PROGRESS`
+- status: `COMPLETED`
 - checkpoint_1: `0.4.10 version·history·lock과 release records 정합화`
 - checkpoint_2: `backend·parity·desktop·Node 검사와 SELF_REVIEW`
 - checkpoint_3: `clean committed target에서 signed 설치형·포터블과 update assets 생성·검증`

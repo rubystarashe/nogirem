@@ -4,21 +4,24 @@
 - run_id: `20261021-release-0410`
 - checkpoint_id: `CP-RELEASE-0410`
 - owner: `cursor-agent-92251f36 acting as DEV-as-QA`
-- updated_at: `2026-10-21T14:36:00Z`
-- state: `IN_PROGRESS`
-- source_target: `base 391773f6f19397d20b95c15d96b89ee29c8e85de plus reviewed 0.4.10 version release diff`
-- execution_target: `Windows 10.0.26200 x64 source checks; package/public target pending`
+- updated_at: `2026-10-21T14:46:00Z`
+- state: `COMPLETE_PASS`
+- source_target: `c491d17dde9223e7aca3f1c33ae9341b58339fb9; annotated v0.4.10 tag object 43f701816d6efd8f55cac734aa51e218a5452cf0`
+- execution_target: `release/dioxus-0.4.10-2026-10-21T14-38-00-796Z; GitHub public Latest v0.4.10`
 - `BOOST-019`: `PASS — legacy GroupCount=0 단일 GroupMask와 malformed multi-mask 회귀`
 - `BACKEND`: `PASS — 133 passed, 3 ignored, parity 2/2`
 - `DESKTOP`: `PASS — 8/8와 locked cargo check`
 - `NODE`: `PASS — 215/215`
 - `LINT`: `PASS — 변경 Rust/TOML IDE diagnostics 0`
-- `PACKAGE`: `NOT_RUN — source commit 뒤 clean target에서 실행 예정`
-- `PUBLIC`: `NOT_RUN — package 검증 뒤 실행 예정`
+- `NATIVE-INTEGRATION`: `PASS on retest — 최초 invocation은 debug binary 부재 ENOENT로 FAIL; locked debug build 후 memory·affinity·TCP read-only 3/3 재실행 통과`
+- `PACKAGE`: `PASS — signed installer 8,020,584 bytes SHA-256 b9781ff3531eb9b622873fdeb6426dd9de9956857c59d59c991ade5d5330649a; portable 7,795,954 bytes SHA-256 471b521026e3f8ec9dfd178820ebe9d482d96054db18cc848e3ff93ddd21f48e`
+- `PUBLIC`: `PASS — Latest v0.4.10, canonical assets 9/9, local/public SHA-256 일치`
+- `SIGNATURE`: `PASS — public update.json·portable-update.json Ed25519, payload version·size·SHA-256`
+- `ROUTING`: `PASS — setup/portable aliases byte-identical, latest.yml 0.3.19 Electron migration과 blockmap 보존`
 - manually_exercised: `none`
 - affected_user_pc: `NOT_RUN — 제보 Windows 10 장치에 접근하지 않음`
 - review_mode: `SELF_REVIEW`
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — 0.4.10`
-- feature_map: `updated — package/public evidence 완료 후 freshness 확정`
+- feature_map: `updated — canonical 46, frame 22, update 15`
 - architecture_impact: `GLPIEx compatibility와 signed release routing`
-- architecture_contract: `updated — package/public evidence 완료 후 freshness 확정`
+- architecture_contract: `updated — revision 50`

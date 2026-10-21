@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `49`
-- updated_at: `2026-10-21T14:10:00Z`
+- revision: `50`
+- updated_at: `2026-10-21T14:46:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-21T14:10:00Z`
+- source_reviewed_at: `2026-10-21T14:46:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
-- source_review_evidence: `GLPIEx legacy/current cache relationship layout와 bounds SELF_REVIEW`
-- behavior_verified_at: `2026-10-21T14:10:00Z`
+- source_review_target: `c491d17dde9223e7aca3f1c33ae9341b58339fb9; annotated v0.4.10`
+- source_review_evidence: `GLPIEx legacy/current cache relationship, version manifests와 signed release boundary SELF_REVIEW`
+- behavior_verified_at: `2026-10-21T14:46:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
-- behavior_verification_environment: `Windows 10.0.26200 x64, raw legacy GLPIEx fixture와 locked Rust/Node checks`
-- behavior_verification_evidence: `GroupCount=0 단일 mask와 malformed multi-mask 회귀 PASS; backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215`
+- behavior_verification_target: `source c491d17dde9223e7aca3f1c33ae9341b58339fb9; GitHub public v0.4.10`
+- behavior_verification_environment: `Windows 10.0.26200 x64, locked checks, signed package와 public Release 재다운로드`
+- behavior_verification_evidence: `GroupCount=0·malformed multi-mask 회귀, backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215, native integration 3/3, package·public 9/9 검증 PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `committed source의 Windows 10 cache topology compatibility와 검증 범위를 반영`
-- known_gaps: `제보 i5-9400F Windows 10 실제 실행, package·push·배포는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — Windows 10 CPU 분할 지원 복구`
-- feature_map: `updated — canonical revision 45, frame revision 21`
-- architecture_impact: `GLPIEx cache topology legacy/current 구조 호환`
-- architecture_contract: `updated — revision 49`
+- freshness_reason: `reviewed GLPIEx adapter와 signed public v0.4.10 release 경계를 반영`
+- known_gaps: `제보 Windows 10 실기기 실행과 실제 설치·버전 간 자동 업데이트는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.10`
+- feature_map: `updated — canonical revision 46, frame revision 22, update revision 15`
+- architecture_impact: `GLPIEx cache topology 호환과 signed package/public update routing`
+- architecture_contract: `updated — revision 50`
 
 ## 계층과 확장 경로
 

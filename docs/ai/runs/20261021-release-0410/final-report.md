@@ -1,0 +1,35 @@
+# Final report
+
+- record_id: `FINAL-RELEASE-0410`
+- run_id: `20261021-release-0410`
+- checkpoint_id: `CP-RELEASE-0410`
+- owner: `cursor-agent-92251f36`
+- completed_at: `2026-10-21T14:46:00Z`
+- status: `COMPLETED`
+- requested_scope: `Windows 10 CPU 할당·부스트 모드 수정사항을 0.4.10으로 기록하고 package·deploy`
+- delivered_scope: `0.4.10 version/history, committed parser fix, signed 설치형·포터블, origin/main·annotated tag, GitHub public Latest와 public verification`
+- source_target: `c491d17dde9223e7aca3f1c33ae9341b58339fb9`
+- tag_target: `43f701816d6efd8f55cac734aa51e218a5452cf0 -> c491d17dde9223e7aca3f1c33ae9341b58339fb9`
+- release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.10`
+- execution_target: `release/dioxus-0.4.10-2026-10-21T14-38-00-796Z; GitHub public v0.4.10`
+- implemented: `Windows 10 CACHE_RELATIONSHIP GroupCount=0을 legacy 단일 GroupMask로 해석해 CPU 코어 할당과 부스트 모드 선택 capability를 복구`
+- automated_test_passing: `backend 133 PASS·3 ignored, parity 2/2, desktop 8/8·locked check, Node 215/215, native integration retest 3/3`
+- package: `installer 8,020,584 bytes SHA-256 b9781ff3531eb9b622873fdeb6426dd9de9956857c59d59c991ade5d5330649a; portable 7,795,954 bytes SHA-256 471b521026e3f8ec9dfd178820ebe9d482d96054db18cc848e3ff93ddd21f48e`
+- public_verification: `Latest v0.4.10, canonical assets 9/9, local/public SHA-256, Ed25519 manifests, byte-identical aliases와 Electron 0.3.19 routing PASS`
+- manually_exercised: `public asset 재다운로드와 cryptographic/routing verification`
+- failed_retested: `native integration 최초 invocation은 debug binary 부재 ENOENT로 FAIL; locked debug build 후 동일 검사 3/3 PASS`
+- not_run: `제보 Windows 10 실기기 설치·게임 affinity, 설치·제거·포터블 UI, 버전 간 자동 업데이트`
+- review_mode: `SELF_REVIEW`
+- review_verdict: `APPROVED`
+- mandatory_findings: `none`
+- feature_gate: `PASS — FEAT-NOGIREM-FRAME-BOOST revision 22`
+- architecture_gate: `PASS — contract revision 50`
+- review_qa_gate: `PASS — mandatory automated·package·public checks complete`
+- integration_gate: `PASS — public Rust/Electron routing and assets; actual client update NOT_RUN`
+- target_authorization_gate: `PASS — isolated source commit, origin/main·tag·release authorization used, unrelated main worktree preserved`
+- remaining_risk: `실제 affected Windows 10 장치와 version-to-version client update 미실행; GPU TDR·MEMORY_CORRUPTION 제보는 앱 수정 범위 밖`
+- commit_push_deployment: `source commits와 origin/main push 완료; annotated v0.4.10 push 완료; GitHub Release public Latest; 사용자 PC 설치·실행은 수행하지 않음`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.10`
+- feature_map: `updated — canonical 46, frame 22, update 15`
+- architecture_impact: `GLPIEx legacy parser와 signed package/public update routing`
+- architecture_contract: `updated — revision 50`

@@ -4,22 +4,22 @@
 - run_id: `20261021-release-0410`
 - checkpoint_id: `CP-RELEASE-0410`
 - owner: `cursor-agent-92251f36`
-- updated_at: `2026-10-21T14:36:00Z`
-- status: `IN_PROGRESS`
-- DEV: `READY_FOR_REVIEW`
-- QA: `IN_PROGRESS`
-- review: `SELF_REVIEW APPROVED for source preparation; package/public asset review pending`
+- updated_at: `2026-10-21T14:46:00Z`
+- status: `COMPLETED`
+- DEV: `DONE`
+- QA: `COMPLETE_PASS`
+- review: `SELF_REVIEW APPROVED; independent reviewer 없음`
 - authorized_scope: `0.4.10 기록, package, origin/main·tag push, GitHub Release publish와 검증`
-- source_target: `implementation 391773f plus reviewed version/release diff; commit pending`
-- execution_target: `source checks only; package/public pending`
-- completed: `Windows 10 parser fix, version/history/locks, source checks와 release intake`
-- checks: `backend 133 PASS·3 ignored, parity 2/2, desktop 8/8·locked check, Node 215/215, lint 0`
-- pending: `release source commit, signed package, public release, canonical freshness와 final records`
+- source_target: `c491d17dde9223e7aca3f1c33ae9341b58339fb9; annotated v0.4.10 tag object 43f701816d6efd8f55cac734aa51e218a5452cf0`
+- execution_target: `signed package release/dioxus-0.4.10-2026-10-21T14-38-00-796Z; GitHub public Latest v0.4.10`
+- completed: `Windows 10 parser fix, 0.4.10 version/history, source push, tag, signed package, canonical assets 9개와 public verification`
+- checks: `backend 133 PASS·3 ignored, parity 2/2, desktop 8/8·locked check, Node 215/215, native integration retest 3/3, package·public hash·Ed25519·aliases·routing PASS`
+- pending: `실제 제보 Windows 10 설치·게임 QA와 버전 간 자동 업데이트`
 - unrelated_work: `main worktree dirty backend/helper/data changes preserved and excluded`
 - blocker: `none`
 - working_directory: `C:\Users\User\Documents\GitHub\nogirem-win10-cache`
-- next_authorized_action: `명시 파일만 stage·commit한 뒤 clean HEAD package`
+- next_authorized_action: `none`
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — 0.4.10`
-- feature_map: `updated — public evidence pending`
+- feature_map: `updated — canonical 46, frame 22, update 15`
 - architecture_impact: `GLPIEx parser와 signed release/update boundary`
-- architecture_contract: `updated — public evidence pending`
+- architecture_contract: `updated — revision 50`
