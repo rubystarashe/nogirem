@@ -1,0 +1,22 @@
+# Self review
+
+- review_id: `REV-WIN10-CACHE-TOPOLOGY-R1`
+- run_id: `20261021-win10-cache-topology`
+- checkpoint_id: `CP-WIN10-CACHE-TOPOLOGY`
+- reviewer: `cursor-agent-92251f36`
+- review_mode: `SELF_REVIEW`
+- target: `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
+- request: `DEV가 legacy cache fallback, bounds 유지, tests와 문서의 exact target review 요청`
+- acknowledgment: `동일 agent SELF_REVIEW와 independent reviewer 부재를 확인`
+- inspected: `RelationCache 분기, GROUP_AFFINITY union offset, count/bounds validator, raw fixture, 주변 core/group fail-closed 경로`
+- findings: `mandatory finding 0`
+- dev_response: `추가 수정 없음`
+- rereview: `committed target에서 targeted·full checks 결과 재확인`
+- assessment: `max(1)은 RelationCache에만 적용되어 Windows 10의 documented legacy GroupMask를 복구한다. GroupCount>1 truncation, core/group count 0과 다른 malformed record는 계속 거부한다.`
+- verdict: `APPROVED`
+- stale: `false`
+- limitations: `실제 제보 장치·package 실행은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST`
+- feature_map: `updated — revision 21`
+- architecture_impact: `GLPIEx cache parser`
+- architecture_contract: `updated — revision 49`

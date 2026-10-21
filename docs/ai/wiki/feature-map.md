@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `44`
-- updated_at: `2026-10-20T10:24:00Z`
+- revision: `45`
+- updated_at: `2026-10-21T14:10:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T10:24:00Z`
+- source_reviewed_at: `2026-10-21T14:10:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `a4f2dc4303d6c728d89cf5ad742a86618e158891; annotated v0.4.9`
-- source_review_evidence: `clean committed target의 startup task retry·unknown fallback, package inputs와 public release assembly SELF_REVIEW`
-- behavior_verified_at: `2026-10-20T10:24:00Z`
+- source_review_target: `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
+- source_review_evidence: `Windows 10 legacy cache GroupCount=0 raw record parser와 current multi-mask bounds SELF_REVIEW`
+- behavior_verified_at: `2026-10-21T14:10:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `clean signed package release/dioxus-0.4.9-2026-10-20T10-17-22-714Z; GitHub public v0.4.9`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Node 22.20.0, Rust locked tests, GitHub public Release 재다운로드`
-- behavior_verification_evidence: `backend 132 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 215/215, clean package PASS, public 9/9 hash·Ed25519·aliases·Electron routing PASS`
+- behavior_verification_target: `source e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
+- behavior_verification_environment: `Windows 10.0.26200 x64, raw legacy GLPIEx fixture와 locked Rust/Node tests`
+- behavior_verification_evidence: `legacy GroupCount=0 parse와 GroupCount=2 truncated rejection PASS; backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215`
 - freshness_status: `CURRENT`
-- freshness_reason: `annotated v0.4.9와 public signed assets가 startup 조회 failure containment clean source와 일치함`
-- known_gaps: `제보 PC 실제 E_FAIL 강제 재현, 실제 0.4.9 설치·제거·포터블 UI와 버전 간 자동 업데이트는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — UPD-013과 public 0.4.9`
-- feature_map: `updated — canonical revision 44, update revision 14`
-- architecture_impact: `startup read adapter failure containment와 signed release/update feed 경계`
-- architecture_contract: `updated — revision 48`
+- freshness_reason: `committed source의 Windows 10 legacy cache mask compatibility와 자동 검증 범위를 반영`
+- known_gaps: `제보 i5-9400F Windows 10 실제 실행, package·push·public 배포는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — Windows 10 CPU 분할 지원 복구`
+- feature_map: `updated — canonical revision 45, frame revision 21`
+- architecture_impact: `GLPIEx cache topology legacy/current 구조 호환`
+- architecture_contract: `updated — revision 49`
 
 ## ID 할당
 
@@ -124,36 +124,36 @@
 - exclusions: 복수 processor group과 단일 P-core 비하이브리드처럼 유효한 두 역할 mask를 표현할 수 없는 topology는 CPU 분할 대상이 아니다. L3 크기를 성능 등급으로 해석하지 않으며 하드웨어·드라이버 교착 복구, 외부 affinity/priority writer 통제, 실제 frame 향상을 보장하지 않는다.
 - personas_permissions_accessibility_entry: 일반 사용자가 메인 화면을 클릭해 적용·중단하며 관리자 권한이 필요하다. 상태는 문구로 표시하고 오류는 확인 가능한 alert로 제공한다.
 - preconditions_dependencies: Windows CPU topology, `config.json`, affinity/memory helper, Win32 process query, `%APPDATA%\마비노기 렘 부스터` 상태 폴더.
-- normal_error_cancel_retry_flow: helper 상태의 PID·시작 시각·생존을 함께 확인한다. 시작 coordinator는 기존 status를 선삭제하지 않고 시작 이후의 fresh live status만 성공으로 인정하며 child가 조기 종료하면 stderr의 실제 원인을 표시한다. 시작 성공 뒤에는 stderr reader를 bounded helper log capture thread로 이전해 helper가 로그 출력 때 broken pipe로 종료되지 않게 한다. 게임이 없으면 대기하지만 중단 버튼은 활성이다. CPU 구성이 안전하게 표현되지 않으면 사유를 표시하고 affinity만 건너뛰며 다른 boost 기능은 유지한다. runtime 조회 실패 시 화면 상태를 중단으로 보정하고 polling을 계속한다.
+- normal_error_cancel_retry_flow: helper 상태의 PID·시작 시각·생존을 함께 확인한다. 시작 coordinator는 기존 status를 선삭제하지 않고 시작 이후의 fresh live status만 성공으로 인정하며 child가 조기 종료하면 stderr의 실제 원인을 표시한다. 시작 성공 뒤에는 stderr reader를 bounded helper log capture thread로 이전해 helper가 로그 출력 때 broken pipe로 종료되지 않게 한다. 게임이 없으면 대기하지만 중단 버튼은 활성이다. Windows 10의 legacy `CACHE_RELATIONSHIP`은 `GroupCount=0`과 단일 `GroupMask`를 사용하며 이를 유효한 cache affinity 하나로 해석한다. 현재 Windows의 1개 이상 `GroupMasks`는 선언 개수와 record bounds를 검증한다. CPU 구성이 안전하게 표현되지 않으면 사유를 표시하고 affinity만 건너뛰며 다른 boost 기능은 유지한다. runtime 조회 실패 시 화면 상태를 중단으로 보정하고 polling을 계속한다.
 - concurrency_partial_failure_recovery: affinity·memory operation lock이 작업을 직렬화한다. helper lock은 PID와 process 시작 시각의 exact identity를 기록하고 살아 있는 owner를 status 부재·staleness만으로 탈취하지 않는다. drop은 현재 lock record가 자신의 identity일 때만 삭제한다. affinity/priority는 열거 후 같은 process handle에서 생성 시각을 확인한 뒤 적용한다. 원본과 앱 적용값을 변경 전에 runtime ledger와 durable applied marker에 기록한다. reset은 두 기록을 identity별로 합쳐 현재 값이 앱 적용값과 같은 항목만 원본으로 되돌리고 외부 변경을 보존한다. 과거 결함으로 기록이 유실된 경우 현재 topology가 생성할 수 있는 exact app mask를 가진 같은 사용자 session process만 full system mask 복구 entry로 먼저 기록한 뒤 복구한다. 실패 entry는 marker에 남겨 다음 reset에서 재시도한다.
 - state_side_effects_limits: 저장된 CPU 설정이 없으면 `균형`을 기본으로 사용하며 기존 명시 설정은 보존한다. `게임 집중`은 균형 자동값보다 P-core를 최대 2개 더 선택하고 game hard affinity와 일반 background priority 하향을 함께 적용한다. `균형`은 기존 자동값과 game hard affinity를 사용하고 priority 하향은 끈다. `안전 모드`는 균형 자동값을 사용하지만 game affinity를 고정하지 않고 priority 하향도 끈다. 고급 수동 count, 안전 모드와 priority toggle은 명시 값을 보존한다. main dropdown은 mode/count/priority가 모두 표준 조합과 같을 때 세 preset을 표시하고, 하나라도 다르면 네 번째 `사용자화` option을 추가해 선택한다. preset 변경 pending 동안 `설정 변경중`을 표시하며, standard preset 선택 시 custom count를 제거해 해당 자동값으로 복귀한다. CPU 재정렬은 현재 game mask와 겹치지 않는 동일 크기의 대체 P-core mask가 있을 때만 실행할 수 있고, 없으면 버튼을 비활성화해 이유를 표시한다.
 - modules_contracts: `desktop/src/ui.rs` → `service.rs` → `boost.rs` → `affinity_worker.rs`/`affinity.rs`. helper PID와 최신 timestamp가 실행 상태의 필수 조건이다.
 - durable_data_owner: affinity helper가 `runtime-state.json`, runtime status와 `game/path.json`의 유일한 writer다. backend service만 `game-core-setting.json`을 정규화해 쓰고 helper/UI가 읽는다.
 - security_privacy: 다른 `Client.exe` 오탐을 막기 위해 정본의 명시적 게임 폴더를 사용하며 진단 내 사용자 경로는 마스킹한다.
-- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 legacy helper 인계`, `BOOST-005 게임 시작·종료 원본 복원`, `BOOST-006 hybrid P-core 선택과 필요 시 한 P-core 공유`, `BOOST-007 L3 locality·SMT·SchedulingClass 우선순위`, `BOOST-008 저코어 분할·복수 group fail-safe`, `BOOST-009 main focus 6/8P·balanced/safe 4/8P dropdown`, `BOOST-010 background-only priority 적용과 role 제외`, `BOOST-011 PID 재사용·외부 변경 보존·재시작 복구`, `BOOST-012 advanced manual count·safe/priority toggle 보존·custom dropdown option`, `BOOST-013 focus preset priority ON·balanced/safe OFF`, `BOOST-014 설정 부재 시 balanced 기본값·명시 설정 보존`, `BOOST-015 대체 P-core mask 부재 시 재정렬 사전 차단`, `BOOST-016 status 부재·stale 중 live lock 탈취 차단과 child stderr 전달`, `BOOST-017 startup 뒤 stderr 기록 오류 중 helper PID 지속과 bounded capture`, `BOOST-018 reset durable marker union과 untracked exact-mask 복구`
+- scenarios: `BOOST-001 helper 종료 stale 상태 제거`, `BOOST-002 polling 오류 뒤 복구`, `BOOST-003 게임 미실행 중 중단`, `BOOST-004 legacy helper 인계`, `BOOST-005 게임 시작·종료 원본 복원`, `BOOST-006 hybrid P-core 선택과 필요 시 한 P-core 공유`, `BOOST-007 L3 locality·SMT·SchedulingClass 우선순위`, `BOOST-008 저코어 분할·복수 group fail-safe`, `BOOST-009 main focus 6/8P·balanced/safe 4/8P dropdown`, `BOOST-010 background-only priority 적용과 role 제외`, `BOOST-011 PID 재사용·외부 변경 보존·재시작 복구`, `BOOST-012 advanced manual count·safe/priority toggle 보존·custom dropdown option`, `BOOST-013 focus preset priority ON·balanced/safe OFF`, `BOOST-014 설정 부재 시 balanced 기본값·명시 설정 보존`, `BOOST-015 대체 P-core mask 부재 시 재정렬 사전 차단`, `BOOST-016 status 부재·stale 중 live lock 탈취 차단과 child stderr 전달`, `BOOST-017 startup 뒤 stderr 기록 오류 중 helper PID 지속과 bounded capture`, `BOOST-018 reset durable marker union과 untracked exact-mask 복구`, `BOOST-019 Windows 10 legacy cache GroupMask 호환`
 - observability_evidence: UI topology 사유와 고급 설정, `affinity/events.log`, diagnostics affinity snapshot, `topology::tests`, `affinity::tests`, `process::tests::child_priority_roundtrip_uses_one_verified_handle`, backend parity와 Node service contract tests.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 helper runtime·game path 경계.
 - record_id: `FEAT-NOGIREM-FRAME-BOOST`
 - owner: `nogirem maintainer`
-- revision: `20`
-- updated_at: `2026-10-20T08:56:00Z`
+- revision: `21`
+- updated_at: `2026-10-21T14:10:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T08:56:00Z`
+- source_reviewed_at: `2026-10-21T14:10:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `9d88081ce598f45d8d049118fd017b39b1f788ff; annotated v0.4.9`
-- source_review_evidence: `SELF_REVIEW of committed marker-ledger union, exact-mask selection, same-session scope and failure retention`
-- behavior_verified_at: `2026-10-20T08:54:49Z`
+- source_review_target: `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
+- source_review_evidence: `SELF_REVIEW of RelationCache GroupCount=0 fallback, union mask offset와 GroupCount>0 bounds rejection`
+- behavior_verified_at: `2026-10-21T14:10:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `clean signed package release/dioxus-0.4.9-2026-10-20T08-45-46-639Z; GitHub public v0.4.9`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust/Node tests, package gate와 installed helper logs`
-- behavior_verification_evidence: `backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, clean package PASS; installed helper running=true·error=null, recent game-exit restore 401 and failed 0`
+- behavior_verification_target: `source e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
+- behavior_verification_environment: `Windows 10.0.26200 x64 automated raw Win32 fixture`
+- behavior_verification_evidence: `BOOST-019 fixture PASS; backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215`
 - freshness_status: `CURRENT`
-- freshness_reason: `public 0.4.9가 clean committed reset 복구 source와 일치함`
-- known_gaps: `실제 0.4.9 설치본 교체와 버전 간 자동 업데이트는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — boost 중단 후 stale affinity 복구의 public 배포`
-- feature_map: `updated — revision 20`
-- architecture_impact: `durable applied marker와 legacy exact-mask recovery writer`
-- architecture_contract: `no_change — revision 47이 public target에도 정확`
+- freshness_reason: `committed source의 Windows 10 legacy cache record 지원과 자동 검증을 반영`
+- known_gaps: `제보 i5-9400F Windows 10 실기기 실행, package·push·배포는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — Windows 10 CPU cache topology parse 복구`
+- feature_map: `updated — revision 21`
+- architecture_impact: `GLPIEx cache relationship 호환 parser`
+- architecture_contract: `updated — revision 49`
 
 ## FEAT-NOGIREM-TURBO-KEY
 

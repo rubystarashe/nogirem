@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `48`
-- updated_at: `2026-10-20T10:24:00Z`
+- revision: `49`
+- updated_at: `2026-10-21T14:10:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-20T10:24:00Z`
+- source_reviewed_at: `2026-10-21T14:10:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `a4f2dc4303d6c728d89cf5ad742a86618e158891; annotated v0.4.9`
-- source_review_evidence: `startup task read retry·unknown projection, package inputs, signed manifests와 release routing SELF_REVIEW`
-- behavior_verified_at: `2026-10-20T10:24:00Z`
+- source_review_target: `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
+- source_review_evidence: `GLPIEx legacy/current cache relationship layout와 bounds SELF_REVIEW`
+- behavior_verified_at: `2026-10-21T14:10:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `clean signed package release/dioxus-0.4.9-2026-10-20T10-17-22-714Z; GitHub public v0.4.9`
-- behavior_verification_environment: `Windows 10.0.26200 x64, Rust/Node locked checks와 GitHub public Release 재다운로드`
-- behavior_verification_evidence: `backend 132 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 215/215, clean package·public 9/9 hash·Ed25519·aliases·Electron routing PASS`
+- behavior_verification_target: `source e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
+- behavior_verification_environment: `Windows 10.0.26200 x64, raw legacy GLPIEx fixture와 locked Rust/Node checks`
+- behavior_verification_evidence: `GroupCount=0 단일 mask와 malformed multi-mask 회귀 PASS; backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215`
 - freshness_status: `CURRENT`
-- freshness_reason: `clean committed source와 public Latest v0.4.9에서 startup read failure containment와 signed release 경계를 재검증`
-- known_gaps: `제보 PC 실제 E_FAIL 강제 재현, 실제 0.4.9 설치·제거·포터블 UI와 버전 간 자동 업데이트는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — startup task read failure containment와 public 0.4.9`
-- feature_map: `updated — update revision 14`
-- architecture_impact: `PowerShell startup read adapter failure containment와 signed release/update routing`
-- architecture_contract: `updated — revision 48`
+- freshness_reason: `committed source의 Windows 10 cache topology compatibility와 검증 범위를 반영`
+- known_gaps: `제보 i5-9400F Windows 10 실제 실행, package·push·배포는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — Windows 10 CPU 분할 지원 복구`
+- feature_map: `updated — canonical revision 45, frame revision 21`
+- architecture_impact: `GLPIEx cache topology legacy/current 구조 호환`
+- architecture_contract: `updated — revision 49`
 
 ## 계층과 확장 경로
 
@@ -53,6 +53,7 @@
 - affinity 실행 상태는 상태 파일 timestamp만으로 판정하지 않고 해당 `helperPid`의 생존과 `helperStartedAt`이 현재 프로세스 시작 시각과 일치하는지 확인한다. helper lock도 PID와 process 시작 시각을 함께 기록하며 살아 있는 exact owner의 lock을 status 부재·staleness만으로 삭제하지 않는다. lock drop은 현재 record가 자신의 exact identity일 때만 파일을 삭제한다. coordinator는 시작 전 종료의 stderr를 직접 읽고, 시작 성공 시 같은 pipe reader를 bounded `helper-stderr.log` capture thread로 이전한다. 실행 중 stderr reader를 닫아 worker가 broken pipe로 종료되게 해서는 안 된다. reset은 current runtime ledger와 durable applied marker를 process identity별로 합쳐 복구한 뒤, 과거 결함으로 기록되지 않은 same-session process 중 현재 affinity가 이 topology의 exact app-generated mask와 같은 항목만 full system mask로 되돌린다.
 - CPU topology와 mask 계산은 `topology.rs`만 소유한다. CPU Set의 `EfficiencyClass`로 P/E 소속을 판별하고 `SchedulingClass`는 같은 P-core 후보의 우선 선택에만 사용한다. 이를 GLPIEx physical core·SMT mask·L3 cache·processor group과 `(group, logical processor)`로 결합하고, 같은 L3 domain을 우선하되 cache 크기를 성능 등급으로 사용하지 않는다.
 - 단일 `u64` process affinity로 표현할 수 없는 복수 processor group은 CPU 분할을 fail-safe로 비활성화한다. 물리 코어 수만으로 비활성화하지 않으며 단일 P-core 비하이브리드처럼 game/background 역할 mask를 만들 수 없는 경우에만 사유를 전달한다. logical-half fallback이나 잘린 mask를 적용해서는 안 된다.
+- GLPIEx `RelationCache`는 Windows 10의 `GroupCount=0`·단일 `GroupMask`와 현재 Windows의 `GroupCount>=1`·`GroupMasks`를 모두 지원한다. 0은 legacy affinity 한 개로만 해석하고, 1 이상은 선언된 모든 mask가 record bounds 안에 있을 때만 사용한다. core·group relationship의 0 count와 잘린 배열은 계속 거부한다.
 - P-core 개수 mask와 mode별 자동값은 `topology.rs`가 소유하고 affinity 적용 여부는 `affinity.rs`가 결정한다. focus는 balanced보다 최대 두 P-core를 더 선택하며 balanced/safe는 기존 자동값을 사용한다. focus/balanced는 game mask를 적용하고 safe는 게임을 고정하지 않는다. hybrid all-P에서는 background가 E-core-only가 되지 않도록 한 물리 P-core mask의 중첩을 허용한다. CPU 재정렬 capability는 현재 game mask와 겹치지 않는 동일 물리 P-core 수의 alternate mask가 존재할 때만 true이며 UI는 이 값을 우회해 실행 요청을 보내서는 안 된다.
 - 외부 process mutation은 `process.rs`의 같은 handle에서 생성 시각, affinity, priority를 확인한 뒤 수행한다. 열거 뒤 PID만 다시 열어 검증·변경을 분리하는 경로를 추가해서는 안 된다.
 - 터보키는 0.4.7부터 제품 runtime에서 시작하지 않는다. UI 진입점과 설정·다운로드 IPC는 실행 경로에 도달할 수 없어야 하며, 보존된 helper 구현을 다른 기능에서 호출해서는 안 된다. package와 release assembly는 helper binary나 standalone 약관 파일을 배포하지 않는다.

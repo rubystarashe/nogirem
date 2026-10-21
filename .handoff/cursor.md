@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-10-20 19:24 +09:00
+Last Updated: 2026-10-21 23:10 +09:00
 
 ## Current Objective
-0.4.9 자동 시작 예약 작업 조회 오류를 해당 설정에만 격리하고 public Latest를 대치 배포했다.
+Windows 10 legacy CPU cache topology 형식을 지원해 실시간 부스트 CPU 분할 비활성화 문제를 수정했다.
 
 ## Active Runs
+- `20261021-win10-cache-topology`: source `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`에서 Windows 10 `CACHE_RELATIONSHIP.GroupCount=0`을 오류가 아닌 legacy 단일 `GroupMask`로 해석한다. 현재 Windows의 다중 mask record bounds와 core/group malformed 검증은 유지한다. backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215와 SELF_REVIEW가 통과했다. 제보 i5-9400F Windows 10 실기기, package·push·배포는 NOT_RUN이다. (`docs/ai/runs/20261021-win10-cache-topology/final-report.md`)
 - `20261020-startup-status-fallback-049`: source `a4f2dc4303d6c728d89cf5ad742a86618e158891`에서 Windows 자동 시작 예약 작업 조회를 최대 3회 재시도하고, 최종 read-only 실패는 전역 시작 오류 대신 해당 카드의 `확인 불가`·비활성 상태로 격리한다. 명시적 설정 변경 검증 실패는 오류로 유지한다. backend 132 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215, signed package와 공개 9/9 hash·Ed25519·aliases·Electron routing이 통과했다. [GitHub v0.4.9](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.9)의 Rust 자산 6개를 feed-safe 순서로 대치했으며 실제 제보 PC E_FAIL·설치 UI·same-version 자동 재수신은 NOT_RUN이다. (`docs/ai/runs/20261020-startup-status-fallback-049/final-report.md`)
 - `20261020-release-049`: source `9d88081ce598f45d8d049118fd017b39b1f788ff`를 origin/main과 annotated `v0.4.9`로 push하고 [GitHub v0.4.9](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.9)을 public Latest로 공개했다. clean package 설치형 SHA-256 `88f6cb23...f61de`, 포터블 `dcf43659...8d465`; 공개 9/9 재다운로드 hash, Ed25519 manifests, aliases와 Electron 0.3.19 routing이 통과했다. installed helper 로그는 `running=true`, `gameActive=true`, `error=null`이고 최근 game-exit restore는 401개 복구·failed 0이다. 실제 0.4.9 설치·제거·포터블 UI·버전 간 자동 update는 NOT_RUN이다. (`docs/ai/runs/20261020-release-049/final-report.md`)
 - `20261020-affinity-reset-recovery-049`: base `4babd317bfef7e325bcf83aca6dd5319888acc8a`의 recorded dirty source target에서 reset이 runtime ledger와 durable marker를 합치고, untracked same-session process의 exact app mask만 synthetic marker entry로 기록한 뒤 full mask로 복구한다. backend 131 PASS·3 ignored와 parity 2/2, Node 214/214, signed package·Ed25519 검증이 통과했다. 최종 package `release/dioxus-0.4.9-2026-10-20T08-28-30-164Z`의 helper가 stale exact mask 271개와 잔여 12개를 복구해 현재 machine 잔존 0개를 확인했다. 설치형 SHA-256 `1fe20740...a63fc`, 포터블 `28eb6832...d75c`; push·배포·실제 설치·게임 QA는 NOT_RUN이다. (`docs/ai/runs/20261020-affinity-reset-recovery-049/final-report.md`)

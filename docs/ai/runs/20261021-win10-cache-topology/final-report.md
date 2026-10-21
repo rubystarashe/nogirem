@@ -1,0 +1,26 @@
+# Final report
+
+- disposition: `COMPLETED`
+- run_id: `20261021-win10-cache-topology`
+- requested_scope: `Windows 10 CPU cache topology 오류 개선`
+- delivered_scope: `legacy parser fix, regression, full checks, version history와 canonical records`
+- base_commit: `bbe0ebc4714578b04895fbce774cacf4d87c6c28`
+- implementation_commit: `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
+- implemented: `RelationCache GroupCount=0을 legacy 단일 GroupMask로 해석하고 1 이상 배열의 bounds 검증을 유지`
+- automated_test_passing: `backend 133/133와 parity 2/2; desktop 8/8·check; Node 215/215`
+- manually_exercised: `none`
+- verified_acceptance: `raw Windows 10 cache record parse와 malformed current multi-mask 거부`
+- not_run: `제보 i5-9400F Windows 10, package, push, tag, deployment`
+- review: `SELF_REVIEW APPROVED; mandatory finding 0; independent reviewer 없음`
+- feature_gate: `PASS — BOOST-019과 frame revision 21`
+- architecture_gate: `PASS — legacy/current cache contract와 revision 49`
+- review_qa_gate: `PASS — required automated checks complete`
+- target_authorization_gate: `PASS — clean isolated commit, unrelated dirty files preserved, external mutation 없음`
+- commit_status: `implementation committed; final records are committed with this report`
+- push_status: `NOT_RUN — 미승인`
+- deployment_status: `NOT_RUN — 미승인`
+- remaining_risk: `실제 제보 Windows 10 환경과 signed package에서 미검증`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — Windows 10 CPU 분할 복구`
+- feature_map: `updated — canonical 45, frame 21`
+- architecture_impact: `GLPIEx cache parser compatibility`
+- architecture_contract: `updated — revision 49`

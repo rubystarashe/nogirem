@@ -1,0 +1,21 @@
+# QA
+
+- record_id: `QA-WIN10-CACHE-TOPOLOGY`
+- run_id: `20261021-win10-cache-topology`
+- checkpoint_id: `CP-WIN10-CACHE-TOPOLOGY`
+- owner: `cursor-agent-92251f36`
+- state: `COMPLETE_PASS`
+- source_target: `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`
+- execution_target: `Windows 10.0.26200 x64 automated source target`
+- `BOOST-019-A`: `PASS — GroupCount=0 L3 cache record를 단일 group 0 mask 0b111111로 parse`
+- `BOOST-019-B`: `PASS — GroupCount=2인데 한 mask만 포함한 record는 malformed로 거부`
+- `BACKEND`: `PASS — 133 passed, 3 ignored, parity 2/2`
+- `DESKTOP`: `PASS — 8/8와 locked cargo check`
+- `NODE`: `PASS — 215/215`
+- `AFFECTED-PC`: `NOT_RUN — 제보 i5-9400F Windows 10 장치에 접근하지 않음`
+- expected: `legacy cache layout에서도 CPU topology와 분할 mask 계산 계속`
+- actual: `raw legacy fixture parse와 전체 회귀 통과`
+- feature_impact: `FEAT-NOGIREM-FRAME-BOOST — BOOST-019`
+- feature_map: `updated — canonical 45, frame 21`
+- architecture_impact: `GLPIEx legacy/current cache layout`
+- architecture_contract: `updated — revision 49`
