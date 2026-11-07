@@ -176,6 +176,18 @@ mod tests {
         assert!(!path.exists());
     }
     #[test]
+    fn blocked_filter_status_is_complete_without_writing() {
+        let (mut fake, path) = fixture();
+        fake.current["compatible"] = json!(false);
+        fake.current["compatibilityReason"] = json!("Kaspersky 네트워크 필터");
+        let result = status(&mut fake, &path).unwrap();
+        assert_eq!(result["optimized"], true);
+        assert_eq!(result["fastPing"]["supported"], false);
+        assert_eq!(result["fastPing"]["compatibilityBlocked"], true);
+        assert_eq!(fake.writes, 0);
+        assert_eq!(fake.restarts, 0);
+    }
+    #[test]
     fn failed_connection_restores_captured_values() {
         let (mut fake, path) = fixture();
         let result = apply(&mut fake, &mut Health(vec![true, false]), &path).unwrap();

@@ -44,14 +44,28 @@ pub trait Operations {
     fn restore(&mut self, target: &Value) -> Result<Value>;
 }
 pub struct Windows;
+fn operation_error(action: &str, error: String) -> String {
+    let lower = error.to_lowercase();
+    if error.contains("액세스가 거부")
+        || lower.contains("access is denied")
+        || lower.contains("access denied")
+        || lower.contains("os error 5")
+    {
+        format!(
+            "{action}: Windows 관리자 권한이 없거나 보안 프로그램·시스템 정책이 네트워크 조회 또는 변경을 차단했습니다. 앱을 다시 시작해도 반복되면 보안 프로그램의 차단 기록과 Windows 계정 정책을 확인해 주세요 ({error})"
+        )
+    } else {
+        format!("{action}: {error}")
+    }
+}
 impl Operations for Windows {
     fn query(&mut self, apply: bool) -> Result<Value> {
         powershell::json(&format!("$applyFastPing = ${apply}\n{QUERY}"), 30000)
-            .map_err(|e| format!("주 네트워크 인터페이스의 패스트핑 처리 실패: {e}"))
+            .map_err(|e| operation_error("주 네트워크 인터페이스의 패스트핑 처리 실패", e))
     }
     fn autotuning(&mut self, apply: bool) -> Result<Value> {
         powershell::json(&format!("$applyNormal = ${apply}\n{AUTO}"), 30000)
-            .map_err(|e| format!("TCP 수신 창 자동 조정 처리 실패: {e}"))
+            .map_err(|e| operation_error("TCP 수신 창 자동 조정 처리 실패", e))
     }
     fn restart(&mut self, current: &Value) -> Result<Value> {
         let index = current["interfaceIndex"]
@@ -62,7 +76,7 @@ impl Operations for Windows {
             &RESTART.replace("${interfaceIndex}", &index.to_string()),
             30000,
         )
-        .map_err(|e| format!("주 네트워크 인터페이스 재시작 실패: {e}"))
+        .map_err(|e| operation_error("주 네트워크 인터페이스 재시작 실패", e))
     }
     fn restore(&mut self, target: &Value) -> Result<Value> {
         let guid = target["interfaceGuid"].as_str().unwrap_or("");
@@ -102,7 +116,7 @@ impl Operations for Windows {
                 "${valueLiteral(target.TCPNoDelay)}",
                 &literal("TCPNoDelay")?,
             );
-        powershell::json(&script, 30000).map_err(|e| format!("패스트핑 설정 복원 실패: {e}"))
+        powershell::json(&script, 30000).map_err(|e| operation_error("패스트핑 설정 복원 실패", e))
     }
 }
 pub fn ensure_fast(ops: &mut impl Operations, apply: bool, restart: bool) -> Result<Value> {
@@ -118,7 +132,7 @@ pub fn ensure_fast(ops: &mut impl Operations, apply: bool, restart: bool) -> Res
             .unwrap_or(json!("특수 네트워크 환경으로 패스트핑 적용 생략"));
         return Ok(result);
     }
-    if configured(&before) || !apply {
+    if configured(&before) {
         return Ok(result);
     }
     if before["compatible"] == false {
@@ -129,6 +143,9 @@ pub fn ensure_fast(ops: &mut impl Operations, apply: bool, restart: bool) -> Res
             .filter(|v| !v.is_null())
             .cloned()
             .unwrap_or(json!("현재 네트워크 환경에는 패스트핑을 적용하지 않습니다"));
+        return Ok(result);
+    }
+    if !apply {
         return Ok(result);
     }
     let current = ops.query(true)?;
@@ -265,12 +282,22 @@ mod tests {
                 restarts: 0,
             };
             assert_eq!(
-                ensure_fast(&mut ops, apply, true).unwrap()["applied"],
+                ensure_fast(&mut ops, apply, true).unwrap()["supported"],
                 false
             );
             assert_eq!(ops.writes, 0);
             assert_eq!(ops.restarts, 0);
         }
+    }
+    #[test]
+    fn access_denied_has_permission_and_policy_guidance() {
+        let message = operation_error(
+            "패스트핑 처리 실패",
+            "액세스가 거부되었습니다. (os error 5)".into(),
+        );
+        assert!(message.contains("관리자 권한"));
+        assert!(message.contains("보안 프로그램·시스템 정책"));
+        assert!(message.contains("os error 5"));
     }
     #[test]
     fn apply_verify_then_restart() {

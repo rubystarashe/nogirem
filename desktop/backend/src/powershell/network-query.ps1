@@ -76,6 +76,8 @@ $compatibilityReason = if ($isVirtual) {
   "WireSock 또는 WinpkFilter 네트워크 필터가 연결되어 있어 패스트핑을 적용하지 않습니다"
 } elseif ($blockingThirdPartyBindings -contains "nt_ndextlag") {
   "ExitLag 네트워크 필터가 연결되어 있어 패스트핑을 적용하지 않습니다"
+} elseif ($blockingThirdPartyBindings -contains "KL_KLIM6") {
+  "Kaspersky 네트워크 필터가 연결되어 있어 안전을 위해 패스트핑을 적용하지 않습니다. Kaspersky 보호 기능은 앱이 자동으로 해제하지 않습니다"
 } elseif ($blockingThirdPartyBindings.Count -gt 0) {
   "타사 네트워크 필터가 연결된 어댑터에는 패스트핑을 적용하지 않습니다"
 } else {

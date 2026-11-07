@@ -157,13 +157,16 @@ pub fn deployment(installed: &Value, target: &Path) -> Result<Value> {
 fn file_error(action: &str, error: std::io::Error) -> String {
     match error.raw_os_error() {
         Some(2 | 3) => format!(
-            "{action} 중 파일이 사라졌습니다. Windows 보안 또는 백신의 보호 기록에서 DXVK 격리 여부를 확인해 주세요 ({error})"
+            "{action} 중 파일 또는 경로를 찾지 못했습니다. 파일 정리 프로그램, Windows 보안 또는 백신이 DXVK 파일을 이동·삭제했는지 확인해 주세요 ({error})"
         ),
         Some(5) => format!(
             "{action} 접근이 거부되었습니다. Windows 보안·백신 차단, 폴더 쓰기 권한 또는 다른 프로그램의 파일 사용 여부를 확인해 주세요 ({error})"
         ),
         Some(32 | 33) => format!(
             "{action} 대상 파일이 사용 중입니다. 마비노기와 해당 폴더를 사용하는 프로그램을 종료한 뒤 다시 시도해 주세요 ({error})"
+        ),
+        Some(123) => format!(
+            "{action} Windows가 대상 파일 이름을 처리하지 못했습니다. 앱을 다시 시작한 뒤에도 반복되면 진단 로그와 함께 알려 주세요 ({error})"
         ),
         _ => format!("{action}에 실패했습니다 ({error})"),
     }
@@ -179,8 +182,36 @@ fn is_reparse(path: &Path) -> Result<bool> {
         Err(error) => Err(file_error("DXVK 대상 파일 정보 확인", error)),
     }
 }
+fn rename_target_name(target: &Path) -> Result<Vec<u16>> {
+    if !target.is_absolute() {
+        return Err("DXVK 교체 대상은 절대 경로여야 합니다".into());
+    }
+    let mut name = target.as_os_str().encode_wide().collect::<Vec<_>>();
+    let extended = [b'\\' as u16, b'\\' as u16, b'?' as u16, b'\\' as u16];
+    let nt = [b'\\' as u16, b'?' as u16, b'?' as u16, b'\\' as u16];
+    if name.starts_with(&extended) {
+        name.splice(0..4, nt);
+    } else if name.starts_with(&[b'\\' as u16, b'\\' as u16]) {
+        name.splice(
+            0..2,
+            [
+                b'\\' as u16,
+                b'?' as u16,
+                b'?' as u16,
+                b'\\' as u16,
+                b'U' as u16,
+                b'N' as u16,
+                b'C' as u16,
+                b'\\' as u16,
+            ],
+        );
+    } else {
+        name.splice(0..0, nt);
+    }
+    Ok(name)
+}
 fn handle_replace(file: &File, target: &Path, action: &str) -> Result<()> {
-    let name = target.as_os_str().encode_wide().collect::<Vec<_>>();
+    let name = rename_target_name(target)?;
     let offset = std::mem::offset_of!(
         windows_sys::Win32::Storage::FileSystem::FILE_RENAME_INFO,
         FileName
@@ -666,7 +697,7 @@ pub fn dispatch(action: &str, p: &Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::windows::fs::OpenOptionsExt;
+    use std::os::windows::{ffi::OsStringExt, fs::OpenOptionsExt};
 
     fn test_root() -> std::path::PathBuf {
         std::env::temp_dir().join(format!("nogirem-dxvk-test-{}", uuid::Uuid::new_v4()))
@@ -715,12 +746,51 @@ mod tests {
     #[test]
     fn atomic_bytes_creates_parent_and_replaces_existing_file() {
         let root = test_root();
-        let target = root.join("nested/d3d9_dxvk.dll");
+        let target = root
+            .join("한글 경로")
+            .join("nested")
+            .join("d3d9_dxvk.dll");
         assert!(!target.parent().unwrap().exists());
         atomic_bytes(&target, b"old", "DXVK 테스트 저장").unwrap();
         atomic_bytes(&target, b"new", "DXVK 테스트 저장").unwrap();
         assert_eq!(fs::read(&target).unwrap(), b"new");
         fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn atomic_bytes_accepts_canonical_extended_path() {
+        let root = test_root().join("한글 경로");
+        fs::create_dir_all(&root).unwrap();
+        let canonical = root.canonicalize().unwrap();
+        assert!(
+            canonical
+                .as_os_str()
+                .encode_wide()
+                .collect::<Vec<_>>()
+                .starts_with(&[b'\\' as u16, b'\\' as u16, b'?' as u16, b'\\' as u16])
+        );
+        let target = canonical.join("d3d9_dxvk.dll");
+        atomic_bytes(&target, b"verified", "DXVK 테스트 저장").unwrap();
+        assert_eq!(fs::read(target).unwrap(), b"verified");
+        fs::remove_dir_all(root.parent().unwrap()).unwrap();
+    }
+    #[test]
+    fn rename_target_name_normalizes_extended_dos_and_unc_paths() {
+        let dos = Path::new(r"\\?\C:\게임\d3d9_dxvk.dll");
+        let unc = Path::new(r"\\?\UNC\server\share\d3d9_dxvk.dll");
+        let normal = Path::new(r"C:\게임\d3d9_dxvk.dll");
+        assert_eq!(
+            std::ffi::OsString::from_wide(&rename_target_name(dos).unwrap()),
+            std::ffi::OsString::from(r"\??\C:\게임\d3d9_dxvk.dll")
+        );
+        assert_eq!(
+            std::ffi::OsString::from_wide(&rename_target_name(unc).unwrap()),
+            std::ffi::OsString::from(r"\??\UNC\server\share\d3d9_dxvk.dll")
+        );
+        assert_eq!(
+            std::ffi::OsString::from_wide(&rename_target_name(normal).unwrap()),
+            std::ffi::OsString::from(r"\??\C:\게임\d3d9_dxvk.dll")
+        );
+        assert!(rename_target_name(Path::new("relative.dll")).is_err());
     }
     #[test]
     fn failed_guard_preserves_existing_file_and_cleans_temporary_files() {
@@ -759,7 +829,7 @@ mod tests {
     fn windows_file_errors_have_actionable_categories() {
         assert!(
             file_error("DXVK 테스트", std::io::Error::from_raw_os_error(2))
-                .contains("격리 여부")
+                .contains("이동·삭제")
         );
         assert!(
             file_error("DXVK 테스트", std::io::Error::from_raw_os_error(5))
@@ -768,6 +838,10 @@ mod tests {
         assert!(
             file_error("DXVK 테스트", std::io::Error::from_raw_os_error(32))
                 .contains("사용 중")
+        );
+        assert!(
+            file_error("DXVK 테스트", std::io::Error::from_raw_os_error(123))
+                .contains("파일 이름")
         );
     }
     #[test]

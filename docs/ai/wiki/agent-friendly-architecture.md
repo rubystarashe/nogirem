@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `50`
-- updated_at: `2026-10-21T14:46:00Z`
+- revision: `51`
+- updated_at: `2026-11-07T17:24:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-21T14:46:00Z`
+- source_reviewed_at: `2026-11-07T17:24:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `c491d17dde9223e7aca3f1c33ae9341b58339fb9; annotated v0.4.10`
-- source_review_evidence: `GLPIEx legacy/current cache relationship, version manifests와 signed release boundary SELF_REVIEW`
-- behavior_verified_at: `2026-10-21T14:46:00Z`
+- source_review_target: `base 4b68b4e7f481761a61121c37bf7ded37519f078e; source hashes in 20261108 run evidence`
+- source_review_evidence: `DXVK NT rename namespace와 network compatibility/error adapter SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T17:24:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source c491d17dde9223e7aca3f1c33ae9341b58339fb9; GitHub public v0.4.10`
-- behavior_verification_environment: `Windows 10.0.26200 x64, locked checks, signed package와 public Release 재다운로드`
-- behavior_verification_evidence: `GroupCount=0·malformed multi-mask 회귀, backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215, native integration 3/3, package·public 9/9 검증 PASS`
+- behavior_verification_target: `uncommitted source manifest based on 4b68b4e7f481761a61121c37bf7ded37519f078e`
+- behavior_verification_environment: `Windows 10.0.26200 x64 automated source checks`
+- behavior_verification_evidence: `docs/ai/runs/20261108-dxvk-network-diagnostics/qa.md`
 - freshness_status: `CURRENT`
-- freshness_reason: `reviewed GLPIEx adapter와 signed public v0.4.10 release 경계를 반영`
-- known_gaps: `제보 Windows 10 실기기 실행과 실제 설치·버전 간 자동 업데이트는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.10`
-- feature_map: `updated — canonical revision 46, frame revision 22, update revision 15`
-- architecture_impact: `GLPIEx cache topology 호환과 signed package/public update routing`
-- architecture_contract: `updated — revision 50`
+- freshness_reason: `세 제보의 affected transaction·adapter를 exact source와 재검토함`
+- known_gaps: `제보 PC의 실제 DXVK 설치·Kaspersky NIC·권한 정책 종단간은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING`
+- feature_map: `updated — canonical revision 47`
+- architecture_impact: `DXVK NT path와 network filter/error 경계`
+- architecture_contract: `updated — revision 51`
 
 ## 계층과 확장 경로
 
@@ -93,10 +93,17 @@
 
 - `dxvk_manager.rs`는 다운로드 전에 실제 `Client.exe`, 허용 폴더명 또는 sibling launcher, 파일·모든 상위 경로의 reparse 여부와 canonical parent를 확인한다. 다운로드가 끝난 뒤 게임 실행 여부와 canonical 대상 경로를 교체 직전에 다시 확인하며 달라졌으면 적용하지 않는다.
 - `dxvk.rs`는 고정 GitHub release 주소, 공개 SHA-256, 제한 크기, x64 PE를 확인한 뒤에만 versioned DLL을 저장한다.
-- 저장소와 게임 폴더의 디렉터리·임시 파일·기존 파일 handle identity를 유지·재확인하고, 같은 디렉터리의 UUID 임시 파일에 기록·flush·hash 검증한다. 기존 파일은 별도 UUID backup에 flush·hash 검증하고 staged handle의 `SetFileInformationByHandle(FileRenameInfo)`로 기존 target을 교체한 뒤 최종 hash를 다시 확인한다.
+- 저장소와 게임 폴더의 디렉터리·임시 파일·기존 파일 handle identity를 유지·재확인하고, 같은 디렉터리의 UUID 임시 파일에 기록·flush·hash 검증한다. 기존 파일은 별도 UUID backup에 flush·hash 검증한다. DOS·extended DOS·UNC target은 `\??\` NT namespace 이름으로 정규화한 뒤 staged handle의 `SetFileInformationByHandle(FileRenameInfo)`로 교체하고 최종 hash를 다시 확인한다.
 - 교체 전 실패하면 기존 파일을 유지하며, 교체 뒤 내부·외부 검증 실패는 검증된 backup을 복원·재검증한다. 원본이 없으면 실패한 새 target을 제거한다. 임시 파일과 성공적으로 끝난 backup은 정리하되 복구 실패 시 검증된 backup은 수동 복구를 위해 보존한다.
-- `NotFound`는 Windows 보안·백신 격리 가능성, access denied는 보안 차단·권한·파일 사용, sharing violation은 실행 중인 프로그램 사용으로 구분해 사용자에게 작업 단계와 함께 알린다.
+- `NotFound`는 파일 정리·Windows 보안·백신 이동 또는 삭제 가능성, access denied는 보안 차단·권한·파일 사용, sharing violation은 실행 중인 프로그램 사용, invalid name은 Windows target 이름 처리 실패로 구분해 사용자에게 작업 단계와 함께 알린다.
 - 오류 메시지와 진단에는 사용자 전체 게임 경로를 포함하지 않는다. 보안 정책·백신 예외는 앱이 자동으로 변경하지 않는다.
+
+## 패스트핑 network adapter
+
+- `network-query.ps1`은 기본 IPv4 route의 물리 adapter GUID만 authoritative target으로 선택하고 그 GUID의 registry 값만 읽거나 쓴다.
+- read-only 조회에서도 VPN·가상 adapter 또는 차단 filter는 `supported=false`, `compatibilityBlocked=true`로 투영한다. UI와 manager는 이를 미적용 결함이 아니라 안전한 적용 생략으로 완료 처리한다.
+- `KL_KLIM6`은 Kaspersky network filter로 구체 안내하되 compatible allowlist에 추가하거나 자동 해제하지 않는다. Npcap·SeLow·nProtect·VMware bridge의 기존 좁은 호환 분류와 그 밖의 fail-closed 차단은 유지한다.
+- PowerShell의 access denied는 관리자 token 부재 또는 보안 프로그램·시스템 정책 차단 가능성을 원문과 함께 안내한다. 앱이 계정 정책·보안 제품 설정·adapter binding을 변경해서는 안 된다.
 
 ## 실시간 핑 network·input·auxiliary window
 

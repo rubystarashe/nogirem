@@ -589,17 +589,6 @@ export async function ensureFastPingForPrimaryInterface({
     }
   }
 
-  if (!applyChanges) {
-    return {
-      supported: true,
-      configured: false,
-      applied: false,
-      restarted: false,
-      before,
-      current: before,
-    }
-  }
-
   if (before.compatible === false) {
     return {
       supported: false,
@@ -608,6 +597,17 @@ export async function ensureFastPingForPrimaryInterface({
       restarted: false,
       compatibilityBlocked: true,
       reason: before.compatibilityReason ?? "현재 네트워크 환경에는 패스트핑을 적용하지 않습니다",
+      before,
+      current: before,
+    }
+  }
+
+  if (!applyChanges) {
+    return {
+      supported: true,
+      configured: false,
+      applied: false,
+      restarted: false,
       before,
       current: before,
     }

@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `46`
-- updated_at: `2026-10-21T14:46:00Z`
+- revision: `47`
+- updated_at: `2026-11-07T17:24:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-21T14:46:00Z`
+- source_reviewed_at: `2026-11-07T17:24:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `c491d17dde9223e7aca3f1c33ae9341b58339fb9; annotated v0.4.10`
-- source_review_evidence: `Windows 10 legacy cache parser, 0.4.10 version·lock, package/update assembly SELF_REVIEW`
-- behavior_verified_at: `2026-10-21T14:46:00Z`
+- source_review_target: `base 4b68b4e7f481761a61121c37bf7ded37519f078e; source hashes in docs/ai/runs/20261108-dxvk-network-diagnostics/evidence/source-manifest.md`
+- source_review_evidence: `DXVK FILE_RENAME_INFO path namespace, network compatibility projection, Kaspersky binding과 access-denied adapter SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T17:24:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source c491d17dde9223e7aca3f1c33ae9341b58339fb9; GitHub public v0.4.10`
-- behavior_verification_environment: `Windows 10.0.26200 x64, locked checks, signed package와 GitHub public Release 재다운로드`
-- behavior_verification_evidence: `legacy parser 회귀, backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215, native integration 3/3, package와 공개 9/9 hash·Ed25519·aliases·Electron routing PASS`
+- behavior_verification_target: `uncommitted source manifest based on 4b68b4e7f481761a61121c37bf7ded37519f078e`
+- behavior_verification_environment: `Windows 10.0.26200 x64, backend·Node·desktop automated source checks`
+- behavior_verification_evidence: `docs/ai/runs/20261108-dxvk-network-diagnostics/qa.md`
 - freshness_status: `CURRENT`
-- freshness_reason: `annotated v0.4.10과 public signed assets가 reviewed Windows 10 parser source와 일치`
-- known_gaps: `제보 Windows 10 실기기 설치·게임 QA와 버전 간 자동 업데이트는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — Windows 10 CPU 분할 복구의 public 0.4.10`
-- feature_map: `updated — canonical revision 46, frame revision 22, update revision 15`
-- architecture_impact: `GLPIEx cache topology 호환과 signed package/public update routing`
-- architecture_contract: `updated — revision 50`
+- freshness_reason: `제보 세 건과 exact source를 재검토하고 새 자동 회귀 target을 기록함`
+- known_gaps: `Hojoring·지원김·zero 제보 PC의 실제 재설치와 Kaspersky·ACL 환경 수동 QA는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-DXVK — Windows NT rename 경로와 오류 안내; FEAT-NOGIREM-NETWORK-FASTPING — 차단 filter projection·Kaspersky·권한 안내`
+- feature_map: `updated — canonical revision 47, DXVK revision 2, network revision 2`
+- architecture_impact: `DXVK handle transaction path namespace와 network compatibility/error adapter`
+- architecture_contract: `updated — revision 51`
 
 ## ID 할당
 
@@ -251,17 +251,36 @@
 - exclusions: Windows 보안 정책·백신 예외를 자동 변경하지 않으며 실행 중인 게임 DLL 강제 교체, 임의 다운로드 URL·사전 릴리즈·x86 DLL은 지원하지 않는다.
 - personas_permissions_accessibility_entry: 고급 기능의 Vulkan 관리 화면에서 상태·호환 버전·오류를 텍스트로 확인하고 설치한다. 게임 폴더 쓰기 권한이 필요하다.
 - preconditions_dependencies: 확인 가능한 `Client.exe` 경로, 종료된 게임, 호환 GPU driver, GitHub DXVK release, asset digest, NTFS/Windows 파일 API.
-- normal_error_cancel_retry_flow: 게임 경로를 다운로드 전에 확인하고 자산·압축·DLL을 검증한다. 같은 폴더의 UUID 임시 파일을 동기화·재검증한 뒤 기존 DLL을 원자 교체하고 최종 hash를 확인한다. 경로 누락, 파일 사용, 권한 거부, 보안 제품의 임시·최종 DLL 삭제를 단계별 한국어 오류로 안내하며 사용자가 원인을 해소한 뒤 재시도한다.
+- normal_error_cancel_retry_flow: 게임 경로를 다운로드 전에 확인하고 자산·압축·DLL을 검증한다. 같은 폴더의 UUID 임시 파일을 동기화·재검증하고 DOS·extended DOS·UNC target을 NT namespace 이름으로 정규화한 뒤 기존 DLL을 handle 기반 원자 교체하고 최종 hash를 확인한다. 경로 누락, 파일 사용, 권한 거부, 잘못된 이름과 보안 제품의 임시·최종 DLL 삭제 가능성을 단계별 한국어 오류로 구분하며 사용자가 원인을 해소한 뒤 재시도한다.
 - concurrency_partial_failure_recovery: manager lock이 앱 내 설치를 직렬화한다. 허용 게임 폴더·launcher와 모든 상위 reparse 경계를 검사하며 다운로드 뒤 게임 실행 여부와 canonical 대상 경로를 교체 직전에 다시 확인한다. 기존 DLL은 검증된 backup을 만들고 최종 교체·검증 뒤 정리하며, 교체 뒤 실패하면 backup 복구를 시도한다.
 - state_side_effects_limits: `%APPDATA%\마비노기 렘 부스터\vulkan`의 versioned DLL·`current.json`과 게임 폴더의 `d3d9_dxvk.dll`을 쓴다. 설치된 게임 원본 `d3d9.dll`은 변경하지 않는다.
-- modules_contracts: `service.rs` → `dxvk_manager.rs` → `dxvk.rs` → GitHub HTTP·Windows `SetFileInformationByHandle`. manager만 게임 경로·실행 상태를 조정하고 `dxvk.rs`가 digest·archive·file transaction을 소유한다.
+- modules_contracts: `service.rs` → `dxvk_manager.rs` → `dxvk.rs` → GitHub HTTP·Windows `SetFileInformationByHandle`. manager만 게임 경로·실행 상태를 조정하고 `dxvk.rs`가 digest·archive·NT rename path·file transaction을 소유한다.
 - durable_data_owner: `dxvk.rs` install/apply 경로가 versioned DLL, `current.json`, `d3d9_dxvk.dll`의 유일한 앱 writer다.
 - security_privacy: 고정 GitHub release prefix와 공개 SHA-256을 요구하고 leaf filename만 허용한다. 오류는 작업 단계를 노출하되 사용자 전체 경로를 메시지에 포함하지 않는다.
-- scenarios: `DXVK-001 기존 DLL 원자 교체`, `DXVK-002 누락된 저장 폴더 생성`, `DXVK-003 게임 경로·reparse 선차단`, `DXVK-004 교체 직전 게임 실행·경로 변경 차단`, `DXVK-005 보안 격리·권한·잠금 오류 안내`, `DXVK-006 저장·적용 후 hash 검증`, `DXVK-007 실패 시 기존 DLL 보존·임시 파일 정리`
+- scenarios: `DXVK-001 기존 DLL 원자 교체`, `DXVK-002 누락된 저장 폴더 생성`, `DXVK-003 게임 경로·reparse 선차단`, `DXVK-004 교체 직전 게임 실행·경로 변경 차단`, `DXVK-005 누락·권한·잠금·잘못된 이름 오류 안내`, `DXVK-006 저장·적용 후 hash 검증`, `DXVK-007 실패 시 기존 DLL 보존·임시 파일 정리`, `DXVK-008 한글·extended DOS·UNC target의 NT namespace 변환`
 - observability_evidence: Vulkan 관리 UI 오류·상태, backend DXVK unit tests, `test/vulkan.test.mjs`, 진단의 Vulkan 상태 파일.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 DXVK download·file transaction 경계.
+- record_id: `FEAT-NOGIREM-DXVK`
+- owner: `nogirem maintainer`
+- revision: `2`
+- updated_at: `2026-11-07T17:24:00Z`
+- updated_by: `cursor-agent-92251f36`
+- source_reviewed_at: `2026-11-07T17:24:00Z`
+- source_reviewed_by: `cursor-agent-92251f36`
+- source_review_target: `base 4b68b4e; dxvk.rs SHA-256 1b649d1e43385725c05f54ed8ca74b4be7abe9f8346e81dc741325443589d57c`
+- source_review_evidence: `한글 기존 target에서 ERROR_INVALID_NAME 재현, NT namespace 변환 뒤 신규·교체·rollback 회귀 SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T17:24:00Z`
+- behavior_verified_by: `cursor-agent-92251f36`
+- behavior_verification_target: `source manifest in run evidence`
+- behavior_verification_environment: `Windows 10.0.26200 x64 automated tests`
+- behavior_verification_evidence: `qa.md DXVK scenarios`
 - freshness_status: `CURRENT`
-- known_gaps: 제보 환경의 백신 격리와 실제 게임 폴더 쓰기는 수동 재현하지 못했다.
+- freshness_reason: `제보의 오류 123을 한글 target 교체 회귀로 재현하고 수정 target을 검증함`
+- known_gaps: `제보 PC의 실제 DXVK v3.1.1 설치와 외부 보안 제품의 파일 삭제는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-DXVK — NT namespace rename과 오류 안내`
+- feature_map: `updated — revision 2`
+- architecture_impact: `FILE_RENAME_INFO target namespace; 기존 digest·identity·backup 경계 유지`
+- architecture_contract: `updated — revision 51`
 
 ## FEAT-NOGIREM-NETWORK-FASTPING
 
@@ -274,8 +293,8 @@
 - personas_and_entry_points: 관리자 권한 Windows 사용자가 메인 최적화 화면 또는 CLI 상태·적용 명령에서 사용한다.
 - accessibility: 결과와 실패 원인을 텍스트로 표시하며 색상만으로 상태를 구분하지 않는다.
 - preconditions: Windows, 관리자 권한은 쓰기 때만 필요, 연결된 IPv4 기본 경로, 호환 가능한 물리 adapter.
-- normal_flow: 기본 경로의 interface GUID를 찾고 원래 DWORD를 저장한 뒤 두 값을 1로 기록·재조회하고 필요할 때 adapter를 재시작한다.
-- error_retry_flow: 기본 경로 부재는 예외 스택이 아닌 `supported=false`, `disconnected=true`와 재연결 안내를 반환한다. 연결 후 사용자가 다시 시도한다.
+- normal_flow: 기본 경로의 interface GUID와 binding 호환성을 먼저 확인한다. 차단 filter가 없으면 원래 DWORD를 저장한 뒤 두 값을 1로 기록·재조회하고 필요할 때 adapter를 재시작한다. 차단 filter는 read-only 상태부터 `supported=false`, `compatibilityBlocked=true`로 투영해 UI가 적용 필요로 오인하지 않는다.
+- error_retry_flow: 기본 경로 부재는 예외 스택이 아닌 `supported=false`, `disconnected=true`와 재연결 안내를 반환한다. Kaspersky `KL_KLIM6`은 제품명을 명시하되 자동 해제하지 않는다. 오류 5는 관리자 권한 또는 보안 프로그램·시스템 정책 차단 가능성과 원문을 함께 안내한다.
 - cancellation_concurrency: 네트워크 manager lock이 앱 내 동시 작업을 직렬화하고 적용 검증 실패나 연결성 악화 시 원래 값을 복원한다.
 - partial_failure_recovery: 쓰기 후 값 검증 실패는 성공으로 표시하지 않으며 연결성 검사가 기준보다 악화되면 저장된 GUID의 원래 DWORD로 rollback한다.
 - state_and_side_effects: `%APPDATA%\마비노기 렘 부스터\network\fast-ping-original.json`에 원본을 기록하고 `HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\<GUID>`의 두 DWORD를 변경한다.
@@ -283,11 +302,31 @@
 - durable_data: 원본 snapshot writer는 network manager 하나이며 앱만 읽고 복원한다. 사용자가 초기화하지 않는 한 유지된다.
 - security_privacy: 임의 registry 경로를 입력받지 않고 조회한 GUID만 사용한다. 진단 ZIP은 IP를 마스킹한다.
 - limits_exclusions: IPv6 전용, VPN·가상 adapter, 알려지지 않은 차단 필터에는 적용하지 않는다. 물리적 인터넷 단절은 앱이 복구하지 않는다.
-- scenarios: `NET-FP-001 적용·검증`, `NET-FP-002 이미 적용됨`, `NET-FP-003 기본 경로 없음`, `NET-FP-004 연결성 악화 rollback`, `NET-FP-005 저장값 복원`
+- scenarios: `NET-FP-001 적용·검증`, `NET-FP-002 이미 적용됨`, `NET-FP-003 기본 경로 없음`, `NET-FP-004 연결성 악화 rollback`, `NET-FP-005 저장값 복원`, `NET-FP-006 read-only 차단 filter 적용 생략`, `NET-FP-007 Kaspersky KL_KLIM6 구체 안내`, `NET-FP-008 access denied 권한·정책 안내`
 - evidence: `test/network.test.mjs`, `desktop/backend/src/network.rs` tests, 진단 report `55d16a69-0d32-4bfd-a118-51b03b89fab3`
 - observability: UI network status·reason, diagnostics network snapshot, startup log의 네트워크 조회 완료.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 네트워크 writer 경계.
-- known_gaps: 실제 ISP 단절·복구 시나리오의 수동 UI 확인은 남아 있다.
+- record_id: `FEAT-NOGIREM-NETWORK-FASTPING`
+- owner: `nogirem maintainer`
+- revision: `2`
+- updated_at: `2026-11-07T17:24:00Z`
+- updated_by: `cursor-agent-92251f36`
+- source_reviewed_at: `2026-11-07T17:24:00Z`
+- source_reviewed_by: `cursor-agent-92251f36`
+- source_review_target: `base 4b68b4e; source hashes in run evidence`
+- source_review_evidence: `지원김 KL_KLIM6 projection과 zero 오류 5 경로, Rust·Electron parity SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T17:24:00Z`
+- behavior_verified_by: `cursor-agent-92251f36`
+- behavior_verification_target: `source manifest in run evidence`
+- behavior_verification_environment: `Windows 10.0.26200 x64 automated tests`
+- behavior_verification_evidence: `qa.md NET-FP-006~008`
+- freshness_status: `CURRENT`
+- freshness_reason: `제보 binding·오류를 source와 대조하고 상태·안내 회귀를 검증함`
+- known_gaps: `지원김 Kaspersky 장착 NIC와 zero 보안 정책 PC의 실제 UI 재검증은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-NETWORK-FASTPING — 차단 상태·Kaspersky·access denied 안내`
+- feature_map: `updated — revision 2`
+- architecture_impact: `filter compatibility projection과 PowerShell error adapter; registry writer 불변`
+- architecture_contract: `updated — revision 51`
 
 ## FEAT-NOGIREM-UPDATE-LIFECYCLE
 

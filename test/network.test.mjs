@@ -227,24 +227,27 @@ test("기본 경로에 대응하는 어댑터가 없으면 패스트핑을 안�
 })
 
 test("가상 어댑터나 타사 필터 환경에서는 패스트핑 적용을 차단한다", async () => {
-  const calls = []
-  const result = await ensureFastPingForPrimaryInterface({
-    applyChanges: true,
-    runner: async applyChanges => {
-      calls.push(applyChanges)
-      return {
-        ...baseStatus,
-        compatible: false,
-        compatibilityReason: "타사 네트워크 필터가 연결됨",
-        TcpAckFrequency: null,
-        TCPNoDelay: null,
-      }
-    },
-  })
+  for (const applyChanges of [false, true]) {
+    const calls = []
+    const result = await ensureFastPingForPrimaryInterface({
+      applyChanges,
+      runner: async apply => {
+        calls.push(apply)
+        return {
+          ...baseStatus,
+          compatible: false,
+          compatibilityReason: "타사 네트워크 필터가 연결됨",
+          TcpAckFrequency: null,
+          TCPNoDelay: null,
+        }
+      },
+    })
 
-  assert.equal(result.compatibilityBlocked, true)
-  assert.equal(result.reason, "타사 네트워크 필터가 연결됨")
-  assert.deepEqual(calls, [false])
+    assert.equal(result.supported, false)
+    assert.equal(result.compatibilityBlocked, true)
+    assert.equal(result.reason, "타사 네트워크 필터가 연결됨")
+    assert.deepEqual(calls, [false])
+  }
 })
 
 test("Npcap·SeLow와 nProtect 및 VMware 브리지 필터는 패스트핑 호환성 차단에서 제외한다", () => {
@@ -274,6 +277,17 @@ test("Realtek 네트워크 가속 필터는 차단하고 해제 방법을 안내
   assert.match(
     networkSource,
     /interfaceDescription = \$adapter\.InterfaceDescription[\s\S]*knownBlockingBindings = \$knownBlockingBindings/,
+  )
+})
+
+test("Kaspersky 네트워크 필터는 자동 해제하지 않고 제품명을 안내한다", () => {
+  assert.match(
+    rustNetworkScript,
+    /blockingThirdPartyBindings -contains "KL_KLIM6"[\s\S]*Kaspersky 네트워크 필터[\s\S]*자동으로 해제하지 않습니다/,
+  )
+  assert.doesNotMatch(
+    rustNetworkScript,
+    /notmatch "[^"]*KL_KLIM6/,
   )
 })
 
