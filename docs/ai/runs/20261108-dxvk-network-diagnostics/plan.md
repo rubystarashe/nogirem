@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-IMPLEMENT`
 - owner: `cursor-agent-92251f36 (DEV)`
 - created_at: `2026-11-07T17:13:00Z`
-- status: `implemented_and_verified; commit_pending`
+- status: `completed`
 - target: `base 4b68b4e7f481761a61121c37bf7ded37519f078e, branch fix/dxvk-network-diagnostics-0411`
 - feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING — request 기록 범위`
 - feature_map: `updated — 완료 시 exact source·검증 freshness 반영`
@@ -17,7 +17,7 @@
 1. `CP-IMPLEMENT` (`completed`, DEV): NT namespace DXVK rename, filter projection, Kaspersky·권한 안내와 회귀 테스트
 2. `CP-QA` (`completed`, DEV-as-QA): targeted tests, backend 전체 test, Node 전체 test, desktop locked check, lint
 3. `CP-REVIEW-DOCS` (`completed`, SELF_REVIEW): 실제 diff·주변 transaction·보안 경계 검토, feature map·architecture·handoff 갱신
-4. `CP-COMMIT` (`in_progress`, Coordinator): exact dirty manifest 확인, 소유 파일만 stage·commit, 결과 재확인
+4. `CP-COMMIT` (`completed`, Coordinator): exact dirty manifest 확인, 소유 파일만 stage·commit, 결과 재확인
 
 ## 구현 경로와 stop 조건
 

@@ -4,12 +4,12 @@
 - run_id: `20261108-dxvk-network-diagnostics`
 - checkpoint_id: `CP-COMMIT`
 - owner: `cursor-agent-92251f36`
-- updated_at: `2026-11-07T17:30:00Z`
-- status: `READY_FOR_COMMIT`
-- DEV_state: `READY_FOR_REVIEW`
+- updated_at: `2026-11-07T17:31:00Z`
+- status: `COMPLETED`
+- DEV_state: `DONE`
 - QA_state: `COMPLETE_PASS`
 - review_state: `APPROVED (SELF_REVIEW)`
-- source_target: `base 4b68b4e7f481761a61121c37bf7ded37519f078e; evidence/source-manifest.md`
+- source_target: `implementation commit 003a557ca1aa60ecab8f20680478294746d0eccb; evidence/source-manifest.md`
 - execution_target: `Windows 10.0.26200 x64, Rust locked checks, Node 22.20.0`
 - feature_impact: `FEAT-NOGIREM-DXVK — NT rename path와 오류 분류; FEAT-NOGIREM-NETWORK-FASTPING — 차단 상태·Kaspersky·권한 안내`
 - feature_map: `updated — canonical revision 47, DXVK revision 2, network revision 2`
@@ -33,7 +33,7 @@
 - remaining risk: 실제 보안 제품이 DLL을 외부 삭제하는 상황은 자동 검사로 재현하지 못했다.
 - ownership: isolated worktree의 listed files만 본 run 소유이며 기본 worktree와 recorder helper 변경은 건드리지 않는다.
 - blocker: `none`
-- next_authorized_action: exact diff를 명시 stage하고 local checkpoint commit한다.
+- next_authorized_action: `none for this run; package·version·release는 새 사용자 요청이 필요함`
 - resume_directory: `C:\Users\User\Documents\GitHub\nogirem-diagnostics-0411`
 - safe_resume_commands: `git status --short`, `git diff --check`, `git diff --cached --name-status`
 - side_effect_notice: `git commit`은 로컬 history를 변경하지만 push·deploy는 수행하지 않는다.

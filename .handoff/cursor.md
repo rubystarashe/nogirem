@@ -6,7 +6,7 @@ Last Updated: 2026-11-08 02:24 +09:00
 0.4.10 진단 세 건에서 확인한 DXVK 한글·canonical 경로 교체, Kaspersky 차단 상태 표시와 네트워크 액세스 거부 안내를 개선한다.
 
 ## Active Runs
-- `20261108-dxvk-network-diagnostics`: base `4b68b4e7f481761a61121c37bf7ded37519f078e`의 isolated worktree에서 DXVK `FileRenameInfo` target을 NT namespace로 정규화하고, read-only filter 차단을 적용 생략으로 투영하며 `KL_KLIM6`·오류 5 안내를 구체화했다. 구현·자동 검증·SELF_REVIEW·local commit 진행 중이며 package·push·release·deploy는 범위 밖이다. (`docs/ai/runs/20261108-dxvk-network-diagnostics/handoff.md`)
+- `20261108-dxvk-network-diagnostics`: implementation commit `003a557ca1aa60ecab8f20680478294746d0eccb`에서 DXVK `FileRenameInfo` target을 NT namespace로 정규화하고, read-only filter 차단을 적용 생략으로 투영하며 `KL_KLIM6`·오류 5 안내를 구체화했다. backend 137 PASS·3 ignored와 parity 2/2, Node 216/216, desktop check, SELF_REVIEW가 통과했다. 제보 PC 수동 QA와 package·push·release·deploy는 NOT_RUN이다. (`docs/ai/runs/20261108-dxvk-network-diagnostics/final-report.md`)
 - `20261021-release-0410`: source `c491d17dde9223e7aca3f1c33ae9341b58339fb9`와 annotated `v0.4.10`에서 Windows 10 legacy CPU cache parser 수정을 signed 설치형·포터블로 패키징하고 [GitHub v0.4.10](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.10)을 public Latest로 공개했다. backend 133 PASS·3 ignored, parity 2/2, desktop 8/8·check, Node 215/215, native integration retest 3/3과 공개 9/9 hash·Ed25519·aliases·Electron routing이 통과했다. 설치형 SHA-256 `b9781ff3...0649a`, 포터블 `471b5210...1f48e`; 실제 제보 PC 설치·게임 affinity와 버전 간 자동 업데이트는 NOT_RUN이다. (`docs/ai/runs/20261021-release-0410/final-report.md`)
 - `20261021-win10-cache-topology`: source `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`에서 Windows 10 `CACHE_RELATIONSHIP.GroupCount=0`을 오류가 아닌 legacy 단일 `GroupMask`로 해석한다. 현재 Windows의 다중 mask record bounds와 core/group malformed 검증은 유지한다. backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215와 SELF_REVIEW가 통과했고 후속 `20261021-release-0410`에서 package·push·배포했다. 제보 실기기 실행은 NOT_RUN이다. (`docs/ai/runs/20261021-win10-cache-topology/final-report.md`)
 - `20261020-startup-status-fallback-049`: source `a4f2dc4303d6c728d89cf5ad742a86618e158891`에서 Windows 자동 시작 예약 작업 조회를 최대 3회 재시도하고, 최종 read-only 실패는 전역 시작 오류 대신 해당 카드의 `확인 불가`·비활성 상태로 격리한다. 명시적 설정 변경 검증 실패는 오류로 유지한다. backend 132 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215, signed package와 공개 9/9 hash·Ed25519·aliases·Electron routing이 통과했다. [GitHub v0.4.9](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.9)의 Rust 자산 6개를 feed-safe 순서로 대치했으며 실제 제보 PC E_FAIL·설치 UI·same-version 자동 재수신은 NOT_RUN이다. (`docs/ai/runs/20261020-startup-status-fallback-049/final-report.md`)
@@ -56,7 +56,7 @@ Last Updated: 2026-11-08 02:24 +09:00
 - feature_map: `updated — canonical revision 47, DXVK revision 2, network revision 2`
 - architecture_impact: `DXVK handle transaction path namespace와 network compatibility/error adapter`
 - architecture_contract: `updated — revision 51`
-- `IN_PROGRESS` — source 구현과 targeted checks는 통과했고 전체 Node run·최종 SELF_REVIEW·commit을 마무리한다.
+- `COMPLETED` — implementation commit `003a557ca1aa60ecab8f20680478294746d0eccb`, backend 137·3 ignored, parity 2/2, Node 216/216, desktop check, SELF_REVIEW APPROVED.
 - `NOT_RUN` — 제보 PC 실제 DXVK v3.1.1 설치, Kaspersky NIC, ACL/보안 정책, package·push·release·deploy.
 - feature_impact: `FEAT-NOGIREM-FRAME-BOOST, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.10`
 - feature_map: `updated — canonical revision 46, frame revision 22, update revision 15`

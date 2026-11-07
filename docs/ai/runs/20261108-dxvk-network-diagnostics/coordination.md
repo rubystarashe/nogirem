@@ -4,7 +4,7 @@
 - run_id: `20261108-dxvk-network-diagnostics`
 - checkpoint_id: `CP-COMMIT`
 - owner: `cursor-agent-92251f36 (Coordinator)`
-- updated_at: `2026-11-07T17:30:00Z`
+- updated_at: `2026-11-07T17:31:00Z`
 - exact_target: `nogirem fix/dxvk-network-diagnostics-0411 @ base 4b68b4e7f481761a61121c37bf7ded37519f078e`
 - feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING`
 - feature_map: `updated — run 완료 시 canonical freshness와 시나리오 반영`
@@ -23,10 +23,10 @@
 
 ## 상태
 
-- DEV: `READY_FOR_REVIEW`
+- DEV: `DONE`
 - QA: `COMPLETE_PASS`
 - Review: `APPROVED (SELF_REVIEW)`
-- active_checkpoint: `CP-COMMIT`
+- active_checkpoint: `CP-COMMIT completed`
 - open_findings: `none; ISSUE-DXVK-001·002 resolved`
 - blockers: `none`
 - cross_repository_dependencies: `none`
