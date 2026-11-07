@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `47`
-- updated_at: `2026-11-07T17:24:00Z`
+- revision: `48`
+- updated_at: `2026-11-07T17:43:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-11-07T17:24:00Z`
+- source_reviewed_at: `2026-11-07T17:43:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 4b68b4e7f481761a61121c37bf7ded37519f078e; source hashes in docs/ai/runs/20261108-dxvk-network-diagnostics/evidence/source-manifest.md`
-- source_review_evidence: `DXVK FILE_RENAME_INFO path namespace, network compatibility projection, Kaspersky binding과 access-denied adapter SELF_REVIEW`
-- behavior_verified_at: `2026-11-07T17:24:00Z`
+- source_review_target: `545ec1767e03745bc598cc90c48f38ed484db987`
+- source_review_evidence: `0.4.11 version/history, DXVK·network source와 signed package inputs SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T17:43:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted source manifest based on 4b68b4e7f481761a61121c37bf7ded37519f078e`
-- behavior_verification_environment: `Windows 10.0.26200 x64, backend·Node·desktop automated source checks`
-- behavior_verification_evidence: `docs/ai/runs/20261108-dxvk-network-diagnostics/qa.md`
+- behavior_verification_target: `source 545ec1767e03745bc598cc90c48f38ed484db987; release/dioxus-0.4.11-2026-11-07T17-37-53-373Z`
+- behavior_verification_environment: `Windows 10.0.26200 x64, locked source checks와 local signed package`
+- behavior_verification_evidence: `docs/ai/runs/20261108-package-0411/qa.md; evidence/package.md`
 - freshness_status: `CURRENT`
-- freshness_reason: `제보 세 건과 exact source를 재검토하고 새 자동 회귀 target을 기록함`
-- known_gaps: `Hojoring·지원김·zero 제보 PC의 실제 재설치와 Kaspersky·ACL 환경 수동 QA는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-DXVK — Windows NT rename 경로와 오류 안내; FEAT-NOGIREM-NETWORK-FASTPING — 차단 filter projection·Kaspersky·권한 안내`
-- feature_map: `updated — canonical revision 47, DXVK revision 2, network revision 2`
-- architecture_impact: `DXVK handle transaction path namespace와 network compatibility/error adapter`
-- architecture_contract: `updated — revision 51`
+- freshness_reason: `committed 0.4.11 source와 signed local package의 version·payload·signature를 재검증함`
+- known_gaps: `Hojoring·지원김·zero 제보 PC의 실제 재설치, Kaspersky·ACL 환경, 설치·업데이트 종단간은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING — 0.4.11 package; FEAT-NOGIREM-UPDATE-LIFECYCLE — signed local artifacts`
+- feature_map: `updated — canonical 48, DXVK 3, network 3, update 16`
+- architecture_impact: `DXVK·network fixes의 signed package payload와 manifest boundary`
+- architecture_contract: `updated — revision 52`
 
 ## ID 할당
 
@@ -262,25 +262,25 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 DXVK download·file transaction 경계.
 - record_id: `FEAT-NOGIREM-DXVK`
 - owner: `nogirem maintainer`
-- revision: `2`
-- updated_at: `2026-11-07T17:24:00Z`
+- revision: `3`
+- updated_at: `2026-11-07T17:43:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-11-07T17:24:00Z`
+- source_reviewed_at: `2026-11-07T17:43:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 4b68b4e; dxvk.rs SHA-256 1b649d1e43385725c05f54ed8ca74b4be7abe9f8346e81dc741325443589d57c`
-- source_review_evidence: `한글 기존 target에서 ERROR_INVALID_NAME 재현, NT namespace 변환 뒤 신규·교체·rollback 회귀 SELF_REVIEW`
-- behavior_verified_at: `2026-11-07T17:24:00Z`
+- source_review_target: `545ec1767e03745bc598cc90c48f38ed484db987`
+- source_review_evidence: `committed NT namespace fix와 0.4.11 package input SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T17:43:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source manifest in run evidence`
-- behavior_verification_environment: `Windows 10.0.26200 x64 automated tests`
-- behavior_verification_evidence: `qa.md DXVK scenarios`
+- behavior_verification_target: `source 545ec1767e03745bc598cc90c48f38ed484db987; signed 0.4.11 local package`
+- behavior_verification_environment: `Windows 10.0.26200 x64 automated tests와 package service contract`
+- behavior_verification_evidence: `20261108-package-0411/qa.md와 evidence/package.md`
 - freshness_status: `CURRENT`
-- freshness_reason: `제보의 오류 123을 한글 target 교체 회귀로 재현하고 수정 target을 검증함`
+- freshness_reason: `검증된 NT rename fix가 committed 0.4.11 signed payload에 포함됨`
 - known_gaps: `제보 PC의 실제 DXVK v3.1.1 설치와 외부 보안 제품의 파일 삭제는 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-DXVK — NT namespace rename과 오류 안내`
-- feature_map: `updated — revision 2`
+- feature_impact: `FEAT-NOGIREM-DXVK — 0.4.11 signed local package`
+- feature_map: `updated — revision 3`
 - architecture_impact: `FILE_RENAME_INFO target namespace; 기존 digest·identity·backup 경계 유지`
-- architecture_contract: `updated — revision 51`
+- architecture_contract: `updated — revision 52`
 
 ## FEAT-NOGIREM-NETWORK-FASTPING
 
@@ -308,25 +308,25 @@
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md)의 네트워크 writer 경계.
 - record_id: `FEAT-NOGIREM-NETWORK-FASTPING`
 - owner: `nogirem maintainer`
-- revision: `2`
-- updated_at: `2026-11-07T17:24:00Z`
+- revision: `3`
+- updated_at: `2026-11-07T17:43:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-11-07T17:24:00Z`
+- source_reviewed_at: `2026-11-07T17:43:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 4b68b4e; source hashes in run evidence`
-- source_review_evidence: `지원김 KL_KLIM6 projection과 zero 오류 5 경로, Rust·Electron parity SELF_REVIEW`
-- behavior_verified_at: `2026-11-07T17:24:00Z`
+- source_review_target: `545ec1767e03745bc598cc90c48f38ed484db987`
+- source_review_evidence: `committed KL_KLIM6·오류 5 source와 0.4.11 package input SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T17:43:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source manifest in run evidence`
-- behavior_verification_environment: `Windows 10.0.26200 x64 automated tests`
-- behavior_verification_evidence: `qa.md NET-FP-006~008`
+- behavior_verification_target: `source 545ec1767e03745bc598cc90c48f38ed484db987; signed 0.4.11 local package`
+- behavior_verification_environment: `Windows 10.0.26200 x64 automated tests와 package service contract`
+- behavior_verification_evidence: `20261108-package-0411/qa.md와 evidence/package.md`
 - freshness_status: `CURRENT`
-- freshness_reason: `제보 binding·오류를 source와 대조하고 상태·안내 회귀를 검증함`
+- freshness_reason: `검증된 Kaspersky·권한 안내가 committed 0.4.11 signed payload에 포함됨`
 - known_gaps: `지원김 Kaspersky 장착 NIC와 zero 보안 정책 PC의 실제 UI 재검증은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-NETWORK-FASTPING — 차단 상태·Kaspersky·access denied 안내`
-- feature_map: `updated — revision 2`
+- feature_impact: `FEAT-NOGIREM-NETWORK-FASTPING — 0.4.11 signed local package`
+- feature_map: `updated — revision 3`
 - architecture_impact: `filter compatibility projection과 PowerShell error adapter; registry writer 불변`
-- architecture_contract: `updated — revision 51`
+- architecture_contract: `updated — revision 52`
 
 ## FEAT-NOGIREM-UPDATE-LIFECYCLE
 
@@ -356,22 +356,22 @@
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).
 - owner: `release/update owner`
-- revision: `15`
-- updated_at: `2026-10-21T14:46:00Z`
+- revision: `16`
+- updated_at: `2026-11-07T17:43:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-10-21T14:46:00Z`
+- source_reviewed_at: `2026-11-07T17:43:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `c491d17dde9223e7aca3f1c33ae9341b58339fb9; annotated v0.4.10`
-- source_review_evidence: `0.4.10 manifests·locks, package script, Ed25519 manifests와 9-asset release assembly SELF_REVIEW`
-- behavior_verified_at: `2026-10-21T14:46:00Z`
+- source_review_target: `545ec1767e03745bc598cc90c48f38ed484db987`
+- source_review_evidence: `0.4.11 manifests·locks, package script, local Ed25519 manifests SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T17:43:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source c491d17dde9223e7aca3f1c33ae9341b58339fb9; GitHub public v0.4.10`
-- behavior_verification_environment: `Windows 10.0.26200 x64 package QA와 GitHub public Release 재다운로드`
-- behavior_verification_evidence: `backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 215/215, native integration 3/3, signed package와 공개 9/9 hash·Ed25519 manifests·byte-identical aliases·Electron 0.3.19 routing PASS`
+- behavior_verification_target: `source 545ec1767e03745bc598cc90c48f38ed484db987; release/dioxus-0.4.11-2026-11-07T17-37-53-373Z`
+- behavior_verification_environment: `Windows 10.0.26200 x64 local signed package QA`
+- behavior_verification_evidence: `backend 137 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 216/216, native integration 3/3, signed package·payload hash·Ed25519 manifests PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `public Latest v0.4.10 signed asset set과 update routing을 재다운로드 검증했다.`
-- known_gaps: `WebView2 미설치 PC 안내, 실제 0.4.10 설치·제거·포터블 실행과 버전 간 자동 업데이트는 NOT_RUN.`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — public signed 0.4.10 release와 update routing`
-- feature_map: `updated — revision 15`
-- architecture_impact: `package signing·GitHub Release·Rust/Electron update routing`
-- architecture_contract: `updated — revision 50`
+- freshness_reason: `0.4.11 committed source에서 local signed installer·portable과 manifests를 검증했다. public Latest는 여전히 v0.4.10이다.`
+- known_gaps: `실제 0.4.11 설치·제거·포터블 실행·버전 간 자동 업데이트와 public release는 NOT_RUN.`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — signed local 0.4.11 artifacts`
+- feature_map: `updated — revision 16`
+- architecture_impact: `package signing과 local Rust update manifests; public routing 불변`
+- architecture_contract: `updated — revision 52`

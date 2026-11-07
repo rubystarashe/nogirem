@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `51`
-- updated_at: `2026-11-07T17:24:00Z`
+- revision: `52`
+- updated_at: `2026-11-07T17:43:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-11-07T17:24:00Z`
+- source_reviewed_at: `2026-11-07T17:43:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `base 4b68b4e7f481761a61121c37bf7ded37519f078e; source hashes in 20261108 run evidence`
-- source_review_evidence: `DXVK NT rename namespace와 network compatibility/error adapter SELF_REVIEW`
-- behavior_verified_at: `2026-11-07T17:24:00Z`
+- source_review_target: `545ec1767e03745bc598cc90c48f38ed484db987`
+- source_review_evidence: `DXVK·network boundaries, 0.4.11 package inputs와 signing path SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T17:43:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `uncommitted source manifest based on 4b68b4e7f481761a61121c37bf7ded37519f078e`
-- behavior_verification_environment: `Windows 10.0.26200 x64 automated source checks`
-- behavior_verification_evidence: `docs/ai/runs/20261108-dxvk-network-diagnostics/qa.md`
+- behavior_verification_target: `source 545ec1767e03745bc598cc90c48f38ed484db987; release/dioxus-0.4.11-2026-11-07T17-37-53-373Z`
+- behavior_verification_environment: `Windows 10.0.26200 x64 locked source checks와 local signed package`
+- behavior_verification_evidence: `docs/ai/runs/20261108-package-0411/qa.md; evidence/package.md`
 - freshness_status: `CURRENT`
-- freshness_reason: `세 제보의 affected transaction·adapter를 exact source와 재검토함`
-- known_gaps: `제보 PC의 실제 DXVK 설치·Kaspersky NIC·권한 정책 종단간은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING`
-- feature_map: `updated — canonical revision 47`
-- architecture_impact: `DXVK NT path와 network filter/error 경계`
-- architecture_contract: `updated — revision 51`
+- freshness_reason: `committed 0.4.11 source에서 기존 package golden path와 Ed25519 enforcement를 실행함`
+- known_gaps: `제보 PC의 실제 DXVK 설치·Kaspersky NIC·권한 정책과 설치·업데이트 종단간은 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING, FEAT-NOGIREM-UPDATE-LIFECYCLE`
+- feature_map: `updated — canonical revision 48`
+- architecture_impact: `DXVK·network source의 signed package payload와 manifest boundary`
+- architecture_contract: `updated — revision 52`
 
 ## 계층과 확장 경로
 

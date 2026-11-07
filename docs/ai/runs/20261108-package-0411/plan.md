@@ -5,7 +5,7 @@
 - checkpoint_id: `CP-VERSION-0411`
 - owner: `cursor-agent-92251f36 (DEV)`
 - created_at: `2026-11-07T17:33:00Z`
-- status: `in_progress`
+- status: `completed`
 - feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING, FEAT-NOGIREM-UPDATE-LIFECYCLE`
 - feature_map: `updated — package completion 시 exact target 반영`
 - architecture_impact: `signed package assembly와 version identity`
@@ -13,10 +13,10 @@
 
 ## Checkpoints
 
-1. `CP-VERSION-0411` (`in_progress`): 0.4.11 history·package·Cargo·lock identity, version source commit
-2. `CP-QA-0411` (`pending`): backend·parity, desktop test/check, Node, native integration, version checks, SELF_REVIEW
-3. `CP-PACKAGE-0411` (`pending`): committed source에서 `npm run package:win`, installer·portable·Ed25519·payload 검증
-4. `CP-DOCS-0411` (`pending`): package evidence, canonical freshness, handoff·final report와 completion commit
+1. `CP-VERSION-0411` (`completed`): 0.4.11 history·package·Cargo·lock identity, source `545ec1767e03745bc598cc90c48f38ed484db987`
+2. `CP-QA-0411` (`completed`): backend·parity, desktop test/check, Node, native integration, version checks, SELF_REVIEW
+3. `CP-PACKAGE-0411` (`completed`): committed source에서 signed installer·portable·Ed25519·payload 검증
+4. `CP-DOCS-0411` (`completed`): package evidence, canonical freshness, handoff·final report
 
 ## Path와 stop condition
 

@@ -1,11 +1,12 @@
 # Cursor AI Handoff
 
-Last Updated: 2026-11-08 02:24 +09:00
+Last Updated: 2026-11-08 02:43 +09:00
 
 ## Current Objective
-0.4.10 진단 세 건에서 확인한 DXVK 한글·canonical 경로 교체, Kaspersky 차단 상태 표시와 네트워크 액세스 거부 안내를 개선한다.
+진단 세 건 개선을 0.4.11로 기록하고 signed 설치형·포터블을 local package로 생성·검증한다.
 
 ## Active Runs
+- `20261108-package-0411`: source `545ec1767e03745bc598cc90c48f38ed484db987`에서 0.4.11 version/history를 고정하고 `release/dioxus-0.4.11-2026-11-07T17-37-53-373Z`에 signed 설치형·포터블을 생성했다. installer SHA-256 `f2e538ef...ef8e6`, portable `cc1b472e...80880`; backend 137 PASS·3 ignored, parity 2/2, desktop 8/8·locked checks, Node 216/216, native integration 3/3, package contract·Ed25519·payload hash가 통과했다. 실제 설치·제거·포터블 실행·업데이트·제보 PC와 push·tag·release·deploy는 NOT_RUN이다. (`docs/ai/runs/20261108-package-0411/final-report.md`)
 - `20261108-dxvk-network-diagnostics`: implementation commit `003a557ca1aa60ecab8f20680478294746d0eccb`에서 DXVK `FileRenameInfo` target을 NT namespace로 정규화하고, read-only filter 차단을 적용 생략으로 투영하며 `KL_KLIM6`·오류 5 안내를 구체화했다. backend 137 PASS·3 ignored와 parity 2/2, Node 216/216, desktop check, SELF_REVIEW가 통과했다. 제보 PC 수동 QA와 package·push·release·deploy는 NOT_RUN이다. (`docs/ai/runs/20261108-dxvk-network-diagnostics/final-report.md`)
 - `20261021-release-0410`: source `c491d17dde9223e7aca3f1c33ae9341b58339fb9`와 annotated `v0.4.10`에서 Windows 10 legacy CPU cache parser 수정을 signed 설치형·포터블로 패키징하고 [GitHub v0.4.10](https://github.com/rubystarashe/nogirem/releases/tag/v0.4.10)을 public Latest로 공개했다. backend 133 PASS·3 ignored, parity 2/2, desktop 8/8·check, Node 215/215, native integration retest 3/3과 공개 9/9 hash·Ed25519·aliases·Electron routing이 통과했다. 설치형 SHA-256 `b9781ff3...0649a`, 포터블 `471b5210...1f48e`; 실제 제보 PC 설치·게임 affinity와 버전 간 자동 업데이트는 NOT_RUN이다. (`docs/ai/runs/20261021-release-0410/final-report.md`)
 - `20261021-win10-cache-topology`: source `e90af1a4304c8bc1201e5a7e5bbcbbd70a6419ed`에서 Windows 10 `CACHE_RELATIONSHIP.GroupCount=0`을 오류가 아닌 legacy 단일 `GroupMask`로 해석한다. 현재 Windows의 다중 mask record bounds와 core/group malformed 검증은 유지한다. backend 133 PASS·3 ignored와 parity 2/2, desktop 8/8·check, Node 215/215와 SELF_REVIEW가 통과했고 후속 `20261021-release-0410`에서 package·push·배포했다. 제보 실기기 실행은 NOT_RUN이다. (`docs/ai/runs/20261021-win10-cache-topology/final-report.md`)
@@ -52,6 +53,12 @@ Last Updated: 2026-11-08 02:24 +09:00
 - `20260929-update-hotfix`: 사용자 진단 기반 0% 패닉 수정과 0.3.19 전환본 배포 완료, 실패한 0.3.18·0.4.0은 1회 수동 복구 필요 (`docs/ai/runs/20260929-update-hotfix/handoff.md`)
 
 ## Current Status
+- feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING — 0.4.11 package; FEAT-NOGIREM-UPDATE-LIFECYCLE — signed local artifacts`
+- feature_map: `updated — canonical 48, DXVK 3, network 3, update 16`
+- architecture_impact: `version identity, signed package payload와 manifest`
+- architecture_contract: `updated — revision 52`
+- `COMPLETED` — source `545ec1767e03745bc598cc90c48f38ed484db987`, local signed 0.4.11 설치형·포터블, Ed25519·payload·10MB·Rust-only contract PASS.
+- `NOT_RUN` — 실제 설치·제거·포터블 실행·자동 업데이트·제보 PC, push·tag·GitHub Release·deploy.
 - feature_impact: `FEAT-NOGIREM-DXVK — NT namespace rename·오류 분류; FEAT-NOGIREM-NETWORK-FASTPING — 차단 상태·Kaspersky·권한 안내`
 - feature_map: `updated — canonical revision 47, DXVK revision 2, network revision 2`
 - architecture_impact: `DXVK handle transaction path namespace와 network compatibility/error adapter`
