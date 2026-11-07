@@ -1,0 +1,28 @@
+# Public release evidence
+
+- evidence_id: `EVID-RELEASE-0411-PUBLIC`
+- run_id: `20261108-package-0411`
+- checkpoint_id: `CP-RELEASE-0411`
+- producer: `cursor-agent-92251f36`
+- created_at: `2026-11-07T18:05:00Z`
+- authorization: `user request "배포해" at 2026-11-07T17:56Z`
+- source_target: `origin/main and annotated v0.4.11 (tag object caf0706e32dabec425be67598fc6840a282e62f8) -> 560101450b8cd74a5fee414183d0ebf5a10b194a`
+- user_input: `기본 worktree VERSION_HISTORY.md SHA-256 ecd1cba8719050342bbe65f199101b0f9a5c650c6475a67a1dadecace528576f; 사용자 작성 0.4.11 문구 채택`
+- package_target: `release/dioxus-0.4.11-2026-11-07T17-57-57-756Z`
+- candidate: `release/ready-v0.4.11-2026-11-07T17-59-47-119Z`
+- execution_target: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.11`
+- procedure: `사용자 history commit → npm test → npm run package:win → v0.4.10 공개 bridge 3개 재사용 → prepare-release → origin/main fast-forward·annotated tag push → draft 9개 업로드 → Latest 공개 → 공개 9개 재다운로드·hash·prepare-release 재검증`
+- installer: `nogirem-dioxus-setup-0.4.11.exe; 8,022,172 bytes; SHA-256 3fcfea1db2b0957e4917c25455d259d782871ea1dfdd1279542aae92e678d908`
+- portable: `nogirem-dioxus-portable-0.4.11.exe; 7,797,477 bytes; SHA-256 f148b223da5e927dfa6787654e077734e3f366b1a46c5a4dc891f12c37f91cf3`
+- aliases: `nogirem-setup-0.4.11.exe, nogirem-portable-0.4.11.exe; byte-identical`
+- update_manifest: `SHA-256 cb73ef78b724a20789769abf3069a9d22587b6cd8d7276dfb8a9bdb5f0462612`
+- portable_manifest: `SHA-256 38b8dbcce6d20eb0a80317489141cc4c76e3e468b5a4f900f7fde4b75f69d0c5`
+- electron_bridge: `latest.yml 419a0e6c...cc14, migration EXE 63da5da2...a366, blockmap 4cefd458...2d96; v0.4.10 공개 자산과 동일`
+- expected: `Latest v0.4.11, 9/9 assets, packaged VERSION_HISTORY가 사용자 파일과 동일, signed Rust feeds, Electron 0.3.19 routing`
+- actual: `PASS — Latest=v0.4.11, 9/9 public SHA-256 일치, 공개본 입력 Ed25519·size·SHA-256 검증, latest.yml version 0.3.19`
+- validation_reuse: `history-only commit이므로 545ec17의 backend·desktop·native 결과를 재사용; Node 216/216과 package 계약은 새 target에서 재실행`
+- evidence_limitations: `실제 설치·제거·포터블 실행·이전 버전 자동 업데이트·제보 PC는 NOT_RUN`
+- feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING — public 0.4.11; FEAT-NOGIREM-UPDATE-LIFECYCLE — public signed release`
+- feature_map: `updated — canonical 49, update 17`
+- architecture_impact: `GitHub signed release와 Rust/Electron update routing 실행`
+- architecture_contract: `updated — freshness revision 53`

@@ -27,4 +27,4 @@
 - Package: `COMPLETE_PASS`
 - active_checkpoint: `none`
 - blockers: `none`
-- external_actions: `push/tag/release/deploy NOT_AUTHORIZED`
+- external_actions: `사용자 "배포해"로 승인; origin/main·v0.4.11·GitHub Latest 공개 완료`

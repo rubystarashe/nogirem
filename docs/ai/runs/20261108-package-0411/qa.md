@@ -25,6 +25,8 @@
 - `SIGNATURE`: `PASS` — 두 Ed25519 signature와 실제 payload version·size·SHA-256 독립 검증
 - `PAYLOAD`: `PASS` — packaged Rust service contract, Rust-only payload, runtime image, single recorder helper; package 후 계약 17/17
 - `MANUAL-INSTALL`: `NOT_RUN — 현재 요청은 local package 생성이며 사용자 PC 설치는 미승인`
+- `RELEASE-HISTORY`: `PASS` — 사용자 VERSION_HISTORY 반영 target 5601014에서 Node 216/216, 재패키징, packaged history SHA-256 일치
+- `PUBLIC`: `PASS` — Latest v0.4.11, 공개 9/9 SHA-256 일치, 공개본 Ed25519·payload, aliases, Electron 0.3.19 routing
 - review_mode: `SELF_REVIEW`
 - review_verdict: `APPROVED`
 - review_limit: `독립 reviewer 미참여`

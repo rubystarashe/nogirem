@@ -2,25 +2,25 @@
 
 - record_id: `ARCH-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `52`
-- updated_at: `2026-11-07T17:43:00Z`
+- revision: `53`
+- updated_at: `2026-11-07T18:05:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-11-07T17:43:00Z`
+- source_reviewed_at: `2026-11-07T18:05:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `545ec1767e03745bc598cc90c48f38ed484db987`
-- source_review_evidence: `DXVK·network boundaries, 0.4.11 package inputs와 signing path SELF_REVIEW`
-- behavior_verified_at: `2026-11-07T17:43:00Z`
+- source_review_target: `560101450b8cd74a5fee414183d0ebf5a10b194a; annotated v0.4.11`
+- source_review_evidence: `DXVK·network boundaries, package inputs, signed manifests와 release routing SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T18:05:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source 545ec1767e03745bc598cc90c48f38ed484db987; release/dioxus-0.4.11-2026-11-07T17-37-53-373Z`
-- behavior_verification_environment: `Windows 10.0.26200 x64 locked source checks와 local signed package`
-- behavior_verification_evidence: `docs/ai/runs/20261108-package-0411/qa.md; evidence/package.md`
+- behavior_verification_target: `source 560101450b8cd74a5fee414183d0ebf5a10b194a; GitHub public v0.4.11`
+- behavior_verification_environment: `Windows 10.0.26200 x64 package QA와 GitHub public Release 재다운로드`
+- behavior_verification_evidence: `docs/ai/runs/20261108-package-0411/qa.md; evidence/public-release.md`
 - freshness_status: `CURRENT`
-- freshness_reason: `committed 0.4.11 source에서 기존 package golden path와 Ed25519 enforcement를 실행함`
+- freshness_reason: `public Latest v0.4.11에서 signed release와 Rust/Electron routing 경계를 재검증`
 - known_gaps: `제보 PC의 실제 DXVK 설치·Kaspersky NIC·권한 정책과 설치·업데이트 종단간은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING, FEAT-NOGIREM-UPDATE-LIFECYCLE`
-- feature_map: `updated — canonical revision 48`
-- architecture_impact: `DXVK·network source의 signed package payload와 manifest boundary`
-- architecture_contract: `updated — revision 52`
+- feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING, FEAT-NOGIREM-UPDATE-LIFECYCLE — public 0.4.11`
+- feature_map: `updated — canonical revision 49`
+- architecture_impact: `signed public release/update routing 실행; 구조 규칙 변경 없음`
+- architecture_contract: `updated — revision 53`
 
 ## 계층과 확장 경로
 

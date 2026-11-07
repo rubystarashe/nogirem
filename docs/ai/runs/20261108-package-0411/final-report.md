@@ -42,3 +42,16 @@
 - tag_status: `NOT_RUN`
 - release_deployment_status: `NOT_RUN`
 - resume_path: `docs/ai/runs/20261108-package-0411/handoff.md`
+
+## Release addendum (2026-11-07T18:05Z)
+
+- authorization: `사용자 "배포해"`
+- status: `COMPLETED`
+- change_before_release: `사용자가 기본 worktree에서 작성한 0.4.11 문구로 VERSION_HISTORY를 교체(560101450b8cd74a5fee414183d0ebf5a10b194a)하고 재패키징; 위 545ec17 package hash는 공개 자산으로 대체됨`
+- public_release: `https://github.com/rubystarashe/nogirem/releases/tag/v0.4.11`, Latest
+- installer: `8,022,172 bytes; SHA-256 3fcfea1db2b0957e4917c25455d259d782871ea1dfdd1279542aae92e678d908`
+- portable: `7,797,477 bytes; SHA-256 f148b223da5e927dfa6787654e077734e3f366b1a46c5a4dc891f12c37f91cf3`
+- verification: `Node 216/216, package·signing PASS, 공개 9/9 재다운로드 hash, Ed25519 manifests, aliases와 Electron 0.3.19 routing PASS`
+- commit_push_tag: `origin/main 5601014 push, annotated v0.4.11 push, release records commit push`
+- not_run: `실제 설치·제거·포터블 실행·버전 간 자동 업데이트·제보 PC`
+- evidence: `evidence/public-release.md`

@@ -2,25 +2,25 @@
 
 - record_id: `FEATURE-MAP-NOGIREM-001`
 - owner: `nogirem maintainer`
-- revision: `48`
-- updated_at: `2026-11-07T17:43:00Z`
+- revision: `49`
+- updated_at: `2026-11-07T18:05:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-11-07T17:43:00Z`
+- source_reviewed_at: `2026-11-07T18:05:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `545ec1767e03745bc598cc90c48f38ed484db987`
-- source_review_evidence: `0.4.11 version/history, DXVK·network source와 signed package inputs SELF_REVIEW`
-- behavior_verified_at: `2026-11-07T17:43:00Z`
+- source_review_target: `560101450b8cd74a5fee414183d0ebf5a10b194a; annotated v0.4.11`
+- source_review_evidence: `사용자 0.4.11 history, DXVK·network source와 signed release assembly SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T18:05:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source 545ec1767e03745bc598cc90c48f38ed484db987; release/dioxus-0.4.11-2026-11-07T17-37-53-373Z`
-- behavior_verification_environment: `Windows 10.0.26200 x64, locked source checks와 local signed package`
-- behavior_verification_evidence: `docs/ai/runs/20261108-package-0411/qa.md; evidence/package.md`
+- behavior_verification_target: `source 560101450b8cd74a5fee414183d0ebf5a10b194a; GitHub public v0.4.11`
+- behavior_verification_environment: `Windows 10.0.26200 x64 package QA와 GitHub public Release 재다운로드`
+- behavior_verification_evidence: `docs/ai/runs/20261108-package-0411/qa.md; evidence/public-release.md`
 - freshness_status: `CURRENT`
-- freshness_reason: `committed 0.4.11 source와 signed local package의 version·payload·signature를 재검증함`
+- freshness_reason: `public Latest v0.4.11 signed assets가 committed source와 일치함`
 - known_gaps: `Hojoring·지원김·zero 제보 PC의 실제 재설치, Kaspersky·ACL 환경, 설치·업데이트 종단간은 NOT_RUN`
-- feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING — 0.4.11 package; FEAT-NOGIREM-UPDATE-LIFECYCLE — signed local artifacts`
-- feature_map: `updated — canonical 48, DXVK 3, network 3, update 16`
-- architecture_impact: `DXVK·network fixes의 signed package payload와 manifest boundary`
-- architecture_contract: `updated — revision 52`
+- feature_impact: `FEAT-NOGIREM-DXVK, FEAT-NOGIREM-NETWORK-FASTPING — public 0.4.11; FEAT-NOGIREM-UPDATE-LIFECYCLE — public signed release`
+- feature_map: `updated — canonical 49, DXVK 3, network 3, update 17`
+- architecture_impact: `signed package와 GitHub release/update feed 경계 실행`
+- architecture_contract: `updated — revision 53`
 
 ## ID 할당
 
@@ -356,22 +356,22 @@
 - observability: update 상태·진행률·error, 보호 cache bootstrap log, `result.json`, `healthy.json`.
 - architecture: [`agent-friendly-architecture.md`](agent-friendly-architecture.md), [`portable-distribution.md`](portable-distribution.md).
 - owner: `release/update owner`
-- revision: `16`
-- updated_at: `2026-11-07T17:43:00Z`
+- revision: `17`
+- updated_at: `2026-11-07T18:05:00Z`
 - updated_by: `cursor-agent-92251f36`
-- source_reviewed_at: `2026-11-07T17:43:00Z`
+- source_reviewed_at: `2026-11-07T18:05:00Z`
 - source_reviewed_by: `cursor-agent-92251f36`
-- source_review_target: `545ec1767e03745bc598cc90c48f38ed484db987`
-- source_review_evidence: `0.4.11 manifests·locks, package script, local Ed25519 manifests SELF_REVIEW`
-- behavior_verified_at: `2026-11-07T17:43:00Z`
+- source_review_target: `560101450b8cd74a5fee414183d0ebf5a10b194a; annotated v0.4.11`
+- source_review_evidence: `0.4.11 manifests·locks, package script, Ed25519 manifests와 9-asset release assembly SELF_REVIEW`
+- behavior_verified_at: `2026-11-07T18:05:00Z`
 - behavior_verified_by: `cursor-agent-92251f36`
-- behavior_verification_target: `source 545ec1767e03745bc598cc90c48f38ed484db987; release/dioxus-0.4.11-2026-11-07T17-37-53-373Z`
-- behavior_verification_environment: `Windows 10.0.26200 x64 local signed package QA`
-- behavior_verification_evidence: `backend 137 PASS·3 ignored와 parity 2/2, desktop 8/8, Node 216/216, native integration 3/3, signed package·payload hash·Ed25519 manifests PASS`
+- behavior_verification_target: `source 560101450b8cd74a5fee414183d0ebf5a10b194a; GitHub public v0.4.11`
+- behavior_verification_environment: `Windows 10.0.26200 x64 package QA와 GitHub public Release 재다운로드`
+- behavior_verification_evidence: `Node 216/216, 545ec17 backend 137·desktop 8·native 3 결과의 history-only 재사용 판단, signed package와 공개 9/9 hash·Ed25519 manifests·byte-identical aliases·Electron 0.3.19 routing PASS`
 - freshness_status: `CURRENT`
-- freshness_reason: `0.4.11 committed source에서 local signed installer·portable과 manifests를 검증했다. public Latest는 여전히 v0.4.10이다.`
-- known_gaps: `실제 0.4.11 설치·제거·포터블 실행·버전 간 자동 업데이트와 public release는 NOT_RUN.`
-- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — signed local 0.4.11 artifacts`
-- feature_map: `updated — revision 16`
-- architecture_impact: `package signing과 local Rust update manifests; public routing 불변`
-- architecture_contract: `updated — revision 52`
+- freshness_reason: `public Latest v0.4.11 signed asset set과 update routing을 재다운로드 검증했다.`
+- known_gaps: `실제 0.4.11 설치·제거·포터블 실행과 버전 간 자동 업데이트는 NOT_RUN.`
+- feature_impact: `FEAT-NOGIREM-UPDATE-LIFECYCLE — public signed 0.4.11 release와 update routing`
+- feature_map: `updated — revision 17`
+- architecture_impact: `package signing·GitHub Release·Rust/Electron update routing`
+- architecture_contract: `updated — revision 53`
